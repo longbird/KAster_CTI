@@ -1,0 +1,9 @@
+{
+  "name": "kaster-cti-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Placeholder package for KAster CTI server",
+  "scripts": {
+    "start": "echo 'server files not added yet'"
+  }
+}
