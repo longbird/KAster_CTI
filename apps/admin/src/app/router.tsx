@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/AppLayout';
 import { AdminDashboardPage } from '../features/dashboard/components/AdminDashboardPage';
 import { AgentsPage } from '../pages/AgentsPage';
+import { AsteriskConfigPage } from '../pages/AsteriskConfigPage';
 import { MonitoringPage } from '../pages/MonitoringPage';
 import { QueuesPage } from '../pages/QueuesPage';
 
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
       { path: 'queues', element: <QueuesPage /> },
       { path: 'agents', element: <AgentsPage /> },
       { path: 'monitoring', element: <MonitoringPage /> },
+      { path: 'asterisk', element: <AsteriskConfigPage /> },
     ],
   },
 ]);
