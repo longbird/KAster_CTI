@@ -1,5 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // node:22-slim 은 OpenSSL 3.x 만 내장. Prisma 의 자동 감지가 실패하는
+  // 환경 대비 명시적으로 debian-openssl-3.0.x 엔진을 포함시킨다.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -16,18 +19,20 @@ model tenants {
   createdAt    DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @db.Timestamptz(6)
 
-  agents       agents[]
-  queues       queues[]
-  customers    customers[]
-  callSessions callSessions[]
-  callLegs     callLegs[]
-  queueEvents  queueEvents[]
-  callMemos    callMemos[]
-  callTransfers callTransfers[]
-  rawAmiEvents rawAmiEvents[]
-  eventOutbox  eventOutbox[]
+  agents               agents[]
+  queues               queues[]
+  customers            customers[]
+  callSessions         callSessions[]
+  callLegs             callLegs[]
+  queueEvents          queueEvents[]
+  callMemos            callMemos[]
+  callTransfers        callTransfers[]
+  callRecordings       callRecordings[]
+  agentStatusHistory   agentStatusHistory[]
+  rawAmiEvents         rawAmiEvents[]
+  eventOutbox          eventOutbox[]
   attendedTransferCandidates attendedTransferCandidates[]
-  refreshTokens refreshTokens[]
+  refreshTokens        refreshTokens[]
 }
 
 model agents {

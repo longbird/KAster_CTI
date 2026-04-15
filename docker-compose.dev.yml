@@ -49,7 +49,7 @@ services:
       retries: 10
 
   server:
-    image: node:22-alpine
+    image: node:22
     container_name: kaster-server
     restart: unless-stopped
     working_dir: /app
@@ -85,6 +85,11 @@ services:
       - "3000:3000"
     # 최초 기동 시: deps 설치 → prisma generate → migrate deploy → seed → watch 시작
     # 이후 restart 시에는 deps/migration 이 이미 되어있어 빨리 넘어감.
+    # node:22 (full Debian bookworm) 는 OpenSSL 3 내장 — Prisma 엔진 호환 문제 없음.
+    # 개발용: migrate deploy 대신 db push 로 schema 직접 동기화.
+    # init/ops_followup 마이그레이션 SQL 이 schema.prisma 와 네이밍 불일치
+    # (snake_case vs camelCase) 라 dev 에서는 history 우회가 낫다. 운영 배포
+    # 시엔 migrate generate → migrate deploy 로 다시 정식화 필요.
     command: >
       sh -c "
         if [ ! -d node_modules/@nestjs ]; then
@@ -92,13 +97,13 @@ services:
           npm install;
         fi &&
         npx prisma generate &&
-        npx prisma migrate deploy &&
+        npx prisma db push --accept-data-loss --skip-generate &&
         (npx ts-node prisma/seed.ts || echo 'seed already applied') &&
         npm run start:dev
       "
 
   web:
-    image: node:22-alpine
+    image: node:22
     container_name: kaster-web
     restart: unless-stopped
     working_dir: /app
@@ -123,7 +128,7 @@ services:
       "
 
   admin:
-    image: node:22-alpine
+    image: node:22
     container_name: kaster-admin
     restart: unless-stopped
     working_dir: /app
