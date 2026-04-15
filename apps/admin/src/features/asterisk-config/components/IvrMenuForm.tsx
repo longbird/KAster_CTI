@@ -1,6 +1,8 @@
 import { Button, Form, Input, InputNumber, Modal, Space, Table } from 'antd';
 import { useEffect, useState } from 'react';
-import type { AsteriskIvrEntry, AsteriskIvrMenu } from '../types/asterisk-config';
+import type { AsteriskIvrMenu } from '../types/asterisk-config';
+
+type EntryRow = { _key: string; digit: string; label: string; queueName: string };
 
 interface Props {
   open: boolean;
@@ -11,43 +13,45 @@ interface Props {
 
 export function IvrMenuForm({ open, initial, onOk, onCancel }: Props) {
   const [form] = Form.useForm();
-  const [entries, setEntries] = useState<AsteriskIvrEntry[]>([]);
+  const [entries, setEntries] = useState<EntryRow[]>([]);
 
   useEffect(() => {
     if (!open) return;
     form.setFieldsValue(initial ?? { timeoutSecs: 5 });
-    setEntries(initial?.entries.map(e => ({ digit: e.digit, label: e.label, queueName: e.queueName })) ?? []);
+    setEntries(
+      initial?.entries.map(e => ({ _key: crypto.randomUUID(), digit: e.digit, label: e.label, queueName: e.queueName })) ?? []
+    );
   }, [open, initial, form]);
 
-  const addEntry = () => setEntries(prev => [...prev, { digit: '', label: '', queueName: '' }]);
-  const updateEntry = (i: number, field: keyof AsteriskIvrEntry, value: string) =>
+  const addEntry = () => setEntries(prev => [...prev, { _key: crypto.randomUUID(), digit: '', label: '', queueName: '' }]);
+  const updateEntry = (i: number, field: keyof Omit<EntryRow, '_key'>, value: string) =>
     setEntries(prev => prev.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
   const removeEntry = (i: number) => setEntries(prev => prev.filter((_, idx) => idx !== i));
 
   const handleOk = async () => {
     const vals = await form.validateFields();
-    onOk({ ...vals, entries });
+    onOk({ ...vals, entries: entries.map(({ _key: _, ...e }) => e) });
   };
 
   const entryCols = [
     {
       title: 'DTMF 키', dataIndex: 'digit', width: 90,
-      render: (v: string, _: AsteriskIvrEntry, i: number) =>
+      render: (v: string, _: EntryRow, i: number) =>
         <Input value={v} onChange={e => updateEntry(i, 'digit', e.target.value)} style={{ width: 60 }} maxLength={1} />,
     },
     {
       title: '표시명', dataIndex: 'label',
-      render: (v: string, _: AsteriskIvrEntry, i: number) =>
+      render: (v: string, _: EntryRow, i: number) =>
         <Input value={v} onChange={e => updateEntry(i, 'label', e.target.value)} />,
     },
     {
       title: '큐 이름', dataIndex: 'queueName',
-      render: (v: string, _: AsteriskIvrEntry, i: number) =>
+      render: (v: string, _: EntryRow, i: number) =>
         <Input value={v} onChange={e => updateEntry(i, 'queueName', e.target.value)} placeholder="sales" />,
     },
     {
       title: '', width: 60,
-      render: (_: unknown, __: AsteriskIvrEntry, i: number) =>
+      render: (_: unknown, __: EntryRow, i: number) =>
         <Button size="small" danger onClick={() => removeEntry(i)}>삭제</Button>,
     },
   ];
@@ -79,7 +83,7 @@ export function IvrMenuForm({ open, initial, onOk, onCancel }: Props) {
         size="small"
         dataSource={entries}
         columns={entryCols}
-        rowKey={(_, i) => String(i)}
+        rowKey={(row) => row._key}
         pagination={false}
       />
     </Modal>

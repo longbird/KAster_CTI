@@ -1,4 +1,4 @@
-import { Form, Input, Modal, Radio, Select, Switch } from 'antd';
+import { Form, Input, Modal, notification, Radio, Select, Switch } from 'antd';
 import { useEffect, useState } from 'react';
 import { getIvrMenus } from '../api/asteriskConfigApi';
 import type { AsteriskDid, AsteriskIvrMenu } from '../types/asterisk-config';
@@ -17,7 +17,9 @@ export function DidForm({ open, initial, onOk, onCancel }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    getIvrMenus().then(setMenus).catch(() => {});
+    getIvrMenus().then(setMenus).catch(() => {
+      notification.warning({ message: 'IVR 메뉴 목록을 불러오지 못했습니다' });
+    });
     const m = initial?.ivrMenuId ? 'ivr' : 'queue';
     setMode(m);
     form.setFieldsValue({ ...initial, _mode: m, enabled: initial?.enabled ?? true });
