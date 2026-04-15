@@ -56,9 +56,9 @@ export function useHealthData({ intervalMs = 10_000 }: UseHealthDataOptions = {}
     }
 
     try {
-      const res = await axios.get<HealthResponse>(`${API_BASE_URL}/health`);
+      const res = await axios.get<{ success: boolean; data: HealthResponse; error: null }>(`${API_BASE_URL}/health`);
       if (!activeRef.current) return;
-      setData(res.data);
+      setData(res.data.data);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {

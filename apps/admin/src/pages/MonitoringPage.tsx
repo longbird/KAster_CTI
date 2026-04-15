@@ -16,28 +16,28 @@ function AlertBanners({ data }: { data: ReturnType<typeof useHealthData>['data']
     alerts.push({
       key: 'infra-down',
       type: 'error',
-      message: '위험: 인프라 다운 감지 — DB 또는 Redis 응답 없음',
+      message: '🔴 위험: 인프라 다운 감지 — DB 또는 Redis 응답 없음',
     });
   }
   if (data.checks.ami === 'disconnected') {
     alerts.push({
       key: 'ami-down',
       type: 'error',
-      message: '위험: AMI 연결 끊김 — 콜 이벤트 수신 불가',
+      message: '🔴 위험: AMI 연결 끊김 — 콜 이벤트 수신 불가',
     });
   }
   if (data.call.stuck > 0) {
     alerts.push({
       key: 'stuck',
       type: 'warning',
-      message: `경고: 10분 이상 상태 변경 없는 콜 ${data.call.stuck}건`,
+      message: `⚠ 경고: 10분 이상 상태 변경 없는 콜 ${data.call.stuck}건`,
     });
   }
   if (data.call.longestWaitingSeconds > 300) {
     alerts.push({
       key: 'wait',
       type: 'warning',
-      message: `경고: 최장 대기 ${data.call.longestWaitingSeconds}초 — 임계값(5분) 초과`,
+      message: `⚠ 경고: 최장 대기 ${data.call.longestWaitingSeconds}초 — 임계값(5분) 초과`,
     });
   }
 
