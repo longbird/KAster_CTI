@@ -1,6 +1,7 @@
 import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
 import {
   DashboardOutlined,
+  DesktopOutlined,
   LogoutOutlined,
   NotificationOutlined,
   TeamOutlined,
@@ -31,6 +32,7 @@ export function AppLayout() {
             { key: '/dashboard', icon: <DashboardOutlined />, label: '대시보드' },
             { key: '/queues', icon: <NotificationOutlined />, label: '큐 현황' },
             { key: '/agents', icon: <TeamOutlined />, label: '상담원' },
+            { key: '/monitoring', icon: <DesktopOutlined />, label: '시스템 모니터링' },
           ]}
           onClick={({ key }) => navigate(key as string)}
         />
