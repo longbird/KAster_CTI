@@ -1,0 +1,153 @@
+import { apiClient } from './apiClient';
+import { useAuthStore } from '../store/useAuthStore';
+import type {
+  ActiveCall,
+  AgentSession,
+  AgentStatusCode,
+  ApiResponse,
+  CallHistoryItem,
+  QueueSummary,
+} from '../types/cti';
+
+// 백엔드 응답을 프론트 타입으로 어댑트하는 얇은 레이어.
+// 백엔드 DTO 형태가 변하면 여기만 고치면 된다.
+
+export async function login(params: { loginId: string; password: string; extension: string }) {
+  const res = await apiClient.post('/auth/login', params);
+  const data = res.data?.data;
+  if (!data?.accessToken) {
+    throw new Error('Invalid login response');
+  }
+  useAuthStore.getState().setTokens({
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    agent: data.agent,
+  });
+  return data;
+}
+
+export async function logout() {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (refreshToken) {
+    try {
+      await apiClient.post('/auth/logout', { refreshToken });
+    } catch {
+      // 멱등. 실패해도 로컬 상태는 정리.
+    }
+  }
+  useAuthStore.getState().clear();
+}
+
+export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
+  const res = await apiClient.get('/me/session');
+  const agent = res.data?.data?.agent;
+  // 현재 백엔드는 오늘 통계를 /agents/:id 에 노출. 기본값은 0 으로 채운다.
+  const session: AgentSession = {
+    agentId: agent?.agentId ?? '',
+    agentName: agent?.agentName ?? '',
+    extension: agent?.extension ?? '',
+    statusCode: (agent?.currentStatus?.statusCode as AgentStatusCode) ?? 'AVAILABLE',
+    todayAnswered: 0,
+    todayMissed: 0,
+    todayTalkSeconds: 0,
+  };
+
+  // 오늘 통계 보강 — agents/:id
+  try {
+    const detail = await apiClient.get(`/agents/${session.agentId}`);
+    const stats = detail.data?.data?.todayStats;
+    if (stats) {
+      session.todayAnswered = stats.answered ?? 0;
+      session.todayTalkSeconds = stats.totalTalkSeconds ?? 0;
+    }
+  } catch {
+    // 오늘 통계 실패해도 기본 0 으로 진행
+  }
+
+  return { success: true, data: session, error: null };
+}
+
+export async function getQueuesSummary(): Promise<ApiResponse<QueueSummary[]>> {
+  const res = await apiClient.get('/queues/summary');
+  const raw: any[] = res.data?.data?.queues ?? [];
+  const data: QueueSummary[] = raw.map((q) => ({
+    queueId: q.queueId,
+    queueName: q.queueDisplayName ?? q.queueName,
+    waitingCount: q.waiting ?? 0,
+    talkingCount: q.talking ?? 0,
+    availableAgents: q.available ?? 0,
+    longestWaitSeconds: q.longestWaitSeconds ?? 0,
+  }));
+  return { success: true, data, error: null };
+}
+
+export async function getActiveCalls(): Promise<ApiResponse<ActiveCall[]>> {
+  const res = await apiClient.get('/calls/active');
+  const raw: any[] = res.data?.data ?? [];
+  const data: ActiveCall[] = raw.map((c) => ({
+    callId: c.callId,
+    linkedid: c.linkedid,
+    ani: c.ani ?? '',
+    dnis: c.dnis ?? '',
+    queueName: c.queueName ?? '',
+    sessionStatus: c.sessionStatus,
+    startedAt: c.startedAt,
+    queuedAt: c.queuedAt ?? undefined,
+    answeredAt: c.answeredAt ?? undefined,
+    primaryAgentId: c.primaryAgentId ?? undefined,
+  }));
+  return { success: true, data, error: null };
+}
+
+export async function getCallHistory(): Promise<ApiResponse<CallHistoryItem[]>> {
+  // 백엔드에 아직 전용 history 엔드포인트가 없어 /calls/active 중 ENDED 만
+  // 보여주는 임시 구현. 후속으로 /me/recent-calls 같은 API 추가 필요.
+  return { success: true, data: [], error: null };
+}
+
+export async function updateAgentStatus(
+  statusCode: AgentStatusCode,
+): Promise<ApiResponse<{ statusCode: AgentStatusCode }>> {
+  const agentId = useAuthStore.getState().agent?.agentId;
+  if (!agentId) {
+    return { success: false, data: { statusCode }, error: 'No agent' as any };
+  }
+  await apiClient.post(`/agents/${agentId}/status`, { statusCode });
+  return { success: true, data: { statusCode }, error: null };
+}
+
+export async function saveCallMemo(
+  callId: string,
+  memo: string,
+  resultCode: string,
+): Promise<ApiResponse<{ callId: string; memo: string; resultCode: string }>> {
+  const agentId = useAuthStore.getState().agent?.agentId ?? '';
+  await apiClient.post(`/calls/${callId}/memo`, {
+    agentId,
+    memoType: 'acw',
+    memoText: memo,
+    resultCode,
+    isFinal: true,
+  });
+  return { success: true, data: { callId, memo, resultCode }, error: null };
+}
+
+export async function transferCall(
+  callId: string,
+  target: string,
+): Promise<ApiResponse<{ callId: string; target: string; requestedAt: string }>> {
+  const extension = useAuthStore.getState().agent?.extension ?? '';
+  await apiClient.post(`/calls/${callId}/transfer`, {
+    transferType: 'blind',
+    target,
+    fromExtension: extension,
+  });
+  return { success: true, data: { callId, target, requestedAt: new Date().toISOString() }, error: null };
+}
+
+export async function hangupCall(
+  callId: string,
+): Promise<ApiResponse<{ callId: string; endedAt: string }>> {
+  await apiClient.post(`/calls/${callId}/hangup`);
+  return { success: true, data: { callId, endedAt: new Date().toISOString() }, error: null };
+}
