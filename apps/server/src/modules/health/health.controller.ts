@@ -1,100 +1,45 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { PrismaService } from '../../common/prisma.service';
-import { JwtAuthGuard } from '../../common/jwt-auth.guard';
-import { AmiConnectionService } from '../ami/ami-connection.service';
-import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
-import { RedisService } from '../redis/redis.service';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { HealthSummaryService } from './health-summary.service';
+import { HealthResponseDto } from './dto/health-response.dto';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-    private readonly ami: AmiConnectionService,
-    private readonly leader: AmiLeaderElectionService,
-  ) {}
+  constructor(private readonly healthSummary: HealthSummaryService) {}
 
-  // 기본 liveness: 인증 없이 LB/k8s 에서 폴링 가능.
   @Get()
-  @ApiOperation({ summary: '기본 헬스체크 (인증 없음)' })
-  async getHealth() {
-    let dbOk = false;
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      dbOk = true;
-    } catch {
-      dbOk = false;
-    }
+  @ApiOperation({
+    summary: '운영형 상태 모니터링',
+    description: 'DB/Redis/AMI + Call/Agent/Queue 요약 상태를 반환합니다.',
+  })
+  @ApiQuery({
+    name: 'tenantId',
+    required: false,
+    type: String,
+    description: '멀티테넌트: 특정 tenant 기준으로 콜/에이전트/큐 집계',
+  })
+  @ApiOkResponse({ type: HealthResponseDto })
+  async health(@Query('tenantId') tenantId?: string): Promise<HealthResponseDto> {
+    return this.healthSummary.getHealth(tenantId);
+  }
 
-    let redisOk = false;
-    try {
-      const ping = await this.redis.ping();
-      redisOk = ping === 'PONG';
-    } catch {
-      redisOk = false;
-    }
-
-    const healthy = dbOk && redisOk;
+  // k8s readinessProbe 용: DB + Redis 가 살아있으면 ready
+  @Get('ready')
+  @ApiOperation({ summary: 'Readiness probe' })
+  async readiness() {
+    const data = await this.healthSummary.getHealth();
     return {
-      success: true,
-      data: {
-        status: healthy ? 'ok' : 'degraded',
-        db: dbOk,
-        redis: redisOk,
-        amiConnected: this.ami.isConnected(),
-        isLeader: this.leader.isLeader(),
-        timestamp: new Date().toISOString(),
-      },
+      success: data.status !== 'down',
+      data: { ready: data.checks.db === 'up' && data.checks.redis !== 'down' },
       error: null,
     };
   }
 
-  // 운영 지표: 인증 필요. Grafana/Prometheus scrape 이 아니라 개발/디버깅 용도.
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Get('detailed')
-  @ApiOperation({ summary: '상세 운영 지표 (JWT 필요)' })
-  async getDetailedHealth() {
-    const [outboxBacklog, staleSessions, recentRawEvents] = await Promise.all([
-      this.prisma.eventOutbox.count({ where: { publishedAt: null } }),
-      this.prisma.callSessions.count({
-        where: {
-          sessionStatus: { notIn: ['ENDED'] },
-          updatedAt: { lt: new Date(Date.now() - 10 * 60_000) },
-        },
-      }),
-      this.prisma.rawAmiEvents.findFirst({
-        orderBy: { eventTime: 'desc' },
-        select: { eventTime: true, eventName: true },
-      }),
-    ]);
-
-    const amiLastEventAt = recentRawEvents?.eventTime?.toISOString() ?? null;
-    const amiLagSeconds = recentRawEvents?.eventTime
-      ? Math.floor((Date.now() - recentRawEvents.eventTime.getTime()) / 1000)
-      : null;
-
-    // AmiConnectionService 런타임 메모리 스냅샷 (재접속 카운트 등 DB 에 없는 값)
-    const amiSnapshot = this.ami.getHealth();
-
-    return {
-      success: true,
-      data: {
-        status: 'ok',
-        isLeader: this.leader.isLeader(),
-        ami: {
-          ...amiSnapshot,
-          dbLastEventAt: amiLastEventAt,
-          dbLastEventName: recentRawEvents?.eventName ?? null,
-          dbLagSeconds: amiLagSeconds,
-        },
-        outboxBacklog,
-        staleSessions,
-        timestamp: new Date().toISOString(),
-      },
-      error: null,
-    };
+  // k8s livenessProbe 용: 프로세스가 살아있으면 OK
+  @Get('live')
+  @ApiOperation({ summary: 'Liveness probe' })
+  liveness() {
+    return { success: true, data: { alive: true }, error: null };
   }
 }

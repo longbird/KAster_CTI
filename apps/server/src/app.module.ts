@@ -14,10 +14,12 @@ import { EventsModule } from './modules/events/events.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { SessionRecoveryModule } from './modules/session-recovery/session-recovery.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    MonitoringModule,
     RedisModule,
     EventsModule,
     OutboxModule,

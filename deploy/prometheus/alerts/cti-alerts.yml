@@ -1,0 +1,76 @@
+groups:
+  - name: cti-infra
+    rules:
+      - alert: CtiAppDown
+        expr: cti_app_health_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CTI 앱 다운"
+          description: "인스턴스 {{ $labels.instance_id }} 가 down 상태입니다."
+
+      - alert: CtiAppDegraded
+        expr: cti_app_health_status == 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CTI 앱 degraded"
+          description: "인스턴스 {{ $labels.instance_id }} 가 degraded 상태입니다."
+
+      - alert: AmiDisconnected
+        expr: cti_infra_status{component="ami"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "AMI 연결 끊김"
+          description: "인스턴스 {{ $labels.instance_id }} AMI 연결이 끊겼습니다."
+
+      - alert: RedisDown
+        expr: cti_infra_status{component="redis"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis 불가"
+          description: "인스턴스 {{ $labels.instance_id }} Redis 가 응답하지 않습니다."
+
+      - alert: DatabaseDown
+        expr: cti_infra_status{component="db"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "DB 불가"
+          description: "인스턴스 {{ $labels.instance_id }} DB 가 응답하지 않습니다."
+
+  - name: cti-calls
+    rules:
+      - alert: StuckCallsDetected
+        expr: cti_calls_stuck_total > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stuck 콜 감지"
+          description: "인스턴스 {{ $labels.instance_id }} 에 10분 이상 상태 변화 없는 콜이 {{ $value }}건 있습니다."
+
+      - alert: QueueLongestWaitHigh
+        expr: cti_queue_longest_wait_seconds > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "큐 최장 대기 시간 초과"
+          description: "인스턴스 {{ $labels.instance_id }} 큐 최장 대기 {{ $value }}초 (기준: 60초)"
+
+      - alert: AvailableAgentsTooLow
+        expr: cti_agents_available_total < 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "가용 상담원 부족"
+          description: "인스턴스 {{ $labels.instance_id }} 가용 상담원이 {{ $value }}명으로 임계값(2명) 미만입니다."

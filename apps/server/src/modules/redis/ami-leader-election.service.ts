@@ -41,4 +41,8 @@ export class AmiLeaderElectionService implements OnModuleInit {
   isLeader() {
     return this.isLeaderNode;
   }
+
+  getNodeId() {
+    return this.nodeId;
+  }
 }
