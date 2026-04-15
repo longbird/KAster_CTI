@@ -7,6 +7,7 @@ import { QueueSummaryTable } from './QueueSummaryTable';
 import { TeamStatusTable } from './TeamStatusTable';
 import { ActiveCallsTable } from './ActiveCallsTable';
 import { AlertsPanel } from './AlertsPanel';
+import { InfraStatusBar } from '../../monitoring/components/InfraStatusBar';
 
 export function AdminDashboardPage() {
   const { data, loading } = useDashboardData();
@@ -29,6 +30,8 @@ export function AdminDashboardPage() {
           <Tag color="geekblue">queue.summary.updated / agent.status.changed / call.updated</Tag>
         </Space>
       </Card>
+
+      <InfraStatusBar />
 
       <KpiCards items={data.kpis} />
 
