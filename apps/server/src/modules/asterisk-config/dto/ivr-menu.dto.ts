@@ -9,9 +9,9 @@ export class IvrEntryDto {
 
 export class CreateIvrMenuDto {
   @IsString() name: string;
-  @IsString() @IsOptional() welcomePrompt?: string;
-  @IsString() @IsOptional() menuPrompt?: string;
-  @IsInt() @Min(1) @IsOptional() timeoutSecs?: number;
+  @IsOptional() @IsString() welcomePrompt?: string;
+  @IsOptional() @IsString() menuPrompt?: string;
+  @IsOptional() @IsInt() @Min(1) timeoutSecs?: number;
   @IsArray() @ValidateNested({ each: true }) @Type(() => IvrEntryDto) entries: IvrEntryDto[];
 }
 
