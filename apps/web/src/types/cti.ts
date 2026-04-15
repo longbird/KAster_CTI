@@ -92,3 +92,17 @@ export interface ApiResponse<T> {
   data: T;
   error: string | null;
 }
+
+export interface EventLogItem {
+  id: string;
+  timestamp: string;
+  type:
+    | 'call.created'
+    | 'call.updated'
+    | 'call.ended'
+    | 'screenpop.customer'
+    | 'agent.status.changed'
+    | 'queue.summary.updated'
+    | 'info';
+  message: string;
+}

@@ -1,9 +1,12 @@
 import { Layout, Space, Spin } from 'antd';
 import { useEffect, useMemo } from 'react';
+import { AcwPanel } from '../components/AcwPanel';
 import { ActionPanel } from '../components/ActionPanel';
 import { BottomPanels } from '../components/BottomPanels';
 import { CurrentCallPanel } from '../components/CurrentCallPanel';
+import { EventLogPanel } from '../components/EventLogPanel';
 import { HeaderBar } from '../components/HeaderBar';
+import { KpiPanel } from '../components/KpiPanel';
 import { ModeSwitch } from '../components/ModeSwitch';
 import { StatusPanel } from '../components/StatusPanel';
 import { useCtiStore } from '../store/useCtiStore';
@@ -54,10 +57,17 @@ export function FullShell() {
             <ModeSwitch />
           </Space>
 
+          <KpiPanel />
+
           <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[320px_minmax(0,1fr)_360px]">
             <StatusPanel currentStatus={agentSession?.statusCode} queues={queues} onChangeStatus={changeStatus} />
             <CurrentCallPanel call={selectedCall} />
             <ActionPanel call={selectedCall} onSaveMemo={saveMemo} onTransfer={transfer} onHangup={hangup} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <AcwPanel />
+            <EventLogPanel />
           </div>
 
           <BottomPanels history={recentHistory} notifications={notifications} />
