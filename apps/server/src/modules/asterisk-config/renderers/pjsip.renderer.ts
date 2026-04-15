@@ -76,9 +76,10 @@ function renderTrunk(trunk: TrunkInput): string {
 }
 
 function renderAgent(agent: AgentInput): string {
+  if (!agent.sipPassword) return '';
   assertNoNewlines(agent.extension, 'extension');
   assertNoNewlines(agent.agentName, 'agentName');
-  assertNoNewlines(agent.sipPassword as string, 'sipPassword');
+  assertNoNewlines(agent.sipPassword, 'sipPassword');
   return [
     `[${agent.extension}-auth]`,
     `type=auth`,
