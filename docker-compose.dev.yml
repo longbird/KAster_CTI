@@ -1,0 +1,154 @@
+# 개발용 compose — bind mount + hot reload + zero rebuild.
+#
+# 핵심 아이디어:
+#   - postgres/redis 는 공식 이미지 그대로 (build 없음)
+#   - server/web/admin 은 node:22-alpine 에 apps/<name> 을 bind mount 하고
+#     컨테이너 안에서 watch/HMR 모드 실행 → 로컬 파일 수정 시 즉시 반영
+#   - node_modules 는 named volume 으로 격리해서 host 의 선택적 node_modules
+#     와 충돌하지 않도록 함
+#   - 코드 수정 흐름: 로컬 편집 → rsync (변경 파일만) → 컨테이너 watcher 자동 감지
+#
+# 최초 기동:
+#   docker compose -f docker-compose.dev.yml up -d
+# 로그:
+#   docker compose -f docker-compose.dev.yml logs -f server
+# 종료:
+#   docker compose -f docker-compose.dev.yml down
+# DB/Redis 데이터까지 삭제:
+#   docker compose -f docker-compose.dev.yml down -v
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: kaster-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kaster_cti
+      POSTGRES_USER: kaster
+      POSTGRES_PASSWORD: kaster
+    ports:
+      - "5433:5432"   # host 5432 는 이미 점유되어 있을 수 있어 5433 으로 옮김
+    volumes:
+      - kaster_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kaster -d kaster_cti"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: kaster-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"   # 호스트 측만 6380 으로 노출, 컨테이너 내부 통신은 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    image: node:22-alpine
+    container_name: kaster-server
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://kaster:kaster@postgres:5432/kaster_cti?schema=public
+      JWT_SECRET: dev_secret_change_me_in_prod
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # AMI: 원격에 Asterisk 가 없으므로 reconnect 주기만 길게 해둠.
+      # 서버는 실패 로그만 쏟고 계속 동작.
+      AMI_HOST: 127.0.0.1
+      AMI_PORT: 5038
+      AMI_USERNAME: cti_middleware
+      AMI_SECRET: dummy
+      AMI_RECONNECT_MS: 60000
+      ASTERISK_NODE_ID: dev-node
+      ASTERISK_OUTBOUND_CONTEXT: outbound-main
+      SEED_DEMO_PASSWORD: Password123!
+      # CORS: web(5173)/admin(5174) + host 직접 접속 허용
+      REST_CORS_ORIGIN: "http://localhost:5173,http://localhost:5174,http://49.247.46.86:5173,http://49.247.46.86:5174"
+      WS_CORS_ORIGIN: "*"
+    volumes:
+      - ./apps/server:/app:cached
+      - kaster_server_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    # 최초 기동 시: deps 설치 → prisma generate → migrate deploy → seed → watch 시작
+    # 이후 restart 시에는 deps/migration 이 이미 되어있어 빨리 넘어감.
+    command: >
+      sh -c "
+        if [ ! -d node_modules/@nestjs ]; then
+          echo '>>> first-time npm install';
+          npm install;
+        fi &&
+        npx prisma generate &&
+        npx prisma migrate deploy &&
+        (npx ts-node prisma/seed.ts || echo 'seed already applied') &&
+        npm run start:dev
+      "
+
+  web:
+    image: node:22-alpine
+    container_name: kaster-web
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - server
+    environment:
+      VITE_API_BASE_URL: http://49.247.46.86:3000/api/v1
+      VITE_WS_URL: http://49.247.46.86:3000
+      VITE_USE_MOCK: "false"
+    volumes:
+      - ./apps/web:/app:cached
+      - kaster_web_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    command: >
+      sh -c "
+        if [ ! -d node_modules/vite ]; then
+          echo '>>> first-time npm install';
+          npm install;
+        fi &&
+        npm run dev -- --host 0.0.0.0 --port 5173
+      "
+
+  admin:
+    image: node:22-alpine
+    container_name: kaster-admin
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - server
+    environment:
+      VITE_API_BASE_URL: http://49.247.46.86:3000/api/v1
+      VITE_USE_MOCK: "false"
+      VITE_ACCESS_TOKEN_KEY: kaster.access_token
+    volumes:
+      - ./apps/admin:/app:cached
+      - kaster_admin_node_modules:/app/node_modules
+    ports:
+      - "5174:5173"
+    command: >
+      sh -c "
+        if [ ! -d node_modules/vite ]; then
+          echo '>>> first-time npm install';
+          npm install;
+        fi &&
+        npm run dev -- --host 0.0.0.0 --port 5173
+      "
+
+volumes:
+  kaster_postgres_data:
+  kaster_server_node_modules:
+  kaster_web_node_modules:
+  kaster_admin_node_modules:
