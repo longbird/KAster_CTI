@@ -1,0 +1,64 @@
+export type AgentStatus = 'AVAILABLE' | 'RINGING' | 'TALKING' | 'AFTER_CALL_WORK' | 'BREAK';
+
+export interface KpiItem {
+  key: string;
+  label: string;
+  value: string;
+  delta: string;
+  trend: 'up' | 'down' | 'flat';
+}
+
+export interface QueueSummaryItem {
+  queueName: string;
+  waiting: number;
+  talking: number;
+  availableAgents: number;
+  longestWaitSec: number;
+  answerRate: number;
+  abandoned: number;
+  slaBreached: number;
+}
+
+export interface AgentTeamSummaryItem {
+  teamName: string;
+  available: number;
+  ringing: number;
+  talking: number;
+  acw: number;
+  break: number;
+}
+
+export interface ActiveCallItem {
+  id: string;
+  queueName: string;
+  agentName: string;
+  customerPhone: string;
+  direction: 'inbound' | 'outbound';
+  waitingSec: number;
+  talkingSec: number;
+  status: 'QUEUED' | 'RINGING_AGENT' | 'TALKING' | 'TRANSFERRING';
+}
+
+export interface AlertItem {
+  id: string;
+  level: 'info' | 'warning' | 'error';
+  message: string;
+  time: string;
+}
+
+export interface HourlyTrafficItem {
+  hour: string;
+  inbound: number;
+  answered: number;
+  abandoned: number;
+}
+
+export interface DashboardData {
+  updatedAt: string;
+  kpis: KpiItem[];
+  queues: QueueSummaryItem[];
+  teams: AgentTeamSummaryItem[];
+  activeCalls: ActiveCallItem[];
+  alerts: AlertItem[];
+  traffic: HourlyTrafficItem[];
+}
