@@ -9,3 +9,7 @@ coverage/
 
 # ChatGPT share 원본 HTML 캐시 (재수집 가능, 레포 크기 관리 위해 제외)
 docs/chatgpt-archive/html/
+
+# 사용자 로컬 다운로드 스테이징 (ChatGPT sandbox 에서 받은 zip/pdf 임시 저장소).
+# 실제 프로젝트에 반영할 파일은 apps/, docs/, infra/ 로 이동한 뒤 커밋.
+download/
