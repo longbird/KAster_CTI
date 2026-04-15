@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -26,19 +26,19 @@ export class AsteriskConfigController {
   @Get('trunks') getTrunks(@CurrentUser() u: any) { return this.svc.getTrunks(u.tenantId); }
   @Post('trunks') createTrunk(@CurrentUser() u: any, @Body() dto: CreateTrunkDto) { return this.svc.createTrunk(u.tenantId, dto); }
   @Put('trunks/:id') updateTrunk(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkDto) { return this.svc.updateTrunk(u.tenantId, id, dto); }
-  @Delete('trunks/:id') @HttpCode(204) deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteTrunk(u.tenantId, id); }
+  @Delete('trunks/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteTrunk(u.tenantId, id); }
 
   // DIDs
   @Get('dids') getDids(@CurrentUser() u: any) { return this.svc.getDids(u.tenantId); }
   @Post('dids') createDid(@CurrentUser() u: any, @Body() dto: CreateDidDto) { return this.svc.createDid(u.tenantId, dto); }
   @Put('dids/:id') updateDid(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateDidDto) { return this.svc.updateDid(u.tenantId, id, dto); }
-  @Delete('dids/:id') @HttpCode(204) deleteDid(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteDid(u.tenantId, id); }
+  @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) deleteDid(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteDid(u.tenantId, id); }
 
   // IVR Menus
   @Get('ivr-menus') getIvrMenus(@CurrentUser() u: any) { return this.svc.getIvrMenus(u.tenantId); }
   @Post('ivr-menus') createIvrMenu(@CurrentUser() u: any, @Body() dto: CreateIvrMenuDto) { return this.svc.createIvrMenu(u.tenantId, dto); }
   @Put('ivr-menus/:id') updateIvrMenu(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateIvrMenuDto) { return this.svc.updateIvrMenu(u.tenantId, id, dto); }
-  @Delete('ivr-menus/:id') @HttpCode(204) deleteIvrMenu(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteIvrMenu(u.tenantId, id); }
+  @Delete('ivr-menus/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) deleteIvrMenu(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteIvrMenu(u.tenantId, id); }
 
   // Agent SIP
   @Get('agents-sip') getAgentSip(@CurrentUser() u: any) { return this.svc.getAgentSip(u.tenantId); }
