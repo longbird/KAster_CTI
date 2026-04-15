@@ -7,6 +7,7 @@ import { CurrentCallPanel } from '../components/CurrentCallPanel';
 import { EventLogPanel } from '../components/EventLogPanel';
 import { HeaderBar } from '../components/HeaderBar';
 import { KpiPanel } from '../components/KpiPanel';
+import { LogoutButton } from '../components/LogoutButton';
 import { ModeSwitch } from '../components/ModeSwitch';
 import { StatusPanel } from '../components/StatusPanel';
 import { useCtiStore } from '../store/useCtiStore';
@@ -54,7 +55,10 @@ export function FullShell() {
         <div className="space-y-4">
           <Space className="w-full justify-between">
             <HeaderBar session={agentSession} />
-            <ModeSwitch />
+            <Space>
+              <ModeSwitch />
+              <LogoutButton />
+            </Space>
           </Space>
 
           <KpiPanel />

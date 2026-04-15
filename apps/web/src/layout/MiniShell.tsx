@@ -1,6 +1,7 @@
 import { Card, Space, Spin, Tag, Typography } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { ActionPanel } from '../components/ActionPanel';
+import { LogoutButton } from '../components/LogoutButton';
 import { ModeSwitch } from '../components/ModeSwitch';
 import { useCtiStore } from '../store/useCtiStore';
 
@@ -46,7 +47,10 @@ export function MiniShell() {
         title={
           <Space className="w-full justify-between">
             <span className="text-xs text-slate-500">KAster CTI</span>
-            <ModeSwitch />
+            <Space>
+              <ModeSwitch />
+              <LogoutButton />
+            </Space>
           </Space>
         }
       >
