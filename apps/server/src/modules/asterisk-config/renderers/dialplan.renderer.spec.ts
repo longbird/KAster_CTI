@@ -59,4 +59,10 @@ describe('renderDialplan', () => {
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('07022222222'));
     spy.mockRestore();
   });
+
+  it('skips IVR menu with no entries in extensionsQueue', () => {
+    const emptyMenu = { id: 'm2', name: 'Empty Menu', welcomePrompt: null, menuPrompt: null, timeoutSecs: 5, entries: [] };
+    const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [emptyMenu] });
+    expect(extensionsQueue).toBe('');
+  });
 });

@@ -45,7 +45,10 @@ function toSlug(name: string): string {
 function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | null {
   if (did.ivrMenuId) {
     const menu = ivrMenus.find((m) => m.id === did.ivrMenuId);
-    if (!menu) return null;
+    if (!menu) {
+      console.warn(`[DialplanRenderer] DID ${did.did} references ivrMenuId ${did.ivrMenuId} but no matching menu found — skipped`);
+      return null;
+    }
     const slug = toSlug(menu.name);
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
@@ -85,7 +88,10 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     .filter((line): line is string => line !== null);
 
   const extensionsInbound = [`[inbound-main]`, ...didLines].join('\n\n');
-  const extensionsQueue = input.ivrMenus.map(renderIvrMenu).join('\n\n');
+  const extensionsQueue = input.ivrMenus
+    .filter((m) => m.entries.length > 0)
+    .map(renderIvrMenu)
+    .join('\n\n');
 
   return { extensionsInbound, extensionsQueue };
 }
