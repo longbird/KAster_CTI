@@ -58,7 +58,7 @@ export function FullShell() {
               plain flex 로 구성. */}
           <div className="flex w-full flex-wrap items-start gap-3">
             <div className="min-w-0 flex-1">
-              <HeaderBar session={agentSession} />
+              <HeaderBar session={agentSession} onChangeStatus={changeStatus} />
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <ModeSwitch />
@@ -69,7 +69,7 @@ export function FullShell() {
           <KpiPanel />
 
           <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[320px_minmax(0,1fr)_360px]">
-            <StatusPanel currentStatus={agentSession?.statusCode} queues={queues} onChangeStatus={changeStatus} />
+            <StatusPanel queues={queues} />
             <CurrentCallPanel call={selectedCall} />
             <ActionPanel call={selectedCall} onSaveMemo={saveMemo} onTransfer={transfer} onHangup={hangup} />
           </div>
