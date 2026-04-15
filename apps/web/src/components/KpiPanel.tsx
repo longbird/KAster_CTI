@@ -1,10 +1,3 @@
-import {
-  ClockCircleOutlined,
-  PhoneOutlined,
-  ThunderboltOutlined,
-  TrophyOutlined,
-} from '@ant-design/icons';
-import { Card } from 'antd';
 import { useCtiStore } from '../store/useCtiStore';
 
 function formatSeconds(sec: number): string {
@@ -14,37 +7,67 @@ function formatSeconds(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-interface KpiTileProps {
-  icon: React.ReactNode;
+interface TileProps {
   label: string;
   value: string | number;
   suffix?: string;
-  tone: 'blue' | 'amber' | 'emerald' | 'rose';
+  delta?: { value: string; tone: 'ok' | 'warn' | 'neutral' };
+  accent?: boolean;
+  waveform?: boolean;
 }
 
-function KpiTile({ icon, label, value, suffix, tone }: KpiTileProps) {
-  const tones = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    rose: 'bg-rose-50 text-rose-600 border-rose-100',
-  } as const;
-
+function KpiTile({ label, value, suffix, delta, accent, waveform }: TileProps) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white p-3">
-      <div
-        className={`flex h-10 w-10 items-center justify-center rounded-lg border ${tones[tone]}`}
+    <div
+      className={`rounded-lg p-6 ${
+        accent
+          ? 'border-l-4 border-primary bg-surface-container-lowest'
+          : 'bg-surface-container-lowest'
+      } shadow-panel`}
+    >
+      <p
+        className={`mb-2 text-[10px] font-bold uppercase tracking-widest ${
+          accent ? 'text-primary' : 'text-on-surface-variant'
+        }`}
       >
-        <span className="text-lg">{icon}</span>
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-          {label}
-        </div>
-        <div className="text-xl font-semibold text-slate-800">
+        {label}
+      </p>
+      <div className="flex items-baseline gap-2">
+        <span
+          className={`font-headline text-3xl font-bold ${accent ? 'text-primary' : 'text-on-surface'}`}
+        >
           {value}
-          {suffix && <span className="ml-1 text-sm font-medium text-slate-400">{suffix}</span>}
-        </div>
+        </span>
+        {suffix && <span className="text-xs font-medium text-outline">{suffix}</span>}
+        {delta && (
+          <span
+            className={`text-xs font-bold ${
+              delta.tone === 'ok'
+                ? 'text-tertiary'
+                : delta.tone === 'warn'
+                ? 'text-error'
+                : 'text-outline'
+            }`}
+          >
+            {delta.value}
+          </span>
+        )}
+        {waveform && (
+          <div className="ml-auto flex h-4 items-end gap-1">
+            <div
+              className="waveform-bar w-1 rounded-full bg-primary"
+              style={{ animationDelay: '0.1s' }}
+            />
+            <div
+              className="waveform-bar w-1 rounded-full bg-primary"
+              style={{ animationDelay: '0.3s' }}
+            />
+            <div
+              className="waveform-bar w-1 rounded-full bg-primary"
+              style={{ animationDelay: '0.2s' }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -63,39 +86,20 @@ export function KpiPanel() {
       : 0;
 
   return (
-    <Card
-      className="rounded-2xl border border-slate-200/70 shadow-sm"
-      bodyStyle={{ padding: 16 }}
-    >
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiTile
-          icon={<TrophyOutlined />}
-          label="오늘 응답"
-          value={agentSession?.todayAnswered ?? 0}
-          suffix="건"
-          tone="emerald"
-        />
-        <KpiTile
-          icon={<ClockCircleOutlined />}
-          label="오늘 평균 통화"
-          value={formatSeconds(avgTalk)}
-          tone="blue"
-        />
-        <KpiTile
-          icon={<ThunderboltOutlined />}
-          label="현재 대기"
-          value={totalWaiting}
-          suffix="건"
-          tone="amber"
-        />
-        <KpiTile
-          icon={<PhoneOutlined />}
-          label="현재 통화"
-          value={totalTalking}
-          suffix="건"
-          tone="rose"
-        />
-      </div>
-    </Card>
+    <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
+      <KpiTile label="Today's Answered" value={agentSession?.todayAnswered ?? 0} />
+      <KpiTile label="Avg Talk Time" value={formatSeconds(avgTalk)} suffix="min" />
+      <KpiTile
+        label="Current Waiting"
+        value={String(totalWaiting).padStart(2, '0')}
+        accent
+        waveform
+      />
+      <KpiTile
+        label="Current Calls"
+        value={String(totalTalking).padStart(2, '0')}
+        delta={totalTalking > 5 ? { value: 'Peak', tone: 'warn' } : undefined}
+      />
+    </section>
   );
 }

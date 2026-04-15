@@ -1,31 +1,26 @@
-import { Layout, Spin } from 'antd';
+import { Spin } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { ControlPanel } from '../components/ControlPanel';
 import { CurrentCallPanel } from '../components/CurrentCallPanel';
 import { EventLogPanel } from '../components/EventLogPanel';
-import { HeaderBar } from '../components/HeaderBar';
 import { KpiPanel } from '../components/KpiPanel';
-import { LogoutButton } from '../components/LogoutButton';
-import { ModeSwitch } from '../components/ModeSwitch';
+import { SideNav } from '../components/SideNav';
 import { StatusPanel } from '../components/StatusPanel';
+import { TopAppBar } from '../components/TopAppBar';
 import { useCtiStore } from '../store/useCtiStore';
 
-const { Content } = Layout;
-
-// conv 13 Full 모드를 컴팩트하게 재구성.
-//   Row 1: HeaderBar + ModeSwitch + Logout
-//   Row 2: KpiPanel (compact KPI strip)
-//   Row 3: [StatusPanel + EventLogPanel (좌)] | CurrentCallPanel (중앙) | ControlPanel (우)
-// AcwPanel 과 BottomPanels 는 ControlPanel / EventLogPanel 로 흡수되어 제거.
+// "The Precision Curator" 풀 레이아웃.
+//   - fixed TopAppBar (h-16)
+//   - fixed SideNav (w-64)
+//   - main 은 ml-64 + pt-20. 내부는 스크롤 가능.
+//   - KPI bento → Active Call (hero) → Control (8) + [Queue + Events] (4)
 export function FullShell() {
   const {
     loading,
-    agentSession,
     queues,
     activeCalls,
     selectedCallId,
     init,
-    changeStatus,
     saveMemo,
     transfer,
     hangup,
@@ -42,51 +37,42 @@ export function FullShell() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-surface">
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <Layout className="min-h-screen bg-slate-50">
-      <Content className="mx-auto w-full max-w-[1800px] p-4 lg:p-6">
-        <div className="space-y-4">
-          {/* Row 1: Header */}
-          <div className="flex w-full flex-wrap items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <HeaderBar session={agentSession} onChangeStatus={changeStatus} />
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <ModeSwitch />
-              <LogoutButton />
-            </div>
-          </div>
+    <div className="min-h-screen bg-surface text-on-background">
+      <TopAppBar />
+      <SideNav />
 
-          {/* Row 2: KPI strip */}
+      <main className="ml-64 min-h-screen p-8 pt-24">
+        <div className="mx-auto max-w-7xl space-y-8">
+          {/* KPI Bento */}
           <KpiPanel />
 
-          {/* Row 3: 3-column workspace (반응형) */}
-          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)_380px]">
-            {/* 좌: 큐 + 이벤트 로그 */}
-            <div className="space-y-4">
+          {/* Active Call (전체 너비 hero) */}
+          <CurrentCallPanel call={selectedCall} onHangup={hangup} />
+
+          {/* 12-col grid: 좌 8 = Control / 우 4 = Queue + Events */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <ControlPanel
+                call={selectedCall}
+                onSaveMemo={saveMemo}
+                onTransfer={transfer}
+                onHangup={hangup}
+              />
+            </div>
+            <div className="space-y-6 lg:col-span-4">
               <StatusPanel queues={queues} />
               <EventLogPanel />
             </div>
-
-            {/* 중앙: 현재 통화 (hero) */}
-            <CurrentCallPanel call={selectedCall} />
-
-            {/* 우: 콜 제어 (상태 기반) */}
-            <ControlPanel
-              call={selectedCall}
-              onSaveMemo={saveMemo}
-              onTransfer={transfer}
-              onHangup={hangup}
-            />
           </div>
         </div>
-      </Content>
-    </Layout>
+      </main>
+    </div>
   );
 }

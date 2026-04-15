@@ -1,71 +1,63 @@
-import { TeamOutlined } from '@ant-design/icons';
-import { Card, Typography } from 'antd';
 import type { QueueSummary } from '../types/cti';
 
-interface StatusPanelProps {
+interface Props {
   queues: QueueSummary[];
 }
 
-// 좌측 패널. 상태 변경은 HeaderBar 의 Tag dropdown 으로 이동했고, 여기는
-// 큐 현황만 담당한다.
-export function StatusPanel({ queues }: StatusPanelProps) {
+// "The Precision Curator" queue status 패널.
+// - 카드 테두리 없음. surface-container-low 내부에 각 큐를 세로로.
+// - waiting 바 + longest wait + 가용 agents 배지.
+export function StatusPanel({ queues }: Props) {
   return (
-    <Card
-      title={
-        <span className="text-base font-semibold text-slate-800">
-          <TeamOutlined className="mr-2" />큐 대기 현황
-        </span>
-      }
-      className="rounded-2xl border border-slate-200/70 shadow-sm"
-      bodyStyle={{ padding: 16 }}
-    >
+    <div className="overflow-hidden rounded-lg bg-surface-container-lowest shadow-panel">
+      <div className="p-6">
+        <h4 className="font-headline text-base font-bold text-on-surface">Queue Status</h4>
+      </div>
       {queues.length === 0 ? (
-        <Typography.Text type="secondary">표시할 큐가 없습니다.</Typography.Text>
+        <div className="p-6 pt-0 text-sm text-outline">No queues to show.</div>
       ) : (
-        <div className="space-y-3">
-          {queues.map((q) => {
-            const saturation =
-              q.availableAgents > 0
-                ? Math.min(100, Math.round((q.waitingCount / q.availableAgents) * 40))
-                : q.waitingCount > 0
-                ? 100
-                : 0;
-            const stress =
-              q.waitingCount === 0
-                ? 'bg-emerald-500'
-                : q.waitingCount < 3
-                ? 'bg-amber-500'
-                : 'bg-rose-500';
+        <div>
+          {queues.map((q, idx) => {
+            const total = Math.max(1, q.availableAgents + q.talkingCount + q.waitingCount);
+            const percent = Math.min(100, Math.round((q.waitingCount / total) * 100));
+            const barColor =
+              q.waitingCount === 0 ? 'bg-tertiary' : q.waitingCount > 3 ? 'bg-error' : 'bg-primary';
+            const longestWaitColor = q.longestWaitSeconds > 30 ? 'text-error' : 'text-on-surface';
             return (
               <div
                 key={q.queueId}
-                className="rounded-xl border border-slate-200/80 bg-white p-3"
+                className={`p-6 ${idx !== queues.length - 1 ? 'pb-6' : ''}`}
+                style={idx !== queues.length - 1 ? { paddingBottom: 24 } : {}}
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <Typography.Text strong className="text-slate-800">
-                    {q.queueName}
-                  </Typography.Text>
-                  <Typography.Text type="secondary" className="text-xs">
-                    최대 대기 {q.longestWaitSeconds}s
-                  </Typography.Text>
-                </div>
-
-                {/* 스트레스 바 */}
-                <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full transition-all ${stress}`}
-                    style={{ width: `${saturation}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <StatChip label="대기" value={q.waitingCount} />
-                    <StatChip label="통화" value={q.talkingCount} />
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${barColor}`} />
+                    <span className="font-headline text-sm font-bold text-on-surface">
+                      {q.queueName}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1 text-emerald-600">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    가용 {q.availableAgents}
+                  <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-secondary-container">
+                    {q.availableAgents} Agents
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-on-surface-variant">Waiting</span>
+                    <span className="font-headline text-lg font-bold text-primary">
+                      {String(q.waitingCount).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high">
+                    <div
+                      className={`h-full transition-all ${barColor}`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-outline">Longest Wait</span>
+                    <span className={`text-xs font-bold ${longestWaitColor}`}>
+                      {formatWait(q.longestWaitSeconds)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -73,15 +65,13 @@ export function StatusPanel({ queues }: StatusPanelProps) {
           })}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
-function StatChip({ label, value }: { label: string; value: number }) {
-  return (
-    <span>
-      <span className="text-slate-400">{label}</span>{' '}
-      <span className="font-semibold text-slate-800">{value}</span>
-    </span>
-  );
+function formatWait(sec: number): string {
+  if (!sec || sec <= 0) return '00:00';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }

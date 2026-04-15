@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color: #0f172a;
-  background: #f8fafc;
+  color: #191c1d;
+  background: #f8f9fa;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -19,9 +19,101 @@ body,
 }
 
 body {
-  font-family: Inter, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: 'Inter', 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  background: #f8f9fa;
+  color: #191c1d;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Material Symbols 기본 변형 */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+}
+
+/* "Glass" 플로팅 패널 — 모달/드롭다운 배경 */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* 상태 펄스 — AVAILABLE tertiary 색 */
+.pulse-available {
+  box-shadow: 0 0 0 0 rgba(0, 84, 76, 0.4);
+  animation: pulse-green 2s infinite;
+}
+.pulse-busy {
+  box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.4);
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(0, 84, 76, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(0, 84, 76, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(0, 84, 76, 0);
+  }
+}
+@keyframes pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(186, 26, 26, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(186, 26, 26, 0);
+  }
+}
+
+/* 콜 라이브 중 파형 애니메이션 */
+.waveform-bar {
+  animation: waveform 1.2s ease-in-out infinite;
+}
+@keyframes waveform {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+/* 프라이머리 그라디언트 — CTA 버튼 기본 */
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #003fb1 0%, #1a56db 100%);
+  color: #ffffff;
+  transition: all 0.2s;
+}
+.btn-primary-gradient:hover {
+  opacity: 0.9;
+}
+.btn-primary-gradient:active {
+  transform: scale(0.97);
+}
+
+/* Antd 제어 — 디자인 시스템 톤에 맞춘 오버라이드 */
+.ant-btn {
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+.ant-card .ant-card-head {
+  border-bottom: none !important;
+}
+.ant-tag {
+  font-family: 'Inter', system-ui, sans-serif !important;
 }
