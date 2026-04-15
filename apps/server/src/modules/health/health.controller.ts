@@ -76,15 +76,20 @@ export class HealthController {
       ? Math.floor((Date.now() - recentRawEvents.eventTime.getTime()) / 1000)
       : null;
 
+    // AmiConnectionService 런타임 메모리 스냅샷 (재접속 카운트 등 DB 에 없는 값)
+    const amiSnapshot = this.ami.getHealth();
+
     return {
       success: true,
       data: {
         status: 'ok',
-        amiConnected: this.ami.isConnected(),
         isLeader: this.leader.isLeader(),
-        amiLastEventAt,
-        amiLastEventName: recentRawEvents?.eventName ?? null,
-        amiLagSeconds,
+        ami: {
+          ...amiSnapshot,
+          dbLastEventAt: amiLastEventAt,
+          dbLastEventName: recentRawEvents?.eventName ?? null,
+          dbLagSeconds: amiLagSeconds,
+        },
         outboxBacklog,
         staleSessions,
         timestamp: new Date().toISOString(),

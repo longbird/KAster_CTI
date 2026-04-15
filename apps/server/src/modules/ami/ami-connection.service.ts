@@ -2,8 +2,17 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Socket } from 'net';
 import { AmiEventNormalizerService } from './ami-event-normalizer.service';
+import { isAsteriskBanner, splitAmiFrames } from './ami.parser';
 import { SessionEngineService } from '../calls/session-engine.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
+
+export interface AmiHealthSnapshot {
+  connected: boolean;
+  loggedIn: boolean;
+  lastEventAt: string | null;
+  lastConnectAt: string | null;
+  reconnectCount: number;
+}
 
 @Injectable()
 export class AmiConnectionService implements OnModuleInit {
@@ -12,6 +21,9 @@ export class AmiConnectionService implements OnModuleInit {
   private connected = false;
   private loggedIn = false;
   private buffer = '';
+  private lastEventAt: Date | null = null;
+  private lastConnectAt: Date | null = null;
+  private reconnectCount = 0;
 
   constructor(
     private readonly config: ConfigService,
@@ -32,6 +44,7 @@ export class AmiConnectionService implements OnModuleInit {
     this.socket = new Socket();
     this.socket.connect(port, host, () => {
       this.connected = true;
+      this.lastConnectAt = new Date();
       this.logger.log(`AMI connected ${host}:${port}`);
       // 주의: 연결 직후 Login 을 쏘지 말 것. Asterisk 는 먼저 배너
       // "Asterisk Call Manager/x.y.z\r\n" 를 송신한 뒤에만 Action 을 받는다.
@@ -42,18 +55,19 @@ export class AmiConnectionService implements OnModuleInit {
       this.buffer += chunk.toString('utf8');
 
       // 배너는 ':' 없이 한 줄로 도착하므로 프레임 분리 전에 먼저 감지한다.
-      if (!this.loggedIn && this.buffer.includes('Asterisk Call Manager')) {
+      if (!this.loggedIn && isAsteriskBanner(this.buffer)) {
         this.login();
         this.loggedIn = true;
       }
 
-      let idx;
-      while ((idx = this.buffer.indexOf('\r\n\r\n')) >= 0) {
-        const raw = this.buffer.slice(0, idx);
-        this.buffer = this.buffer.slice(idx + 4);
+      const { frames, rest } = splitAmiFrames(this.buffer);
+      this.buffer = rest;
 
+      for (const raw of frames) {
         const normalized = this.normalizer.normalize(raw);
         if (!normalized?.eventName) continue;
+
+        this.lastEventAt = new Date();
 
         if (!this.leader.isLeader()) {
           // 리더가 아닌 노드는 TCP 연결은 유지해 장애 시 빠르게 takeover 할 수
@@ -67,6 +81,7 @@ export class AmiConnectionService implements OnModuleInit {
     this.socket.on('close', () => {
       this.connected = false;
       this.loggedIn = false;
+      this.reconnectCount += 1;
       this.logger.warn('AMI disconnected');
       setTimeout(
         () => this.connect(),
@@ -102,5 +117,16 @@ export class AmiConnectionService implements OnModuleInit {
 
   isConnected() {
     return this.connected;
+  }
+
+  // 운영용 스냅샷. HealthController.detailed 와 관리자 대시보드에서 사용.
+  getHealth(): AmiHealthSnapshot {
+    return {
+      connected: this.connected,
+      loggedIn: this.loggedIn,
+      lastEventAt: this.lastEventAt ? this.lastEventAt.toISOString() : null,
+      lastConnectAt: this.lastConnectAt ? this.lastConnectAt.toISOString() : null,
+      reconnectCount: this.reconnectCount,
+    };
   }
 }
