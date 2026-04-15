@@ -4,14 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 저장소 레이아웃
 
-모노레포 형태의 단일 트리입니다.
+모노레포 형태의 단일 트리입니다. 3개 앱은 각각 독립 Vite / Nest 프로젝트이며
+루트에는 workspace 툴이 없습니다 (`npm install` 을 각 앱 디렉터리에서 실행).
 
 ```
 apps/server/          NestJS + Prisma CTI 미들웨어 (백엔드)
-apps/web/             Vite + React + Tailwind + Antd 상담원 앱 (프론트엔드, 현재는 Mock API/WS 기반)
+apps/web/             Vite + React + Tailwind + Antd 상담원 앱
+apps/admin/           Vite + React + Antd 관리자 대시보드 (supervisor/admin 전용)
 infra/asterisk/       Asterisk PJSIP / Dialplan / Manager 설정 초안
 docs/                 기획·설계 PDF + ChatGPT 세션 분석 + 보조 설계 문서
-scripts/              운영 스크립트
+  docs/design/        보조 설계 MD (SIP Trunk, Hotlink, Ops 아키텍처)
+  docs/chatgpt-archive/ 46 세션 transcript + preview + extractor
+  docs/reference/     원본 PDF (합본, 제안서)
+scripts/              운영 스크립트 (push_to_github 등)
 docker-compose.yml    Postgres 16 + Redis 7 로컬 인프라
 ```
 
@@ -47,23 +52,50 @@ npm run prisma:migrate              # prisma migrate deploy 별칭
 - Swagger UI: `http://localhost:3000/docs`.
 - WebSocket namespace: `/ws` (`realtime.gateway.ts`, CORS `*`).
 
-### 프론트엔드 (`apps/web`)
+### 상담원 앱 (`apps/web`)
 ```bash
 cd apps/web
+cp .env.example .env   # VITE_API_BASE_URL / VITE_WS_URL / VITE_USE_MOCK
 npm install
-npm run dev          # vite dev server on 5173
-npm run build        # tsc -b && vite build
+npm run dev            # vite dev server on 5173
+npm run build          # tsc -b && vite build
 ```
-- 스택: Vite 7 + React 19 + TypeScript + Tailwind CSS + Ant Design 5 + Zustand
-- 현재는 **Mock 모드**: `src/api/mockApi.ts` 와 `src/mock/mockSocket.ts` 가 실제 백엔드를 가장. 백엔드 없이도 바로 화면이 뜸.
-- 실제 백엔드 연동 교체 포인트:
-  - REST: `src/api/mockApi.ts` → 실제 `/api/v1/*` 호출 (axios/fetch)
+- 스택: Vite 7 + React 19 + TypeScript + Tailwind CSS + Ant Design 5 + Zustand + axios + socket.io-client
+- Mock/Real 이중 모드. `VITE_USE_MOCK=true` 면 `src/api/mockApi.ts` + `src/mock/mockSocket.ts`, 아니면 `src/api/realApi.ts` + `src/ws/realSocket.ts` 를 사용. `src/api/index.ts` / `src/ws/index.ts` 가 디스패처.
+- `src/api/apiClient.ts` 는 axios 인스턴스 + `getAccessToken()` 으로 Bearer 자동 첨부 + 401 발생 시 `/auth/refresh` 로 1회 토큰 회전 후 원래 요청 재시도
+- `src/store/useAuthStore.ts` 가 access/refresh token + agent 정보를 localStorage 에 영속 (`kaster.access_token`, `kaster.refresh_token`, `kaster.agent`)
+- `src/store/useUiStore.ts` 가 Mini/Full 모드를 URL `?mode=mini` 또는 localStorage 로 영속
+- 로그인 플로우: `pages/RequireAuth.tsx` 가 Mock 모드에선 bypass, Real 모드에선 미인증 시 `pages/LoginPage.tsx` 렌더
+- 레이아웃:
+  - `layout/AppShell.tsx` 는 mode 디스패처 (MiniShell | FullShell)
+  - `layout/FullShell.tsx`: HeaderBar + ModeSwitch + **LogoutButton** / KpiPanel / 3열(Status|CurrentCall|Action) / AcwPanel + EventLogPanel 2열 / BottomPanels
+  - `layout/MiniShell.tsx`: 420px 카드 + ModeSwitch + LogoutButton + 간이 ActionPanel
+- 실제 백엔드 교체 지점은 `src/api/realApi.ts`
   - WebSocket: `src/mock/mockSocket.ts` → 실제 `/ws` namespace 연결
 - 레이아웃: `AppShell.tsx` 가 Header/Status/CurrentCall/Action/BottomPanels 5영역으로 구성. conv 10–17 의 Mini/Full 2모드는 **아직 적용 전**, 현재는 Full 단일 모드.
 
+### 관리자 대시보드 (`apps/admin`)
+```bash
+cd apps/admin
+cp .env.example .env   # VITE_API_BASE_URL / VITE_USE_MOCK / VITE_ACCESS_TOKEN_KEY
+npm install
+npm run dev -- --port 5174   # 기본 5173 은 apps/web 이 쓰므로 다른 포트
+```
+- 스택: Vite 5 + React 18 + Antd 5 + react-router-dom + axios
+- **supervisor/admin 역할만** 접근 가능. 일반 agent 는 `ForbiddenPage` 로 차단됨 (mock 모드에선 역할 체크 우회)
+- `pages/RequireAuth.tsx` 가 `useAuthStore.isAuthenticated && isSupervisor` 검사 후 `RouterProvider` 렌더
+- `store/useAuthStore.ts` 는 apps/web 과 **같은 localStorage 키**를 사용. 먼저 apps/web 에서 supervisor 로 로그인해두면 admin 으로 자동 진입. 완전히 분리하려면 `VITE_ACCESS_TOKEN_KEY` 로 다른 키 지정.
+- 라우트:
+  - `/dashboard` — `AdminDashboardPage` (KPI / Queue / Team / ActiveCall / Alert). `/admin/dashboard` + `/calls/active` 호출
+  - `/queues` — `QueuesPage` (5초 폴링으로 `/queues/summary` 테이블)
+  - `/agents` — `AgentsPage` (5초 폴링으로 `/agents` 테이블)
+- `features/dashboard/api/dashboardApi.ts` 는 mock/real 이중 경로. 실 모드에서 오류 시 mock 폴백 (화면 항상 렌더).
+- 백엔드 `AdminController.dashboard` 는 `@Roles('supervisor','admin')` 가드로 보호됨 (아래 RolesGuard 참고).
+
 ### Asterisk 설정
-- `infra/asterisk/` 의 `pjsip.conf`, `extensions*.conf`, `queues.conf`, `manager.conf`가 초안입니다.
+- `infra/asterisk/` 의 `pjsip.conf`, `extensions*.conf` (inbound/queue/agent/transfer 분리), `queues.conf`, `manager.conf`가 초안입니다.
 - `manager.conf`의 AMI 계정(`cti_middleware` / `STRONG_AMI_PASSWORD`)과 `apps/server/.env.example`의 `AMI_USERNAME` / `AMI_SECRET`이 1:1 매칭됩니다. 한쪽만 바꾸지 마세요.
+- `extensions_transfer.conf` 는 `CallsService.transfer` 가 AMI `Redirect` 로 점프시키는 `transfer-target` context 를 정의.
 
 ## 아키텍처 (빅픽처)
 
@@ -98,6 +130,20 @@ NestJS 미들웨어가 Asterisk AMI의 원시 이벤트를 받아 `linkedid`를 
 - `OutboxPublisherService` (`modules/outbox/`)는 3초 주기로 `eventOutbox`에서 `publishedAt IS NULL` 행을 최대 100건 꺼내 `EventBusService.publish` 로 흘립니다. 리더 노드에서만 동작.
 - `SessionRecoverySweeperService` (`modules/session-recovery/finalizer/`)는 15초마다 `updatedAt`이 10분 이상 오래된 비-ENDED 세션을 찾아 `resultCode: 'RECOVERY_TIMEOUT'`으로 강제 종료합니다. AMI 이벤트 누락 시 세션이 열린 채로 남지 않게 하는 안전망. 리더 전용.
 - **후속 개선 여지**: 현재 `EventBusService.publish` 는 직접 `RealtimeGateway.broadcast` 를 호출합니다. WS 서버가 여러 대일 때는 각 노드 클라이언트만 받게 되므로, 이 레이어를 Redis Pub/Sub 로 교체하는 것이 conv 44 설계의 남은 작업입니다.
+
+### 글로벌 미들웨어 (`src/main.ts`)
+- `enableShutdownHooks()` — SIGTERM 시 `onModuleDestroy` 체인이 Prisma/Redis/AMI/WS 를 graceful close
+- `enableCors()` — `REST_CORS_ORIGIN` env (기본 `http://localhost:5173,http://localhost:5174`). `credentials: true`
+- `ValidationPipe({ whitelist: true, transform: true })` — DTO 미정의 필드 자동 제거 + 타입 변환
+- `ResponseTransformInterceptor` — 컨트롤러 반환값을 `{ success, data, error }` 로 자동 래핑 (이미 envelope 형태면 pass-through)
+- `AllExceptionsFilter` — `HttpException` / `Prisma.PrismaClientKnownRequestError` / 일반 Error 를 공통 envelope 으로 변환. `P2002 -> 409 CONFLICT`, `P2025 -> 404 NOT_FOUND` 매핑
+
+### 권한 모델
+- `JwtAuthGuard` — `@nestjs/passport` + `passport-jwt` 기반. `JwtStrategy.validate()` 가 payload 를 그대로 `request.user` 에 주입
+- `RolesGuard` + `@Roles(...)` 데코레이터 — `JwtAuthGuard` 뒤에 쓰면 역할 검사. `@Roles('supervisor','admin')` 처럼 OR 조건
+- `AdminController.dashboard` 는 `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles('supervisor','admin')`
+- `AgentsController.changeStatus` 는 `user.sub !== agentId && !SUPERVISORY_ROLES.has(user.role)` 인라인 체크 (본인 또는 감독 역할만 허용)
+- 본격 RBAC 확장 시 `@Roles` 패턴을 다른 컨트롤러에도 적용 가능
 
 ### API / 도메인 모듈
 - `auth`:
