@@ -1,4 +1,4 @@
-import { Layout, Space, Spin } from 'antd';
+import { Layout, Spin } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { AcwPanel } from '../components/AcwPanel';
 import { ActionPanel } from '../components/ActionPanel';
@@ -53,13 +53,18 @@ export function FullShell() {
     <Layout className="min-h-screen bg-slate-50">
       <Content className="mx-auto w-full max-w-[1800px] p-4 lg:p-6">
         <div className="space-y-4">
-          <Space className="w-full justify-between">
-            <HeaderBar session={agentSession} />
-            <Space>
+          {/* 상단: HeaderBar 는 가용 폭 전체, 우측 ModeSwitch+Logout 은 고정 너비.
+              Antd Space 는 inline-flex 라 w-full/justify-between 이 안 먹으므로
+              plain flex 로 구성. */}
+          <div className="flex w-full flex-wrap items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <HeaderBar session={agentSession} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               <ModeSwitch />
               <LogoutButton />
-            </Space>
-          </Space>
+            </div>
+          </div>
 
           <KpiPanel />
 
