@@ -1,3 +1,5 @@
+import { assertNoNewlines, toSlug } from './renderer-utils';
+
 export interface DidInput {
   id: string;
   did: string;
@@ -35,14 +37,8 @@ export interface DialplanOutput {
   extensionsQueue: string;
 }
 
-function toSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
 function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | null {
+  assertNoNewlines(did.did, 'did');
   if (did.ivrMenuId) {
     const menu = ivrMenus.find((m) => m.id === did.ivrMenuId);
     if (!menu) {
@@ -50,6 +46,7 @@ function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | n
       return null;
     }
     const slug = toSlug(menu.name);
+    if (!slug) throw new Error(`IVR menu name "${menu.name}" produces an empty slug`);
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
       ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
@@ -57,6 +54,7 @@ function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | n
     ].join('\n');
   }
   if (did.directQueue) {
+    assertNoNewlines(did.directQueue, 'directQueue');
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
       ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
@@ -69,6 +67,16 @@ function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | n
 
 function renderIvrMenu(menu: IvrMenuInput): string {
   const slug = toSlug(menu.name);
+  if (!slug) throw new Error(`IVR menu name "${menu.name}" produces an empty slug`);
+  if (menu.timeoutSecs <= 0) {
+    throw new Error(`IVR menu "${menu.name}" has invalid timeoutSecs: ${menu.timeoutSecs}`);
+  }
+  if (menu.welcomePrompt) assertNoNewlines(menu.welcomePrompt, 'welcomePrompt');
+  if (menu.menuPrompt) assertNoNewlines(menu.menuPrompt, 'menuPrompt');
+  for (const entry of menu.entries) {
+    assertNoNewlines(entry.digit, 'entry.digit');
+    assertNoNewlines(entry.queueName, 'entry.queueName');
+  }
   const lines: string[] = [`[ivr-menu-${slug}]`, `exten => s,1,Answer()`];
   if (menu.welcomePrompt) lines.push(` same => n,Playback(${menu.welcomePrompt})`);
   if (menu.menuPrompt) lines.push(` same => n,Background(${menu.menuPrompt})`);

@@ -65,4 +65,32 @@ describe('renderDialplan', () => {
     const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [emptyMenu] });
     expect(extensionsQueue).toBe('');
   });
+
+  it('throws on newline injection in did number', () => {
+    expect(() => renderDialplan({
+      dids: [{ id: 'd5', did: '070\n999', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+    })).toThrow('illegal newline');
+  });
+
+  it('throws on newline injection in directQueue', () => {
+    expect(() => renderDialplan({
+      dids: [{ id: 'd6', did: '07033333333', ivrMenuId: null, directQueue: 'sales\nmalicious', enabled: true, description: null }],
+      ivrMenus: [],
+    })).toThrow('illegal newline');
+  });
+
+  it('throws on empty slug from IVR menu name', () => {
+    expect(() => renderDialplan({
+      dids: [],
+      ivrMenus: [{ id: 'm3', name: '!!!', welcomePrompt: null, menuPrompt: null, timeoutSecs: 5, entries: [{ id: 'e3', digit: '1', label: 'X', queueName: 'q', tenantId: 't1', menuId: 'm3' }] }],
+    })).toThrow('empty slug');
+  });
+
+  it('throws on invalid timeoutSecs', () => {
+    expect(() => renderDialplan({
+      dids: [],
+      ivrMenus: [{ id: 'm4', name: 'ValidMenu', welcomePrompt: null, menuPrompt: null, timeoutSecs: 0, entries: [{ id: 'e4', digit: '1', label: 'X', queueName: 'q', tenantId: 't1', menuId: 'm4' }] }],
+    })).toThrow('invalid timeoutSecs');
+  });
 });
