@@ -1,5 +1,4 @@
 export interface TrunkInput {
-  id: string;
   name: string;
   host: string;
   port: number;
@@ -11,7 +10,6 @@ export interface TrunkInput {
 }
 
 export interface AgentInput {
-  agentId: string;
   extension: string;
   agentName: string;
   sipPassword: string | null;
@@ -29,8 +27,19 @@ function toSlug(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function assertNoNewlines(value: string, field: string): void {
+  if (/[\r\n]/.test(value)) {
+    throw new Error(`Field "${field}" contains illegal newline characters`);
+  }
+}
+
 function renderTrunk(trunk: TrunkInput): string {
   const slug = toSlug(trunk.name);
+  if (!slug) throw new Error(`Trunk name "${trunk.name}" produces an empty slug`);
+  assertNoNewlines(trunk.host, 'host');
+  assertNoNewlines(trunk.username, 'username');
+  assertNoNewlines(trunk.password, 'password');
+  assertNoNewlines(trunk.fromDomain, 'fromDomain');
   return [
     `[trunk-${slug}-auth]`,
     `type=auth`,
@@ -67,6 +76,9 @@ function renderTrunk(trunk: TrunkInput): string {
 }
 
 function renderAgent(agent: AgentInput): string {
+  assertNoNewlines(agent.extension, 'extension');
+  assertNoNewlines(agent.agentName, 'agentName');
+  assertNoNewlines(agent.sipPassword as string, 'sipPassword');
   return [
     `[${agent.extension}-auth]`,
     `type=auth`,
@@ -111,7 +123,7 @@ export function renderPjsip(input: PjsipInput): string {
     .join('\n\n');
 
   const agents = input.agents
-    .filter((a) => a.sipPassword !== null)
+    .filter((a) => a.sipPassword !== null && a.sipPassword !== '')
     .map(renderAgent)
     .join('\n\n');
 
