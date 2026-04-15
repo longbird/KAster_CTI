@@ -10,7 +10,6 @@ export function useDashboardData() {
     let active = true;
 
     const load = async () => {
-      setLoading(true);
       const next = await fetchDashboardData();
       if (!active) return;
       setData(next);
