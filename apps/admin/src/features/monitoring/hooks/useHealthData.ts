@@ -80,6 +80,7 @@ export function useHealthData({ intervalMs = 10_000 }: UseHealthDataOptions = {}
 
   useEffect(() => {
     activeRef.current = true;
+    fetchingRef.current = false; // re-mount 시 이전 fetch 잠금 해제 (React 18 Strict Mode 대응)
     tickRef.current = 0;
     setSecondsUntilRefresh(Math.ceil(intervalMs / 1000));
     void doFetch();
