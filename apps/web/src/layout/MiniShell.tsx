@@ -1,6 +1,7 @@
 import { Card, Space, Spin, Tag, Typography } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { ActionPanel } from '../components/ActionPanel';
+import { AgentStatusTag } from '../components/AgentStatusTag';
 import { LogoutButton } from '../components/LogoutButton';
 import { ModeSwitch } from '../components/ModeSwitch';
 import { useCtiStore } from '../store/useCtiStore';
@@ -17,6 +18,7 @@ export function MiniShell() {
     activeCalls,
     selectedCallId,
     init,
+    changeStatus,
     saveMemo,
     transfer,
     hangup,
@@ -60,9 +62,7 @@ export function MiniShell() {
               <Typography.Text strong>{agentSession?.agentName ?? '-'}</Typography.Text>
               <div className="text-xs text-slate-500">내선 {agentSession?.extension ?? '-'}</div>
             </div>
-            <Tag color={agentSession?.statusCode === 'TALKING' ? 'green' : 'blue'}>
-              {agentSession?.statusCode ?? '-'}
-            </Tag>
+            <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
           </div>
 
           <Card size="small" bodyStyle={{ padding: 12 }}>
