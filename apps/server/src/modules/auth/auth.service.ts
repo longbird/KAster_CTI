@@ -1,0 +1,188 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
+import * as jwt from 'jsonwebtoken';
+import { PrismaService } from '../../common/prisma.service';
+import { LoginDto } from './login.dto';
+
+// share 69de045b: access 는 짧게, refresh 는 길게. refresh token 은 평문 저장 금지
+// — SHA-256 해시만 DB 에 저장하고 원본은 클라이언트가 보관.
+const ACCESS_TOKEN_TTL = '15m';
+const REFRESH_TOKEN_TTL_DAYS = 14;
+
+function sha256(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
+}
+
+function generateRefreshTokenValue(): string {
+  // 256bit opaque token. JWT 가 아니라 랜덤 문자열이므로 서명 검증 없이
+  // 오직 DB 해시 매칭으로만 유효성을 판단한다.
+  return randomBytes(32).toString('hex');
+}
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
+
+  async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
+    const agent = await this.prisma.agents.findFirst({
+      where: { loginId: dto.loginId, extension: dto.extension, isActive: true },
+    });
+
+    if (!agent) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const passwordOk = await bcrypt.compare(dto.password, agent.loginPasswordHash);
+    if (!passwordOk) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.prisma.agents.update({
+      where: { agentId: agent.agentId },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const accessToken = this.signAccessToken(agent);
+    const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, meta);
+
+    return {
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer',
+        expiresIn: 900, // 15 min
+        agent: {
+          agentId: agent.agentId,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          role: agent.role,
+        },
+      },
+      error: null,
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+
+    const tokenHash = sha256(refreshToken);
+    const row = await this.prisma.refreshTokens.findUnique({
+      where: { tokenHash },
+      include: { agent: true },
+    });
+
+    if (!row || row.revokedAt || row.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const agent = row.agent;
+    if (!agent?.isActive) {
+      throw new UnauthorizedException('Agent inactive');
+    }
+
+    // 보안: refresh token 회전. 재사용 공격 방지.
+    await this.prisma.refreshTokens.update({
+      where: { refreshTokenId: row.refreshTokenId },
+      data: { revokedAt: new Date() },
+    });
+
+    const newRefreshToken = await this.issueRefreshToken(
+      agent.agentId,
+      agent.tenantId,
+      { userAgent: row.userAgent ?? undefined, ipAddress: row.ipAddress ?? undefined },
+    );
+    const newAccessToken = this.signAccessToken(agent);
+
+    return {
+      success: true,
+      data: {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        tokenType: 'Bearer',
+        expiresIn: 900,
+      },
+      error: null,
+    };
+  }
+
+  async logout(refreshToken: string) {
+    if (!refreshToken) {
+      // 멱등: 토큰이 없어도 성공 취급.
+      return { success: true, data: { loggedOut: true }, error: null };
+    }
+    const tokenHash = sha256(refreshToken);
+    await this.prisma.refreshTokens.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { success: true, data: { loggedOut: true }, error: null };
+  }
+
+  async logoutAll(agentId: string) {
+    await this.prisma.refreshTokens.updateMany({
+      where: { agentId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { success: true, data: { loggedOut: true }, error: null };
+  }
+
+  async getSession(user: any) {
+    const agent = await this.prisma.agents.findUnique({
+      where: { agentId: user.sub },
+      include: { defaultQueue: true },
+    });
+
+    return {
+      success: true,
+      data: { agent, jwt: user },
+      error: null,
+    };
+  }
+
+  private signAccessToken(agent: {
+    agentId: string;
+    role: string;
+    extension: string;
+    tenantId: string;
+  }): string {
+    return jwt.sign(
+      {
+        sub: agent.agentId,
+        role: agent.role,
+        extension: agent.extension,
+        tenantId: agent.tenantId,
+      },
+      this.config.get<string>('JWT_SECRET', 'change_me'),
+      { expiresIn: ACCESS_TOKEN_TTL },
+    );
+  }
+
+  private async issueRefreshToken(
+    agentId: string,
+    tenantId: string,
+    meta?: { userAgent?: string; ipAddress?: string },
+  ): Promise<string> {
+    const value = generateRefreshTokenValue();
+    const tokenHash = sha256(value);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+    await this.prisma.refreshTokens.create({
+      data: {
+        tenantId,
+        agentId,
+        tokenHash,
+        expiresAt,
+        userAgent: meta?.userAgent ?? null,
+        ipAddress: meta?.ipAddress ?? null,
+      },
+    });
+    return value;
+  }
+}

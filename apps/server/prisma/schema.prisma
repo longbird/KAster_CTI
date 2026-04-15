@@ -1,0 +1,405 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model tenants {
+  tenantId     String    @id @default(uuid()) @db.Uuid
+  tenantCode   String    @unique @db.VarChar(32)
+  tenantName   String    @db.VarChar(128)
+  timezone     String    @default("Asia/Seoul") @db.VarChar(64)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @db.Timestamptz(6)
+
+  agents       agents[]
+  queues       queues[]
+  customers    customers[]
+  callSessions callSessions[]
+  callLegs     callLegs[]
+  queueEvents  queueEvents[]
+  callMemos    callMemos[]
+  callTransfers callTransfers[]
+  rawAmiEvents rawAmiEvents[]
+  eventOutbox  eventOutbox[]
+  attendedTransferCandidates attendedTransferCandidates[]
+  refreshTokens refreshTokens[]
+}
+
+model agents {
+  agentId            String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  loginId            String    @db.VarChar(64)
+  loginPasswordHash  String    @db.VarChar(255)
+  agentCode          String    @db.VarChar(32)
+  agentName          String    @db.VarChar(128)
+  extension          String    @db.VarChar(16)
+  sipEndpoint        String?   @db.VarChar(64)
+  role               String    @default("agent") @db.VarChar(32)
+  employmentStatus   String    @default("active") @db.VarChar(16)
+  defaultQueueId     String?   @db.Uuid
+  lastLoginAt        DateTime? @db.Timestamptz(6)
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant             tenants   @relation(fields: [tenantId], references: [tenantId])
+  defaultQueue       queues?   @relation("agent_default_queue", fields: [defaultQueueId], references: [queueId])
+  statusHistory      agentStatusHistory[]
+  callSessions       callSessions[] @relation("primary_agent")
+  callLegs           callLegs[]
+  callMemos          callMemos[]
+  queueAgentMembers  queueAgentMembers[]
+  queueEvents        queueEvents[]
+  transfersFrom      callTransfers[] @relation("transfer_from")
+  transfersTo        callTransfers[] @relation("transfer_to")
+  refreshTokens      refreshTokens[]
+
+  @@unique([tenantId, loginId])
+  @@unique([tenantId, agentCode])
+  @@unique([tenantId, extension])
+}
+
+model queues {
+  queueId             String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @db.Uuid
+  queueName           String    @db.VarChar(64)
+  queueExten          String    @db.VarChar(16)
+  queueDisplayName    String    @db.VarChar(128)
+  strategy            String    @default("leastrecent") @db.VarChar(32)
+  ringTimeoutSeconds  Int       @default(15)
+  retrySeconds        Int       @default(3)
+  wrapupSeconds       Int       @default(30)
+  maxWaitSeconds      Int       @default(45)
+  autopause           Boolean   @default(true)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant              tenants   @relation(fields: [tenantId], references: [tenantId])
+  defaultAgents       agents[]  @relation("agent_default_queue")
+  members             queueAgentMembers[]
+  sessions            callSessions[]
+  queueEvents         queueEvents[]
+
+  @@unique([tenantId, queueName])
+  @@unique([tenantId, queueExten])
+}
+
+model queueAgentMembers {
+  queueMemberId  String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  queueId        String   @db.Uuid
+  agentId        String   @db.Uuid
+  penalty        Int      @default(0)
+  memberOrder    Int      @default(0)
+  isActive       Boolean  @default(true)
+  joinedAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  queue          queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+  agent          agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([queueId, agentId])
+}
+
+model customers {
+  customerId     String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  customerCode   String?   @db.VarChar(32)
+  customerName   String?   @db.VarChar(128)
+  companyName    String?   @db.VarChar(128)
+  grade          String?   @db.VarChar(32)
+  status         String?   @default("active") @db.VarChar(32)
+  memo           String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant         tenants   @relation(fields: [tenantId], references: [tenantId])
+  phones         customerPhones[]
+  callSessions   callSessions[]
+  callMemos      callMemos[]
+}
+
+model customerPhones {
+  customerPhoneId String   @id @default(uuid()) @db.Uuid
+  customerId      String   @db.Uuid
+  phoneNumber     String   @db.VarChar(32)
+  normalizedPhone String   @db.VarChar(32)
+  phoneType       String   @default("mobile") @db.VarChar(16)
+  isPrimary       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  verifiedAt      DateTime? @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  customer        customers @relation(fields: [customerId], references: [customerId], onDelete: Cascade)
+
+  @@index([normalizedPhone])
+}
+
+model agentStatusHistory {
+  statusHistoryId String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  agentId         String   @db.Uuid
+  statusCode      String   @db.VarChar(32)
+  reasonCode      String?  @db.VarChar(32)
+  reasonText      String?  @db.VarChar(255)
+  sourceType      String   @default("system") @db.VarChar(16)
+  startedAt       DateTime @db.Timestamptz(6)
+  endedAt         DateTime? @db.Timestamptz(6)
+  durationSeconds Int      @default(0)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant          tenants  @relation(fields: [tenantId], references: [tenantId])
+  agent           agents   @relation(fields: [agentId], references: [agentId])
+}
+
+model callSessions {
+  callId          String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  linkedid        String    @db.VarChar(32)
+  direction       String    @db.VarChar(16)
+  ani             String?   @db.VarChar(32)
+  aniNormalized   String?   @db.VarChar(32)
+  dnis            String?   @db.VarChar(32)
+  didNumber       String?   @db.VarChar(32)
+  trunkName       String?   @db.VarChar(64)
+  queueId         String?   @db.Uuid
+  queueName       String?   @db.VarChar(64)
+  customerId      String?   @db.Uuid
+  primaryAgentId  String?   @db.Uuid
+  sessionStatus   String    @db.VarChar(32)
+  campaignCode    String?   @db.VarChar(64)
+  resultCode      String?   @db.VarChar(32)
+  resultDetail    String?   @db.VarChar(255)
+  abandonFlag     Boolean   @default(false)
+  transferFlag    Boolean   @default(false)
+  callbackFlag    Boolean   @default(false)
+  recordingFlag   Boolean   @default(false)
+  startedAt       DateTime  @db.Timestamptz(6)
+  queuedAt        DateTime? @db.Timestamptz(6)
+  ringingAt       DateTime? @db.Timestamptz(6)
+  answeredAt      DateTime? @db.Timestamptz(6)
+  endedAt         DateTime? @db.Timestamptz(6)
+  waitSeconds     Int       @default(0)
+  ringSeconds     Int       @default(0)
+  talkSeconds     Int       @default(0)
+  holdSeconds     Int       @default(0)
+  acwSeconds      Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant          tenants   @relation(fields: [tenantId], references: [tenantId])
+  queue           queues?   @relation(fields: [queueId], references: [queueId])
+  customer        customers? @relation(fields: [customerId], references: [customerId])
+  primaryAgent    agents?   @relation("primary_agent", fields: [primaryAgentId], references: [agentId])
+  callLegs        callLegs[]
+  queueEvents     queueEvents[]
+  callRecordings  callRecordings[]
+  callMemos       callMemos[]
+  callTransfers   callTransfers[]
+
+  @@unique([tenantId, linkedid])
+  @@index([startedAt(sort: Desc)])
+  @@index([primaryAgentId, startedAt(sort: Desc)])
+}
+
+model callLegs {
+  legId                String    @id @default(uuid()) @db.Uuid
+  callId               String    @db.Uuid
+  tenantId             String    @db.Uuid
+  linkedid             String    @db.VarChar(32)
+  uniqueid             String    @db.VarChar(32)
+  parentUniqueid       String?   @db.VarChar(32)
+  legType              String    @db.VarChar(16)
+  channelName          String?   @db.VarChar(128)
+  bridgedChannelName   String?   @db.VarChar(128)
+  endpoint             String?   @db.VarChar(64)
+  agentId              String?   @db.Uuid
+  stateCode            String?   @db.VarChar(32)
+  dialStatus           String?   @db.VarChar(32)
+  startedAt            DateTime  @db.Timestamptz(6)
+  bridgedAt            DateTime? @db.Timestamptz(6)
+  endedAt              DateTime? @db.Timestamptz(6)
+  durationSeconds      Int       @default(0)
+  disposition          String?   @db.VarChar(32)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+
+  session              callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant               tenants  @relation(fields: [tenantId], references: [tenantId])
+  agent                agents?  @relation(fields: [agentId], references: [agentId])
+
+  @@unique([tenantId, uniqueid])
+  @@index([linkedid])
+  @@index([agentId, startedAt(sort: Desc)])
+}
+
+model queueEvents {
+  queueEventId   String    @id @default(uuid()) @db.Uuid
+  callId         String?   @db.Uuid
+  tenantId       String    @db.Uuid
+  linkedid       String    @db.VarChar(32)
+  queueId        String?   @db.Uuid
+  queueName      String    @db.VarChar(64)
+  agentId        String?   @db.Uuid
+  eventType      String    @db.VarChar(32)
+  eventTime      DateTime  @db.Timestamptz(6)
+  waitSeconds    Int       @default(0)
+  ringSeconds    Int       @default(0)
+  positionNo     Int?
+  rawPayload     Json?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+
+  session        callSessions? @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant         tenants   @relation(fields: [tenantId], references: [tenantId])
+  queue          queues?   @relation(fields: [queueId], references: [queueId])
+  agent          agents?   @relation(fields: [agentId], references: [agentId])
+
+  @@index([queueName, eventTime(sort: Desc)])
+  @@index([linkedid])
+}
+
+model callRecordings {
+  recordingId         String    @id @default(uuid()) @db.Uuid
+  callId              String    @db.Uuid
+  tenantId            String    @db.Uuid
+  linkedid            String    @db.VarChar(32)
+  recordingType       String    @default("mixmonitor") @db.VarChar(16)
+  filePath            String
+  fileName            String    @db.VarChar(255)
+  fileFormat          String    @default("wav") @db.VarChar(16)
+  fileSizeBytes       BigInt?
+  storageProvider     String?   @default("local") @db.VarChar(32)
+  recordingStartedAt  DateTime? @db.Timestamptz(6)
+  recordingEndedAt    DateTime? @db.Timestamptz(6)
+  durationSeconds     Int       @default(0)
+  checksumSha256      String?   @db.VarChar(64)
+  isAccessRestricted  Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+
+  session             callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant              tenants @relation(fields: [tenantId], references: [tenantId])
+}
+
+model callMemos {
+  memoId          String    @id @default(uuid()) @db.Uuid
+  callId          String    @db.Uuid
+  tenantId        String    @db.Uuid
+  agentId         String    @db.Uuid
+  customerId      String?   @db.Uuid
+  memoType        String    @default("acw") @db.VarChar(16)
+  resultCode      String?   @db.VarChar(32)
+  subResultCode   String?   @db.VarChar(32)
+  memoText        String?
+  isFinal         Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
+
+  session         callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant          tenants @relation(fields: [tenantId], references: [tenantId])
+  agent           agents @relation(fields: [agentId], references: [agentId])
+  customer        customers? @relation(fields: [customerId], references: [customerId])
+}
+
+model callTransfers {
+  transferId      String    @id @default(uuid()) @db.Uuid
+  callId          String    @db.Uuid
+  tenantId        String    @db.Uuid
+  linkedid        String    @db.VarChar(32)
+  transferType    String    @db.VarChar(16)
+  fromAgentId     String?   @db.Uuid
+  toAgentId       String?   @db.Uuid
+  fromExtension   String?   @db.VarChar(16)
+  toExtension     String?   @db.VarChar(32)
+  transferResult  String?   @db.VarChar(32)
+  requestedAt     DateTime  @db.Timestamptz(6)
+  completedAt     DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+
+  session         callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant          tenants @relation(fields: [tenantId], references: [tenantId])
+  fromAgent       agents? @relation("transfer_from", fields: [fromAgentId], references: [agentId])
+  toAgent         agents? @relation("transfer_to", fields: [toAgentId], references: [agentId])
+}
+
+model rawAmiEvents {
+  eventId          String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  linkedid         String?   @db.VarChar(32)
+  uniqueid         String?   @db.VarChar(32)
+  eventName        String    @db.VarChar(64)
+  eventTime        DateTime  @db.Timestamptz(6)
+  eventFingerprint String    @db.VarChar(64)
+  sequenceNo       BigInt    @default(autoincrement())
+  payload          Json
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant           tenants @relation(fields: [tenantId], references: [tenantId])
+
+  // conv 44: Redis dedupe 가 뚫려도 DB unique 가 최종 방어선.
+  @@unique([tenantId, eventFingerprint], map: "uq_raw_ami_fingerprint")
+  @@index([linkedid, eventTime(sort: Desc)])
+}
+
+model eventOutbox {
+  outboxId        String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  eventType       String    @db.VarChar(128)
+  aggregateType   String?   @db.VarChar(64)
+  aggregateId     String?   @db.VarChar(64)
+  payload         Json
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  publishedAt     DateTime? @db.Timestamptz(6)
+
+  tenant          tenants @relation(fields: [tenantId], references: [tenantId])
+
+  @@index([publishedAt, createdAt])
+}
+
+// conv 32·share 69de045b: attended transfer 상태머신용 후보 테이블.
+// consult leg 생성 → consult ringing/talking → rebridging → completed/failed 를
+// TransferDetectorService 가 여기에 기록·갱신하며 최종 확정 시 callTransfers 에 반영.
+model attendedTransferCandidates {
+  candidateId      String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  linkedid         String    @db.VarChar(32)
+  fromAgentId      String?   @db.Uuid
+  fromExtension    String?   @db.VarChar(16)
+  toExtension      String?   @db.VarChar(32)
+  consultUniqueid  String?   @db.VarChar(32)
+  targetUniqueid   String?   @db.VarChar(32)
+  phase            String    @default("REQUESTED") @db.VarChar(32)
+  requestedAt      DateTime  @db.Timestamptz(6)
+  completedAt      DateTime? @db.Timestamptz(6)
+  expiredAt        DateTime? @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant           tenants @relation(fields: [tenantId], references: [tenantId])
+
+  @@index([tenantId, linkedid])
+  @@index([phase, requestedAt])
+}
+
+// conv 22·share 69de045b: refresh token 은 평문 저장 금지. SHA-256 해시만 보관.
+// access 는 15분, refresh 는 14일, logout 은 revokedAt 설정으로 무효화.
+model refreshTokens {
+  refreshTokenId String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  agentId        String    @db.Uuid
+  tokenHash      String    @unique @db.VarChar(64)
+  issuedAt       DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt      DateTime  @db.Timestamptz(6)
+  revokedAt      DateTime? @db.Timestamptz(6)
+  userAgent      String?   @db.VarChar(255)
+  ipAddress      String?   @db.VarChar(64)
+
+  tenant         tenants @relation(fields: [tenantId], references: [tenantId])
+  agent          agents  @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@index([agentId, revokedAt])
+  @@index([expiresAt])
+}
