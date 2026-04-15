@@ -33,6 +33,9 @@ model tenants {
   eventOutbox          eventOutbox[]
   attendedTransferCandidates attendedTransferCandidates[]
   refreshTokens        refreshTokens[]
+  asteriskTrunks       AsteriskTrunk[]
+  asteriskDids         AsteriskDid[]
+  asteriskIvrMenus     AsteriskIvrMenu[]
 }
 
 model agents {
@@ -43,6 +46,7 @@ model agents {
   agentCode          String    @db.VarChar(32)
   agentName          String    @db.VarChar(128)
   extension          String    @db.VarChar(16)
+  sipPassword        String?   @db.Text
   sipEndpoint        String?   @db.VarChar(64)
   role               String    @default("agent") @db.VarChar(32)
   employmentStatus   String    @default("active") @db.VarChar(16)
@@ -407,4 +411,66 @@ model refreshTokens {
 
   @@index([agentId, revokedAt])
   @@index([expiresAt])
+}
+
+model AsteriskTrunk {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  name       String   @db.VarChar(128)
+  host       String   @db.VarChar(255)
+  port       Int      @default(5060)
+  username   String   @db.VarChar(128)
+  password   String   @db.Text
+  fromDomain String   @db.VarChar(255)
+  codecs     String   @default("alaw,ulaw") @db.VarChar(64)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+  tenant     tenants  @relation(fields: [tenantId], references: [tenantId])
+
+  @@unique([tenantId, name])
+}
+
+model AsteriskDid {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @db.Uuid
+  did         String           @db.VarChar(32)
+  description String?          @db.VarChar(255)
+  ivrMenuId   String?          @db.Uuid
+  directQueue String?          @db.VarChar(64)
+  enabled     Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
+  tenant      tenants          @relation(fields: [tenantId], references: [tenantId])
+  ivrMenu     AsteriskIvrMenu? @relation(fields: [ivrMenuId], references: [id])
+
+  @@unique([tenantId, did])
+}
+
+model AsteriskIvrMenu {
+  id            String             @id @default(uuid()) @db.Uuid
+  tenantId      String             @db.Uuid
+  name          String             @db.VarChar(128)
+  welcomePrompt String?            @db.VarChar(128)
+  menuPrompt    String?            @db.VarChar(128)
+  timeoutSecs   Int                @default(5)
+  entries       AsteriskIvrEntry[]
+  dids          AsteriskDid[]
+  tenant        tenants            @relation(fields: [tenantId], references: [tenantId])
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(6)
+
+  @@unique([tenantId, name])
+}
+
+model AsteriskIvrEntry {
+  id        String          @id @default(uuid()) @db.Uuid
+  tenantId  String          @db.Uuid
+  menuId    String          @db.Uuid
+  digit     String          @db.VarChar(2)
+  label     String          @db.VarChar(64)
+  queueName String          @db.VarChar(64)
+  menu      AsteriskIvrMenu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@unique([menuId, digit])
 }
