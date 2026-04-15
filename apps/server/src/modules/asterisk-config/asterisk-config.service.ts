@@ -32,6 +32,7 @@ export class AsteriskConfigService {
     return trunk;
   }
 
+  /** Full-replace PUT — all fields must be provided. */
   async updateTrunk(tenantId: string, id: string, dto: UpdateTrunkDto) {
     await this.assertTrunkBelongs(tenantId, id);
     const trunk = await this.prisma.asteriskTrunk.update({ where: { id }, data: dto });
@@ -65,6 +66,10 @@ export class AsteriskConfigService {
     return did;
   }
 
+  /**
+   * Full-replace PUT — all routing fields (ivrMenuId / directQueue) must be provided.
+   * The XOR validation treats the incoming DTO as the complete new state.
+   */
   async updateDid(tenantId: string, id: string, dto: UpdateDidDto) {
     await this.assertDidBelongs(tenantId, id);
     await this.validateDidXorAndQueue(tenantId, dto);
@@ -129,6 +134,7 @@ export class AsteriskConfigService {
     return menu;
   }
 
+  /** Full-replace PUT — all fields including entries[] must be provided. */
   async updateIvrMenu(tenantId: string, id: string, dto: UpdateIvrMenuDto) {
     await this.assertMenuBelongs(tenantId, id);
     await this.validateEntryQueues(tenantId, dto.entries);
@@ -186,7 +192,8 @@ export class AsteriskConfigService {
   async updateAgentSipPassword(tenantId: string, agentId: string, sipPassword: string) {
     const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
     if (!agent) throw new NotFoundException(`Agent ${agentId} not found`);
-    return this.prisma.agents.update({ where: { agentId }, data: { sipPassword } });
+    await this.prisma.agents.updateMany({ where: { agentId, tenantId }, data: { sipPassword } });
+    return this.prisma.agents.findFirst({ where: { agentId, tenantId } });
   }
 
   async syncAgentSip(tenantId: string) {

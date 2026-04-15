@@ -1,4 +1,4 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
 
 export class CreateTrunkDto {
   @IsString() name: string;
@@ -7,7 +7,7 @@ export class CreateTrunkDto {
   @IsString() username: string;
   @IsString() password: string;
   @IsString() fromDomain: string;
-  @IsOptional() @IsString() codecs?: string;
+  @IsOptional() @IsString() @Matches(/^[a-z0-9,]+$/, { message: 'codecs must be comma-separated codec names (e.g. alaw,ulaw)' }) codecs?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
 }
 

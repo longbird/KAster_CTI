@@ -42,6 +42,7 @@ export class AsteriskReloadService implements OnModuleDestroy {
       this.debounceTimers.delete(tenantId);
     }
     await this.writeConfFiles(tenantId);
+    this.logger.debug(`Sending AMI reload commands for tenant ${tenantId}`);
     this.ami.sendAction({ Action: 'Command', Command: 'module reload res_pjsip' });
     this.ami.sendAction({ Action: 'Command', Command: 'dialplan reload' });
     this.logger.log(`Asterisk reload triggered for tenant ${tenantId}`);
@@ -50,15 +51,11 @@ export class AsteriskReloadService implements OnModuleDestroy {
   async writeConfFiles(tenantId: string): Promise<void> {
     const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
 
-    const [trunks, agents, dids, ivrMenus] = await Promise.all([
-      this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
-      this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
-      this.prisma.asteriskDid.findMany({ where: { tenantId } }),
-      this.prisma.asteriskIvrMenu.findMany({
-        where: { tenantId },
-        include: { entries: true },
-      }),
-    ]);
+    if (!path.isAbsolute(confDir)) {
+      throw new Error(`ASTERISK_CONF_DIR must be an absolute path, got: "${confDir}"`);
+    }
+
+    const { trunks, agents, dids, ivrMenus } = await this.fetchTenantData(tenantId);
 
     const pjsipContent = renderPjsip({ trunks, agents });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus });
@@ -73,6 +70,18 @@ export class AsteriskReloadService implements OnModuleDestroy {
     extensionsInbound: string;
     extensionsQueue: string;
   }> {
+    const { trunks, agents, dids, ivrMenus } = await this.fetchTenantData(tenantId);
+
+    const pjsip = renderPjsip({ trunks, agents });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus });
+
+    // 미리보기에서 패스워드 마스킹
+    const maskedPjsip = pjsip.replace(/^(password=).+$/gm, '$1***');
+
+    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue };
+  }
+
+  private async fetchTenantData(tenantId: string) {
     const [trunks, agents, dids, ivrMenus] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
       this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
@@ -82,13 +91,6 @@ export class AsteriskReloadService implements OnModuleDestroy {
         include: { entries: true },
       }),
     ]);
-
-    const pjsip = renderPjsip({ trunks, agents });
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus });
-
-    // 미리보기에서 패스워드 마스킹
-    const maskedPjsip = pjsip.replace(/^(password=).+$/gm, '$1***');
-
-    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue };
+    return { trunks, agents, dids, ivrMenus };
   }
 }
