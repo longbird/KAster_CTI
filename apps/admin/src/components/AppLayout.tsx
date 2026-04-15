@@ -1,12 +1,21 @@
-import { Layout, Menu, Space, Tag, Typography } from 'antd';
-import { DashboardOutlined, NotificationOutlined, TeamOutlined } from '@ant-design/icons';
+import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
+import {
+  DashboardOutlined,
+  LogoutOutlined,
+  NotificationOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { logout } from '../api/authApi';
+import { USE_MOCK } from '../config';
+import { useAuthStore } from '../store/useAuthStore';
 
 const { Header, Sider, Content } = Layout;
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const agent = useAuthStore((s) => s.agent);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -23,16 +32,26 @@ export function AppLayout() {
             { key: '/queues', icon: <NotificationOutlined />, label: '큐 현황' },
             { key: '/agents', icon: <TeamOutlined />, label: '상담원' },
           ]}
-          onClick={({ key }) => {
-            if (key === '/dashboard') navigate('/dashboard');
-          }}
+          onClick={({ key }) => navigate(key as string)}
         />
       </Sider>
       <Layout>
-        <Header className="app-header">
+        <Header className="app-header" style={{ justifyContent: 'space-between' }}>
           <Space size="middle" align="center">
-            <Typography.Title level={4} style={{ margin: 0 }}>관리자 운영 콘솔</Typography.Title>
-            <Tag color="processing">실시간 Mock Feed</Tag>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              관리자 운영 콘솔
+            </Typography.Title>
+            {USE_MOCK && <Tag color="processing">Mock Feed</Tag>}
+          </Space>
+          <Space>
+            {agent && (
+              <Typography.Text type="secondary">
+                {agent.agentName} ({agent.role})
+              </Typography.Text>
+            )}
+            <Button icon={<LogoutOutlined />} onClick={logout}>
+              로그아웃
+            </Button>
           </Space>
         </Header>
         <Content className="app-content">
