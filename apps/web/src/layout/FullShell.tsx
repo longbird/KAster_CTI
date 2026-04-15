@@ -1,8 +1,6 @@
 import { Layout, Spin } from 'antd';
 import { useEffect, useMemo } from 'react';
-import { AcwPanel } from '../components/AcwPanel';
-import { ActionPanel } from '../components/ActionPanel';
-import { BottomPanels } from '../components/BottomPanels';
+import { ControlPanel } from '../components/ControlPanel';
 import { CurrentCallPanel } from '../components/CurrentCallPanel';
 import { EventLogPanel } from '../components/EventLogPanel';
 import { HeaderBar } from '../components/HeaderBar';
@@ -14,8 +12,11 @@ import { useCtiStore } from '../store/useCtiStore';
 
 const { Content } = Layout;
 
-// conv 13 Full 모드: CRM 대체 전제. 상단 상담원 정보 / 좌측 상태·큐 /
-// 중앙 현재 통화·고객 정보 / 우측 메모·전환·종료 / 하단 이력·알림 구조.
+// conv 13 Full 모드를 컴팩트하게 재구성.
+//   Row 1: HeaderBar + ModeSwitch + Logout
+//   Row 2: KpiPanel (compact KPI strip)
+//   Row 3: [StatusPanel + EventLogPanel (좌)] | CurrentCallPanel (중앙) | ControlPanel (우)
+// AcwPanel 과 BottomPanels 는 ControlPanel / EventLogPanel 로 흡수되어 제거.
 export function FullShell() {
   const {
     loading,
@@ -23,8 +24,6 @@ export function FullShell() {
     queues,
     activeCalls,
     selectedCallId,
-    recentHistory,
-    notifications,
     init,
     changeStatus,
     saveMemo,
@@ -53,9 +52,7 @@ export function FullShell() {
     <Layout className="min-h-screen bg-slate-50">
       <Content className="mx-auto w-full max-w-[1800px] p-4 lg:p-6">
         <div className="space-y-4">
-          {/* 상단: HeaderBar 는 가용 폭 전체, 우측 ModeSwitch+Logout 은 고정 너비.
-              Antd Space 는 inline-flex 라 w-full/justify-between 이 안 먹으므로
-              plain flex 로 구성. */}
+          {/* Row 1: Header */}
           <div className="flex w-full flex-wrap items-start gap-3">
             <div className="min-w-0 flex-1">
               <HeaderBar session={agentSession} onChangeStatus={changeStatus} />
@@ -66,20 +63,28 @@ export function FullShell() {
             </div>
           </div>
 
+          {/* Row 2: KPI strip */}
           <KpiPanel />
 
-          <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[320px_minmax(0,1fr)_360px]">
-            <StatusPanel queues={queues} />
+          {/* Row 3: 3-column workspace (반응형) */}
+          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)_380px]">
+            {/* 좌: 큐 + 이벤트 로그 */}
+            <div className="space-y-4">
+              <StatusPanel queues={queues} />
+              <EventLogPanel />
+            </div>
+
+            {/* 중앙: 현재 통화 (hero) */}
             <CurrentCallPanel call={selectedCall} />
-            <ActionPanel call={selectedCall} onSaveMemo={saveMemo} onTransfer={transfer} onHangup={hangup} />
-          </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <AcwPanel />
-            <EventLogPanel />
+            {/* 우: 콜 제어 (상태 기반) */}
+            <ControlPanel
+              call={selectedCall}
+              onSaveMemo={saveMemo}
+              onTransfer={transfer}
+              onHangup={hangup}
+            />
           </div>
-
-          <BottomPanels history={recentHistory} notifications={notifications} />
         </div>
       </Content>
     </Layout>

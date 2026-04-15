@@ -1,15 +1,14 @@
-import { Card, Space, Spin, Tag, Typography } from 'antd';
+import { Space, Spin } from 'antd';
 import { useEffect, useMemo } from 'react';
-import { ActionPanel } from '../components/ActionPanel';
+import { ControlPanel } from '../components/ControlPanel';
+import { HeaderBar } from '../components/HeaderBar';
 import { LogoutButton } from '../components/LogoutButton';
 import { ModeSwitch } from '../components/ModeSwitch';
 import { useCtiStore } from '../store/useCtiStore';
 
-// conv 13 Mini 모드 와이어프레임 요약:
-//   - 항상 위 작은 창
-//   - 콜 제어 버튼 중심, 고객 핵심 정보만
-//   - 상세 이력/팝업은 없음
-// 너비는 약 380px 을 기준으로 컴포넌트를 재배치한다.
+// conv 13 Mini 모드: 대리운전 관리 프로그램과 함께 띄우는 작은 패널.
+//   - 최소한의 상담원 정보 + 상태 변경 (HeaderBar dropdown)
+//   - 현재 콜 기반 ControlPanel (상태에 따라 자동 전환)
 export function MiniShell() {
   const {
     loading,
@@ -17,6 +16,7 @@ export function MiniShell() {
     activeCalls,
     selectedCallId,
     init,
+    changeStatus,
     saveMemo,
     transfer,
     hangup,
@@ -40,55 +40,20 @@ export function MiniShell() {
   }
 
   return (
-    <div className="mx-auto max-w-[420px] p-3">
-      <Card
-        size="small"
-        className="shadow-panel"
-        title={
-          <Space className="w-full justify-between">
-            <span className="text-xs text-slate-500">KAster CTI</span>
-            <Space>
-              <ModeSwitch />
-              <LogoutButton />
-            </Space>
-          </Space>
-        }
-      >
-        <Space direction="vertical" size={8} className="w-full">
-          <div className="flex items-center justify-between">
-            <div>
-              <Typography.Text strong>{agentSession?.agentName ?? '-'}</Typography.Text>
-              <div className="text-xs text-slate-500">내선 {agentSession?.extension ?? '-'}</div>
-            </div>
-            <Tag color={agentSession?.statusCode === 'TALKING' ? 'green' : 'blue'}>
-              {agentSession?.statusCode ?? '-'}
-            </Tag>
-          </div>
+    <div className="mx-auto max-w-[440px] space-y-3 p-3">
+      <div className="flex items-center justify-end gap-2">
+        <ModeSwitch />
+        <LogoutButton />
+      </div>
 
-          <Card size="small" bodyStyle={{ padding: 12 }}>
-            {selectedCall ? (
-              <Space direction="vertical" size={2}>
-                <Typography.Text strong>{selectedCall.customer?.customerName ?? selectedCall.ani}</Typography.Text>
-                <Typography.Text type="secondary" className="text-xs">
-                  {selectedCall.ani} · {selectedCall.sessionStatus}
-                </Typography.Text>
-                {selectedCall.customer?.grade && (
-                  <Tag color="gold">{selectedCall.customer.grade}</Tag>
-                )}
-              </Space>
-            ) : (
-              <Typography.Text type="secondary">진행 중 통화 없음</Typography.Text>
-            )}
-          </Card>
+      <HeaderBar session={agentSession} onChangeStatus={changeStatus} />
 
-          <ActionPanel
-            call={selectedCall}
-            onSaveMemo={saveMemo}
-            onTransfer={transfer}
-            onHangup={hangup}
-          />
-        </Space>
-      </Card>
+      <ControlPanel
+        call={selectedCall}
+        onSaveMemo={saveMemo}
+        onTransfer={transfer}
+        onHangup={hangup}
+      />
     </div>
   );
 }
