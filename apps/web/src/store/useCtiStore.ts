@@ -67,20 +67,32 @@ export const useCtiStore = create<CtiState>((set, get) => ({
   init: async () => {
     set({ loading: true });
 
-    const [agentRes, queueRes, activeRes, historyRes] = await Promise.all([
-      getAgentSession(),
-      getQueuesSummary(),
-      getActiveCalls(),
-      getCallHistory(),
+    // 401 로 인한 auth clear (apiClient interceptor) 이 일어날 수 있으므로
+    // 각각을 안전하게 감싸 throw 하지 않게 한다. 실패한 조각은 빈 값으로 대체되고,
+    // RequireAuth 가 isAuthenticated=false 로 바뀌면 자동으로 LoginPage 로 복귀.
+    const safe = async <T>(p: Promise<{ data: T }>, fallback: T) => {
+      try {
+        const res = await p;
+        return res.data;
+      } catch {
+        return fallback;
+      }
+    };
+
+    const [agentSession, queues, activeCalls, recentHistory] = await Promise.all([
+      safe(getAgentSession(), null as any),
+      safe(getQueuesSummary(), [] as any),
+      safe(getActiveCalls(), [] as any),
+      safe(getCallHistory(), [] as any),
     ]);
 
     set({
       loading: false,
-      agentSession: agentRes.data,
-      queues: queueRes.data,
-      activeCalls: activeRes.data,
-      selectedCallId: activeRes.data[0]?.callId ?? null,
-      recentHistory: historyRes.data,
+      agentSession,
+      queues,
+      activeCalls,
+      selectedCallId: activeCalls[0]?.callId ?? null,
+      recentHistory,
     });
 
     disconnectSocket?.();

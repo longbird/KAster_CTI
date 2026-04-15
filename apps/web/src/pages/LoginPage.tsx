@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { useState } from 'react';
 import { login } from '../api';
+import { extractErrorMessage } from '../utils/errorMessage';
 
 // 실제 백엔드 `/auth/login` 호출. mock 모드에서는 이 페이지를 거치지 않음.
 export function LoginPage() {
@@ -14,8 +15,7 @@ export function LoginPage() {
     try {
       await login(values);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '로그인 실패';
-      setError(msg);
+      setError(extractErrorMessage(err, '로그인 실패'));
     } finally {
       setLoading(false);
     }
