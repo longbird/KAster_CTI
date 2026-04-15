@@ -1,10 +1,21 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { AgentStateService } from '../calls/agent-state.service';
 import { AgentsService } from './agents.service';
 import { ChangeAgentStatusDto } from './dto/change-agent-status.dto';
+
+const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
 
 @ApiTags('agents')
 @ApiBearerAuth()
@@ -40,8 +51,20 @@ export class AgentsController {
   }
 
   @Post(':agentId/status')
-  async changeStatus(@Param('agentId') agentId: string, @Body() dto: ChangeAgentStatusDto) {
-    const row = await this.agentStateService.changeStatus(agentId, dto.statusCode, dto.reasonCode);
+  async changeStatus(
+    @CurrentUser() user: any,
+    @Param('agentId') agentId: string,
+    @Body() dto: ChangeAgentStatusDto,
+  ) {
+    // 본인 또는 supervisor/admin 만 상태 변경 허용.
+    if (user.sub !== agentId && !SUPERVISORY_ROLES.has(user.role)) {
+      throw new ForbiddenException('본인 또는 supervisor/admin 만 허용');
+    }
+    const row = await this.agentStateService.changeStatus(
+      agentId,
+      dto.statusCode,
+      dto.reasonCode,
+    );
     return { success: true, data: row, error: null };
   }
 }
