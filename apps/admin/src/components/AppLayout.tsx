@@ -3,6 +3,7 @@ import {
   DashboardOutlined,
   DesktopOutlined,
   LogoutOutlined,
+  MonitorOutlined,
   NotificationOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -29,10 +30,29 @@ export function AppLayout() {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
+          defaultOpenKeys={['realtime', 'settings']}
           items={[
             { key: '/dashboard', icon: <DashboardOutlined />, label: '대시보드' },
+            {
+              key: 'realtime',
+              icon: <MonitorOutlined />,
+              label: '실시간 운영',
+              children: [
+                { key: '/live-calls', label: '통화 현황 조회' },
+                { key: '/kpi', label: '업무 현황 조회' },
+              ],
+            },
+            {
+              key: 'settings',
+              icon: <SettingOutlined />,
+              label: '운영 설정',
+              children: [
+                { key: '/settings/agents', label: '상담원 설정' },
+                { key: '/settings/queues', label: '호 분배룰 설정' },
+              ],
+            },
             { key: '/queues', icon: <NotificationOutlined />, label: '큐 현황' },
-            { key: '/agents', icon: <TeamOutlined />, label: '상담원' },
+            { key: '/agents', icon: <TeamOutlined />, label: '상담원 현황' },
             { key: '/monitoring', icon: <DesktopOutlined />, label: '시스템 모니터링' },
             { key: '/asterisk', icon: <SettingOutlined />, label: 'Asterisk 설정' },
           ]}

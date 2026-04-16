@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 
 // conv 29·35 의 queue summary 집계 모델.
@@ -114,5 +114,61 @@ export class QueuesService {
     );
 
     return { success: true, data: { queues: rows }, error: null };
+  }
+
+  async listSettings(tenantId: string) {
+    const rows = await this.prisma.queues.findMany({
+      where: { tenantId },
+      select: {
+        queueId: true,
+        queueName: true,
+        queueDisplayName: true,
+        strategy: true,
+        maxWaitSeconds: true,
+        ringTimeoutSeconds: true,
+        wrapupSeconds: true,
+        autopause: true,
+        isActive: true,
+      },
+      orderBy: { queueName: 'asc' },
+    });
+    return { success: true, data: rows, error: null };
+  }
+
+  async update(tenantId: string, queueId: string, dto: {
+    queueDisplayName?: string;
+    strategy?: string;
+    maxWaitSeconds?: number;
+    ringTimeoutSeconds?: number;
+    wrapupSeconds?: number;
+    autopause?: boolean;
+  }) {
+    const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
+    if (!queue) throw new NotFoundException('Queue not found');
+
+    const updated = await this.prisma.queues.update({
+      where: { queueId },
+      data: {
+        ...(dto.queueDisplayName !== undefined && { queueDisplayName: dto.queueDisplayName }),
+        ...(dto.strategy !== undefined && { strategy: dto.strategy }),
+        ...(dto.maxWaitSeconds !== undefined && { maxWaitSeconds: dto.maxWaitSeconds }),
+        ...(dto.ringTimeoutSeconds !== undefined && { ringTimeoutSeconds: dto.ringTimeoutSeconds }),
+        ...(dto.wrapupSeconds !== undefined && { wrapupSeconds: dto.wrapupSeconds }),
+        ...(dto.autopause !== undefined && { autopause: dto.autopause }),
+        updatedAt: new Date(),
+      },
+      select: {
+        queueId: true,
+        queueName: true,
+        queueDisplayName: true,
+        strategy: true,
+        maxWaitSeconds: true,
+        ringTimeoutSeconds: true,
+        wrapupSeconds: true,
+        autopause: true,
+        isActive: true,
+      },
+    });
+    return { success: true, data: updated, error: null };
   }
 }

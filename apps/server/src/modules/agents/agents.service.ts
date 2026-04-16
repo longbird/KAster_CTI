@@ -90,4 +90,26 @@ export class AgentsService {
     });
     return { success: true, data: rows, error: null };
   }
+
+  async update(tenantId: string, agentId: string, dto: { agentName?: string; extension?: string }) {
+    const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    const updated = await this.prisma.agents.update({
+      where: { agentId },
+      data: {
+        ...(dto.agentName !== undefined && { agentName: dto.agentName }),
+        ...(dto.extension !== undefined && { extension: dto.extension }),
+        updatedAt: new Date(),
+      },
+      select: {
+        agentId: true,
+        agentName: true,
+        extension: true,
+        role: true,
+        loginId: true,
+      },
+    });
+    return { success: true, data: updated, error: null };
+  }
 }
