@@ -7,11 +7,11 @@ import { MetricsService } from './metrics.service';
 @ApiExcludeController()
 @Controller()
 export class MonitoringController {
-  constructor(private readonly metrics: MetricsService) {}
+  constructor(private readonly metricsService: MetricsService) {}
 
   @Get('metrics')
   @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
   async metrics(@Query('tenantId') tenantId?: string): Promise<string> {
-    return this.metrics.getMetrics(tenantId);
+    return this.metricsService.getMetrics(tenantId);
   }
 }
