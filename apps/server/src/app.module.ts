@@ -15,6 +15,7 @@ import { OutboxModule } from './modules/outbox/outbox.module';
 import { SessionRecoveryModule } from './modules/session-recovery/session-recovery.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { AsteriskConfigModule } from './modules/asterisk-config/asterisk-config.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
     CustomersModule,
     QueuesModule,
     AdminModule,
+    AsteriskConfigModule,
     HealthModule,
   ],
   providers: [PrismaService],

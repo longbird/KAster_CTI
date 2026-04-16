@@ -4,6 +4,7 @@ import {
   DesktopOutlined,
   LogoutOutlined,
   NotificationOutlined,
+  SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ export function AppLayout() {
             { key: '/queues', icon: <NotificationOutlined />, label: '큐 현황' },
             { key: '/agents', icon: <TeamOutlined />, label: '상담원' },
             { key: '/monitoring', icon: <DesktopOutlined />, label: '시스템 모니터링' },
+            { key: '/asterisk', icon: <SettingOutlined />, label: 'Asterisk 설정' },
           ]}
           onClick={({ key }) => navigate(key as string)}
         />
