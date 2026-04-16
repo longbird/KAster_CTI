@@ -12,8 +12,18 @@ import { InfraStatusBar } from '../../monitoring/components/InfraStatusBar';
 export function AdminDashboardPage() {
   const { data, loading } = useDashboardData();
 
-  if (loading || !data) {
+  if (loading) {
     return <Skeleton active paragraph={{ rows: 18 }} />;
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <Typography.Text type="secondary">
+          대시보드 데이터를 불러올 수 없습니다. 백엔드 서버 연결을 확인하세요.
+        </Typography.Text>
+      </Card>
+    );
   }
 
   return (
