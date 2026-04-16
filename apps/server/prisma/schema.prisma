@@ -33,6 +33,12 @@ model tenants {
   eventOutbox          eventOutbox[]
   attendedTransferCandidates attendedTransferCandidates[]
   refreshTokens        refreshTokens[]
+  announcements       announcements[]
+  branches            branches[]
+  branchAgents        branchAgents[]
+  branchQueues        branchQueues[]
+  branchDids          branchDids[]
+  rolePermissions     rolePermissions[]
   asteriskTrunks       AsteriskTrunk[]
   asteriskDids         AsteriskDid[]
   asteriskIvrMenus     AsteriskIvrMenu[]
@@ -63,6 +69,7 @@ model agents {
   callLegs           callLegs[]
   callMemos          callMemos[]
   queueAgentMembers  queueAgentMembers[]
+  branchMappings     branchAgents[]
   queueEvents        queueEvents[]
   transfersFrom      callTransfers[] @relation("transfer_from")
   transfersTo        callTransfers[] @relation("transfer_to")
@@ -92,6 +99,7 @@ model queues {
   tenant              tenants   @relation(fields: [tenantId], references: [tenantId])
   defaultAgents       agents[]  @relation("agent_default_queue")
   members             queueAgentMembers[]
+  branchMappings      branchQueues[]
   sessions            callSessions[]
   queueEvents         queueEvents[]
 
@@ -413,6 +421,100 @@ model refreshTokens {
   @@index([expiresAt])
 }
 
+model announcements {
+  announcementId String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  title          String   @db.VarChar(200)
+  body           String
+  authorName     String   @db.VarChar(50)
+  pinned         Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant         tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@index([tenantId, pinned, createdAt(sort: Desc)])
+}
+
+model branches {
+  branchId      String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  branchCode    String   @db.VarChar(32)
+  branchName    String   @db.VarChar(128)
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  agentMappings branchAgents[]
+  queueMappings branchQueues[]
+  didMappings   branchDids[]
+
+  @@unique([tenantId, branchCode])
+  @@index([tenantId, branchName])
+}
+
+model branchAgents {
+  branchAgentId String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  branchId      String   @db.Uuid
+  agentId       String   @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch        branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  agent         agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([branchId, agentId])
+  @@index([tenantId, branchId])
+}
+
+model branchQueues {
+  branchQueueId String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  branchId      String   @db.Uuid
+  queueId       String   @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch        branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  queue         queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+
+  @@unique([branchId, queueId])
+  @@index([tenantId, branchId])
+}
+
+model branchDids {
+  branchDidId String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  branchId    String   @db.Uuid
+  didId       String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant      tenants      @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch      branches     @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  did         AsteriskDid  @relation(fields: [didId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, didId])
+  @@index([tenantId, branchId])
+}
+
+model rolePermissions {
+  rolePermissionId String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  roleCode         String   @db.VarChar(32)
+  menuKey          String   @db.VarChar(128)
+  canAccess        Boolean  @default(true)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant           tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, roleCode, menuKey])
+  @@index([tenantId, roleCode])
+}
+
 model AsteriskTrunk {
   id         String   @id @default(uuid()) @db.Uuid
   tenantId   String   @db.Uuid
@@ -443,6 +545,7 @@ model AsteriskDid {
   updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
   tenant      tenants          @relation(fields: [tenantId], references: [tenantId])
   ivrMenu     AsteriskIvrMenu? @relation(fields: [ivrMenuId], references: [id])
+  branchMappings branchDids[]
 
   @@unique([tenantId, did])
 }

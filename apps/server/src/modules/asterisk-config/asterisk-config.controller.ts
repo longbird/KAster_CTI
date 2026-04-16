@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
+import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AsteriskConfigService } from './asterisk-config.service';
 import { AsteriskReloadService } from './asterisk-reload.service';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
@@ -20,36 +21,41 @@ export class AsteriskConfigController {
   constructor(
     private readonly svc: AsteriskConfigService,
     private readonly reload: AsteriskReloadService,
+    private readonly menuPermissionService: MenuPermissionService,
   ) {}
 
+  private async assertAsteriskAccess(user: any) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'asterisk');
+  }
+
   // Trunks
-  @Get('trunks') getTrunks(@CurrentUser() u: any) { return this.svc.getTrunks(u.tenantId); }
-  @Post('trunks') createTrunk(@CurrentUser() u: any, @Body() dto: CreateTrunkDto) { return this.svc.createTrunk(u.tenantId, dto); }
-  @Put('trunks/:id') updateTrunk(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkDto) { return this.svc.updateTrunk(u.tenantId, id, dto); }
-  @Delete('trunks/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteTrunk(u.tenantId, id); }
+  @Get('trunks') async getTrunks(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getTrunks(u.tenantId); }
+  @Post('trunks') async createTrunk(@CurrentUser() u: any, @Body() dto: CreateTrunkDto) { await this.assertAsteriskAccess(u); return this.svc.createTrunk(u.tenantId, dto); }
+  @Put('trunks/:id') async updateTrunk(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkDto) { await this.assertAsteriskAccess(u); return this.svc.updateTrunk(u.tenantId, id, dto); }
+  @Delete('trunks/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAccess(u); return this.svc.deleteTrunk(u.tenantId, id); }
 
   // DIDs
-  @Get('dids') getDids(@CurrentUser() u: any) { return this.svc.getDids(u.tenantId); }
-  @Post('dids') createDid(@CurrentUser() u: any, @Body() dto: CreateDidDto) { return this.svc.createDid(u.tenantId, dto); }
-  @Put('dids/:id') updateDid(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateDidDto) { return this.svc.updateDid(u.tenantId, id, dto); }
-  @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) deleteDid(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteDid(u.tenantId, id); }
+  @Get('dids') async getDids(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getDids(u.tenantId); }
+  @Post('dids') async createDid(@CurrentUser() u: any, @Body() dto: CreateDidDto) { await this.assertAsteriskAccess(u); return this.svc.createDid(u.tenantId, dto); }
+  @Put('dids/:id') async updateDid(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateDidDto) { await this.assertAsteriskAccess(u); return this.svc.updateDid(u.tenantId, id, dto); }
+  @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteDid(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAccess(u); return this.svc.deleteDid(u.tenantId, id); }
 
   // IVR Menus
-  @Get('ivr-menus') getIvrMenus(@CurrentUser() u: any) { return this.svc.getIvrMenus(u.tenantId); }
-  @Post('ivr-menus') createIvrMenu(@CurrentUser() u: any, @Body() dto: CreateIvrMenuDto) { return this.svc.createIvrMenu(u.tenantId, dto); }
-  @Put('ivr-menus/:id') updateIvrMenu(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateIvrMenuDto) { return this.svc.updateIvrMenu(u.tenantId, id, dto); }
-  @Delete('ivr-menus/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) deleteIvrMenu(@CurrentUser() u: any, @Param('id') id: string) { return this.svc.deleteIvrMenu(u.tenantId, id); }
+  @Get('ivr-menus') async getIvrMenus(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getIvrMenus(u.tenantId); }
+  @Post('ivr-menus') async createIvrMenu(@CurrentUser() u: any, @Body() dto: CreateIvrMenuDto) { await this.assertAsteriskAccess(u); return this.svc.createIvrMenu(u.tenantId, dto); }
+  @Put('ivr-menus/:id') async updateIvrMenu(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateIvrMenuDto) { await this.assertAsteriskAccess(u); return this.svc.updateIvrMenu(u.tenantId, id, dto); }
+  @Delete('ivr-menus/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteIvrMenu(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAccess(u); return this.svc.deleteIvrMenu(u.tenantId, id); }
 
   // Agent SIP
-  @Get('agents-sip') getAgentSip(@CurrentUser() u: any) { return this.svc.getAgentSip(u.tenantId); }
-  @Put('agents-sip/:agentId/password') updateAgentSipPassword(
+  @Get('agents-sip') async getAgentSip(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getAgentSip(u.tenantId); }
+  @Put('agents-sip/:agentId/password') async updateAgentSipPassword(
     @CurrentUser() u: any,
     @Param('agentId') agentId: string,
     @Body() dto: UpdateSipPasswordDto,
-  ) { return this.svc.updateAgentSipPassword(u.tenantId, agentId, dto.sipPassword); }
-  @Post('agents-sip/sync') syncAgentSip(@CurrentUser() u: any) { return this.svc.syncAgentSip(u.tenantId); }
+  ) { await this.assertAsteriskAccess(u); return this.svc.updateAgentSipPassword(u.tenantId, agentId, dto.sipPassword); }
+  @Post('agents-sip/sync') async syncAgentSip(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.syncAgentSip(u.tenantId); }
 
   // Reload + Preview
-  @Post('reload') manualReload(@CurrentUser() u: any) { return this.reload.executeReload(u.tenantId); }
-  @Get('preview') preview(@CurrentUser() u: any) { return this.reload.previewConfFiles(u.tenantId); }
+  @Post('reload') async manualReload(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.executeReload(u.tenantId); }
+  @Get('preview') async preview(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.previewConfFiles(u.tenantId); }
 }

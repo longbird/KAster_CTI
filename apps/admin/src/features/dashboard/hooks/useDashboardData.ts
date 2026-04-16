@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchDashboardData } from '../api/dashboardApi';
 import type { DashboardData } from '../types/dashboard';
 
-export function useDashboardData() {
+export function useDashboardData(branchId?: string) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -10,8 +10,9 @@ export function useDashboardData() {
     let active = true;
 
     const load = async () => {
+      if (active) setLoading(true);
       try {
-        const next = await fetchDashboardData();
+        const next = await fetchDashboardData(branchId);
         if (!active) return;
         setData(next);
       } catch {
@@ -35,7 +36,7 @@ export function useDashboardData() {
       active = false;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [branchId]);
 
   return { data, loading };
 }

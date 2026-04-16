@@ -1,0 +1,35 @@
+
+> kaster-cti-admin@0.1.0 dev
+> vite --port 5174
+
+Port 5174 is in use, trying another one...
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m415[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5175[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m오후 12:38:08[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 12:38:08[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 12:38:08[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 12:42:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 12:42:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 12:42:34[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 1:01:43[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 1:01:47[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 1:02:03[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 9:38:01[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 9:45:55[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 9:50:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx, /src/pages/ForbiddenPage.tsx, /src/pages/LoginPage.tsx[22m
+[2m오후 9:50:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 9:50:26[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 9:51:06[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 10:05:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 10:06:05[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 10:06:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 10:07:37[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 10:10:42[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/DidsTab.tsx[22m
+[2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/agent-settings/AgentEditModal.tsx[22m
+[2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/agent-settings/AgentSettingsPage.tsx[22m
+[2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueEditModal.tsx[22m
+[2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueSettingsPage.tsx[22m

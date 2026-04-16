@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -11,12 +12,14 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
-import { JwtAuthGuard } from '../../common/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { JwtAuthGuard } from '../../common/jwt-auth.guard';
+import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AgentStateService } from '../calls/agent-state.service';
 import { AgentsService } from './agents.service';
 import { ChangeAgentStatusDto } from './dto/change-agent-status.dto';
+import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 
 const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
@@ -29,29 +32,75 @@ export class AgentsController {
   constructor(
     private readonly agentStateService: AgentStateService,
     private readonly agentsService: AgentsService,
+    private readonly menuPermissionService: MenuPermissionService,
   ) {}
 
   @Get()
-  list(@CurrentUser() user: any) {
+  async list(@CurrentUser() user: any) {
+    if (SUPERVISORY_ROLES.has(user.role)) {
+      await this.menuPermissionService.assertAnyMenuAccess(
+        user.tenantId,
+        user.role,
+        ['settings/agents', 'agents'],
+      );
+    }
     return this.agentsService.listForTenant(user.tenantId);
   }
 
   @Get(':agentId')
-  detail(@CurrentUser() user: any, @Param('agentId') agentId: string) {
+  async detail(@CurrentUser() user: any, @Param('agentId') agentId: string) {
+    if (user.sub !== agentId && SUPERVISORY_ROLES.has(user.role)) {
+      await this.menuPermissionService.assertAnyMenuAccess(
+        user.tenantId,
+        user.role,
+        ['settings/agents', 'agents'],
+      );
+    }
     return this.agentsService.getDetail(user.tenantId, agentId);
   }
 
   @Get(':agentId/history')
-  history(
+  async history(
     @CurrentUser() user: any,
     @Param('agentId') agentId: string,
     @Query('limit') limit?: string,
   ) {
+    if (user.sub !== agentId && SUPERVISORY_ROLES.has(user.role)) {
+      await this.menuPermissionService.assertAnyMenuAccess(
+        user.tenantId,
+        user.role,
+        ['settings/agents', 'agents'],
+      );
+    }
     return this.agentsService.getHistory(
       user.tenantId,
       agentId,
       limit ? Number(limit) : 50,
     );
+  }
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async create(@CurrentUser() user: any, @Body() dto: CreateAgentDto) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/agents');
+    return this.agentsService.create(user.tenantId, dto);
+  }
+
+  @Delete(':agentId')
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async deactivate(@CurrentUser() user: any, @Param('agentId') agentId: string) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/agents');
+    return this.agentsService.deactivate(user.tenantId, agentId);
+  }
+
+  @Post(':agentId/reset-password')
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async resetPassword(@CurrentUser() user: any, @Param('agentId') agentId: string) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/agents');
+    return this.agentsService.resetPassword(user.tenantId, agentId);
   }
 
   @Patch(':agentId')
@@ -62,6 +111,7 @@ export class AgentsController {
     @Param('agentId') agentId: string,
     @Body() dto: UpdateAgentDto,
   ) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/agents');
     return this.agentsService.update(user.tenantId, agentId, dto);
   }
 
@@ -71,7 +121,6 @@ export class AgentsController {
     @Param('agentId') agentId: string,
     @Body() dto: ChangeAgentStatusDto,
   ) {
-    // 본인 또는 supervisor/admin 만 상태 변경 허용.
     if (user.sub !== agentId && !SUPERVISORY_ROLES.has(user.role)) {
       throw new ForbiddenException('본인 또는 supervisor/admin 만 허용');
     }

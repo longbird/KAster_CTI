@@ -1,14 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../common/prisma.service';
+import { CreateAgentDto } from './dto/create-agent.dto';
+import { UpdateAgentDto } from './dto/update-agent.dto';
 
 @Injectable()
 export class AgentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 슈퍼바이저/admin 화면용 목록. 현재 상태도 동봉.
   async listForTenant(tenantId: string) {
     const agents = await this.prisma.agents.findMany({
-      where: { tenantId, isActive: true },
+      where: { tenantId },
       orderBy: { extension: 'asc' },
       select: {
         agentId: true,
@@ -20,6 +26,7 @@ export class AgentsService {
         employmentStatus: true,
         defaultQueueId: true,
         lastLoginAt: true,
+        isActive: true,
       },
     });
 
@@ -35,6 +42,58 @@ export class AgentsService {
     );
 
     return { success: true, data: withStatus, error: null };
+  }
+
+  async create(tenantId: string, dto: CreateAgentDto) {
+    const existing = await this.prisma.agents.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { loginId: dto.loginId },
+          { agentCode: dto.agentCode },
+          { extension: dto.extension },
+        ],
+      },
+      select: { loginId: true, agentCode: true, extension: true },
+    });
+
+    if (existing) {
+      if (existing.loginId === dto.loginId) {
+        throw new ConflictException(`loginId '${dto.loginId}' 이미 사용 중`);
+      }
+      if (existing.agentCode === dto.agentCode) {
+        throw new ConflictException(`agentCode '${dto.agentCode}' 이미 사용 중`);
+      }
+      if (existing.extension === dto.extension) {
+        throw new ConflictException(`extension '${dto.extension}' 이미 사용 중`);
+      }
+    }
+
+    const hash = await bcrypt.hash(dto.password, 10);
+
+    const agent = await this.prisma.agents.create({
+      data: {
+        tenantId,
+        loginId: dto.loginId,
+        agentCode: dto.agentCode,
+        agentName: dto.agentName,
+        extension: dto.extension,
+        loginPasswordHash: hash,
+        role: dto.role ?? 'agent',
+        defaultQueueId: dto.defaultQueueId ?? null,
+      },
+      select: {
+        agentId: true,
+        loginId: true,
+        agentCode: true,
+        agentName: true,
+        extension: true,
+        role: true,
+        defaultQueueId: true,
+      },
+    });
+
+    return { success: true, data: agent, error: null };
   }
 
   async getDetail(tenantId: string, agentId: string) {
@@ -53,7 +112,6 @@ export class AgentsService {
       orderBy: { startedAt: 'desc' },
     });
 
-    // 오늘 통계: 자정부터 현재까지의 응답 수, 평균 통화시간
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -91,7 +149,7 @@ export class AgentsService {
     return { success: true, data: rows, error: null };
   }
 
-  async update(tenantId: string, agentId: string, dto: { agentName?: string; extension?: string }) {
+  async update(tenantId: string, agentId: string, dto: UpdateAgentDto) {
     const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
     if (!agent) throw new NotFoundException('Agent not found');
 
@@ -100,6 +158,9 @@ export class AgentsService {
       data: {
         ...(dto.agentName !== undefined && { agentName: dto.agentName }),
         ...(dto.extension !== undefined && { extension: dto.extension }),
+        ...(dto.role !== undefined && { role: dto.role }),
+        ...(dto.defaultQueueId !== undefined && { defaultQueueId: dto.defaultQueueId }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         updatedAt: new Date(),
       },
       select: {
@@ -108,8 +169,44 @@ export class AgentsService {
         extension: true,
         role: true,
         loginId: true,
+        defaultQueueId: true,
+        isActive: true,
       },
     });
     return { success: true, data: updated, error: null };
+  }
+
+  async deactivate(tenantId: string, agentId: string) {
+    const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    await this.prisma.agents.update({
+      where: { agentId },
+      data: { isActive: false, updatedAt: new Date() },
+    });
+
+    return { success: true, data: { agentId, isActive: false }, error: null };
+  }
+
+  async resetPassword(tenantId: string, agentId: string) {
+    const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    const tempPassword = Array.from({ length: 12 }, () =>
+      chars[Math.floor(Math.random() * chars.length)],
+    ).join('');
+
+    const hash = await bcrypt.hash(tempPassword, 10);
+    await this.prisma.agents.update({
+      where: { agentId },
+      data: { loginPasswordHash: hash, updatedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      data: { agentId, tempPassword },
+      error: null,
+    };
   }
 }

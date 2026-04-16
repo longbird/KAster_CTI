@@ -1,4 +1,13 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
+
+const ROLES = ['agent', 'supervisor', 'admin'] as const;
 
 export class UpdateAgentDto {
   @IsOptional()
@@ -10,4 +19,16 @@ export class UpdateAgentDto {
   @IsString()
   @MaxLength(16)
   extension?: string;
+
+  @IsOptional()
+  @IsIn(ROLES)
+  role?: string;
+
+  @IsOptional()
+  @IsUUID()
+  defaultQueueId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

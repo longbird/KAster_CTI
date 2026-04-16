@@ -3,6 +3,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
 interface MissedRow {
   callId: string;
@@ -18,6 +19,7 @@ export function MissedCallsPage() {
   const [rows, setRows]       = useState<MissedRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs()]);
+  const [branchId, setBranchId] = useState<string | undefined>(undefined);
 
   const load = async () => {
     setLoading(true);
@@ -27,6 +29,7 @@ export function MissedCallsPage() {
           from: range[0].toISOString(),
           to:   range[1].toISOString(),
           mode: 'missed',
+          branchId,
         },
       });
       setRows(res.data?.data ?? []);
@@ -46,6 +49,7 @@ export function MissedCallsPage() {
           value={range}
           onChange={(v) => v && setRange(v as [Dayjs, Dayjs])}
         />
+        <BranchFilterSelect value={branchId} onChange={setBranchId} />
         <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
           조회
         </Button>

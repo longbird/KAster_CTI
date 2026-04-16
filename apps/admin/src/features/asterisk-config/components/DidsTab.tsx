@@ -49,6 +49,22 @@ export function DidsTab() {
         row.ivrMenuId ? <Tag color="blue">IVR</Tag> : <Tag color="green">큐: {row.directQueue}</Tag>,
     },
     {
+      title: '지사',
+      render: (_: unknown, row: AsteriskDid) => {
+        const items = row.branchMappings ?? [];
+        if (items.length === 0) return '-';
+        return (
+          <Space wrap>
+            {items.map((item) => (
+              <Tag key={item.branch.branchId} color="purple">
+                {item.branch.branchName}
+              </Tag>
+            ))}
+          </Space>
+        );
+      },
+    },
+    {
       title: '상태', dataIndex: 'enabled', width: 80,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '활성' : '비활성'}</Tag>,
     },

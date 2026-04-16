@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nest
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
+import { MenuPermissionService } from '../../common/menu-permission.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { OriginateDto } from './dto/originate.dto';
@@ -13,27 +14,56 @@ import { CallsService } from './calls.service';
 @UseGuards(JwtAuthGuard)
 @Controller('calls')
 export class CallsController {
-  constructor(private readonly callsService: CallsService) {}
+  constructor(
+    private readonly callsService: CallsService,
+    private readonly menuPermissionService: MenuPermissionService,
+  ) {}
 
   @Get('active')
   @ApiOperation({ summary: '활성 콜 목록', description: 'sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션 (최근 100건). agentName·waitSeconds 포함.' })
   @ApiOkResponse({ type: ApiResponseDto })
-  getActiveCalls(@Req() req: any) {
-    return this.callsService.getActiveCalls(req.user.tenantId);
+  async getActiveCalls(@Req() req: any, @Query('branchId') branchId?: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAccess(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+      );
+    }
+    return this.callsService.getActiveCalls(req.user.tenantId, branchId);
   }
 
   @Get('history')
   @ApiOperation({ summary: '통화내역 조회 (CDR)', description: '날짜/상담원/상태 필터, 최근 500건' })
   @ApiOkResponse({ type: ApiResponseDto })
-  listHistory(@Req() req: any, @Query() q: ListCallsQueryDto) {
+  async listHistory(@Req() req: any, @Query() q: ListCallsQueryDto) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertMenuAccess(
+        req.user.tenantId,
+        req.user.role,
+        'reports/calls',
+      );
+    }
     return this.callsService.listHistory(req.user.tenantId, q);
   }
 
   @Get('recordings/list')
   @ApiOperation({ summary: '녹취 목록 조회', description: '날짜 필터, 최근 200건' })
   @ApiOkResponse({ type: ApiResponseDto })
-  listRecordings(@Req() req: any, @Query('from') from?: string, @Query('to') to?: string) {
-    return this.callsService.listRecordings(req.user.tenantId, { from, to });
+  async listRecordings(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertMenuAccess(
+        req.user.tenantId,
+        req.user.role,
+        'reports/recordings',
+      );
+    }
+    return this.callsService.listRecordings(req.user.tenantId, { from, to, branchId });
   }
 
   @Get(':callId')

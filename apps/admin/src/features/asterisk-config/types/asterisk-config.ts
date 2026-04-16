@@ -17,6 +17,13 @@ export interface AsteriskDid {
   ivrMenuId: string | null;
   directQueue: string | null;
   enabled: boolean;
+  branchMappings?: Array<{
+    branch: {
+      branchId: string;
+      branchCode: string;
+      branchName: string;
+    };
+  }>;
 }
 
 export interface AsteriskIvrEntry {

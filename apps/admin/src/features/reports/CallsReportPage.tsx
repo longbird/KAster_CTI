@@ -3,6 +3,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
 interface CdrRow {
   callId: string;
@@ -34,6 +35,7 @@ export function CallsReportPage() {
   const [loading, setLoading] = useState(false);
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs()]);
   const [mode, setMode]       = useState<'all' | 'missed'>('all');
+  const [branchId, setBranchId] = useState<string | undefined>(undefined);
 
   const load = async () => {
     setLoading(true);
@@ -43,6 +45,7 @@ export function CallsReportPage() {
           from: range[0].toISOString(),
           to:   range[1].toISOString(),
           mode: mode === 'missed' ? 'missed' : undefined,
+          branchId,
         },
       });
       setRows(res.data?.data ?? []);
@@ -62,6 +65,7 @@ export function CallsReportPage() {
           value={range}
           onChange={(v) => v && setRange(v as [Dayjs, Dayjs])}
         />
+        <BranchFilterSelect value={branchId} onChange={setBranchId} />
         <Select
           value={mode}
           onChange={setMode}

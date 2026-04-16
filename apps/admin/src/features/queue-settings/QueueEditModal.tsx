@@ -5,6 +5,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 export interface QueueRow {
   queueId: string;
   queueName: string;
+  queueExten: string;
   queueDisplayName?: string;
   strategy?: string;
   maxWaitSeconds?: number;
@@ -53,8 +54,9 @@ export function QueueEditModal({ queue, onClose, onSaved }: Props) {
       message.success('저장 완료');
       onSaved();
       onClose();
-    } catch {
-      message.error('저장 실패');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message ?? '저장 실패';
+      message.error(msg);
     }
   };
 
@@ -66,8 +68,9 @@ export function QueueEditModal({ queue, onClose, onSaved }: Props) {
       onCancel={onClose}
       okText="저장"
       cancelText="취소"
+      destroyOnClose
     >
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" preserve={false}>
         <Form.Item label="표시명" name="queueDisplayName">
           <Input placeholder="없으면 queueName 사용" maxLength={128} />
         </Form.Item>

@@ -1,16 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
+import { CreateQueueDto } from './dto/create-queue.dto';
 
-// conv 29·35 의 queue summary 집계 모델.
-// 현재 활성 상태(스냅샷)는 callSessions.sessionStatus 로,
-// 과거 N분간의 answered/abandoned 카운트는 queueEvents 로 조합한다.
 @Injectable()
 export class QueuesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reload: AsteriskReloadService,
+  ) {}
 
-  async getSummary(tenantId: string) {
+  async getSummary(tenantId: string, queueIds?: string[]) {
     const queues = await this.prisma.queues.findMany({
-      where: { tenantId, isActive: true },
+      where: {
+        tenantId,
+        isActive: true,
+        ...(queueIds ? { queueId: { in: queueIds } } : {}),
+      },
       select: {
         queueId: true,
         queueName: true,
@@ -21,7 +31,6 @@ export class QueuesService {
 
     const rows = await Promise.all(
       queues.map(async (q) => {
-        // 스냅샷: 현재 이 큐에 붙어있는 콜의 상태 분포
         const snapshot = await this.prisma.callSessions.groupBy({
           by: ['sessionStatus'],
           where: {
@@ -32,14 +41,12 @@ export class QueuesService {
           _count: { callId: true },
         });
 
-        // 최장 대기 시간: QUEUED 상태의 가장 오래된 queuedAt
         const longestWait = await this.prisma.callSessions.findFirst({
           where: { tenantId, queueName: q.queueName, sessionStatus: 'QUEUED' },
           orderBy: { queuedAt: 'asc' },
           select: { queuedAt: true },
         });
 
-        // 최근 30분 집계: 응답/포기 이벤트
         const thirtyMinAgo = new Date(Date.now() - 30 * 60_000);
         const [answered, abandoned] = await Promise.all([
           this.prisma.queueEvents.count({
@@ -65,11 +72,10 @@ export class QueuesService {
           snapshotMap[s.sessionStatus] = s._count.callId;
         }
 
-        const waiting = snapshotMap['QUEUED'] ?? 0;
-        const ringing = snapshotMap['RINGING_AGENT'] ?? 0;
-        const talking = snapshotMap['TALKING'] ?? 0;
+        const waiting = snapshotMap.QUEUED ?? 0;
+        const ringing = snapshotMap.RINGING_AGENT ?? 0;
+        const talking = snapshotMap.TALKING ?? 0;
 
-        // 이 큐에 소속된 상담원 현재 available/paused 상태
         const members = await this.prisma.queueAgentMembers.findMany({
           where: { queueId: q.queueId, isActive: true },
           select: { agentId: true },
@@ -84,12 +90,17 @@ export class QueuesService {
             }),
           ),
         );
+
         let available = 0;
         let paused = 0;
         for (const s of latestStatuses) {
           if (!s) continue;
           if (s.statusCode === 'AVAILABLE') available += 1;
-          else if (s.statusCode === 'BREAK' || s.statusCode === 'MEAL' || s.statusCode === 'MANUAL_PAUSED') {
+          else if (
+            s.statusCode === 'BREAK' ||
+            s.statusCode === 'MEAL' ||
+            s.statusCode === 'MANUAL_PAUSED'
+          ) {
             paused += 1;
           }
         }
@@ -122,6 +133,7 @@ export class QueuesService {
       select: {
         queueId: true,
         queueName: true,
+        queueExten: true,
         queueDisplayName: true,
         strategy: true,
         maxWaitSeconds: true,
@@ -135,14 +147,62 @@ export class QueuesService {
     return { success: true, data: rows, error: null };
   }
 
-  async update(tenantId: string, queueId: string, dto: {
-    queueDisplayName?: string;
-    strategy?: string;
-    maxWaitSeconds?: number;
-    ringTimeoutSeconds?: number;
-    wrapupSeconds?: number;
-    autopause?: boolean;
-  }) {
+  async create(tenantId: string, dto: CreateQueueDto) {
+    const existing = await this.prisma.queues.findFirst({
+      where: {
+        tenantId,
+        OR: [{ queueName: dto.queueName }, { queueExten: dto.queueExten }],
+      },
+      select: { queueName: true, queueExten: true },
+    });
+
+    if (existing) {
+      if (existing.queueName === dto.queueName) {
+        throw new ConflictException(`큐명 '${dto.queueName}' 이미 사용 중`);
+      }
+      if (existing.queueExten === dto.queueExten) {
+        throw new ConflictException(`내선번호 '${dto.queueExten}' 이미 사용 중`);
+      }
+    }
+
+    const queue = await this.prisma.queues.create({
+      data: {
+        tenantId,
+        queueName: dto.queueName,
+        queueExten: dto.queueExten,
+        queueDisplayName: dto.queueDisplayName,
+        strategy: dto.strategy ?? 'leastrecent',
+        ringTimeoutSeconds: dto.ringTimeoutSeconds ?? 15,
+        wrapupSeconds: dto.wrapupSeconds ?? 30,
+        maxWaitSeconds: dto.maxWaitSeconds ?? 45,
+        autopause: dto.autopause ?? true,
+      },
+      select: {
+        queueId: true,
+        queueName: true,
+        queueExten: true,
+        queueDisplayName: true,
+        strategy: true,
+        isActive: true,
+      },
+    });
+
+    this.reload.scheduleReload(tenantId);
+    return { success: true, data: queue, error: null };
+  }
+
+  async update(
+    tenantId: string,
+    queueId: string,
+    dto: {
+      queueDisplayName?: string;
+      strategy?: string;
+      maxWaitSeconds?: number;
+      ringTimeoutSeconds?: number;
+      wrapupSeconds?: number;
+      autopause?: boolean;
+    },
+  ) {
     const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
     if (!queue) throw new NotFoundException('Queue not found');
 
@@ -160,6 +220,7 @@ export class QueuesService {
       select: {
         queueId: true,
         queueName: true,
+        queueExten: true,
         queueDisplayName: true,
         strategy: true,
         maxWaitSeconds: true,
@@ -169,6 +230,84 @@ export class QueuesService {
         isActive: true,
       },
     });
+
+    this.reload.scheduleReload(tenantId);
     return { success: true, data: updated, error: null };
+  }
+
+  async deactivate(tenantId: string, queueId: string) {
+    const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
+    if (!queue) throw new NotFoundException('Queue not found');
+
+    await this.prisma.queues.update({
+      where: { queueId },
+      data: { isActive: false, updatedAt: new Date() },
+    });
+
+    this.reload.scheduleReload(tenantId);
+    return { success: true, data: { queueId, isActive: false }, error: null };
+  }
+
+  async listMembers(tenantId: string, queueId: string) {
+    const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
+    if (!queue) throw new NotFoundException('Queue not found');
+
+    const members = await this.prisma.queueAgentMembers.findMany({
+      where: { queueId, isActive: true },
+      include: {
+        agent: {
+          select: {
+            agentId: true,
+            agentName: true,
+            extension: true,
+            role: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: [{ memberOrder: 'asc' }, { penalty: 'asc' }],
+    });
+
+    return { success: true, data: members, error: null };
+  }
+
+  async setMembers(
+    tenantId: string,
+    queueId: string,
+    members: Array<{ agentId: string; penalty?: number; memberOrder?: number }>,
+  ) {
+    const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
+    if (!queue) throw new NotFoundException('Queue not found');
+
+    const uniqueAgentIds = [...new Set(members.map((item) => item.agentId))];
+    if (uniqueAgentIds.length > 0) {
+      const agents = await this.prisma.agents.findMany({
+        where: { tenantId, agentId: { in: uniqueAgentIds } },
+        select: { agentId: true },
+      });
+      if (agents.length !== uniqueAgentIds.length) {
+        throw new NotFoundException('일부 상담원을 찾을 수 없습니다');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.queueAgentMembers.deleteMany({ where: { queueId } });
+
+      if (members.length > 0) {
+        await tx.queueAgentMembers.createMany({
+          data: members.map((item, index) => ({
+            tenantId,
+            queueId,
+            agentId: item.agentId,
+            penalty: item.penalty ?? 0,
+            memberOrder: item.memberOrder ?? index,
+            isActive: true,
+          })),
+        });
+      }
+    });
+
+    this.reload.scheduleReload(tenantId);
+    return this.listMembers(tenantId, queueId);
   }
 }

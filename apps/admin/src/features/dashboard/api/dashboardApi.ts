@@ -62,14 +62,14 @@ function readToken(): string | null {
   }
 }
 
-async function fetchReal(): Promise<DashboardData> {
+async function fetchReal(branchId?: string): Promise<DashboardData> {
   const headers: Record<string, string> = {};
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const [dashboardRes, activeCallsRes] = await Promise.all([
-    axios.get(`${API_BASE_URL}/admin/dashboard`, { headers }),
-    axios.get(`${API_BASE_URL}/calls/active`, { headers }),
+    axios.get(`${API_BASE_URL}/admin/dashboard`, { headers, params: { branchId } }),
+    axios.get(`${API_BASE_URL}/calls/active`, { headers, params: { branchId } }),
   ]);
 
   const dashboard = dashboardRes.data?.data;
@@ -157,7 +157,7 @@ async function fetchReal(): Promise<DashboardData> {
   };
 }
 
-export async function fetchDashboardData(): Promise<DashboardData> {
+export async function fetchDashboardData(branchId?: string): Promise<DashboardData> {
   if (USE_MOCK) return fetchMock();
-  return fetchReal();
+  return fetchReal(branchId);
 }

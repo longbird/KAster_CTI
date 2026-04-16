@@ -1,6 +1,44 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import { QueuesService } from '../queues/queues.service';
+import { CreateBranchDto } from './dto/create-branch.dto';
+import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
+import { UpdateBranchDto } from './dto/update-branch.dto';
+import { UpdateBranchMappingsDto } from './dto/update-branch-mappings.dto';
+import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
+
+const MENU_KEYS = [
+  'dashboard',
+  'live-calls',
+  'kpi',
+  'reports/calls',
+  'reports/missed',
+  'reports/recordings',
+  'reports/logs',
+  'announcements',
+  'settings/agents',
+  'settings/queues',
+  'settings/forwarding',
+  'settings/prompts',
+  'settings/branches',
+  'settings/permissions',
+  'blocklist',
+  'system',
+  'queues',
+  'agents',
+  'monitoring',
+  'asterisk',
+] as const;
+
+const ROLE_CODES = ['agent', 'supervisor', 'admin'] as const;
+
+const DEFAULT_ROLE_ACCESS: Record<string, Set<string>> = {
+  agent: new Set(['dashboard']),
+  supervisor: new Set(MENU_KEYS),
+  admin: new Set(MENU_KEYS),
+};
 
 // 슈퍼바이저/admin 전용 실시간 대시보드.
 // 큐 요약 + 활성 콜 수 + 오늘 집계 + 에이전트 상태 분포 + 시간대별 트래픽 + 팀 현황 + 알람
@@ -11,55 +49,91 @@ export class AdminService {
     private readonly queuesService: QueuesService,
   ) {}
 
-  async getDashboard(tenantId: string) {
+  private async getBranchScope(tenantId: string, branchId?: string) {
+    if (!branchId) return null;
+
+    const [agentMappings, queueMappings] = await Promise.all([
+      this.prisma.branchAgents.findMany({
+        where: { tenantId, branchId },
+        select: { agentId: true },
+      }),
+      this.prisma.branchQueues.findMany({
+        where: { tenantId, branchId },
+        select: { queueId: true },
+      }),
+    ]);
+
+    return {
+      agentIds: agentMappings.map((item) => item.agentId),
+      queueIds: queueMappings.map((item) => item.queueId),
+    };
+  }
+
+  private buildBranchCallFilter(scope: { agentIds: string[]; queueIds: string[] } | null): Prisma.callSessionsWhereInput | undefined {
+    if (!scope) return undefined;
+    return {
+      OR: [
+        { primaryAgentId: { in: scope.agentIds } },
+        { queueId: { in: scope.queueIds } },
+      ],
+    };
+  }
+
+  async getDashboard(tenantId: string, branchId?: string) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
+    const branchScope = await this.getBranchScope(tenantId, branchId);
+    const branchFilter = this.buildBranchCallFilter(branchScope);
 
     const [queuesSummary, activeCalls, todayCounts, openStatuses, hourlyRaw, queueAgents] =
       await Promise.all([
-        this.queuesService.getSummary(tenantId),
+        this.queuesService.getSummary(tenantId, branchScope?.queueIds),
 
         this.prisma.callSessions.count({
-          where: { tenantId, sessionStatus: { notIn: ['ENDED'] } },
+          where: { tenantId, sessionStatus: { notIn: ['ENDED'] }, ...(branchFilter ?? {}) },
         }),
 
         Promise.all([
           this.prisma.callSessions.count({
-            where: { tenantId, startedAt: { gte: startOfDay } },
+            where: { tenantId, startedAt: { gte: startOfDay }, ...(branchFilter ?? {}) },
           }),
           this.prisma.callSessions.count({
-            where: { tenantId, startedAt: { gte: startOfDay }, answeredAt: { not: null } },
+            where: { tenantId, startedAt: { gte: startOfDay }, answeredAt: { not: null }, ...(branchFilter ?? {}) },
           }),
           this.prisma.callSessions.count({
-            where: { tenantId, startedAt: { gte: startOfDay }, abandonFlag: true },
+            where: { tenantId, startedAt: { gte: startOfDay }, abandonFlag: true, ...(branchFilter ?? {}) },
           }),
         ]),
 
         // 현재 오픈된 상담원 상태 (에이전트 상태 분포)
         this.prisma.agentStatusHistory.findMany({
-          where: { tenantId, endedAt: null },
+          where: {
+            tenantId,
+            endedAt: null,
+            ...(branchScope ? { agentId: { in: branchScope.agentIds } } : {}),
+          },
           select: { agentId: true, statusCode: true },
         }),
 
-        // 오늘 시간대별 트래픽 (raw SQL — Prisma groupBy 집계 한계 우회)
-        this.prisma.$queryRaw<
-          Array<{ hour: number; inbound: bigint; answered: bigint; abandoned: bigint }>
-        >`
-          SELECT
-            EXTRACT(HOUR FROM "startedAt")::int AS hour,
-            COUNT(*)                            AS inbound,
-            COUNT(*) FILTER (WHERE "answeredAt" IS NOT NULL) AS answered,
-            COUNT(*) FILTER (WHERE "abandonFlag" = true)     AS abandoned
-          FROM "callSessions"
-          WHERE "tenantId" = ${tenantId}::uuid
-            AND "startedAt" >= ${startOfDay}
-          GROUP BY hour
-          ORDER BY hour
-        `,
+        this.prisma.callSessions.findMany({
+          where: {
+            tenantId,
+            startedAt: { gte: startOfDay },
+            ...(branchFilter ?? {}),
+          },
+          select: {
+            startedAt: true,
+            answeredAt: true,
+            abandonFlag: true,
+          },
+        }),
 
         // 큐별 에이전트 현황 (팀 통계 도출용)
         this.prisma.queueAgentMembers.findMany({
-          where: { tenantId },
+          where: {
+            tenantId,
+            ...(branchScope ? { queueId: { in: branchScope.queueIds } } : {}),
+          },
           select: {
             queueId: true,
             queue: { select: { queueDisplayName: true, queueName: true } },
@@ -86,7 +160,10 @@ export class AdminService {
     // 큐별 멤버 agentId 를 구하려면 agentId 도 select 해야 함.
     // 쿼리를 분리해 agentId 포함 재조회.
     const queueMembersWithAgent = await this.prisma.queueAgentMembers.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(branchScope ? { queueId: { in: branchScope.queueIds } } : {}),
+      },
       select: {
         queueId: true,
         agentId: true,
@@ -125,13 +202,25 @@ export class AdminService {
     const teams = [...teamMap.values()];
 
     // ── 시간대별 트래픽 ────────────────────────────────────────────────────
+    const trafficBuckets = hourlyRaw.reduce<Record<number, { inbound: number; answered: number; abandoned: number }>>(
+      (acc, row) => {
+        const hour = row.startedAt.getHours();
+        if (!acc[hour]) acc[hour] = { inbound: 0, answered: 0, abandoned: 0 };
+        acc[hour].inbound += 1;
+        if (row.answeredAt) acc[hour].answered += 1;
+        if (row.abandonFlag) acc[hour].abandoned += 1;
+        return acc;
+      },
+      {},
+    );
+
     const traffic = Array.from({ length: 24 }, (_, h) => {
-      const row = hourlyRaw.find((r) => r.hour === h);
+      const row = trafficBuckets[h];
       return {
         hour: `${String(h).padStart(2, '0')}시`,
-        inbound: row ? Number(row.inbound) : 0,
-        answered: row ? Number(row.answered) : 0,
-        abandoned: row ? Number(row.abandoned) : 0,
+        inbound: row ? row.inbound : 0,
+        answered: row ? row.answered : 0,
+        abandoned: row ? row.abandoned : 0,
       };
     // 현재 시간대까지만 포함 (이후 시간대는 0이므로 제거)
     }).filter((_, h) => h <= new Date().getHours());
@@ -192,5 +281,340 @@ export class AdminService {
       },
       error: null,
     };
+  }
+
+  async listAmiLogs(tenantId: string, q: ListAmiLogsQueryDto) {
+    const page = q.page ?? 1;
+    const pageSize = q.pageSize ?? 20;
+    const from = q.from ? new Date(q.from) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const to = q.to ? new Date(q.to) : new Date();
+    const branchScope = await this.getBranchScope(tenantId, (q as ListAmiLogsQueryDto & { branchId?: string }).branchId);
+    let linkedidsForBranch: string[] | null = null;
+
+    if (branchScope) {
+      const rows = await this.prisma.callSessions.findMany({
+        where: {
+          tenantId,
+          startedAt: { gte: from, lte: to },
+          ...(this.buildBranchCallFilter(branchScope) ?? {}),
+        },
+        select: { linkedid: true },
+      });
+      linkedidsForBranch = rows.map((row) => row.linkedid);
+    }
+
+    const where: Prisma.rawAmiEventsWhereInput = {
+      tenantId,
+      eventTime: { gte: from, lte: to },
+      ...(q.eventName ? { eventName: { contains: q.eventName, mode: 'insensitive' as const } } : {}),
+      ...(linkedidsForBranch || q.linkedid
+        ? {
+            AND: [
+              ...(linkedidsForBranch ? [{ linkedid: { in: linkedidsForBranch } }] : []),
+              ...(q.linkedid ? [{ linkedid: { contains: q.linkedid, mode: 'insensitive' as const } }] : []),
+            ],
+          }
+        : {}),
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.rawAmiEvents.count({ where }),
+      this.prisma.rawAmiEvents.findMany({
+        where,
+        orderBy: { eventTime: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          eventId: true,
+          eventName: true,
+          eventTime: true,
+          linkedid: true,
+          uniqueid: true,
+          payload: true,
+        },
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        rows,
+        page,
+        pageSize,
+        total,
+      },
+      error: null,
+    };
+  }
+
+  async listAnnouncements(tenantId: string) {
+    const rows = await this.prisma.announcements.findMany({
+      where: { tenantId },
+      orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    return { success: true, data: rows, error: null };
+  }
+
+  async createAnnouncement(
+    tenantId: string,
+    dto: CreateAnnouncementDto,
+    actor?: { agentName?: string },
+  ) {
+    const row = await this.prisma.announcements.create({
+      data: {
+        tenantId,
+        title: dto.title,
+        body: dto.body,
+        authorName: dto.authorName || actor?.agentName || '관리자',
+        pinned: dto.pinned ?? false,
+      },
+    });
+
+    return { success: true, data: row, error: null };
+  }
+
+  async deleteAnnouncement(tenantId: string, announcementId: string) {
+    await this.prisma.announcements.deleteMany({
+      where: { announcementId, tenantId },
+    });
+
+    return { success: true, data: { deleted: true, announcementId }, error: null };
+  }
+
+  async listBranches(tenantId: string) {
+    const rows = await this.prisma.branches.findMany({
+      where: { tenantId },
+      orderBy: [{ isActive: 'desc' }, { branchName: 'asc' }],
+      include: {
+        agentMappings: true,
+        queueMappings: true,
+        didMappings: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        agentCount: row.agentMappings.length,
+        queueCount: row.queueMappings.length,
+        didCount: row.didMappings.length,
+      })),
+      error: null,
+    };
+  }
+
+  async createBranch(tenantId: string, dto: CreateBranchDto) {
+    const row = await this.prisma.branches.create({
+      data: {
+        tenantId,
+        branchCode: dto.branchCode,
+        branchName: dto.branchName,
+        description: dto.description ?? null,
+        isActive: dto.isActive ?? true,
+      },
+    });
+    return { success: true, data: row, error: null };
+  }
+
+  async updateBranch(tenantId: string, branchId: string, dto: UpdateBranchDto) {
+    const row = await this.prisma.branches.updateMany({
+      where: { tenantId, branchId },
+      data: {
+        ...(dto.branchCode !== undefined ? { branchCode: dto.branchCode } : {}),
+        ...(dto.branchName !== undefined ? { branchName: dto.branchName } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        updatedAt: new Date(),
+      },
+    });
+    return { success: true, data: { updated: row.count > 0, branchId }, error: null };
+  }
+
+  async deleteBranch(tenantId: string, branchId: string) {
+    await this.prisma.branches.deleteMany({
+      where: { tenantId, branchId },
+    });
+    return { success: true, data: { deleted: true, branchId }, error: null };
+  }
+
+  async getBranchMappings(tenantId: string, branchId: string) {
+    const branch = await this.prisma.branches.findFirst({
+      where: { tenantId, branchId },
+      include: {
+        agentMappings: {
+          select: { agentId: true },
+        },
+        queueMappings: {
+          select: { queueId: true },
+        },
+        didMappings: {
+          select: { didId: true },
+        },
+      },
+    });
+
+    const [agents, queues, dids] = await Promise.all([
+      this.prisma.agents.findMany({
+        where: { tenantId, isActive: true },
+        orderBy: [{ extension: 'asc' }],
+        select: {
+          agentId: true,
+          agentName: true,
+          extension: true,
+          role: true,
+        },
+      }),
+      this.prisma.queues.findMany({
+        where: { tenantId, isActive: true },
+        orderBy: [{ queueName: 'asc' }],
+        select: {
+          queueId: true,
+          queueName: true,
+          queueDisplayName: true,
+        },
+      }),
+      this.prisma.asteriskDid.findMany({
+        where: { tenantId, enabled: true },
+        orderBy: [{ did: 'asc' }],
+        select: {
+          id: true,
+          did: true,
+          description: true,
+        },
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        branch: branch
+          ? {
+              branchId: branch.branchId,
+              branchCode: branch.branchCode,
+              branchName: branch.branchName,
+            }
+          : null,
+        assignedAgentIds: branch?.agentMappings.map((item) => item.agentId) ?? [],
+        assignedQueueIds: branch?.queueMappings.map((item) => item.queueId) ?? [],
+        assignedDidIds: branch?.didMappings.map((item) => item.didId) ?? [],
+        availableAgents: agents,
+        availableQueues: queues,
+        availableDids: dids,
+      },
+      error: null,
+    };
+  }
+
+  async updateBranchMappings(tenantId: string, branchId: string, dto: UpdateBranchMappingsDto) {
+    await this.prisma.$transaction(async (tx) => {
+      if (dto.agentIds) {
+        await tx.branchAgents.deleteMany({
+          where: { tenantId, branchId },
+        });
+        if (dto.agentIds.length > 0) {
+          await tx.branchAgents.createMany({
+            data: dto.agentIds.map((agentId) => ({
+              tenantId,
+              branchId,
+              agentId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (dto.queueIds) {
+        await tx.branchQueues.deleteMany({
+          where: { tenantId, branchId },
+        });
+        if (dto.queueIds.length > 0) {
+          await tx.branchQueues.createMany({
+            data: dto.queueIds.map((queueId) => ({
+              tenantId,
+              branchId,
+              queueId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (dto.didIds) {
+        await tx.branchDids.deleteMany({
+          where: { tenantId, branchId },
+        });
+        if (dto.didIds.length > 0) {
+          await tx.branchDids.createMany({
+            data: dto.didIds.map((didId) => ({
+              tenantId,
+              branchId,
+              didId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    });
+
+    return this.getBranchMappings(tenantId, branchId);
+  }
+
+  async listRolePermissions(tenantId: string) {
+    const rows = await this.prisma.rolePermissions.findMany({
+      where: { tenantId },
+      orderBy: [{ roleCode: 'asc' }, { menuKey: 'asc' }],
+    });
+
+    const persisted = new Map(
+      rows.map((row) => [`${row.roleCode}:${row.menuKey}`, row.canAccess]),
+    );
+
+    const matrix = ROLE_CODES.map((roleCode) => ({
+      roleCode,
+      permissions: MENU_KEYS.map((menuKey) => ({
+        menuKey,
+        canAccess: persisted.get(`${roleCode}:${menuKey}`) ?? DEFAULT_ROLE_ACCESS[roleCode].has(menuKey),
+      })),
+    }));
+
+    return {
+      success: true,
+      data: {
+        roles: ROLE_CODES,
+        menuKeys: MENU_KEYS,
+        matrix,
+      },
+      error: null,
+    };
+  }
+
+  async updateRolePermissions(tenantId: string, dto: UpdateRolePermissionsDto) {
+    await this.prisma.$transaction(
+      dto.items.map((item) =>
+        this.prisma.rolePermissions.upsert({
+          where: {
+            tenantId_roleCode_menuKey: {
+              tenantId,
+              roleCode: item.roleCode,
+              menuKey: item.menuKey,
+            },
+          },
+          create: {
+            tenantId,
+            roleCode: item.roleCode,
+            menuKey: item.menuKey,
+            canAccess: item.canAccess,
+          },
+          update: {
+            canAccess: item.canAccess,
+            updatedAt: new Date(),
+          },
+        }),
+      ),
+    );
+
+    return this.listRolePermissions(tenantId);
   }
 }

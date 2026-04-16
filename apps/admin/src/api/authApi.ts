@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useAuthStore } from '../store/useAuthStore';
+import { usePermissionStore } from '../store/usePermissionStore';
 
 export async function login(params: { loginId: string; password: string; extension: string }) {
   const res = await axios.post(`${API_BASE_URL}/auth/login`, params);
@@ -26,4 +27,5 @@ export async function logout() {
     }
   }
   useAuthStore.getState().clear();
+  usePermissionStore.getState().clear();
 }

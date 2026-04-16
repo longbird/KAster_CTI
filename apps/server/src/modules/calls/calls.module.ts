@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+import { MenuPermissionService } from '../../common/menu-permission.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventsModule } from '../events/events.module';
 import { AmiModule } from '../ami/ami.module';
@@ -18,6 +19,7 @@ import { TransferDetectorService } from './transfer-detector.service';
     AgentStateService,
     AsteriskManagerService,
     TransferDetectorService,
+    MenuPermissionService,
     PrismaService,
   ],
   exports: [

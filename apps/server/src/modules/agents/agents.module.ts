@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MenuPermissionService } from '../../common/menu-permission.service';
 import { PrismaService } from '../../common/prisma.service';
 import { CallsModule } from '../calls/calls.module';
 import { AgentsController } from './agents.controller';
@@ -7,7 +8,7 @@ import { AgentsService } from './agents.service';
 @Module({
   imports: [CallsModule],
   controllers: [AgentsController],
-  providers: [AgentsService, PrismaService],
+  providers: [AgentsService, PrismaService, MenuPermissionService],
   exports: [AgentsService],
 })
 export class AgentsModule {}

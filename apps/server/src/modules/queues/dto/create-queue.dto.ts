@@ -1,0 +1,55 @@
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+} from 'class-validator';
+
+const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
+
+export class CreateQueueDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  @Matches(/^[a-z0-9-]+$/, { message: '큐명은 영소문자·숫자·하이픈만 허용합니다' })
+  queueName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(16)
+  @Matches(/^\d+$/, { message: '내선번호는 숫자만 허용합니다' })
+  queueExten: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  queueDisplayName: string;
+
+  @IsOptional()
+  @IsIn(STRATEGIES)
+  strategy?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  ringTimeoutSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  wrapupSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxWaitSeconds?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autopause?: boolean;
+}

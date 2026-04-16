@@ -54,7 +54,19 @@ export class AsteriskConfigService {
   // ─── DIDs ──────────────────────────────────────────────────────────────────
 
   getDids(tenantId: string) {
-    return this.prisma.asteriskDid.findMany({ where: { tenantId }, orderBy: { did: 'asc' } });
+    return this.prisma.asteriskDid.findMany({
+      where: { tenantId },
+      include: {
+        branchMappings: {
+          include: {
+            branch: {
+              select: { branchId: true, branchCode: true, branchName: true },
+            },
+          },
+        },
+      },
+      orderBy: { did: 'asc' },
+    });
   }
 
   async createDid(tenantId: string, dto: CreateDidDto) {

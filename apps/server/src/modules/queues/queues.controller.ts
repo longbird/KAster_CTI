@@ -1,39 +1,100 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
-import { JwtAuthGuard } from '../../common/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { QueuesService } from './queues.service';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { JwtAuthGuard } from '../../common/jwt-auth.guard';
+import { MenuPermissionService } from '../../common/menu-permission.service';
+import { CreateQueueDto } from './dto/create-queue.dto';
+import { SetQueueMembersDto } from './dto/set-queue-members.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
+import { QueuesService } from './queues.service';
 
 @ApiTags('queues')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('queues')
 export class QueuesController {
-  constructor(private readonly queuesService: QueuesService) {}
+  constructor(
+    private readonly queuesService: QueuesService,
+    private readonly menuPermissionService: MenuPermissionService,
+  ) {}
 
   @Get('summary')
-  summary(@CurrentUser() user: any) {
+  async summary(@CurrentUser() user: any) {
+    if (user.role === 'supervisor' || user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAccess(
+        user.tenantId,
+        user.role,
+        ['dashboard', 'queues'],
+      );
+    }
     return this.queuesService.getSummary(user.tenantId);
   }
 
   @Get()
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
-  list(@CurrentUser() user: any) {
+  async list(@CurrentUser() user: any) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/queues');
     return this.queuesService.listSettings(user.tenantId);
+  }
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async create(@CurrentUser() user: any, @Body() dto: CreateQueueDto) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/queues');
+    return this.queuesService.create(user.tenantId, dto);
   }
 
   @Patch(':queueId')
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
-  update(
+  async update(
     @CurrentUser() user: any,
     @Param('queueId') queueId: string,
     @Body() dto: UpdateQueueDto,
   ) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/queues');
     return this.queuesService.update(user.tenantId, queueId, dto);
+  }
+
+  @Delete(':queueId')
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async deactivate(@CurrentUser() user: any, @Param('queueId') queueId: string) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/queues');
+    return this.queuesService.deactivate(user.tenantId, queueId);
+  }
+
+  @Get(':queueId/members')
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async listMembers(@CurrentUser() user: any, @Param('queueId') queueId: string) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/queues');
+    return this.queuesService.listMembers(user.tenantId, queueId);
+  }
+
+  @Put(':queueId/members')
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async setMembers(
+    @CurrentUser() user: any,
+    @Param('queueId') queueId: string,
+    @Body() dto: SetQueueMembersDto,
+  ) {
+    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'settings/queues');
+    return this.queuesService.setMembers(user.tenantId, queueId, dto.members ?? []);
   }
 }

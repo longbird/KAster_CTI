@@ -1,19 +1,16 @@
-import { Button, Layout, Menu, Space, Tag, Typography } from 'antd';
-import {
-  DashboardOutlined,
-  DesktopOutlined,
-  FileTextOutlined,
-  LogoutOutlined,
-  MonitorOutlined,
-  NotificationOutlined,
-  PhoneOutlined,
-  SettingOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+import { Button, Layout, Menu, Result, Space, Spin, Tag, Typography } from 'antd';
+import { LogoutOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
 import { logout } from '../api/authApi';
 import { USE_MOCK } from '../config';
 import { useAuthStore } from '../store/useAuthStore';
+import { usePermissionStore } from '../store/usePermissionStore';
+import {
+  ADMIN_MENU_CONFIG,
+  filterMenuByAllowedPaths,
+  pathToMenuKey,
+} from '../shared/permissions/menuConfig';
 
 const { Header, Sider, Content } = Layout;
 
@@ -21,6 +18,32 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const agent = useAuthStore((s) => s.agent);
+  const allowedPaths = usePermissionStore((s) => s.allowedPaths);
+  const loaded = usePermissionStore((s) => s.loaded);
+  const loading = usePermissionStore((s) => s.loading);
+  const loadForRole = usePermissionStore((s) => s.loadForRole);
+
+  useEffect(() => {
+    void loadForRole(agent?.role);
+  }, [agent?.role, loadForRole]);
+
+  const allowedPathSet = useMemo(() => new Set(allowedPaths), [allowedPaths]);
+  const menuItems = useMemo(
+    () => filterMenuByAllowedPaths(ADMIN_MENU_CONFIG, allowedPathSet),
+    [allowedPathSet],
+  );
+
+  const pathname = location.pathname || '/dashboard';
+  const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
+  const isAllowed = USE_MOCK || allowedPathSet.has(normalizedPath);
+
+  if (!USE_MOCK && (!loaded || loading)) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -31,51 +54,9 @@ export function AppLayout() {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[normalizedPath]}
           defaultOpenKeys={['realtime', 'reports', 'settings']}
-          items={[
-            { key: '/dashboard', icon: <DashboardOutlined />, label: '대시보드' },
-            {
-              key: 'realtime',
-              icon: <MonitorOutlined />,
-              label: '실시간 운영',
-              children: [
-                { key: '/live-calls', label: '통화 현황 조회' },
-                { key: '/kpi',        label: '업무 현황 조회' },
-              ],
-            },
-            {
-              key: 'reports',
-              icon: <FileTextOutlined />,
-              label: '보고서',
-              children: [
-                { key: '/reports/calls',       label: '통화내역 (CDR)' },
-                { key: '/reports/missed',      label: '미연결 콜' },
-                { key: '/reports/recordings',  label: '녹취 목록' },
-                { key: '/reports/logs',        label: '호 로그' },
-              ],
-            },
-            {
-              key: 'settings',
-              icon: <SettingOutlined />,
-              label: '운영 설정',
-              children: [
-                { key: '/settings/agents',      label: '상담원 설정' },
-                { key: '/settings/queues',      label: '호 분배룰 설정' },
-                { key: '/settings/forwarding',  label: '착신전환 설정' },
-                { key: '/settings/prompts',     label: '멘트 관리' },
-                { key: '/settings/branches',    label: '지사 관리' },
-                { key: '/settings/permissions', label: '권한 관리' },
-              ],
-            },
-            { key: '/announcements', icon: <NotificationOutlined />, label: '공지사항' },
-            { key: '/blocklist',     icon: <PhoneOutlined />,        label: '080 수신거부' },
-            { key: '/system',        icon: <DesktopOutlined />,      label: '시스템 설정' },
-            { key: '/queues',        icon: <NotificationOutlined />, label: '큐 현황' },
-            { key: '/agents',        icon: <TeamOutlined />,         label: '상담원 현황' },
-            { key: '/monitoring',    icon: <DesktopOutlined />,      label: '시스템 모니터링' },
-            { key: '/asterisk',      icon: <SettingOutlined />,      label: 'Asterisk 설정' },
-          ]}
+          items={menuItems}
           onClick={({ key }) => navigate(key as string)}
         />
       </Sider>
@@ -99,7 +80,15 @@ export function AppLayout() {
           </Space>
         </Header>
         <Content className="app-content">
-          <Outlet />
+          {isAllowed ? (
+            <Outlet />
+          ) : (
+            <Result
+              status="403"
+              title="메뉴 접근 권한 없음"
+              subTitle={`${pathToMenuKey(normalizedPath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
+            />
+          )}
         </Content>
       </Layout>
     </Layout>

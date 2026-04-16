@@ -18,9 +18,45 @@ export class CallsService {
     private readonly asteriskManager: AsteriskManagerService,
   ) {}
 
-  async getActiveCalls(tenantId: string) {
+  private async getBranchScope(tenantId: string, branchId?: string) {
+    if (!branchId) return null;
+
+    const [agentMappings, queueMappings] = await Promise.all([
+      this.prisma.branchAgents.findMany({
+        where: { tenantId, branchId },
+        select: { agentId: true },
+      }),
+      this.prisma.branchQueues.findMany({
+        where: { tenantId, branchId },
+        select: { queueId: true },
+      }),
+    ]);
+
+    return {
+      agentIds: agentMappings.map((item) => item.agentId),
+      queueIds: queueMappings.map((item) => item.queueId),
+    };
+  }
+
+  private buildBranchCallFilter(scope: { agentIds: string[]; queueIds: string[] } | null): Prisma.callSessionsWhereInput | undefined {
+    if (!scope) return undefined;
+
+    return {
+      OR: [
+        { primaryAgentId: { in: scope.agentIds } },
+        { queueId: { in: scope.queueIds } },
+      ],
+    };
+  }
+
+  async getActiveCalls(tenantId: string, branchId?: string) {
+    const branchScope = await this.getBranchScope(tenantId, branchId);
     const rows = await this.prisma.callSessions.findMany({
-      where: { tenantId, sessionStatus: { not: 'ENDED' } },
+      where: {
+        tenantId,
+        sessionStatus: { not: 'ENDED' },
+        ...(this.buildBranchCallFilter(branchScope) ?? {}),
+      },
       orderBy: { startedAt: 'desc' },
       take: 100,
     });
@@ -198,10 +234,12 @@ export class CallsService {
   async listHistory(tenantId: string, q: ListCallsQueryDto) {
     const from = q.from ? new Date(q.from) : new Date(Date.now() - 7 * 86_400_000);
     const to   = q.to   ? new Date(q.to)   : new Date();
+    const branchScope = await this.getBranchScope(tenantId, q.branchId);
 
     const where: Prisma.callSessionsWhereInput = {
       tenantId,
       startedAt: { gte: from, lte: to },
+      ...(this.buildBranchCallFilter(branchScope) ?? {}),
     };
     if (q.agentId)           where.primaryAgentId = q.agentId;
     if (q.status)            where.sessionStatus  = q.status;
@@ -223,12 +261,24 @@ export class CallsService {
     return { success: true, data: rows, error: null };
   }
 
-  async listRecordings(tenantId: string, q: { from?: string; to?: string }) {
+  async listRecordings(tenantId: string, q: { from?: string; to?: string; branchId?: string }) {
     const from = q.from ? new Date(q.from) : new Date(Date.now() - 7 * 86_400_000);
     const to   = q.to   ? new Date(q.to)   : new Date();
+    const branchScope = await this.getBranchScope(tenantId, q.branchId);
 
     const rows = await this.prisma.callRecordings.findMany({
-      where: { tenantId, recordingStartedAt: { gte: from, lte: to } },
+      where: {
+        tenantId,
+        recordingStartedAt: { gte: from, lte: to },
+        ...(branchScope
+          ? {
+              OR: [
+                { session: { primaryAgentId: { in: branchScope.agentIds } } },
+                { session: { queueId: { in: branchScope.queueIds } } },
+              ],
+            }
+          : {}),
+      },
       orderBy: { recordingStartedAt: 'desc' },
       take: 200,
       select: {

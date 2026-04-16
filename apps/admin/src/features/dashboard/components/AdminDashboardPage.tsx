@@ -1,5 +1,6 @@
 import { Card, Col, Divider, Row, Skeleton, Space, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
+import { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { KpiCards } from './KpiCards';
 import { TrafficChartCard } from './TrafficChartCard';
@@ -8,9 +9,11 @@ import { TeamStatusTable } from './TeamStatusTable';
 import { ActiveCallsTable } from './ActiveCallsTable';
 import { AlertsPanel } from './AlertsPanel';
 import { InfraStatusBar } from '../../monitoring/components/InfraStatusBar';
+import { BranchFilterSelect } from '../../../shared/branches/BranchFilterSelect';
 
 export function AdminDashboardPage() {
-  const { data, loading } = useDashboardData();
+  const [branchId, setBranchId] = useState<string | undefined>(undefined);
+  const { data, loading } = useDashboardData(branchId);
 
   if (loading) {
     return <Skeleton active paragraph={{ rows: 18 }} />;
@@ -36,6 +39,7 @@ export function AdminDashboardPage() {
               마지막 갱신 {dayjs(data.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             </Typography.Text>
           </div>
+          <BranchFilterSelect value={branchId} onChange={setBranchId} />
           <Tag color="blue">/admin/dashboard 기준 UI</Tag>
           <Tag color="geekblue">queue.summary.updated / agent.status.changed / call.updated</Tag>
         </Space>
