@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
+import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
 
@@ -191,5 +193,56 @@ export class CallsService {
     await this.eventBus.publish('ami.command.hangup.requested', { callId });
 
     return { success: true, data: { callId, accepted: true }, error: null };
+  }
+
+  async listHistory(tenantId: string, q: ListCallsQueryDto) {
+    const from = q.from ? new Date(q.from) : new Date(Date.now() - 7 * 86_400_000);
+    const to   = q.to   ? new Date(q.to)   : new Date();
+
+    const where: Prisma.callSessionsWhereInput = {
+      tenantId,
+      startedAt: { gte: from, lte: to },
+    };
+    if (q.agentId)           where.primaryAgentId = q.agentId;
+    if (q.status)            where.sessionStatus  = q.status;
+    if (q.mode === 'missed') { where.sessionStatus = 'ENDED'; where.answeredAt = null; }
+
+    const rows = await this.prisma.callSessions.findMany({
+      where,
+      orderBy: { startedAt: 'desc' },
+      take: 500,
+      select: {
+        callId: true, ani: true, dnis: true, queueName: true,
+        sessionStatus: true, direction: true,
+        startedAt: true, answeredAt: true, endedAt: true,
+        waitSeconds: true, talkSeconds: true,
+        abandonFlag: true, recordingFlag: true,
+        primaryAgent: { select: { agentName: true } },
+      },
+    });
+    return { success: true, data: rows, error: null };
+  }
+
+  async listRecordings(tenantId: string, q: { from?: string; to?: string }) {
+    const from = q.from ? new Date(q.from) : new Date(Date.now() - 7 * 86_400_000);
+    const to   = q.to   ? new Date(q.to)   : new Date();
+
+    const rows = await this.prisma.callRecordings.findMany({
+      where: { tenantId, recordingStartedAt: { gte: from, lte: to } },
+      orderBy: { recordingStartedAt: 'desc' },
+      take: 200,
+      select: {
+        recordingId: true, linkedid: true, fileName: true,
+        fileFormat: true, fileSizeBytes: true,
+        durationSeconds: true, recordingStartedAt: true,
+        session: {
+          select: {
+            ani: true, queueName: true,
+            primaryAgent: { select: { agentName: true } },
+          },
+        },
+      },
+    });
+    return { success: true, data: rows, error: null };
   }
 }

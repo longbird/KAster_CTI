@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { CreateMemoDto } from './dto/create-memo.dto';
+import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { CallsService } from './calls.service';
@@ -19,6 +20,20 @@ export class CallsController {
   @ApiOkResponse({ type: ApiResponseDto })
   getActiveCalls(@Req() req: any) {
     return this.callsService.getActiveCalls(req.user.tenantId);
+  }
+
+  @Get('history')
+  @ApiOperation({ summary: '통화내역 조회 (CDR)', description: '날짜/상담원/상태 필터, 최근 500건' })
+  @ApiOkResponse({ type: ApiResponseDto })
+  listHistory(@Req() req: any, @Query() q: ListCallsQueryDto) {
+    return this.callsService.listHistory(req.user.tenantId, q);
+  }
+
+  @Get('recordings/list')
+  @ApiOperation({ summary: '녹취 목록 조회', description: '날짜 필터, 최근 200건' })
+  @ApiOkResponse({ type: ApiResponseDto })
+  listRecordings(@Req() req: any, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.callsService.listRecordings(req.user.tenantId, { from, to });
   }
 
   @Get(':callId')
