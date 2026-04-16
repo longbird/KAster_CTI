@@ -11,7 +11,7 @@ import type {
   QueueSummaryItem,
 } from '../types/dashboard';
 
-// ---- Mock path (VITE_USE_MOCK=true) ---------------------------------------
+// ---- Mock path (VITE_USE_MOCK=true) ----------------------------------------
 function randomShift(value: number, min: number, max: number) {
   return Math.max(0, value + Math.floor(Math.random() * (max - min + 1)) + min);
 }
@@ -53,7 +53,7 @@ async function fetchMock(): Promise<DashboardData> {
   return next;
 }
 
-// ---- Real path: /admin/dashboard + /calls/active -------------------------
+// ---- Real path: /admin/dashboard + /calls/active ---------------------------
 function readToken(): string | null {
   try {
     return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -68,13 +68,14 @@ async function fetchReal(): Promise<DashboardData> {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const [dashboardRes, activeCallsRes] = await Promise.all([
-    axios.get(`${API_BASE_URL}/admin/dashboard`, { headers }).catch(() => null),
-    axios.get(`${API_BASE_URL}/calls/active`, { headers }).catch(() => null),
+    axios.get(`${API_BASE_URL}/admin/dashboard`, { headers }),
+    axios.get(`${API_BASE_URL}/calls/active`, { headers }),
   ]);
 
-  const dashboard = dashboardRes?.data?.data;
-  const rawActive: any[] = activeCallsRes?.data?.data ?? [];
+  const dashboard = dashboardRes.data?.data;
+  const rawActive: any[] = activeCallsRes.data?.data ?? [];
 
+  // ── 큐 요약 ─────────────────────────────────────────────────────────────
   const queues: QueueSummaryItem[] = (dashboard?.queues ?? []).map((q: any) => ({
     queueName: q.queueDisplayName ?? q.queueName,
     waiting: q.waiting ?? 0,
@@ -82,13 +83,14 @@ async function fetchReal(): Promise<DashboardData> {
     availableAgents: q.available ?? 0,
     longestWaitSec: q.longestWaitSeconds ?? 0,
     answerRate:
-      q.recentAnswered && q.recentAnswered + (q.recentAbandoned ?? 0) > 0
+      (q.recentAnswered ?? 0) + (q.recentAbandoned ?? 0) > 0
         ? Math.round((q.recentAnswered / (q.recentAnswered + q.recentAbandoned)) * 100)
         : 0,
     abandoned: q.recentAbandoned ?? 0,
     slaBreached: 0,
   }));
 
+  // ── KPI ─────────────────────────────────────────────────────────────────
   const totals = queues.reduce(
     (acc, q) => ({
       waiting: acc.waiting + q.waiting,
@@ -106,10 +108,11 @@ async function fetchReal(): Promise<DashboardData> {
     { key: 'abandon', label: '오늘 포기', value: String(dashboard?.today?.abandoned ?? 0), delta: '', trend: 'flat' },
   ];
 
+  // ── 활성 콜 ──────────────────────────────────────────────────────────────
   const activeCalls: ActiveCallItem[] = rawActive.map((c: any) => ({
     id: c.callId,
     queueName: c.queueName ?? '',
-    agentName: c.primaryAgentId ?? '',
+    agentName: c.agentName || c.primaryAgentId || '',   // agentName 은 백엔드 enriched 필드
     customerPhone: c.ani ?? '',
     direction: c.direction === 'outbound' ? 'outbound' : 'inbound',
     waitingSec: c.waitSeconds ?? 0,
@@ -117,11 +120,31 @@ async function fetchReal(): Promise<DashboardData> {
     status: (c.sessionStatus ?? 'TALKING') as any,
   }));
 
-  // 팀/트래픽/알람은 현재 백엔드 응답에 없어 mock 기본값으로 채움. 후속:
-  // /admin/dashboard 에 teams/traffic/alerts 응답 확장.
-  const teams: AgentTeamSummaryItem[] = baseDashboardData.teams;
-  const traffic: HourlyTrafficItem[] = baseDashboardData.traffic;
-  const alerts: AlertItem[] = baseDashboardData.alerts;
+  // ── 팀 현황 (백엔드 teams 필드) ──────────────────────────────────────────
+  const teams: AgentTeamSummaryItem[] = (dashboard?.teams ?? []).map((t: any) => ({
+    teamName: t.teamName,
+    available: t.available ?? 0,
+    ringing: t.ringing ?? 0,
+    talking: t.talking ?? 0,
+    acw: t.acw ?? 0,
+    break: t.break ?? 0,
+  }));
+
+  // ── 시간대별 트래픽 (백엔드 traffic 필드) ────────────────────────────────
+  const traffic: HourlyTrafficItem[] = (dashboard?.traffic ?? []).map((t: any) => ({
+    hour: t.hour,
+    inbound: t.inbound ?? 0,
+    answered: t.answered ?? 0,
+    abandoned: t.abandoned ?? 0,
+  }));
+
+  // ── 알람 (백엔드 alerts 필드) ────────────────────────────────────────────
+  const alerts: AlertItem[] = (dashboard?.alerts ?? []).map((a: any) => ({
+    id: a.id,
+    level: a.level as 'info' | 'warning' | 'error',
+    message: a.message,
+    time: a.time ?? '방금 전',
+  }));
 
   return {
     updatedAt: dashboard?.generatedAt ?? new Date().toISOString(),
@@ -135,11 +158,6 @@ async function fetchReal(): Promise<DashboardData> {
 }
 
 export async function fetchDashboardData(): Promise<DashboardData> {
-  try {
-    if (USE_MOCK) return await fetchMock();
-    return await fetchReal();
-  } catch {
-    // 인증 실패/서버 꺼짐 같은 상황에서도 화면이 뜨도록 mock 로 폴백.
-    return fetchMock();
-  }
+  if (USE_MOCK) return fetchMock();
+  return fetchReal();
 }

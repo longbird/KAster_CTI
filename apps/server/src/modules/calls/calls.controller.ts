@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
@@ -15,10 +15,10 @@ export class CallsController {
   constructor(private readonly callsService: CallsService) {}
 
   @Get('active')
-  @ApiOperation({ summary: '활성 콜 목록', description: 'sessionStatus 가 ENDED 가 아닌 모든 통화 세션 (최근 100건)' })
+  @ApiOperation({ summary: '활성 콜 목록', description: 'sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션 (최근 100건). agentName·waitSeconds 포함.' })
   @ApiOkResponse({ type: ApiResponseDto })
-  getActiveCalls() {
-    return this.callsService.getActiveCalls();
+  getActiveCalls(@Req() req: any) {
+    return this.callsService.getActiveCalls(req.user.tenantId);
   }
 
   @Get(':callId')

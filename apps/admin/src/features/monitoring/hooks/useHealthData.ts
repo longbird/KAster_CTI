@@ -56,9 +56,13 @@ export function useHealthData({ intervalMs = 10_000 }: UseHealthDataOptions = {}
     }
 
     try {
+      // /health 는 ResponseTransformInterceptor 제외 대상이 아니므로 envelope { success, data }
+      // 로 감싸져서 반환된다. res.data.data 로 읽어야 HealthResponse 에 접근 가능.
       const res = await axios.get<{ success: boolean; data: HealthResponse; error: null }>(`${API_BASE_URL}/health`);
       if (!activeRef.current) return;
-      setData(res.data.data);
+      // envelope 여부를 런타임으로 판별 — 직접 DTO 반환일 경우도 수용
+      const payload = (res.data as any)?.data ?? res.data;
+      setData(payload as HealthResponse);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {

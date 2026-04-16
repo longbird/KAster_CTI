@@ -16,14 +16,43 @@ export class CallsService {
     private readonly asteriskManager: AsteriskManagerService,
   ) {}
 
-  async getActiveCalls() {
+  async getActiveCalls(tenantId: string) {
     const rows = await this.prisma.callSessions.findMany({
-      where: { sessionStatus: { not: 'ENDED' } },
+      where: { tenantId, sessionStatus: { not: 'ENDED' } },
       orderBy: { startedAt: 'desc' },
       take: 100,
     });
 
-    return { success: true, data: rows, error: null };
+    // 에이전트 이름 일괄 조회
+    const agentIds = [...new Set(
+      rows.map((r) => r.primaryAgentId).filter((id): id is string => Boolean(id)),
+    )];
+    const agentNameMap = new Map<string, string>();
+    if (agentIds.length > 0) {
+      const agents = await this.prisma.agents.findMany({
+        where: { agentId: { in: agentIds }, tenantId },
+        select: { agentId: true, agentName: true },
+      });
+      for (const a of agents) agentNameMap.set(a.agentId, a.agentName);
+    }
+
+    const now = new Date();
+    const data = rows.map((r) => {
+      // 대기시간: 통화 중이면 queuedAt→answeredAt, 아직 대기 중이면 queuedAt→now
+      const waitSeconds = r.answeredAt && r.queuedAt
+        ? Math.round((r.answeredAt.getTime() - r.queuedAt.getTime()) / 1000)
+        : r.queuedAt
+          ? Math.round((now.getTime() - r.queuedAt.getTime()) / 1000)
+          : 0;
+
+      return {
+        ...r,
+        agentName: agentNameMap.get(r.primaryAgentId ?? '') ?? '',
+        waitSeconds: Math.max(0, waitSeconds),
+      };
+    });
+
+    return { success: true, data, error: null };
   }
 
   async getCallDetail(callId: string) {
