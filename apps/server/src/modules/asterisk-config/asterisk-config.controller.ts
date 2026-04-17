@@ -7,9 +7,12 @@ import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AsteriskConfigService } from './asterisk-config.service';
 import { AsteriskReloadService } from './asterisk-reload.service';
+import { CreateBlocklistEntryDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
+import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
-import { CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
+import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
+import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
 import { UpdateSipPasswordDto } from './dto/update-sip-password.dto';
 
 @ApiTags('asterisk-config')
@@ -25,26 +28,47 @@ export class AsteriskConfigController {
   ) {}
 
   private async assertAsteriskAccess(user: any) {
-    await this.menuPermissionService.assertMenuAccess(user.tenantId, user.role, 'asterisk');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', 'view');
+  }
+
+  private async assertPromptAccess(user: any) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', 'view');
+  }
+
+  private async assertBlocklistAccess(user: any) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'blocklist', 'view');
+  }
+
+  private async assertAsteriskAction(user: any, action: 'create' | 'update' | 'delete' | 'operate') {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', action);
+  }
+
+  private async assertPromptAction(user: any, action: 'create' | 'update' | 'delete') {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', action);
+  }
+
+  private async assertBlocklistAction(user: any, action: 'create' | 'update' | 'delete') {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'blocklist', action);
   }
 
   // Trunks
   @Get('trunks') async getTrunks(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getTrunks(u.tenantId); }
-  @Post('trunks') async createTrunk(@CurrentUser() u: any, @Body() dto: CreateTrunkDto) { await this.assertAsteriskAccess(u); return this.svc.createTrunk(u.tenantId, dto); }
-  @Put('trunks/:id') async updateTrunk(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkDto) { await this.assertAsteriskAccess(u); return this.svc.updateTrunk(u.tenantId, id, dto); }
-  @Delete('trunks/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAccess(u); return this.svc.deleteTrunk(u.tenantId, id); }
+  @Post('trunks') async createTrunk(@CurrentUser() u: any, @Body() dto: CreateTrunkDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createTrunk(u.tenantId, dto); }
+  @Post('trunks/bulk') async createTrunksBulk(@CurrentUser() u: any, @Body() dto: CreateBulkTrunksDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createTrunksBulk(u.tenantId, dto); }
+  @Put('trunks/:id') async updateTrunk(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateTrunk(u.tenantId, id, dto); }
+  @Delete('trunks/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteTrunk(u.tenantId, id); }
 
   // DIDs
   @Get('dids') async getDids(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getDids(u.tenantId); }
-  @Post('dids') async createDid(@CurrentUser() u: any, @Body() dto: CreateDidDto) { await this.assertAsteriskAccess(u); return this.svc.createDid(u.tenantId, dto); }
-  @Put('dids/:id') async updateDid(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateDidDto) { await this.assertAsteriskAccess(u); return this.svc.updateDid(u.tenantId, id, dto); }
-  @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteDid(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAccess(u); return this.svc.deleteDid(u.tenantId, id); }
+  @Post('dids') async createDid(@CurrentUser() u: any, @Body() dto: CreateDidDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createDid(u.tenantId, dto); }
+  @Put('dids/:id') async updateDid(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateDidDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateDid(u.tenantId, id, dto); }
+  @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteDid(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteDid(u.tenantId, id); }
 
   // IVR Menus
   @Get('ivr-menus') async getIvrMenus(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getIvrMenus(u.tenantId); }
-  @Post('ivr-menus') async createIvrMenu(@CurrentUser() u: any, @Body() dto: CreateIvrMenuDto) { await this.assertAsteriskAccess(u); return this.svc.createIvrMenu(u.tenantId, dto); }
-  @Put('ivr-menus/:id') async updateIvrMenu(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateIvrMenuDto) { await this.assertAsteriskAccess(u); return this.svc.updateIvrMenu(u.tenantId, id, dto); }
-  @Delete('ivr-menus/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteIvrMenu(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAccess(u); return this.svc.deleteIvrMenu(u.tenantId, id); }
+  @Post('ivr-menus') async createIvrMenu(@CurrentUser() u: any, @Body() dto: CreateIvrMenuDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createIvrMenu(u.tenantId, dto); }
+  @Put('ivr-menus/:id') async updateIvrMenu(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateIvrMenuDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateIvrMenu(u.tenantId, id, dto); }
+  @Delete('ivr-menus/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteIvrMenu(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteIvrMenu(u.tenantId, id); }
 
   // Agent SIP
   @Get('agents-sip') async getAgentSip(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getAgentSip(u.tenantId); }
@@ -52,10 +76,28 @@ export class AsteriskConfigController {
     @CurrentUser() u: any,
     @Param('agentId') agentId: string,
     @Body() dto: UpdateSipPasswordDto,
-  ) { await this.assertAsteriskAccess(u); return this.svc.updateAgentSipPassword(u.tenantId, agentId, dto.sipPassword); }
-  @Post('agents-sip/sync') async syncAgentSip(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.syncAgentSip(u.tenantId); }
+  ) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateAgentSipPassword(u.tenantId, agentId, dto.sipPassword); }
+  @Post('agents-sip/sync') async syncAgentSip(@CurrentUser() u: any) { await this.assertAsteriskAction(u, 'operate'); return this.svc.syncAgentSip(u.tenantId); }
+
+  // Forwarding Rules
+  @Get('forwarding-rules') async getForwardingRules(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getForwardingRules(u.tenantId); }
+  @Post('forwarding-rules') async createForwardingRule(@CurrentUser() u: any, @Body() dto: CreateForwardingRuleDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createForwardingRule(u.tenantId, dto); }
+  @Put('forwarding-rules/:id') async updateForwardingRule(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateForwardingRuleDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateForwardingRule(u.tenantId, id, dto); }
+  @Delete('forwarding-rules/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteForwardingRule(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteForwardingRule(u.tenantId, id); }
+
+  // Prompts
+  @Get('prompts') async getPrompts(@CurrentUser() u: any) { await this.assertPromptAccess(u); return this.svc.getPrompts(u.tenantId); }
+  @Post('prompts') async createPrompt(@CurrentUser() u: any, @Body() dto: CreatePromptDto) { await this.assertPromptAction(u, 'create'); return this.svc.createPrompt(u.tenantId, dto); }
+  @Put('prompts/:id') async updatePrompt(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdatePromptDto) { await this.assertPromptAction(u, 'update'); return this.svc.updatePrompt(u.tenantId, id, dto); }
+  @Delete('prompts/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deletePrompt(@CurrentUser() u: any, @Param('id') id: string) { await this.assertPromptAction(u, 'delete'); return this.svc.deletePrompt(u.tenantId, id); }
+
+  // 080 Blocklist
+  @Get('blocklist') async getBlocklistEntries(@CurrentUser() u: any) { await this.assertBlocklistAccess(u); return this.svc.getBlocklistEntries(u.tenantId); }
+  @Post('blocklist') async createBlocklistEntry(@CurrentUser() u: any, @Body() dto: CreateBlocklistEntryDto) { await this.assertBlocklistAction(u, 'create'); return this.svc.createBlocklistEntry(u.tenantId, dto); }
+  @Put('blocklist/:id') async updateBlocklistEntry(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateBlocklistEntryDto) { await this.assertBlocklistAction(u, 'update'); return this.svc.updateBlocklistEntry(u.tenantId, id, dto); }
+  @Delete('blocklist/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteBlocklistEntry(@CurrentUser() u: any, @Param('id') id: string) { await this.assertBlocklistAction(u, 'delete'); return this.svc.deleteBlocklistEntry(u.tenantId, id); }
 
   // Reload + Preview
-  @Post('reload') async manualReload(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.executeReload(u.tenantId); }
+  @Post('reload') async manualReload(@CurrentUser() u: any) { await this.assertAsteriskAction(u, 'operate'); return this.reload.executeReload(u.tenantId); }
   @Get('preview') async preview(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.previewConfFiles(u.tenantId); }
 }

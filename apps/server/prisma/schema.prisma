@@ -39,6 +39,10 @@ model tenants {
   branchQueues        branchQueues[]
   branchDids          branchDids[]
   rolePermissions     rolePermissions[]
+  tenantSystemSettings tenantSystemSettings[]
+  forwardingRules     asteriskForwardingRules[]
+  asteriskPrompts     AsteriskPrompt[]
+  asteriskBlocklistEntries AsteriskBlocklistEntry[]
   asteriskTrunks       AsteriskTrunk[]
   asteriskDids         AsteriskDid[]
   asteriskIvrMenus     AsteriskIvrMenu[]
@@ -506,6 +510,12 @@ model rolePermissions {
   roleCode         String   @db.VarChar(32)
   menuKey          String   @db.VarChar(128)
   canAccess        Boolean  @default(true)
+  canView          Boolean  @default(true)
+  canCreate        Boolean  @default(false)
+  canUpdate        Boolean  @default(false)
+  canDelete        Boolean  @default(false)
+  canOperate       Boolean  @default(false)
+  canExport        Boolean  @default(false)
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime @default(now()) @db.Timestamptz(6)
 
@@ -513,6 +523,26 @@ model rolePermissions {
 
   @@unique([tenantId, roleCode, menuKey])
   @@index([tenantId, roleCode])
+}
+
+model tenantSystemSettings {
+  tenantSystemSettingId  String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @db.Uuid
+  recordingEnabled       Boolean  @default(true)
+  defaultMaxWaitSeconds  Int      @default(45)
+  allowDirectSipDial     Boolean  @default(false)
+  defaultSipPassword     String?  @db.Text
+  allowedOutboundCallerIds String? @db.Text
+  defaultOutboundCallerId String? @db.VarChar(32)
+  sipRegisterPort        Int      @default(36070)
+  timezone               String   @default("Asia/Seoul") @db.VarChar(64)
+  dateFormat             String   @default("YYYY-MM-DD HH:mm:ss") @db.VarChar(32)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant                 tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId])
 }
 
 model AsteriskTrunk {
@@ -546,8 +576,27 @@ model AsteriskDid {
   tenant      tenants          @relation(fields: [tenantId], references: [tenantId])
   ivrMenu     AsteriskIvrMenu? @relation(fields: [ivrMenuId], references: [id])
   branchMappings branchDids[]
+  forwardingRule asteriskForwardingRules?
 
   @@unique([tenantId, did])
+}
+
+model asteriskForwardingRules {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @db.Uuid
+  didId          String      @unique @db.Uuid
+  forwardType    String      @db.VarChar(16)
+  targetValue    String      @db.VarChar(64)
+  description    String?     @db.VarChar(255)
+  enabled        Boolean     @default(true)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(6)
+
+  tenant         tenants     @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  did            AsteriskDid @relation(fields: [didId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, didId])
+  @@index([tenantId, enabled])
 }
 
 model AsteriskIvrMenu {
@@ -576,4 +625,37 @@ model AsteriskIvrEntry {
   menu      AsteriskIvrMenu @relation(fields: [menuId], references: [id], onDelete: Cascade)
 
   @@unique([menuId, digit])
+}
+
+model AsteriskPrompt {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  promptKey   String   @db.VarChar(128)
+  displayName String   @db.VarChar(128)
+  fileName    String   @db.VarChar(255)
+  category    String   @default("ivr") @db.VarChar(32)
+  description String?  @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, promptKey])
+  @@index([tenantId, category, isActive])
+}
+
+model AsteriskBlocklistEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  phoneNumber String   @db.VarChar(32)
+  description String?  @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, phoneNumber])
+  @@index([tenantId, isActive])
 }

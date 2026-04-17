@@ -39,6 +39,20 @@ interface CtiState {
 
 let disconnectSocket: (() => void) | null = null;
 
+function toHistoryItem(call: ActiveCall): CallHistoryItem {
+  return {
+    callId: call.callId,
+    customerName: call.customer?.customerName ?? '미식별 고객',
+    phoneNumber: call.ani ?? call.dnis ?? '-',
+    resultCode: call.resultCode ?? 'COMPLETED',
+    startedAt: call.startedAt,
+    talkSeconds: call.answeredAt
+      ? Math.max(0, Math.floor((Date.now() - new Date(call.answeredAt).getTime()) / 1000))
+      : 0,
+    queueName: call.queueName ?? '-',
+  };
+}
+
 // 메시지 기반 로그 + 간단한 string notifications 둘 다 유지한다.
 // EventLogPanel 은 풍부한 EventLogItem 을, BottomPanels 은 한 줄 알림을 보여준다.
 function pushLog(
@@ -120,6 +134,9 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId ? { ...call, memo, resultCode } : call,
       ),
+      recentHistory: state.recentHistory.map((item) =>
+        item.callId === callId ? { ...item, resultCode } : item,
+      ),
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),
     }));
@@ -180,6 +197,16 @@ export const useCtiStore = create<CtiState>((set, get) => ({
           activeCalls: state.activeCalls.map((call) =>
             call.callId === event.payload.callId ? { ...call, sessionStatus: 'ENDED' } : call,
           ),
+          recentHistory: (() => {
+            const endedCall = state.activeCalls.find((call) => call.callId === event.payload.callId);
+            if (!endedCall) return state.recentHistory;
+
+            const item: CallHistoryItem = {
+              ...toHistoryItem(endedCall),
+              talkSeconds: event.payload.talkSeconds,
+            };
+            return [item, ...state.recentHistory.filter((history) => history.callId !== item.callId)].slice(0, 20);
+          })(),
           notifications: [msg, ...state.notifications].slice(0, 5),
           eventLog: pushLog(state, 'call.ended', msg),
         }));

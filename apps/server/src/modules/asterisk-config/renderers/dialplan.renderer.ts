@@ -30,6 +30,8 @@ export interface IvrMenuInput {
 export interface DialplanInput {
   dids: DidInput[];
   ivrMenus: IvrMenuInput[];
+  forwardingRules?: ForwardingRuleInput[];
+  blocklistEntries?: BlocklistEntryInput[];
 }
 
 export interface DialplanOutput {
@@ -37,8 +39,61 @@ export interface DialplanOutput {
   extensionsQueue: string;
 }
 
-function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | null {
+export interface ForwardingRuleInput {
+  id: string;
+  didId: string;
+  forwardType: string;
+  targetValue: string;
+  enabled: boolean;
+}
+
+export interface BlocklistEntryInput {
+  id: string;
+  phoneNumber: string;
+  isActive: boolean;
+}
+
+function renderBlocklistChecks(blocklistEntries: BlocklistEntryInput[]): string[] {
+  return blocklistEntries
+    .filter((entry) => entry.isActive)
+    .flatMap((entry) => {
+      assertNoNewlines(entry.phoneNumber, 'blocklist.phoneNumber');
+      return [
+        ` same => n,GotoIf($["\${CALLERID(num)}"="${entry.phoneNumber}"]?blocked-ani,s,1)`,
+      ];
+    });
+}
+
+function renderDidExtension(
+  did: DidInput,
+  ivrMenus: IvrMenuInput[],
+  forwardingRules: ForwardingRuleInput[],
+  blocklistEntries: BlocklistEntryInput[],
+): string | null {
   assertNoNewlines(did.did, 'did');
+  const blocklistLines = renderBlocklistChecks(blocklistEntries);
+  const forwardingRule = forwardingRules.find((rule) => rule.didId === did.id && rule.enabled);
+  if (forwardingRule) {
+    assertNoNewlines(forwardingRule.targetValue, 'forwarding.targetValue');
+    if (forwardingRule.forwardType === 'EXTENSION') {
+      return [
+        `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> forward extension ${forwardingRule.targetValue})`,
+        ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+        ...blocklistLines,
+        ` same => n,Goto(from-queue,${forwardingRule.targetValue},1)`,
+      ].join('\n');
+    }
+    if (forwardingRule.forwardType === 'QUEUE') {
+      return [
+        `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> forward queue ${forwardingRule.targetValue})`,
+        ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+        ...blocklistLines,
+        ` same => n,Goto(queue-entry,${forwardingRule.targetValue},1)`,
+      ].join('\n');
+    }
+    console.warn(`[DialplanRenderer] DID ${did.did} has unsupported forwarding type ${forwardingRule.forwardType} — skipped`);
+    return null;
+  }
   if (did.ivrMenuId) {
     const menu = ivrMenus.find((m) => m.id === did.ivrMenuId);
     if (!menu) {
@@ -50,6 +105,7 @@ function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | n
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
       ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+      ...blocklistLines,
       ` same => n,Goto(ivr-menu-${slug},s,1)`,
     ].join('\n');
   }
@@ -58,6 +114,7 @@ function renderDidExtension(did: DidInput, ivrMenus: IvrMenuInput[]): string | n
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
       ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+      ...blocklistLines,
       ` same => n,Goto(queue-entry,${did.directQueue},1)`,
     ].join('\n');
   }
@@ -90,12 +147,21 @@ function renderIvrMenu(menu: IvrMenuInput): string {
 }
 
 export function renderDialplan(input: DialplanInput): DialplanOutput {
+  const forwardingRules = input.forwardingRules ?? [];
+  const blocklistEntries = input.blocklistEntries ?? [];
   const enabledDids = input.dids.filter((d) => d.enabled);
   const didLines = enabledDids
-    .map((d) => renderDidExtension(d, input.ivrMenus))
+    .map((d) => renderDidExtension(d, input.ivrMenus, forwardingRules, blocklistEntries))
     .filter((line): line is string => line !== null);
 
-  const extensionsInbound = [`[inbound-main]`, ...didLines].join('\n\n');
+  const blockedAniContext = [
+    '[blocked-ani]',
+    'exten => s,1,NoOp(Blocked ANI ${CALLERID(num)})',
+    ' same => n,Playback(ss-noservice)',
+    ' same => n,Hangup()',
+  ].join('\n');
+
+  const extensionsInbound = [`[inbound-main]`, ...didLines, blockedAniContext].join('\n\n');
   const extensionsQueue = input.ivrMenus
     .filter((m) => m.entries.length > 0)
     .map(renderIvrMenu)

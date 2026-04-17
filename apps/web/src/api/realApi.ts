@@ -100,9 +100,27 @@ export async function getActiveCalls(): Promise<ApiResponse<ActiveCall[]>> {
 }
 
 export async function getCallHistory(): Promise<ApiResponse<CallHistoryItem[]>> {
-  // 백엔드에 아직 전용 history 엔드포인트가 없어 /calls/active 중 ENDED 만
-  // 보여주는 임시 구현. 후속으로 /me/recent-calls 같은 API 추가 필요.
-  return { success: true, data: [], error: null };
+  const agentId = useAuthStore.getState().agent?.agentId;
+  const res = await apiClient.get('/calls/history', {
+    params: {
+      agentId,
+      to: new Date().toISOString(),
+    },
+  });
+  const raw: any[] = res.data?.data ?? [];
+  const data: CallHistoryItem[] = raw.map((call) => ({
+    callId: call.callId,
+    customerName: call.customer?.customerName ?? '미식별 고객',
+    phoneNumber: call.ani ?? call.dnis ?? '-',
+    resultCode:
+      call.callMemos?.[0]?.resultCode
+      ?? call.resultCode
+      ?? (call.answeredAt ? 'COMPLETED' : 'MISSED'),
+    startedAt: call.startedAt,
+    talkSeconds: call.talkSeconds ?? 0,
+    queueName: call.queueName ?? '-',
+  }));
+  return { success: true, data, error: null };
 }
 
 export async function updateAgentStatus(

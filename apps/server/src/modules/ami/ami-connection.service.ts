@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Socket } from 'net';
 import { AmiEventNormalizerService } from './ami-event-normalizer.service';
-import { isAsteriskBanner, splitAmiFrames } from './ami.parser';
+import { isAsteriskBanner, parseAmiFrame, ParsedAmiFrame, splitAmiFrames } from './ami.parser';
 import { SessionEngineService } from '../calls/session-engine.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
 
@@ -12,6 +12,14 @@ export interface AmiHealthSnapshot {
   lastEventAt: string | null;
   lastConnectAt: string | null;
   reconnectCount: number;
+}
+
+interface PendingAmiAction {
+  eventList: boolean;
+  resolve: (frames: ParsedAmiFrame[]) => void;
+  reject: (error: Error) => void;
+  frames: ParsedAmiFrame[];
+  timeout: NodeJS.Timeout;
 }
 
 @Injectable()
@@ -24,6 +32,7 @@ export class AmiConnectionService implements OnModuleInit {
   private lastEventAt: Date | null = null;
   private lastConnectAt: Date | null = null;
   private reconnectCount = 0;
+  private readonly pendingActions = new Map<string, PendingAmiAction>();
 
   constructor(
     private readonly config: ConfigService,
@@ -64,6 +73,11 @@ export class AmiConnectionService implements OnModuleInit {
       this.buffer = rest;
 
       for (const raw of frames) {
+        const parsed = parseAmiFrame(raw);
+        if (this.handlePendingActionFrame(parsed)) {
+          continue;
+        }
+
         const normalized = this.normalizer.normalize(raw);
         if (!normalized?.eventName) continue;
 
@@ -82,6 +96,7 @@ export class AmiConnectionService implements OnModuleInit {
       this.connected = false;
       this.loggedIn = false;
       this.reconnectCount += 1;
+      this.failPendingActions(new Error('AMI disconnected'));
       this.logger.warn('AMI disconnected');
       setTimeout(
         () => this.connect(),
@@ -91,6 +106,7 @@ export class AmiConnectionService implements OnModuleInit {
 
     this.socket.on('error', (error) => {
       this.connected = false;
+      this.failPendingActions(error instanceof Error ? error : new Error(String(error)));
       this.logger.error(error.message);
     });
   }
@@ -113,6 +129,89 @@ export class AmiConnectionService implements OnModuleInit {
         .map(([key, value]) => `${key}: ${value}`)
         .join('\r\n') + '\r\n\r\n';
     this.socket.write(payload);
+  }
+
+  async sendActionWithResponse(
+    action: Record<string, any>,
+    options?: { eventList?: boolean; timeoutMs?: number },
+  ): Promise<ParsedAmiFrame[]> {
+    if (!this.socket || !this.connected) {
+      throw new Error('AMI is not connected');
+    }
+
+    const actionId = `codex-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    const timeoutMs = options?.timeoutMs ?? 5000;
+    const eventList = options?.eventList ?? false;
+
+    return await new Promise<ParsedAmiFrame[]>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingActions.delete(actionId);
+        reject(new Error(`AMI action timeout: ${action.Action ?? 'unknown'}`));
+      }, timeoutMs);
+
+      this.pendingActions.set(actionId, {
+        eventList,
+        resolve,
+        reject,
+        frames: [],
+        timeout,
+      });
+
+      this.sendAction({ ...action, ActionID: actionId });
+    });
+  }
+
+  private handlePendingActionFrame(frame: ParsedAmiFrame): boolean {
+    const actionId = frame.ActionID;
+    let pending: PendingAmiAction | undefined;
+    let pendingKey: string | undefined;
+
+    if (actionId) {
+      pending = this.pendingActions.get(actionId);
+      pendingKey = actionId;
+    } else if (this.pendingActions.size === 1 && this.isEventListFrame(frame)) {
+      const [firstKey, firstPending] = Array.from(this.pendingActions.entries())[0];
+      if (firstPending.eventList) {
+        pending = firstPending;
+        pendingKey = firstKey;
+      }
+    }
+
+    if (!pending || !pendingKey) return false;
+
+    pending.frames.push(frame);
+
+    if (!pending.eventList) {
+      this.finishPendingAction(pendingKey, pending);
+      return true;
+    }
+
+    if (frame.EventList === 'Complete' || frame.Event === 'ContactListComplete' || frame.Event === 'EndpointListComplete') {
+      this.finishPendingAction(pendingKey, pending);
+      return true;
+    }
+
+    return true;
+  }
+
+  private isEventListFrame(frame: ParsedAmiFrame) {
+    return ['ContactList', 'ContactListComplete', 'EndpointList', 'EndpointListComplete'].includes(
+      frame.Event ?? '',
+    );
+  }
+
+  private finishPendingAction(actionId: string, pending: PendingAmiAction) {
+    clearTimeout(pending.timeout);
+    this.pendingActions.delete(actionId);
+    pending.resolve(pending.frames);
+  }
+
+  private failPendingActions(error: Error) {
+    for (const [actionId, pending] of this.pendingActions.entries()) {
+      clearTimeout(pending.timeout);
+      pending.reject(error);
+      this.pendingActions.delete(actionId);
+    }
   }
 
   isConnected() {

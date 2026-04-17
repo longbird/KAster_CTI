@@ -51,10 +51,219 @@ export class TransferDetectorService implements OnModuleInit {
         await this.completeTransfer(event, 'blind');
       } else if (eventName === 'AttendedTransfer') {
         await this.completeTransfer(event, 'attended');
+      } else if (eventName === 'DialBegin') {
+        await this.markConsultRinging(event);
+      } else if (eventName === 'BridgeEnter') {
+        await this.markConsultTalking(event);
+      } else if (eventName === 'BridgeLeave') {
+        await this.markRebridging(event);
+      } else if (eventName === 'DialEnd') {
+        await this.markConsultFailed(event);
       }
-      // 그 외 이벤트는 일단 무시. 중간 phase 추적은 후속 작업.
     } catch (err) {
       this.logger.warn(`transfer-detector failed: ${(err as Error).message}`);
+    }
+  }
+
+  private async getOpenCandidate(tenantId: string, linkedid: string) {
+    return this.prisma.attendedTransferCandidates.findFirst({
+      where: {
+        tenantId,
+        linkedid,
+        phase: {
+          in: ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'] as TransferPhase[] as any,
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+  }
+
+  private async getRecentFailedCandidate(tenantId: string, linkedid: string, withinSeconds = 60) {
+    const cutoff = new Date(Date.now() - withinSeconds * 1000);
+    return this.prisma.attendedTransferCandidates.findFirst({
+      where: {
+        tenantId,
+        linkedid,
+        phase: 'FAILED',
+        updatedAt: { gte: cutoff },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  private eventMentionsExtension(raw: Record<string, any>, extension?: string | null): boolean {
+    if (!extension) return false;
+    const needle = String(extension).trim();
+    if (!needle) return false;
+
+    const fields = [
+      raw.Extension,
+      raw.Exten,
+      raw.DestExten,
+      raw.ConnectedLineNum,
+      raw.CallerIDNum,
+      raw.DialString,
+      raw.Channel,
+      raw.DestChannel,
+      raw.Destination,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    return fields.some((value) => value.includes(needle));
+  }
+
+  private eventMentionsUniqueid(raw: Record<string, any>, uniqueid?: string | null): boolean {
+    if (!uniqueid) return false;
+    const needle = String(uniqueid).trim();
+    if (!needle) return false;
+
+    const fields = [
+      raw.Uniqueid,
+      raw.DestUniqueid,
+      raw.SecondTransfererUniqueid,
+      raw.OrigTransfererUniqueid,
+      raw.TransfererUniqueid,
+      raw.TransfereeUniqueid,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    return fields.includes(needle);
+  }
+
+  private async updateCandidatePhase(
+    candidateId: string,
+    phase: TransferPhase,
+    extraData?: Record<string, any>,
+  ) {
+    await this.prisma.attendedTransferCandidates.update({
+      where: { candidateId },
+      data: {
+        phase,
+        updatedAt: new Date(),
+        ...extraData,
+      },
+    });
+  }
+
+  private async markConsultRinging(event: Record<string, any>) {
+    const tenantId = event.tenantId;
+    const linkedid = event.linkedid || event.Linkedid;
+    if (!tenantId || !linkedid) return;
+
+    const raw = event.raw ?? {};
+    const candidate = await this.getOpenCandidate(tenantId, linkedid);
+    if (!candidate) return;
+    if (!this.eventMentionsExtension(raw, candidate.toExtension)) return;
+
+    await this.updateCandidatePhase(candidate.candidateId, 'CONSULT_RINGING', {
+      consultUniqueid: candidate.consultUniqueid ?? raw.DestUniqueid ?? raw.Uniqueid ?? event.uniqueid ?? null,
+      targetUniqueid: candidate.targetUniqueid ?? raw.Uniqueid ?? event.uniqueid ?? null,
+    });
+  }
+
+  private async markConsultTalking(event: Record<string, any>) {
+    const tenantId = event.tenantId;
+    const linkedid = event.linkedid || event.Linkedid;
+    if (!tenantId || !linkedid) return;
+
+    const raw = event.raw ?? {};
+    const candidate = await this.getOpenCandidate(tenantId, linkedid);
+    if (candidate) {
+      const matchesTarget =
+        this.eventMentionsExtension(raw, candidate.toExtension) ||
+        this.eventMentionsUniqueid(raw, candidate.consultUniqueid) ||
+        this.eventMentionsUniqueid(raw, candidate.targetUniqueid);
+      if (matchesTarget) {
+        await this.updateCandidatePhase(candidate.candidateId, 'CONSULT_TALKING', {
+          consultUniqueid: candidate.consultUniqueid ?? raw.DestUniqueid ?? raw.Uniqueid ?? event.uniqueid ?? null,
+          targetUniqueid: candidate.targetUniqueid ?? raw.Uniqueid ?? event.uniqueid ?? null,
+        });
+        return;
+      }
+    }
+
+    const failedCandidate = await this.getRecentFailedCandidate(tenantId, linkedid);
+    if (!failedCandidate) return;
+
+    const matchesOriginalLeg =
+      this.eventMentionsExtension(raw, failedCandidate.fromExtension) ||
+      this.eventMentionsUniqueid(raw, failedCandidate.targetUniqueid);
+    if (!matchesOriginalLeg) return;
+
+    await this.updateCandidatePhase(failedCandidate.candidateId, 'REBRIDGING');
+  }
+
+  private async markRebridging(event: Record<string, any>) {
+    const tenantId = event.tenantId;
+    const linkedid = event.linkedid || event.Linkedid;
+    if (!tenantId || !linkedid) return;
+
+    const raw = event.raw ?? {};
+    const candidate = await this.getOpenCandidate(tenantId, linkedid);
+    const failedCandidate = candidate ? null : await this.getRecentFailedCandidate(tenantId, linkedid);
+    const activeCandidate = candidate ?? failedCandidate;
+    if (!activeCandidate) return;
+
+    const matchesTarget =
+      this.eventMentionsExtension(raw, activeCandidate.toExtension) ||
+      this.eventMentionsUniqueid(raw, activeCandidate.consultUniqueid) ||
+      this.eventMentionsUniqueid(raw, activeCandidate.targetUniqueid) ||
+      this.eventMentionsExtension(raw, activeCandidate.fromExtension);
+    if (!matchesTarget) return;
+
+    await this.updateCandidatePhase(activeCandidate.candidateId, 'REBRIDGING');
+  }
+
+  private async markConsultFailed(event: Record<string, any>) {
+    const tenantId = event.tenantId;
+    const linkedid = event.linkedid || event.Linkedid;
+    if (!tenantId || !linkedid) return;
+
+    const raw = event.raw ?? {};
+    const dialStatus = String(raw.DialStatus ?? '').toUpperCase();
+    if (!['BUSY', 'NOANSWER', 'CANCEL', 'CHANUNAVAIL', 'CONGESTION'].includes(dialStatus)) {
+      return;
+    }
+
+    const candidate = await this.getOpenCandidate(tenantId, linkedid);
+    if (!candidate) return;
+
+    const matchesTarget =
+      this.eventMentionsExtension(raw, candidate.toExtension) ||
+      this.eventMentionsUniqueid(raw, candidate.consultUniqueid) ||
+      this.eventMentionsUniqueid(raw, candidate.targetUniqueid);
+    if (!matchesTarget) return;
+
+    const now = new Date();
+    await this.prisma.attendedTransferCandidates.update({
+      where: { candidateId: candidate.candidateId },
+      data: {
+        phase: 'FAILED',
+        expiredAt: null,
+        completedAt: null,
+        updatedAt: now,
+      },
+    });
+
+    const pending = await this.prisma.callTransfers.findFirst({
+      where: {
+        tenantId,
+        linkedid,
+        transferType: 'attended',
+        OR: [{ transferResult: null }, { transferResult: 'REQUESTED' }],
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+    if (pending) {
+      await this.prisma.callTransfers.update({
+        where: { transferId: pending.transferId },
+        data: {
+          transferResult: 'FAILED',
+          completedAt: now,
+        },
+      });
     }
   }
 
@@ -73,10 +282,7 @@ export class TransferDetectorService implements OnModuleInit {
 
     // candidate upsert: 이미 REQUESTED 가 들려 있으면 그대로 COMPLETED 로 닫고,
     // 없으면 완료 상태로 바로 생성.
-    const existing = await this.prisma.attendedTransferCandidates.findFirst({
-      where: { tenantId, linkedid, phase: { notIn: ['COMPLETED', 'FAILED', 'EXPIRED'] } },
-      orderBy: { requestedAt: 'desc' },
-    });
+    const existing = await this.getOpenCandidate(tenantId, linkedid);
 
     const now = new Date();
     if (existing) {

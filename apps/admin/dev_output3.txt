@@ -31,3 +31,50 @@ Port 5175 is in use, trying another one...
 [2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/agent-settings/AgentSettingsPage.tsx[22m
 [2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueEditModal.tsx[22m
 [2m오후 10:48:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueSettingsPage.tsx[22m
+[2m오후 11:40:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/AgentSipTab.tsx, /src/features/asterisk-config/components/DidsTab.tsx, /src/features/asterisk-config/components/ConfigPreviewDrawer.tsx, /src/features/asterisk-config/components/TrunksTab.tsx, /src/features/asterisk-config/components/IvrMenusTab.tsx, /src/features/asterisk-config/components/DidForm.tsx[22m
+[2m오후 11:41:20[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오전 11:19:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/AgentSipTab.tsx, /src/features/asterisk-config/components/DidsTab.tsx, /src/features/asterisk-config/components/ConfigPreviewDrawer.tsx, /src/features/asterisk-config/components/TrunksTab.tsx, /src/features/asterisk-config/components/IvrMenusTab.tsx, /src/features/asterisk-config/components/DidForm.tsx[22m
+[2m오전 11:20:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/IvrMenuForm.tsx[22m
+[2m오전 11:20:28[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오전 11:25:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/AgentSipTab.tsx, /src/features/asterisk-config/components/DidsTab.tsx, /src/features/asterisk-config/components/ConfigPreviewDrawer.tsx, /src/features/asterisk-config/components/TrunksTab.tsx, /src/features/asterisk-config/components/IvrMenusTab.tsx, /src/features/asterisk-config/components/DidForm.tsx[22m
+[2m오전 11:26:11[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 1:17:11[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 1:17:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 1:17:34[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 1:17:47[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 1:22:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueSettingsPage.tsx, /src/features/agent-settings/AgentSettingsPage.tsx, /src/features/live-calls/LiveCallsPage.tsx, /src/features/kpi/KpiPage.tsx, /src/features/agent-settings/AgentEditModal.tsx, /src/features/queue-settings/QueueEditModal.tsx, /src/features/live-calls/CallDetailDrawer.tsx[22m
+[2m오후 1:22:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 1:26:45[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 1:26:52[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 1:46:22[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 2:10:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 2:24:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/AgentSipTab.tsx, /src/features/asterisk-config/components/DidsTab.tsx, /src/features/asterisk-config/components/ConfigPreviewDrawer.tsx, /src/features/asterisk-config/components/TrunksTab.tsx, /src/features/asterisk-config/components/IvrMenusTab.tsx, /src/features/asterisk-config/components/DidForm.tsx[22m
+[2m오후 2:24:33[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunkForm.tsx[22m
+[2m오후 2:24:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunkForm.tsx[22m
+[2m오후 2:25:37[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunksTab.tsx[22m
+[2m오후 2:25:42[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunksTab.tsx[22m
+[2m오후 2:25:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunkForm.tsx[22m
+[2m오후 2:34:05[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunkForm.tsx[22m
+[2m오후 2:34:39[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunkForm.tsx[22m
+[2m오후 2:57:44[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 2:57:44[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m오후 2:57:44[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 2:58:03[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m오후 2:58:09[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 2:59:12[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 2:59:12[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m오후 2:59:12[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 2:59:31[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m오후 2:59:31[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 3:01:46[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 3:01:46[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m오후 3:01:46[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 3:01:46[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 3:01:46[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m오후 3:01:46[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 3:02:44[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m오후 3:02:44[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 3:03:05[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m오후 3:03:05[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m오후 3:03:05[22m [36m[1m[vite][22m[39m server restarted.
+[2m오후 3:03:29[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m

@@ -65,21 +65,25 @@ services:
       JWT_SECRET: dev_secret_change_me_in_prod
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # AMI: 원격에 Asterisk 가 없으므로 reconnect 주기만 길게 해둠.
-      # 서버는 실패 로그만 쏟고 계속 동작.
-      AMI_HOST: 127.0.0.1
+      # 운영 dev 서버에서는 호스트 OS에 설치된 Asterisk 를 사용한다.
+      # host.docker.internal 은 extra_hosts 의 host-gateway 매핑으로 주입된다.
+      AMI_HOST: host.docker.internal
       AMI_PORT: 5038
-      AMI_USERNAME: cti_middleware
-      AMI_SECRET: dummy
+      AMI_USERNAME: ${AMI_USERNAME:-cti_middleware}
+      AMI_SECRET: ${AMI_SECRET:?AMI_SECRET must be set in root .env}
       AMI_RECONNECT_MS: 60000
       ASTERISK_NODE_ID: dev-node
       ASTERISK_OUTBOUND_CONTEXT: outbound-main
+      ASTERISK_CONF_DIR: /etc/asterisk
       SEED_DEMO_PASSWORD: Password123!
       # CORS: web(5173)/admin(5174) + host 직접 접속 허용
       REST_CORS_ORIGIN: "http://localhost:5173,http://localhost:5174,http://49.247.46.86:5173,http://49.247.46.86:5174"
       WS_CORS_ORIGIN: "*"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./apps/server:/app:cached
+      - /etc/asterisk:/etc/asterisk
       - kaster_server_node_modules:/app/node_modules
     ports:
       - "3000:3000"

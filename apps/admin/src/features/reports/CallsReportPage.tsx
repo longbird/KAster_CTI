@@ -7,6 +7,7 @@ import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
 interface CdrRow {
   callId: string;
+  linkedid: string;
   ani: string;
   dnis: string;
   queueName: string;
@@ -20,6 +21,10 @@ interface CdrRow {
   abandonFlag: boolean;
   recordingFlag: boolean;
   primaryAgent: { agentName: string } | null;
+  latestTransfer?: {
+    phase: string;
+    toExtension?: string | null;
+  } | null;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -28,6 +33,16 @@ const STATUS_COLOR: Record<string, string> = {
   TALKING: 'blue',
   AFTER_CALL_WORK: 'purple',
   RINGING_AGENT: 'gold',
+};
+
+const TRANSFER_PHASE_COLOR: Record<string, string> = {
+  REQUESTED: 'default',
+  CONSULT_RINGING: 'gold',
+  CONSULT_TALKING: 'blue',
+  REBRIDGING: 'cyan',
+  COMPLETED: 'green',
+  FAILED: 'red',
+  EXPIRED: 'orange',
 };
 
 export function CallsReportPage() {
@@ -105,6 +120,19 @@ export function CallsReportPage() {
             dataIndex: 'sessionStatus',
             render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v}</Tag>,
             width: 120,
+          },
+          {
+            title: '전환',
+            width: 150,
+            render: (_: unknown, r: CdrRow) =>
+              r.latestTransfer ? (
+                <Tag color={TRANSFER_PHASE_COLOR[r.latestTransfer.phase] ?? 'default'}>
+                  {r.latestTransfer.phase}
+                  {r.latestTransfer.toExtension ? ` · ${r.latestTransfer.toExtension}` : ''}
+                </Tag>
+              ) : (
+                '-'
+              ),
           },
           { title: '대기(초)', dataIndex: 'waitSeconds', width: 80 },
           { title: '통화(초)', dataIndex: 'talkSeconds', width: 80 },

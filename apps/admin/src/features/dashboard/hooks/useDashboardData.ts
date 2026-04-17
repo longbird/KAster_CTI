@@ -1,31 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchDashboardData } from '../api/dashboardApi';
 import type { DashboardData } from '../types/dashboard';
 
 export function useDashboardData(branchId?: string) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
-      if (active) setLoading(true);
+      if (!active) return;
+      if (hasLoadedRef.current) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       try {
         const next = await fetchDashboardData(branchId);
         if (!active) return;
         setData(next);
-      } catch {
-        // 백엔드 연결 실패 시 mock 폴백 (화면 항상 렌더)
+        hasLoadedRef.current = true;
+        setError(null);
+      } catch (error: any) {
         if (!active) return;
-        try {
-          const { baseDashboardData } = await import('../mocks/mockDashboard');
-          if (active) setData(baseDashboardData);
-        } catch {
-          // mock도 실패하면 빈 데이터로 렌더
-        }
+        setError(error?.response?.data?.error?.message ?? '대시보드 데이터를 불러오지 못했습니다.');
       } finally {
-        if (active) setLoading(false);
+        if (!active) return;
+        setLoading(false);
+        setRefreshing(false);
       }
     };
 
@@ -38,5 +44,5 @@ export function useDashboardData(branchId?: string) {
     };
   }, [branchId]);
 
-  return { data, loading };
+  return { data, loading, refreshing, error };
 }

@@ -1,4 +1,5 @@
 import { Button, Layout, Menu, Result, Space, Spin, Tag, Typography } from 'antd';
+import type { MenuProps } from 'antd';
 import { LogoutOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
@@ -32,6 +33,7 @@ export function AppLayout() {
     () => filterMenuByAllowedPaths(ADMIN_MENU_CONFIG, allowedPathSet),
     [allowedPathSet],
   );
+  const antdMenuItems = menuItems as MenuProps['items'];
 
   const pathname = location.pathname || '/dashboard';
   const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
@@ -50,13 +52,12 @@ export function AppLayout() {
       <Sider width={240} theme="light" className="app-sider">
         <div className="brand-block">
           <div className="brand-title">CTI Admin</div>
-          <div className="brand-subtitle">Asterisk 운영 대시보드</div>
+          <div className="brand-subtitle">PBX 운영 대시보드</div>
         </div>
         <Menu
           mode="inline"
           selectedKeys={[normalizedPath]}
-          defaultOpenKeys={['realtime', 'reports', 'settings']}
-          items={menuItems}
+          items={antdMenuItems}
           onClick={({ key }) => navigate(key as string)}
         />
       </Sider>

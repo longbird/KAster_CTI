@@ -1,5 +1,6 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
@@ -7,6 +8,7 @@ import { CreateMemoDto } from './dto/create-memo.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
+import { TransferDetectorService } from './transfer-detector.service';
 
 @Injectable()
 export class CallsService {
@@ -16,6 +18,7 @@ export class CallsService {
     private readonly prisma: PrismaService,
     private readonly eventBus: EventBusService,
     private readonly asteriskManager: AsteriskManagerService,
+    private readonly transferDetector: TransferDetectorService,
   ) {}
 
   private async getBranchScope(tenantId: string, branchId?: string) {
@@ -49,6 +52,31 @@ export class CallsService {
     };
   }
 
+  private async getLatestTransferCandidateMap(tenantId: string, linkedids: string[]) {
+    if (linkedids.length === 0) return new Map<string, any>();
+
+    const candidates = await this.prisma.attendedTransferCandidates.findMany({
+      where: { tenantId, linkedid: { in: linkedids } },
+      orderBy: [{ linkedid: 'asc' }, { requestedAt: 'desc' }],
+      select: {
+        linkedid: true,
+        phase: true,
+        toExtension: true,
+        requestedAt: true,
+        completedAt: true,
+        expiredAt: true,
+      },
+    });
+
+    const latestTransferCandidateMap = new Map<string, any>();
+    for (const candidate of candidates) {
+      if (!latestTransferCandidateMap.has(candidate.linkedid)) {
+        latestTransferCandidateMap.set(candidate.linkedid, candidate);
+      }
+    }
+    return latestTransferCandidateMap;
+  }
+
   async getActiveCalls(tenantId: string, branchId?: string) {
     const branchScope = await this.getBranchScope(tenantId, branchId);
     const rows = await this.prisma.callSessions.findMany({
@@ -73,6 +101,10 @@ export class CallsService {
       });
       for (const a of agents) agentNameMap.set(a.agentId, a.agentName);
     }
+    const linkedids = [...new Set(
+      rows.map((r) => r.linkedid).filter((id): id is string => Boolean(id)),
+    )];
+    const latestTransferCandidateMap = await this.getLatestTransferCandidateMap(tenantId, linkedids);
 
     const now = new Date();
     const data = rows.map((r) => {
@@ -87,6 +119,7 @@ export class CallsService {
         ...r,
         agentName: agentNameMap.get(r.primaryAgentId ?? '') ?? '',
         waitSeconds: Math.max(0, waitSeconds),
+        latestTransfer: latestTransferCandidateMap.get(r.linkedid) ?? null,
       };
     });
 
@@ -109,16 +142,62 @@ export class CallsService {
       throw new NotFoundException('Call not found');
     }
 
-    return { success: true, data: call, error: null };
+    const transferCandidates = await this.prisma.attendedTransferCandidates.findMany({
+      where: {
+        tenantId: call.tenantId,
+        linkedid: call.linkedid,
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+
+    return {
+      success: true,
+      data: {
+        ...call,
+        transferCandidates,
+      },
+      error: null,
+    };
   }
 
   // conv 40: Originate 성공 판정은 OriginateResponse 가 아니라 후속
   // DialBegin/DialEnd/BridgeEnter/Newstate(Up) 흐름으로 SessionEngine 이 담당.
   // REST 는 accepted=true 만 즉시 반환.
-  async originate(dto: OriginateDto) {
+  private async resolveAllowedOutboundCallerId(tenantId: string, requestedCallerId?: string) {
+    const settings = await this.prisma.tenantSystemSettings.findUnique({
+      where: { tenantId },
+      select: {
+        allowedOutboundCallerIds: true,
+        defaultOutboundCallerId: true,
+      },
+    });
+
+    const allowedCallerIds = parseAllowedCallerIds(settings?.allowedOutboundCallerIds);
+    if (allowedCallerIds.length === 0) {
+      throw new BadRequestException('허용된 발신번호가 설정되어 있지 않습니다.');
+    }
+
+    const callerId = requestedCallerId?.trim()
+      ? normalizeCallerId(requestedCallerId)
+      : settings?.defaultOutboundCallerId ?? null;
+
+    if (!callerId) {
+      throw new BadRequestException('기본 발신번호가 설정되어 있지 않습니다.');
+    }
+
+    if (!allowedCallerIds.includes(callerId)) {
+      throw new BadRequestException('허용되지 않은 발신번호입니다.');
+    }
+
+    return callerId;
+  }
+
+  async originate(tenantId: string, dto: OriginateDto) {
+    const callerId = await this.resolveAllowedOutboundCallerId(tenantId, dto.callerId);
     const { channel } = this.asteriskManager.originate({
       agentExtension: dto.agentExtension,
       phoneNumber: dto.phoneNumber,
+      callerId,
     });
 
     await this.eventBus.publish('ami.command.originate.requested', dto);
@@ -158,6 +237,16 @@ export class CallsService {
       where: { callId },
       data: { transferFlag: true, sessionStatus: 'TRANSFERRING' },
     });
+
+    if (dto.transferType === 'attended') {
+      await this.transferDetector.recordRequest({
+        tenantId: call.tenantId,
+        linkedid: call.linkedid,
+        fromAgentId: call.primaryAgentId ?? undefined,
+        fromExtension: dto.fromExtension,
+        toExtension: dto.target,
+      });
+    }
 
     // conv 26 leg 선택 규칙: "legType === 'agent' 이면서 아직 끝나지 않은" leg.
     // 가장 최근 leg 휴리스틱보다 정확 — transfer 는 상담원 쪽 채널을 redirect
@@ -250,15 +339,35 @@ export class CallsService {
       orderBy: { startedAt: 'desc' },
       take: 500,
       select: {
-        callId: true, ani: true, dnis: true, queueName: true,
+        callId: true, linkedid: true, ani: true, dnis: true, queueName: true,
         sessionStatus: true, direction: true,
+        resultCode: true,
         startedAt: true, answeredAt: true, endedAt: true,
         waitSeconds: true, talkSeconds: true,
         abandonFlag: true, recordingFlag: true,
+        customer: {
+          select: {
+            customerName: true,
+          },
+        },
+        callMemos: {
+          where: { isFinal: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            resultCode: true,
+          },
+        },
         primaryAgent: { select: { agentName: true } },
       },
     });
-    return { success: true, data: rows, error: null };
+    const linkedids = [...new Set(rows.map((row) => row.linkedid).filter(Boolean))];
+    const latestTransferCandidateMap = await this.getLatestTransferCandidateMap(tenantId, linkedids);
+    const data = rows.map((row) => ({
+      ...row,
+      latestTransfer: latestTransferCandidateMap.get(row.linkedid) ?? null,
+    }));
+    return { success: true, data, error: null };
   }
 
   async listRecordings(tenantId: string, q: { from?: string; to?: string; branchId?: string }) {

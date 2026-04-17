@@ -5,6 +5,12 @@ describe('renderPjsip', () => {
     const result = renderPjsip({ trunks: [], agents: [] });
     expect(result).toContain('[global]');
     expect(result).toContain('[transport-udp]');
+    expect(result).toContain('bind=0.0.0.0:36070');
+  });
+
+  it('renders custom SIP register port from system settings', () => {
+    const result = renderPjsip({ trunks: [], agents: [], sipRegisterPort: 36070 });
+    expect(result).toContain('bind=0.0.0.0:36070');
   });
 
   it('renders enabled trunk sections', () => {
@@ -20,6 +26,21 @@ describe('renderPjsip', () => {
     expect(result).toContain('username=trunk01');
     expect(result).toContain('contact=sip:1.2.3.4:5060');
     expect(result).toContain('allow=alaw,ulaw');
+  });
+
+  it('renders unauthenticated trunk without auth section', () => {
+    const result = renderPjsip({
+      trunks: [{
+        name: 'Direct Carrier', host: '5.6.7.8', port: 5060,
+        username: '', password: '', fromDomain: '',
+        codecs: 'alaw,ulaw', enabled: true,
+      }],
+      agents: [],
+    });
+    expect(result).toContain('[trunk-direct-carrier-aor]');
+    expect(result).not.toContain('[trunk-direct-carrier-auth]');
+    expect(result).not.toContain('outbound_auth=trunk-direct-carrier-auth');
+    expect(result).not.toContain('from_user=');
   });
 
   it('skips disabled trunks', () => {

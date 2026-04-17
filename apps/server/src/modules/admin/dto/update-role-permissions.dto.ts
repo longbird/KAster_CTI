@@ -13,7 +13,27 @@ export class RolePermissionItemDto {
 
   @ApiProperty({ example: true })
   @IsBoolean()
-  canAccess!: boolean;
+  canView!: boolean;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  canCreate!: boolean;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  canUpdate!: boolean;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  canDelete!: boolean;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  canOperate!: boolean;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  canExport!: boolean;
 }
 
 export class UpdateRolePermissionsDto {

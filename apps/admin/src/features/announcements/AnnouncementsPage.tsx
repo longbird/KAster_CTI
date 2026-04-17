@@ -1,8 +1,9 @@
-import { DeleteOutlined, PlusOutlined, PushpinOutlined } from '@ant-design/icons';
-import { Button, Card, Form, Input, Modal, Space, Table, Tag, Typography, message } from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined, PushpinOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, Modal, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { usePermissionStore } from '../../store/usePermissionStore';
 
 interface Notice {
   announcementId: string;
@@ -18,7 +19,12 @@ export function AnnouncementsPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Notice | null>(null);
   const [form] = Form.useForm<{ title: string; body: string; authorName?: string; pinned?: boolean }>();
+  const permission = usePermissionStore((s) => s.permissionsByMenu['announcements']);
+  const canCreate = permission?.canCreate ?? true;
+  const canUpdate = permission?.canUpdate ?? true;
+  const canDelete = permission?.canDelete ?? true;
 
   const load = async () => {
     setLoading(true);
@@ -37,17 +43,23 @@ export function AnnouncementsPage() {
     void load();
   }, []);
 
-  const add = async () => {
+  const submit = async () => {
     const values = await form.validateFields();
     setSubmitting(true);
     try {
-      await apiClient.post('/admin/announcements', values);
-      message.success('공지사항을 등록했습니다.');
+      if (editing) {
+        await apiClient.post(`/admin/announcements/${editing.announcementId}`, values);
+        message.success('공지사항을 수정했습니다.');
+      } else {
+        await apiClient.post('/admin/announcements', values);
+        message.success('공지사항을 등록했습니다.');
+      }
       form.resetFields();
       setOpen(false);
+      setEditing(null);
       await load();
-    } catch {
-      message.error('공지사항 등록에 실패했습니다.');
+    } catch (error: any) {
+      message.error(error?.response?.data?.error?.message ?? '공지사항 저장에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -69,9 +81,20 @@ export function AnnouncementsPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           공지사항
         </Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
-          공지 등록
-        </Button>
+        {canCreate ? (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              form.setFieldsValue({ pinned: false });
+              setOpen(true);
+            }}
+          >
+            공지 등록
+          </Button>
+        ) : null}
       </Space>
 
       <Table<Notice>
@@ -108,25 +131,49 @@ export function AnnouncementsPage() {
           },
           {
             title: '',
-            width: 60,
+            width: 96,
             render: (_: unknown, row: Notice) => (
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => void remove(row.announcementId)}
-              />
+              <Space>
+                {canUpdate ? (
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => {
+                      setEditing(row);
+                      form.setFieldsValue({
+                        title: row.title,
+                        body: row.body,
+                        authorName: row.authorName,
+                        pinned: row.pinned,
+                      });
+                      setOpen(true);
+                    }}
+                  />
+                ) : null}
+                {canDelete ? (
+                  <Button
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => void remove(row.announcementId)}
+                  />
+                ) : null}
+              </Space>
             ),
           },
         ]}
       />
 
       <Modal
-        title="공지 등록"
+        title={editing ? '공지 수정' : '공지 등록'}
         open={open}
-        onOk={() => void add()}
-        onCancel={() => setOpen(false)}
-        okText="등록"
+        onOk={() => void submit()}
+        onCancel={() => {
+          setOpen(false);
+          setEditing(null);
+          form.resetFields();
+        }}
+        okText={editing ? '저장' : '등록'}
         cancelText="취소"
         confirmLoading={submitting}
       >
@@ -139,6 +186,9 @@ export function AnnouncementsPage() {
           </Form.Item>
           <Form.Item label="작성자" name="authorName">
             <Input maxLength={50} placeholder="관리자" />
+          </Form.Item>
+          <Form.Item label="상단 고정" name="pinned" valuePropName="checked">
+            <Switch />
           </Form.Item>
         </Form>
       </Modal>

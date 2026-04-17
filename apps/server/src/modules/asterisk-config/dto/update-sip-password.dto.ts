@@ -1,5 +1,5 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class UpdateSipPasswordDto {
-  @IsString() @MinLength(1) sipPassword: string;
+  @IsString() sipPassword: string;
 }

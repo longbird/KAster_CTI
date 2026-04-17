@@ -8,6 +8,17 @@ const STATUS_COLOR: Record<string, string> = {
   RINGING_AGENT: 'blue',
   TALKING: 'green',
   AFTER_CALL_WORK: 'purple',
+  TRANSFERRING: 'cyan',
+};
+
+const TRANSFER_PHASE_COLOR: Record<string, string> = {
+  REQUESTED: 'default',
+  CONSULT_RINGING: 'gold',
+  CONSULT_TALKING: 'blue',
+  REBRIDGING: 'cyan',
+  COMPLETED: 'green',
+  FAILED: 'red',
+  EXPIRED: 'orange',
 };
 
 function fmtSec(sec?: number) {
@@ -78,6 +89,19 @@ export function LiveCallsPage() {
             title: '통화시간',
             dataIndex: 'talkSeconds',
             render: (v?: number) => fmtSec(v),
+          },
+          {
+            title: '전환',
+            width: 150,
+            render: (_: unknown, r: CallRow) =>
+              r.latestTransfer ? (
+                <Tag color={TRANSFER_PHASE_COLOR[r.latestTransfer.phase] ?? 'default'}>
+                  {r.latestTransfer.phase}
+                  {r.latestTransfer.toExtension ? ` · ${r.latestTransfer.toExtension}` : ''}
+                </Tag>
+              ) : (
+                '-'
+              ),
           },
           {
             title: '큐 진입',

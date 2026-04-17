@@ -24,10 +24,11 @@ export class CallsController {
   @ApiOkResponse({ type: ApiResponseDto })
   async getActiveCalls(@Req() req: any, @Query('branchId') branchId?: string) {
     if (req.user.role === 'supervisor' || req.user.role === 'admin') {
-      await this.menuPermissionService.assertAnyMenuAccess(
+      await this.menuPermissionService.assertAnyMenuAction(
         req.user.tenantId,
         req.user.role,
         ['dashboard', 'live-calls'],
+        'view',
       );
     }
     return this.callsService.getActiveCalls(req.user.tenantId, branchId);
@@ -38,10 +39,11 @@ export class CallsController {
   @ApiOkResponse({ type: ApiResponseDto })
   async listHistory(@Req() req: any, @Query() q: ListCallsQueryDto) {
     if (req.user.role === 'supervisor' || req.user.role === 'admin') {
-      await this.menuPermissionService.assertMenuAccess(
+      await this.menuPermissionService.assertMenuAction(
         req.user.tenantId,
         req.user.role,
         'reports/calls',
+        'view',
       );
     }
     return this.callsService.listHistory(req.user.tenantId, q);
@@ -57,10 +59,11 @@ export class CallsController {
     @Query('branchId') branchId?: string,
   ) {
     if (req.user.role === 'supervisor' || req.user.role === 'admin') {
-      await this.menuPermissionService.assertMenuAccess(
+      await this.menuPermissionService.assertMenuAction(
         req.user.tenantId,
         req.user.role,
         'reports/recordings',
+        'view',
       );
     }
     return this.callsService.listRecordings(req.user.tenantId, { from, to, branchId });
@@ -80,8 +83,13 @@ export class CallsController {
       'AMI Action:Originate 를 상담원 내선으로 전송. 실제 성공 판정은 후속 DialBegin/DialEnd/BridgeEnter/Newstate 이벤트로 SessionEngine 이 담당하며, 이 응답은 즉시 accepted:true 를 반환한다 (conv 40).',
   })
   @ApiOkResponse({ type: ApiResponseDto })
-  originate(@Body() dto: OriginateDto) {
-    return this.callsService.originate(dto);
+  originate(@Req() req: any, @Body() dto: OriginateDto) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      return this.menuPermissionService
+        .assertAnyMenuAction(req.user.tenantId, req.user.role, ['dashboard', 'live-calls'], 'operate')
+        .then(() => this.callsService.originate(req.user.tenantId, dto));
+    }
+    return this.callsService.originate(req.user.tenantId, dto);
   }
 
   @Post(':callId/transfer')
@@ -91,14 +99,30 @@ export class CallsController {
       'legType=agent && !endedAt 인 상담원 leg 의 channelName 을 찾아 AMI Action:Redirect 로 transfer-target context 로 점프 (infra/asterisk/extensions_transfer.conf). BlindTransfer/AttendedTransfer AMI 이벤트 수신 시 TransferDetectorService 가 COMPLETED 로 확정.',
   })
   @ApiOkResponse({ type: ApiResponseDto })
-  transfer(@Param('callId') callId: string, @Body() dto: TransferDto) {
+  async transfer(@Req() req: any, @Param('callId') callId: string, @Body() dto: TransferDto) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
     return this.callsService.transfer(callId, dto);
   }
 
   @Post(':callId/memo')
   @ApiOperation({ summary: '상담 메모 / 후처리 코드 저장' })
   @ApiOkResponse({ type: ApiResponseDto })
-  memo(@Param('callId') callId: string, @Body() dto: CreateMemoDto) {
+  async memo(@Req() req: any, @Param('callId') callId: string, @Body() dto: CreateMemoDto) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
     return this.callsService.saveMemo(callId, dto);
   }
 
@@ -108,7 +132,15 @@ export class CallsController {
     description: '상담원 leg 에 AMI Action:Hangup 을 쏜다. 세션 상태는 후속 Hangup 이벤트로 SessionEngine 이 ENDED 로 마감.',
   })
   @ApiOkResponse({ type: ApiResponseDto })
-  hangup(@Param('callId') callId: string) {
+  async hangup(@Req() req: any, @Param('callId') callId: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
     return this.callsService.hangup(callId);
   }
 }

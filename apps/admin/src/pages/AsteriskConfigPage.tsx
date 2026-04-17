@@ -5,15 +5,18 @@ import { ConfigPreviewDrawer } from '../features/asterisk-config/components/Conf
 import { DidsTab } from '../features/asterisk-config/components/DidsTab';
 import { IvrMenusTab } from '../features/asterisk-config/components/IvrMenusTab';
 import { TrunksTab } from '../features/asterisk-config/components/TrunksTab';
+import { usePermissionStore } from '../store/usePermissionStore';
 
 export function AsteriskConfigPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
+  const canView = permission?.canView ?? true;
 
   return (
     <>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Asterisk 회선 설정</Typography.Title>
-        <Button onClick={() => setPreviewOpen(true)}>.conf 미리보기</Button>
+        <Typography.Title level={4} style={{ margin: 0 }}>PBX 회선 설정</Typography.Title>
+        {canView ? <Button onClick={() => setPreviewOpen(true)}>.conf 미리보기</Button> : null}
       </Space>
       <Tabs
         items={[

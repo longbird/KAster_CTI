@@ -1,6 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MenuPermissionService } from '../src/common/menu-permission.service';
+import { AsteriskConfigController } from '../src/modules/asterisk-config/asterisk-config.controller';
+import { AsteriskConfigService } from '../src/modules/asterisk-config/asterisk-config.service';
+import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AgentsController } from '../src/modules/agents/agents.controller';
 import { AgentsService } from '../src/modules/agents/agents.service';
 import { CallsController } from '../src/modules/calls/calls.controller';
@@ -19,13 +22,17 @@ describe('Server permission integration', () => {
     };
     const menuPermissionService = {
       assertAnyMenuAccess: jest.fn(),
+      assertAnyMenuAction: jest.fn(),
       assertMenuAccess: jest.fn(),
+      assertMenuAction: jest.fn(),
     };
 
     beforeEach(async () => {
       jest.clearAllMocks();
       menuPermissionService.assertAnyMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertAnyMenuAction.mockResolvedValue(undefined);
       menuPermissionService.assertMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertMenuAction.mockResolvedValue(undefined);
       const module: TestingModule = await Test.createTestingModule({
         controllers: [CallsController],
         providers: [
@@ -45,10 +52,11 @@ describe('Server permission integration', () => {
         'branch-1',
       );
 
-      expect(menuPermissionService.assertAnyMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertAnyMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'supervisor',
         ['dashboard', 'live-calls'],
+        'view',
       );
       expect(callsService.getActiveCalls).toHaveBeenCalledWith('tenant-1', 'branch-1');
     });
@@ -66,8 +74,8 @@ describe('Server permission integration', () => {
     });
 
     it('history는 reports/calls 권한이 없으면 차단된다', async () => {
-      menuPermissionService.assertMenuAccess.mockRejectedValue(
-        new ForbiddenException('menu access denied: reports/calls'),
+      menuPermissionService.assertMenuAction.mockRejectedValue(
+        new ForbiddenException('menu action denied: reports/calls:view'),
       );
 
       await expect(
@@ -88,10 +96,11 @@ describe('Server permission integration', () => {
         'branch-9',
       );
 
-      expect(menuPermissionService.assertMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'admin',
         'reports/recordings',
+        'view',
       );
       expect(callsService.listRecordings).toHaveBeenCalledWith('tenant-1', {
         from: '2026-04-01',
@@ -114,13 +123,17 @@ describe('Server permission integration', () => {
     };
     const menuPermissionService = {
       assertAnyMenuAccess: jest.fn(),
+      assertAnyMenuAction: jest.fn(),
       assertMenuAccess: jest.fn(),
+      assertMenuAction: jest.fn(),
     };
 
     beforeEach(async () => {
       jest.clearAllMocks();
       menuPermissionService.assertAnyMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertAnyMenuAction.mockResolvedValue(undefined);
       menuPermissionService.assertMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertMenuAction.mockResolvedValue(undefined);
       const module: TestingModule = await Test.createTestingModule({
         controllers: [AgentsController],
         providers: [
@@ -138,10 +151,11 @@ describe('Server permission integration', () => {
 
       await controller.list({ tenantId: 'tenant-1', role: 'supervisor' });
 
-      expect(menuPermissionService.assertAnyMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertAnyMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'supervisor',
         ['settings/agents', 'agents'],
+        'view',
       );
       expect(agentsService.listForTenant).toHaveBeenCalledWith('tenant-1');
     });
@@ -166,10 +180,11 @@ describe('Server permission integration', () => {
         'agent-9',
       );
 
-      expect(menuPermissionService.assertAnyMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertAnyMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'supervisor',
         ['settings/agents', 'agents'],
+        'view',
       );
     });
 
@@ -182,10 +197,11 @@ describe('Server permission integration', () => {
         { agentName: '수정됨' } as any,
       );
 
-      expect(menuPermissionService.assertMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'admin',
         'settings/agents',
+        'update',
       );
       expect(agentsService.update).toHaveBeenCalledWith(
         'tenant-1',
@@ -204,13 +220,17 @@ describe('Server permission integration', () => {
     };
     const menuPermissionService = {
       assertAnyMenuAccess: jest.fn(),
+      assertAnyMenuAction: jest.fn(),
       assertMenuAccess: jest.fn(),
+      assertMenuAction: jest.fn(),
     };
 
     beforeEach(async () => {
       jest.clearAllMocks();
       menuPermissionService.assertAnyMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertAnyMenuAction.mockResolvedValue(undefined);
       menuPermissionService.assertMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertMenuAction.mockResolvedValue(undefined);
       const module: TestingModule = await Test.createTestingModule({
         controllers: [QueuesController],
         providers: [
@@ -227,10 +247,11 @@ describe('Server permission integration', () => {
 
       await controller.summary({ tenantId: 'tenant-1', role: 'supervisor' });
 
-      expect(menuPermissionService.assertAnyMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertAnyMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'supervisor',
         ['dashboard', 'queues'],
+        'view',
       );
       expect(queuesService.getSummary).toHaveBeenCalledWith('tenant-1');
     });
@@ -249,10 +270,11 @@ describe('Server permission integration', () => {
 
       await controller.list({ tenantId: 'tenant-1', role: 'admin' });
 
-      expect(menuPermissionService.assertMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'admin',
         'settings/queues',
+        'view',
       );
       expect(queuesService.listSettings).toHaveBeenCalledWith('tenant-1');
     });
@@ -266,15 +288,82 @@ describe('Server permission integration', () => {
         { queueDisplayName: '변경' } as any,
       );
 
-      expect(menuPermissionService.assertMenuAccess).toHaveBeenCalledWith(
+      expect(menuPermissionService.assertMenuAction).toHaveBeenCalledWith(
         'tenant-1',
         'admin',
         'settings/queues',
+        'update',
       );
       expect(queuesService.update).toHaveBeenCalledWith(
         'tenant-1',
         'queue-1',
         { queueDisplayName: '변경' },
+      );
+    });
+  });
+
+  describe('AsteriskConfigController', () => {
+    let controller: AsteriskConfigController;
+    const asteriskConfigService = {
+      getBlocklistEntries: jest.fn(),
+      createBlocklistEntry: jest.fn(),
+    };
+    const reloadService = {
+      executeReload: jest.fn(),
+    };
+    const menuPermissionService = {
+      assertAnyMenuAccess: jest.fn(),
+      assertMenuAccess: jest.fn(),
+      assertMenuAction: jest.fn(),
+    };
+
+    beforeEach(async () => {
+      jest.clearAllMocks();
+      menuPermissionService.assertMenuAccess.mockResolvedValue(undefined);
+      menuPermissionService.assertMenuAction.mockResolvedValue(undefined);
+      const module: TestingModule = await Test.createTestingModule({
+        controllers: [AsteriskConfigController],
+        providers: [
+          { provide: AsteriskConfigService, useValue: asteriskConfigService },
+          { provide: AsteriskReloadService, useValue: reloadService },
+          { provide: MenuPermissionService, useValue: menuPermissionService },
+        ],
+      }).compile();
+
+      controller = module.get(AsteriskConfigController);
+    });
+
+    it('blocklist 목록은 blocklist 권한을 강제한다', async () => {
+      asteriskConfigService.getBlocklistEntries.mockResolvedValue([]);
+
+      await controller.getBlocklistEntries({ tenantId: 'tenant-1', role: 'admin' });
+
+      expect(menuPermissionService.assertMenuAction).toHaveBeenCalledWith(
+        'tenant-1',
+        'admin',
+        'blocklist',
+        'view',
+      );
+      expect(asteriskConfigService.getBlocklistEntries).toHaveBeenCalledWith('tenant-1');
+    });
+
+    it('blocklist 생성은 blocklist 권한을 강제한다', async () => {
+      asteriskConfigService.createBlocklistEntry.mockResolvedValue({ id: 'b1' });
+
+      await controller.createBlocklistEntry(
+        { tenantId: 'tenant-1', role: 'supervisor' },
+        { phoneNumber: '08012345678', isActive: true } as any,
+      );
+
+      expect(menuPermissionService.assertMenuAction).toHaveBeenCalledWith(
+        'tenant-1',
+        'supervisor',
+        'blocklist',
+        'create',
+      );
+      expect(asteriskConfigService.createBlocklistEntry).toHaveBeenCalledWith(
+        'tenant-1',
+        { phoneNumber: '08012345678', isActive: true },
       );
     });
   });

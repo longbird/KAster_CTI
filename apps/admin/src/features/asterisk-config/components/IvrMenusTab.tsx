@@ -3,12 +3,17 @@ import { useEffect, useState } from 'react';
 import { createIvrMenu, deleteIvrMenu, getIvrMenus, updateIvrMenu } from '../api/asteriskConfigApi';
 import type { AsteriskIvrMenu } from '../types/asterisk-config';
 import { IvrMenuForm } from './IvrMenuForm';
+import { usePermissionStore } from '../../../store/usePermissionStore';
 
 export function IvrMenusTab() {
   const [rows, setRows] = useState<AsteriskIvrMenu[]>([]);
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AsteriskIvrMenu | null>(null);
+  const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
+  const canCreate = permission?.canCreate ?? true;
+  const canUpdate = permission?.canUpdate ?? true;
+  const canDelete = permission?.canDelete ?? true;
 
   const load = async () => {
     setLoading(true);
@@ -21,7 +26,7 @@ export function IvrMenusTab() {
     try {
       if (editing) await updateIvrMenu(editing.id, values);
       else await createIvrMenu(values);
-      notification.success({ message: 'Asterisk 설정이 적용되었습니다 (AMI reload 전송됨)' });
+      notification.success({ message: 'PBX 설정이 적용되었습니다 (AMI reload 전송됨)' });
       setFormOpen(false);
       setEditing(null);
       await load();
@@ -48,10 +53,12 @@ export function IvrMenusTab() {
       title: '동작', width: 140,
       render: (_: unknown, row: AsteriskIvrMenu) => (
         <Space>
-          <Button size="small" onClick={() => { setEditing(row); setFormOpen(true); }}>수정</Button>
-          <Popconfirm title="삭제할까요?" onConfirm={() => handleDelete(row.id)}>
-            <Button size="small" danger>삭제</Button>
-          </Popconfirm>
+          {canUpdate ? <Button size="small" onClick={() => { setEditing(row); setFormOpen(true); }}>수정</Button> : null}
+          {canDelete ? (
+            <Popconfirm title="삭제할까요?" onConfirm={() => handleDelete(row.id)}>
+              <Button size="small" danger>삭제</Button>
+            </Popconfirm>
+          ) : null}
         </Space>
       ),
     },
@@ -60,7 +67,7 @@ export function IvrMenusTab() {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>IVR 메뉴 추가</Button>
+        {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>IVR 메뉴 추가</Button> : null}
       </Space>
       <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
       <IvrMenuForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />

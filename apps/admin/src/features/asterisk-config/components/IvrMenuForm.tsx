@@ -1,6 +1,7 @@
-import { Button, Form, Input, InputNumber, Modal, Space, Table } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select, Space, Table } from 'antd';
 import { useEffect, useState } from 'react';
-import type { AsteriskIvrMenu } from '../types/asterisk-config';
+import { getPrompts } from '../api/asteriskConfigApi';
+import type { AsteriskIvrMenu, AsteriskPrompt } from '../types/asterisk-config';
 
 type EntryRow = { _key: string; digit: string; label: string; queueName: string };
 
@@ -14,6 +15,7 @@ interface Props {
 export function IvrMenuForm({ open, initial, onOk, onCancel }: Props) {
   const [form] = Form.useForm();
   const [entries, setEntries] = useState<EntryRow[]>([]);
+  const [prompts, setPrompts] = useState<AsteriskPrompt[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -21,6 +23,7 @@ export function IvrMenuForm({ open, initial, onOk, onCancel }: Props) {
     setEntries(
       initial?.entries.map(e => ({ _key: crypto.randomUUID(), digit: e.digit, label: e.label, queueName: e.queueName })) ?? []
     );
+    void getPrompts().then((items) => setPrompts(items.filter((item) => item.isActive))).catch(() => setPrompts([]));
   }, [open, initial, form]);
 
   const addEntry = () => setEntries(prev => [...prev, { _key: crypto.randomUUID(), digit: '', label: '', queueName: '' }]);
@@ -65,11 +68,23 @@ export function IvrMenuForm({ open, initial, onOk, onCancel }: Props) {
         <Form.Item name="name" label="메뉴 이름" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
-        <Form.Item name="welcomePrompt" label="안내 멘트 파일명">
-          <Input placeholder="custom/welcome" />
+        <Form.Item name="welcomePrompt" label="안내 멘트">
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={prompts.map((item) => ({ value: item.promptKey, label: `${item.displayName} (${item.promptKey})` }))}
+            placeholder="안내 멘트 선택"
+          />
         </Form.Item>
-        <Form.Item name="menuPrompt" label="메뉴 멘트 파일명">
-          <Input placeholder="custom/main_menu" />
+        <Form.Item name="menuPrompt" label="메뉴 멘트">
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={prompts.map((item) => ({ value: item.promptKey, label: `${item.displayName} (${item.promptKey})` }))}
+            placeholder="메뉴 멘트 선택"
+          />
         </Form.Item>
         <Form.Item name="timeoutSecs" label="키 입력 대기(초)">
           <InputNumber min={1} max={30} style={{ width: '100%' }} />

@@ -2,6 +2,7 @@ import { ApartmentOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchEditModal, type BranchRow } from './BranchEditModal';
 import { BranchMappingsModal } from './BranchMappingsModal';
 
@@ -10,6 +11,11 @@ export function BranchSettingsPage() {
   const [editing, setEditing] = useState<BranchRow | null>(null);
   const [mappingBranch, setMappingBranch] = useState<BranchRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const permission = usePermissionStore((s) => s.permissionsByMenu['settings/branches']);
+  const canCreate = permission?.canCreate ?? true;
+  const canUpdate = permission?.canUpdate ?? true;
+  const canDelete = permission?.canDelete ?? true;
+  const canOperate = permission?.canOperate ?? true;
 
   const load = async () => {
     try {
@@ -43,9 +49,11 @@ export function BranchSettingsPage() {
         <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
           지사 설정
         </Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          지사 등록
-        </Button>
+        {canCreate ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            지사 등록
+          </Button>
+        ) : null}
       </Space>
 
       <Table<BranchRow>
@@ -88,15 +96,21 @@ export function BranchSettingsPage() {
             width: 220,
             render: (_: unknown, row: BranchRow) => (
               <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
-                  수정
-                </Button>
-                <Button size="small" icon={<ApartmentOutlined />} onClick={() => setMappingBranch(row)}>
-                  매핑
-                </Button>
-                <Popconfirm title="지사를 삭제하시겠습니까?" onConfirm={() => void remove(row.branchId)}>
-                  <Button size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
+                {canUpdate ? (
+                  <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
+                    수정
+                  </Button>
+                ) : null}
+                {canOperate ? (
+                  <Button size="small" icon={<ApartmentOutlined />} onClick={() => setMappingBranch(row)}>
+                    매핑
+                  </Button>
+                ) : null}
+                {canDelete ? (
+                  <Popconfirm title="지사를 삭제하시겠습니까?" onConfirm={() => void remove(row.branchId)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                ) : null}
               </Space>
             ),
           },

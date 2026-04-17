@@ -2,12 +2,14 @@
 # 로컬 → 원격 증분 배포 + hot reload 도우미.
 #
 # 사용법:
-#   ./scripts/deploy-dev.sh sync       # 소스만 빠르게 동기화 (rebuild 없음)
-#   ./scripts/deploy-dev.sh up         # 최초 설치 + compose up
-#   ./scripts/deploy-dev.sh restart    # 컨테이너 재시작
-#   ./scripts/deploy-dev.sh down       # 컨테이너 종료
-#   ./scripts/deploy-dev.sh logs       # server 로그 follow
-#   ./scripts/deploy-dev.sh ssh        # 원격 ssh 열기
+#   ./scripts/deploy-dev.sh sync               # 소스만 빠르게 동기화 (rebuild 없음)
+#   ./scripts/deploy-dev.sh sync-safe admin    # 동기화 + 서비스 재시작 + 원격 build 검증
+#   ./scripts/deploy-dev.sh verify admin       # 원격 컨테이너 내부 build 검증
+#   ./scripts/deploy-dev.sh up                 # 최초 설치 + compose up
+#   ./scripts/deploy-dev.sh restart            # 컨테이너 재시작
+#   ./scripts/deploy-dev.sh down               # 컨테이너 종료
+#   ./scripts/deploy-dev.sh logs               # server 로그 follow
+#   ./scripts/deploy-dev.sh ssh                # 원격 ssh 열기
 #
 # 전제: SSH 키가 원격 authorized_keys 에 등록되어 있어 password 없이 붙음.
 #
@@ -26,7 +28,16 @@ COMPOSE_FILE="docker-compose.dev.yml"
 
 cmd="${1:-sync}"
 
+run_remote() {
+  ssh "$REMOTE" "$1"
+}
+
+run_compose() {
+  run_remote "cd ${REMOTE_DIR} && docker compose -f ${COMPOSE_FILE} $1"
+}
+
 sync_files() {
+  run_remote "mkdir -p ${REMOTE_DIR}"
   echo ">>> rsync to ${REMOTE}:${REMOTE_DIR}"
   rsync -az --delete \
     --exclude 'node_modules' \
@@ -40,35 +51,86 @@ sync_files() {
     ./ "${REMOTE}:${REMOTE_DIR}/"
 }
 
+verify_service() {
+  local service="${1:-all}"
+
+  case "$service" in
+    server)
+      echo ">>> verify server build"
+      run_remote "docker exec kaster-server sh -lc 'cd /app && npm run build'"
+      ;;
+    web)
+      echo ">>> verify web build"
+      run_remote "docker exec kaster-web sh -lc 'cd /app && npm run build'"
+      ;;
+    admin)
+      echo ">>> verify admin build"
+      run_remote "docker exec kaster-admin sh -lc 'cd /app && npm run build'"
+      ;;
+    all)
+      verify_service server
+      verify_service web
+      verify_service admin
+      ;;
+    *)
+      echo "unknown verify target: $service"
+      echo "usage: $0 verify {server|web|admin|all}"
+      exit 1
+      ;;
+  esac
+}
+
+restart_service() {
+  local service="${1:-}"
+  if [ -n "$service" ] && [ "$service" != "all" ]; then
+    run_compose "restart ${service}"
+  else
+    run_compose "restart"
+  fi
+}
+
+sync_safe() {
+  local service="${1:-admin}"
+  sync_files
+  echo ">>> restart ${service}"
+  restart_service "$service"
+  verify_service "$service"
+}
+
 case "$cmd" in
   sync)
     sync_files
     ;;
+  sync-safe)
+    sync_safe "${2:-admin}"
+    ;;
+  verify)
+    verify_service "${2:-all}"
+    ;;
   up)
     sync_files
     echo ">>> ensure remote dir exists"
-    ssh "$REMOTE" "mkdir -p ${REMOTE_DIR}"
     echo ">>> docker compose up -d"
-    ssh "$REMOTE" "cd ${REMOTE_DIR} && docker compose -f ${COMPOSE_FILE} up -d"
+    run_compose "up -d"
     ;;
   restart)
-    ssh "$REMOTE" "cd ${REMOTE_DIR} && docker compose -f ${COMPOSE_FILE} restart ${2:-}"
+    run_compose "restart ${2:-}"
     ;;
   down)
-    ssh "$REMOTE" "cd ${REMOTE_DIR} && docker compose -f ${COMPOSE_FILE} down"
+    run_compose "down"
     ;;
   logs)
-    ssh "$REMOTE" "cd ${REMOTE_DIR} && docker compose -f ${COMPOSE_FILE} logs -f --tail=100 ${2:-server}"
+    run_compose "logs -f --tail=100 ${2:-server}"
     ;;
   ps)
-    ssh "$REMOTE" "cd ${REMOTE_DIR} && docker compose -f ${COMPOSE_FILE} ps"
+    run_compose "ps"
     ;;
   ssh)
     ssh "$REMOTE"
     ;;
   *)
     echo "unknown command: $cmd"
-    echo "usage: $0 {sync|up|restart|down|logs|ps|ssh}"
+    echo "usage: $0 {sync|sync-safe|verify|up|restart|down|logs|ps|ssh}"
     exit 1
     ;;
 esac

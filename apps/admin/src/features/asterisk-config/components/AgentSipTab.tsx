@@ -1,13 +1,27 @@
-import { Button, Input, Space, Table, notification } from 'antd';
+import { Button, Input, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { getAgentSip, syncAgentSip, updateAgentSipPassword } from '../api/asteriskConfigApi';
 import type { AgentSipRow } from '../types/asterisk-config';
+import { usePermissionStore } from '../../../store/usePermissionStore';
+
+const headerStyle = { whiteSpace: 'nowrap' as const };
+
+function renderRegistrationStatus(row: AgentSipRow) {
+  const status = row.registrationStatus ?? 'UNREGISTERED';
+  if (/Avail|Reachable/i.test(status)) return <Tag color="green">등록됨</Tag>;
+  if (/NonQual|NonQualified/i.test(status)) return <Tag color="green">등록됨(품질측정안함)</Tag>;
+  if (/Lagged|Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="orange">{status}</Tag>;
+  return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
+}
 
 export function AgentSipTab() {
   const [rows, setRows] = useState<AgentSipRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [passwords, setPasswords] = useState<Record<string, string>>({});
+  const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
+  const canUpdate = permission?.canUpdate ?? true;
+  const canOperate = permission?.canOperate ?? true;
 
   const load = async () => {
     setLoading(true);
@@ -40,19 +54,55 @@ export function AgentSipTab() {
   };
 
   const columns = [
-    { title: '내선번호', dataIndex: 'extension', width: 100 },
-    { title: '상담원명', dataIndex: 'agentName' },
+    { title: <span style={headerStyle}>내선번호</span>, dataIndex: 'extension', width: 90 },
+    { title: <span style={headerStyle}>상담원명</span>, dataIndex: 'agentName', width: 110 },
     {
-      title: 'SIP 비밀번호',
+      title: <span style={headerStyle}>SIP 비밀번호</span>,
+      width: 320,
       render: (_: unknown, row: AgentSipRow) => (
         <Space>
           <Input.Password
             value={passwords[row.agentId] ?? ''}
             onChange={e => setPasswords(prev => ({ ...prev, [row.agentId]: e.target.value }))}
             style={{ width: 180 }}
+            disabled={!canUpdate}
           />
-          <Button size="small" onClick={() => handlePasswordSave(row.agentId)}>저장</Button>
+          {canUpdate ? <Button size="small" onClick={() => handlePasswordSave(row.agentId)}>저장</Button> : null}
+          {row.usesSiteDefault && <Tag color="blue">사이트 기본값 사용</Tag>}
         </Space>
+      ),
+    },
+    {
+      title: <span style={headerStyle}>적용 비밀번호</span>,
+      width: 90,
+      render: (_: unknown, row: AgentSipRow) => (
+        row.effectiveSipPassword ? <Typography.Text type="secondary">설정됨</Typography.Text> : <Tag>미설정</Tag>
+      ),
+    },
+    {
+      title: <span style={headerStyle}>등록상태</span>,
+      width: 180,
+      render: (_: unknown, row: AgentSipRow) => renderRegistrationStatus(row),
+    },
+    {
+      title: <span style={headerStyle}>연락처</span>,
+      width: 340,
+      render: (_: unknown, row: AgentSipRow) => row.contactUri ? (
+        <Typography.Text
+          copyable={{ text: row.contactUri }}
+          style={{ fontSize: 12, wordBreak: 'break-all' }}
+        >
+          {row.contactUri}
+        </Typography.Text>
+      ) : (
+        <Typography.Text type="secondary">-</Typography.Text>
+      ),
+    },
+    {
+      title: <span style={headerStyle}>RTT</span>,
+      width: 80,
+      render: (_: unknown, row: AgentSipRow) => (
+        row.roundtripUsec ? <Typography.Text type="secondary">{Math.round(row.roundtripUsec / 1000)} ms</Typography.Text> : '-'
       ),
     },
   ];
@@ -60,10 +110,18 @@ export function AgentSipTab() {
   return (
     <>
       <Space style={{ marginBottom: 12 }}>
-        <Button type="primary" loading={syncing} onClick={handleSync}>PJSIP 동기화 (전체 reload)</Button>
-        <span style={{ color: '#888', fontSize: 12 }}>SIP 비밀번호가 비어있는 내선은 pjsip.conf에서 제외됩니다</span>
+        {canOperate ? <Button type="primary" loading={syncing} onClick={handleSync}>PJSIP 동기화 (전체 reload)</Button> : null}
+        <span style={{ color: '#888', fontSize: 12 }}>개별 SIP 비밀번호가 비어 있으면 사이트 기본 SIP 비밀번호를 사용합니다</span>
       </Space>
-      <Table rowKey="agentId" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+      <Table
+        rowKey="agentId"
+        dataSource={rows}
+        columns={columns}
+        loading={loading}
+        pagination={false}
+        size="small"
+        scroll={{ x: 1180 }}
+      />
     </>
   );
 }

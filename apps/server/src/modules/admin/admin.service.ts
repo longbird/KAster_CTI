@@ -1,13 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { PermissionFlags } from '../../common/menu-permission.service';
+import { parseAllowedCallerIds, serializeAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
+import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { QueuesService } from '../queues/queues.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
+import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { UpdateBranchMappingsDto } from './dto/update-branch-mappings.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
+import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 
 const MENU_KEYS = [
   'dashboard',
@@ -40,6 +45,66 @@ const DEFAULT_ROLE_ACCESS: Record<string, Set<string>> = {
   admin: new Set(MENU_KEYS),
 };
 
+function defaultPermissionFlags(roleCode: string, menuKey: string): PermissionFlags {
+  const canView = DEFAULT_ROLE_ACCESS[roleCode]?.has(menuKey) ?? false;
+  if (!canView) {
+    return {
+      canView: false,
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      canOperate: false,
+      canExport: false,
+    };
+  }
+
+  if (roleCode === 'agent') {
+    return {
+      canView,
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      canOperate: false,
+      canExport: false,
+    };
+  }
+
+  const mutableMenus = new Set([
+    'announcements',
+    'settings/agents',
+    'settings/queues',
+    'settings/forwarding',
+    'settings/prompts',
+    'settings/branches',
+    'settings/permissions',
+    'blocklist',
+    'system',
+    'asterisk',
+  ]);
+  const operableMenus = new Set([
+    'dashboard',
+    'live-calls',
+    'queues',
+    'agents',
+    'monitoring',
+    'asterisk',
+    'settings/branches',
+    'settings/queues',
+    'settings/agents',
+    'settings/permissions',
+    'blocklist',
+  ]);
+
+  return {
+    canView,
+    canCreate: mutableMenus.has(menuKey),
+    canUpdate: mutableMenus.has(menuKey),
+    canDelete: mutableMenus.has(menuKey),
+    canOperate: mutableMenus.has(menuKey) || operableMenus.has(menuKey),
+    canExport: menuKey.startsWith('reports/'),
+  };
+}
+
 // 슈퍼바이저/admin 전용 실시간 대시보드.
 // 큐 요약 + 활성 콜 수 + 오늘 집계 + 에이전트 상태 분포 + 시간대별 트래픽 + 팀 현황 + 알람
 @Injectable()
@@ -47,6 +112,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queuesService: QueuesService,
+    private readonly asteriskReloadService: AsteriskReloadService,
   ) {}
 
   private async getBranchScope(tenantId: string, branchId?: string) {
@@ -374,6 +440,26 @@ export class AdminService {
     return { success: true, data: row, error: null };
   }
 
+  async updateAnnouncement(
+    tenantId: string,
+    announcementId: string,
+    dto: UpdateAnnouncementDto,
+    actor?: { agentName?: string },
+  ) {
+    const row = await this.prisma.announcements.updateMany({
+      where: { tenantId, announcementId },
+      data: {
+        title: dto.title,
+        body: dto.body,
+        authorName: dto.authorName || actor?.agentName || '관리자',
+        pinned: dto.pinned ?? false,
+        updatedAt: new Date(),
+      },
+    });
+
+    return { success: true, data: { updated: row.count > 0, announcementId }, error: null };
+  }
+
   async deleteAnnouncement(tenantId: string, announcementId: string) {
     await this.prisma.announcements.deleteMany({
       where: { announcementId, tenantId },
@@ -568,14 +654,25 @@ export class AdminService {
     });
 
     const persisted = new Map(
-      rows.map((row) => [`${row.roleCode}:${row.menuKey}`, row.canAccess]),
+      rows.map((row) => [`${row.roleCode}:${row.menuKey}`, row]),
     );
 
     const matrix = ROLE_CODES.map((roleCode) => ({
       roleCode,
       permissions: MENU_KEYS.map((menuKey) => ({
         menuKey,
-        canAccess: persisted.get(`${roleCode}:${menuKey}`) ?? DEFAULT_ROLE_ACCESS[roleCode].has(menuKey),
+        ...(persisted.get(`${roleCode}:${menuKey}`)
+          ? {
+              canView:
+                persisted.get(`${roleCode}:${menuKey}`)!.canView ??
+                persisted.get(`${roleCode}:${menuKey}`)!.canAccess,
+              canCreate: persisted.get(`${roleCode}:${menuKey}`)!.canCreate,
+              canUpdate: persisted.get(`${roleCode}:${menuKey}`)!.canUpdate,
+              canDelete: persisted.get(`${roleCode}:${menuKey}`)!.canDelete,
+              canOperate: persisted.get(`${roleCode}:${menuKey}`)!.canOperate,
+              canExport: persisted.get(`${roleCode}:${menuKey}`)!.canExport,
+            }
+          : defaultPermissionFlags(roleCode, menuKey)),
       })),
     }));
 
@@ -605,10 +702,22 @@ export class AdminService {
             tenantId,
             roleCode: item.roleCode,
             menuKey: item.menuKey,
-            canAccess: item.canAccess,
+            canAccess: item.canView,
+            canView: item.canView,
+            canCreate: item.canCreate,
+            canUpdate: item.canUpdate,
+            canDelete: item.canDelete,
+            canOperate: item.canOperate,
+            canExport: item.canExport,
           },
           update: {
-            canAccess: item.canAccess,
+            canAccess: item.canView,
+            canView: item.canView,
+            canCreate: item.canCreate,
+            canUpdate: item.canUpdate,
+            canDelete: item.canDelete,
+            canOperate: item.canOperate,
+            canExport: item.canExport,
             updatedAt: new Date(),
           },
         }),
@@ -616,5 +725,94 @@ export class AdminService {
     );
 
     return this.listRolePermissions(tenantId);
+  }
+
+  async getSystemSettings(tenantId: string) {
+    const tenant = await this.prisma.tenants.findUnique({
+      where: { tenantId },
+      select: { timezone: true },
+    });
+
+    const row = await this.prisma.tenantSystemSettings.findUnique({
+      where: { tenantId },
+    });
+
+    const defaults = {
+      tenantId,
+      recordingEnabled: true,
+      defaultMaxWaitSeconds: 45,
+      allowDirectSipDial: false,
+      defaultSipPassword: '',
+      allowedOutboundCallerIds: '',
+      defaultOutboundCallerId: '',
+      sipRegisterPort: 36070,
+      timezone: tenant?.timezone ?? 'Asia/Seoul',
+      dateFormat: 'YYYY-MM-DD HH:mm:ss',
+    };
+
+    return {
+      success: true,
+      data: row
+        ? {
+            ...row,
+            defaultSipPassword: row.defaultSipPassword ?? '',
+            allowedOutboundCallerIds: row.allowedOutboundCallerIds ?? '',
+            defaultOutboundCallerId: row.defaultOutboundCallerId ?? '',
+          }
+        : defaults,
+      error: null,
+    };
+  }
+
+  async updateSystemSettings(tenantId: string, dto: UpdateSystemSettingsDto) {
+    const allowedOutboundCallerIds = parseAllowedCallerIds(dto.allowedOutboundCallerIds);
+    const defaultOutboundCallerId = dto.defaultOutboundCallerId?.trim()
+      ? parseAllowedCallerIds(dto.defaultOutboundCallerId)[0]
+      : null;
+
+    if (defaultOutboundCallerId && !allowedOutboundCallerIds.includes(defaultOutboundCallerId)) {
+      throw new BadRequestException('기본 발신번호는 허용된 발신번호 목록에 포함되어야 합니다.');
+    }
+
+    if (dto.allowDirectSipDial && !defaultOutboundCallerId) {
+      throw new BadRequestException('직접 발신을 허용하려면 기본 발신번호를 지정해야 합니다.');
+    }
+
+    const row = await this.prisma.tenantSystemSettings.upsert({
+      where: { tenantId },
+      create: {
+        tenantId,
+        recordingEnabled: dto.recordingEnabled,
+        defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
+        allowDirectSipDial: dto.allowDirectSipDial,
+        defaultSipPassword: dto.defaultSipPassword?.trim() || null,
+        allowedOutboundCallerIds: serializeAllowedCallerIds(allowedOutboundCallerIds),
+        defaultOutboundCallerId,
+        sipRegisterPort: dto.sipRegisterPort,
+        timezone: dto.timezone,
+        dateFormat: dto.dateFormat,
+      },
+      update: {
+        recordingEnabled: dto.recordingEnabled,
+        defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
+        allowDirectSipDial: dto.allowDirectSipDial,
+        defaultSipPassword: dto.defaultSipPassword?.trim() || null,
+        allowedOutboundCallerIds: serializeAllowedCallerIds(allowedOutboundCallerIds),
+        defaultOutboundCallerId,
+        sipRegisterPort: dto.sipRegisterPort,
+        timezone: dto.timezone,
+        dateFormat: dto.dateFormat,
+        updatedAt: new Date(),
+      },
+    });
+
+    await this.prisma.tenants.update({
+      where: { tenantId },
+      data: { timezone: dto.timezone, updatedAt: new Date() },
+    });
+
+    await this.asteriskReloadService.executeReload(tenantId);
+
+    return { success: true, data: row, error: null };
   }
 }

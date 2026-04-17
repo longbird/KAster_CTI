@@ -10,6 +10,35 @@ export interface AsteriskTrunk {
   enabled: boolean;
 }
 
+export interface AsteriskTrunkInput {
+  name: string;
+  host: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  fromDomain?: string;
+  codecs?: string;
+  enabled?: boolean;
+}
+
+export interface AsteriskBulkTrunkEntryInput {
+  name?: string;
+  host?: string;
+  port?: number;
+}
+
+export interface AsteriskBulkTrunkInput {
+  namePrefix?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  fromDomain?: string;
+  codecs?: string;
+  enabled?: boolean;
+  entries: AsteriskBulkTrunkEntryInput[];
+}
+
 export interface AsteriskDid {
   id: string;
   did: string;
@@ -47,10 +76,51 @@ export interface AgentSipRow {
   agentName: string;
   extension: string;
   sipPassword: string | null;
+  effectiveSipPassword?: string | null;
+  usesSiteDefault?: boolean;
+  registrationStatus?: string | null;
+  contactUri?: string | null;
+  userAgent?: string | null;
+  roundtripUsec?: number | null;
+}
+
+export interface AsteriskForwardingRule {
+  id: string;
+  didId: string;
+  forwardType: 'EXTENSION' | 'QUEUE';
+  targetValue: string;
+  description: string | null;
+  enabled: boolean;
+  did: {
+    id: string;
+    did: string;
+    description: string | null;
+  };
+}
+
+export interface AsteriskPrompt {
+  id: string;
+  promptKey: string;
+  displayName: string;
+  fileName: string;
+  category: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface AsteriskBlocklistEntry {
+  id: string;
+  phoneNumber: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ConfPreview {
   pjsip: string;
   extensionsInbound: string;
   extensionsQueue: string;
+  extensionsAgent?: string;
+  queues?: string;
 }

@@ -45,13 +45,13 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
     >
       <Form form={form} layout="vertical" preserve={false}>
         <Form.Item
-          label="큐명 (Asterisk)"
+          label="큐명 (PBX)"
           name="queueName"
           rules={[
             { required: true, max: 64 },
             { pattern: /^[a-z0-9-]+$/, message: '영소문자·숫자·하이픈만 허용' },
           ]}
-          extra="Asterisk queues.conf에 그대로 사용됩니다. 예: sales-queue"
+          extra="PBX queues.conf에 그대로 사용됩니다. 예: sales-queue"
         >
           <Input placeholder="sales-queue" />
         </Form.Item>

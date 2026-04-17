@@ -5,7 +5,12 @@ import { ADMIN_MENU_CONFIG, allLeafMenuKeys, menuKeyToPath } from '../shared/per
 
 interface RolePermissionEntry {
   menuKey: string;
-  canAccess: boolean;
+  canView: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  canOperate: boolean;
+  canExport: boolean;
 }
 
 interface RoleMatrixRow {
@@ -19,6 +24,7 @@ interface PermissionPayload {
 
 interface PermissionState {
   allowedPaths: string[];
+  permissionsByMenu: Record<string, RolePermissionEntry>;
   loaded: boolean;
   loading: boolean;
   loadForRole: (role: string | null | undefined) => Promise<void>;
@@ -36,22 +42,24 @@ function defaultAllowedPaths(role: string | null | undefined) {
 
 export const usePermissionStore = create<PermissionState>((set) => ({
   allowedPaths: defaultAllowedPaths(null),
+  permissionsByMenu: {},
   loaded: USE_MOCK,
   loading: false,
   clear: () =>
     set({
       allowedPaths: defaultAllowedPaths(null),
+      permissionsByMenu: {},
       loaded: USE_MOCK,
       loading: false,
     }),
   loadForRole: async (role) => {
     if (USE_MOCK) {
-      set({ allowedPaths: defaultAllowedPaths(role), loaded: true, loading: false });
+      set({ allowedPaths: defaultAllowedPaths(role), permissionsByMenu: {}, loaded: true, loading: false });
       return;
     }
 
     if (!role) {
-      set({ allowedPaths: defaultAllowedPaths(role), loaded: false, loading: false });
+      set({ allowedPaths: defaultAllowedPaths(role), permissionsByMenu: {}, loaded: false, loading: false });
       return;
     }
 
@@ -61,16 +69,21 @@ export const usePermissionStore = create<PermissionState>((set) => ({
       const data = (res.data?.data ?? {}) as PermissionPayload;
       const row = data.matrix?.find((item) => item.roleCode === role);
       const allowedMenuKeys = row?.permissions
-        ?.filter((item) => item.canAccess)
+        ?.filter((item) => item.canView)
         .map((item) => item.menuKey) ?? [];
+      const permissionsByMenu = Object.fromEntries(
+        (row?.permissions ?? []).map((item) => [item.menuKey, item]),
+      );
       set({
         allowedPaths: allowedMenuKeys.map(menuKeyToPath),
+        permissionsByMenu,
         loaded: true,
         loading: false,
       });
     } catch {
       set({
         allowedPaths: defaultAllowedPaths(role),
+        permissionsByMenu: {},
         loaded: true,
         loading: false,
       });

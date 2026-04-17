@@ -2,6 +2,7 @@ import { Card, Skeleton, Table, Tag, Typography } from 'antd';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../config';
+import { getAgentSip } from '../features/asterisk-config/api/asteriskConfigApi';
 
 interface AgentRow {
   agentId: string;
@@ -12,6 +13,8 @@ interface AgentRow {
   employmentStatus: string;
   lastLoginAt: string | null;
   currentStatus: { statusCode: string; reasonCode?: string; startedAt: string } | null;
+  sipRegistrationStatus?: string | null;
+  sipContactUri?: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -42,11 +45,26 @@ export function AgentsPage() {
     const load = async () => {
       try {
         const token = readToken();
-        const res = await axios.get(`${API_BASE_URL}/agents`, {
+        const [res, sipRows] = await Promise.all([
+          axios.get(`${API_BASE_URL}/agents`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+          }),
+          getAgentSip().catch(() => []),
+        ]);
         if (!active) return;
-        setRows(res.data?.data ?? []);
+        const sipByExtension = new Map(
+          sipRows.map((row) => [row.extension, row]),
+        );
+        setRows(
+          (res.data?.data ?? []).map((row: AgentRow) => {
+            const sip = sipByExtension.get(row.extension);
+            return {
+              ...row,
+              sipRegistrationStatus: sip?.registrationStatus ?? 'UNREGISTERED',
+              sipContactUri: sip?.contactUri ?? null,
+            };
+          }),
+        );
       } catch {
         if (!active) return;
         setRows([]);
@@ -78,6 +96,15 @@ export function AgentsPage() {
           { title: '이름', dataIndex: 'agentName' },
           { title: '로그인 ID', dataIndex: 'loginId' },
           { title: '내선', dataIndex: 'extension' },
+          {
+            title: '전화기 등록',
+            render: (_, r) => {
+              const status = r.sipRegistrationStatus ?? 'UNREGISTERED';
+              if (/Avail|Reachable|NonQual|NonQualified/i.test(status)) return <Tag color="green">등록됨</Tag>;
+              if (/Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="orange">{status}</Tag>;
+              return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
+            },
+          },
           {
             title: '역할',
             dataIndex: 'role',

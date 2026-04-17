@@ -5,9 +5,16 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { labelForMenuPath, menuKeyToPath } from '../../shared/permissions/menuConfig';
 
+type PermissionAction = 'canView' | 'canCreate' | 'canUpdate' | 'canDelete' | 'canOperate' | 'canExport';
+
 interface PermissionEntry {
   menuKey: string;
-  canAccess: boolean;
+  canView: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  canOperate: boolean;
+  canExport: boolean;
 }
 
 interface RoleMatrixRow {
@@ -20,6 +27,15 @@ interface PermissionsPayload {
   menuKeys: string[];
   matrix: RoleMatrixRow[];
 }
+
+const ACTION_LABELS: Record<PermissionAction, string> = {
+  canView: '조회',
+  canCreate: '등록',
+  canUpdate: '수정',
+  canDelete: '삭제',
+  canOperate: '실행',
+  canExport: '내보내기',
+};
 
 export function PermissionSettingsPage() {
   const [payload, setPayload] = useState<PermissionsPayload | null>(null);
@@ -41,9 +57,12 @@ export function PermissionSettingsPage() {
     void load();
   }, []);
 
-  const rows = useMemo(() => payload?.menuKeys.map((menuKey) => ({ key: menuKey, menuKey })) ?? [], [payload]);
+  const rows = useMemo(
+    () => payload?.menuKeys.map((menuKey) => ({ key: menuKey, menuKey })) ?? [],
+    [payload],
+  );
 
-  const toggle = (roleCode: string, menuKey: string, checked: boolean) => {
+  const toggle = (roleCode: string, menuKey: string, action: PermissionAction, checked: boolean) => {
     setPayload((prev) => {
       if (!prev) return prev;
       return {
@@ -54,7 +73,7 @@ export function PermissionSettingsPage() {
             : {
                 ...role,
                 permissions: role.permissions.map((entry) =>
-                  entry.menuKey !== menuKey ? entry : { ...entry, canAccess: checked },
+                  entry.menuKey !== menuKey ? entry : { ...entry, [action]: checked },
                 ),
               },
         ),
@@ -70,7 +89,12 @@ export function PermissionSettingsPage() {
         role.permissions.map((entry) => ({
           roleCode: role.roleCode,
           menuKey: entry.menuKey,
-          canAccess: entry.canAccess,
+          canView: entry.canView,
+          canCreate: entry.canCreate,
+          canUpdate: entry.canUpdate,
+          canDelete: entry.canDelete,
+          canOperate: entry.canOperate,
+          canExport: entry.canExport,
         })),
       );
       const res = await apiClient.post('/admin/settings/permissions', { items });
@@ -98,32 +122,40 @@ export function PermissionSettingsPage() {
       </Space>
 
       <Typography.Paragraph type="secondary">
-        1차 범위는 역할별 메뉴 접근 설정입니다. 실제 런타임 메뉴/액션 강제는 다음 단계에서 연결합니다.
+        2차 범위는 역할별 액션 권한입니다. 메뉴 노출은 `조회` 기준으로 유지되고, 서버는 일부 관리 경로부터 액션 단위로 강제합니다.
       </Typography.Paragraph>
 
       <Table<{ key: string; menuKey: string }>
         rowKey="key"
         dataSource={rows}
         pagination={false}
+        scroll={{ x: 'max-content' }}
         columns={[
           {
             title: '메뉴',
             dataIndex: 'menuKey',
+            fixed: 'left',
+            width: 220,
             render: (menuKey: string) => labelForMenuPath(menuKeyToPath(menuKey)),
           },
           ...payload.matrix.map((role) => ({
             title: role.roleCode,
             key: role.roleCode,
-            width: 140,
-            render: (_: unknown, row: { menuKey: string }) => {
-              const value = role.permissions.find((entry) => entry.menuKey === row.menuKey)?.canAccess ?? false;
-              return (
-                <Checkbox
-                  checked={value}
-                  onChange={(e) => toggle(role.roleCode, row.menuKey, e.target.checked)}
-                />
-              );
-            },
+            children: (Object.keys(ACTION_LABELS) as PermissionAction[]).map((action) => ({
+              title: ACTION_LABELS[action],
+              key: `${role.roleCode}:${action}`,
+              width: 80,
+              align: 'center' as const,
+              render: (_: unknown, row: { menuKey: string }) => {
+                const value = role.permissions.find((entry) => entry.menuKey === row.menuKey)?.[action] ?? false;
+                return (
+                  <Checkbox
+                    checked={value}
+                    onChange={(e) => toggle(role.roleCode, row.menuKey, action, e.target.checked)}
+                  />
+                );
+              },
+            })),
           })),
         ]}
       />

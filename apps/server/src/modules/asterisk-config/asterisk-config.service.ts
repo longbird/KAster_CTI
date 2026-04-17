@@ -1,15 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { AmiConnectionService } from '../ami/ami-connection.service';
+import { ParsedAmiFrame } from '../ami/ami.parser';
 import { AsteriskReloadService } from './asterisk-reload.service';
+import { CreateBlocklistEntryDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
+import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
-import { CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
+import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
+import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
 
 @Injectable()
 export class AsteriskConfigService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reload: AsteriskReloadService,
+    private readonly ami: AmiConnectionService,
   ) {}
 
   // ─── Trunks ────────────────────────────────────────────────────────────────
@@ -19,23 +25,53 @@ export class AsteriskConfigService {
   }
 
   async createTrunk(tenantId: string, dto: CreateTrunkDto) {
+    const normalized = this.normalizeTrunkInput(dto);
     const trunk = await this.prisma.asteriskTrunk.create({
       data: {
         tenantId,
-        ...dto,
-        port: dto.port ?? 5060,
-        codecs: dto.codecs ?? 'alaw,ulaw',
-        enabled: dto.enabled ?? true,
+        ...normalized,
       },
     });
     this.reload.scheduleReload(tenantId);
     return trunk;
   }
 
+  async createTrunksBulk(tenantId: string, dto: CreateBulkTrunksDto) {
+    const entries = dto.entries.map((entry, index) =>
+      this.normalizeTrunkInput({
+        name: entry.name?.trim() || this.buildBulkTrunkName(dto.namePrefix, index + 1),
+        host: entry.host?.trim() || dto.host?.trim() || '',
+        port: entry.port ?? dto.port,
+        username: dto.username,
+        password: dto.password,
+        fromDomain: dto.fromDomain,
+        codecs: dto.codecs,
+        enabled: dto.enabled,
+      }),
+    );
+
+    const created = await this.prisma.$transaction(
+      entries.map((entry) =>
+        this.prisma.asteriskTrunk.create({
+          data: {
+            tenantId,
+            ...entry,
+          },
+        }),
+      ),
+    );
+
+    this.reload.scheduleReload(tenantId);
+    return created;
+  }
+
   /** Full-replace PUT — all fields must be provided. */
   async updateTrunk(tenantId: string, id: string, dto: UpdateTrunkDto) {
     await this.assertTrunkBelongs(tenantId, id);
-    const trunk = await this.prisma.asteriskTrunk.update({ where: { id }, data: dto });
+    const trunk = await this.prisma.asteriskTrunk.update({
+      where: { id },
+      data: this.normalizeTrunkInput(dto),
+    });
     this.reload.scheduleReload(tenantId);
     return trunk;
   }
@@ -49,6 +85,30 @@ export class AsteriskConfigService {
   private async assertTrunkBelongs(tenantId: string, id: string) {
     const trunk = await this.prisma.asteriskTrunk.findFirst({ where: { id, tenantId } });
     if (!trunk) throw new NotFoundException(`Trunk ${id} not found`);
+  }
+
+  private buildBulkTrunkName(prefix: string | undefined, order: number) {
+    const normalizedPrefix = prefix?.trim();
+    return normalizedPrefix ? `${normalizedPrefix} ${order}` : `Trunk ${order}`;
+  }
+
+  private normalizeTrunkInput(dto: CreateTrunkDto) {
+    const username = dto.username?.trim() ?? '';
+    const password = dto.password?.trim() ?? '';
+    if ((username && !password) || (!username && password)) {
+      throw new BadRequestException('username and password must both be provided or both be empty');
+    }
+
+    return {
+      name: dto.name.trim(),
+      host: dto.host.trim(),
+      port: dto.port ?? 5060,
+      username,
+      password,
+      fromDomain: dto.fromDomain?.trim() ?? '',
+      codecs: dto.codecs ?? 'alaw,ulaw',
+      enabled: dto.enabled ?? true,
+    };
   }
 
   // ─── DIDs ──────────────────────────────────────────────────────────────────
@@ -131,6 +191,7 @@ export class AsteriskConfigService {
 
   async createIvrMenu(tenantId: string, dto: CreateIvrMenuDto) {
     await this.validateEntryQueues(tenantId, dto.entries);
+    await this.validatePromptRefs(tenantId, dto.welcomePrompt, dto.menuPrompt);
     const menu = await this.prisma.asteriskIvrMenu.create({
       data: {
         tenantId,
@@ -150,6 +211,7 @@ export class AsteriskConfigService {
   async updateIvrMenu(tenantId: string, id: string, dto: UpdateIvrMenuDto) {
     await this.assertMenuBelongs(tenantId, id);
     await this.validateEntryQueues(tenantId, dto.entries);
+    await this.validatePromptRefs(tenantId, dto.welcomePrompt, dto.menuPrompt);
     const menu = await this.prisma.$transaction(async (tx) => {
       await tx.asteriskIvrEntry.deleteMany({ where: { menuId: id } });
       return tx.asteriskIvrMenu.update({
@@ -191,24 +253,374 @@ export class AsteriskConfigService {
     if (!menu) throw new NotFoundException(`IVR menu ${id} not found`);
   }
 
+  private async validatePromptRefs(tenantId: string, ...promptKeys: Array<string | undefined>) {
+    const keys = [...new Set(promptKeys.filter((value): value is string => Boolean(value)))];
+    if (keys.length === 0) return;
+
+    const prompts = await this.prisma.asteriskPrompt.findMany({
+      where: { tenantId, promptKey: { in: keys }, isActive: true },
+      select: { promptKey: true },
+    });
+    const found = new Set(prompts.map((item) => item.promptKey));
+    const missing = keys.filter((key) => !found.has(key));
+    if (missing.length > 0) {
+      throw new BadRequestException(`Prompt(s) not found or inactive: ${missing.join(', ')}`);
+    }
+  }
+
   // ─── Agent SIP ─────────────────────────────────────────────────────────────
 
   getAgentSip(tenantId: string) {
-    return this.prisma.agents.findMany({
-      where: { tenantId, isActive: true },
-      select: { agentId: true, agentName: true, extension: true, sipPassword: true },
-      orderBy: { extension: 'asc' },
+    return Promise.all([
+      this.prisma.agents.findMany({
+        where: { tenantId, isActive: true },
+        select: { agentId: true, agentName: true, extension: true, sipPassword: true },
+        orderBy: { extension: 'asc' },
+      }),
+      this.prisma.tenantSystemSettings.findUnique({
+        where: { tenantId },
+        select: { defaultSipPassword: true },
+      }),
+      this.fetchPjsipContacts(),
+    ]).then(([agents, settings, contactFrames]) => {
+      const defaultSipPassword = settings?.defaultSipPassword ?? null;
+      const contactsByExtension = this.indexContactsByExtension(contactFrames);
+      return agents.map((agent) => ({
+        ...agent,
+        effectiveSipPassword: agent.sipPassword || defaultSipPassword,
+        usesSiteDefault: !agent.sipPassword && !!defaultSipPassword,
+        registrationStatus: contactsByExtension[agent.extension]?.registrationStatus ?? 'UNREGISTERED',
+        contactUri: contactsByExtension[agent.extension]?.contactUri ?? null,
+        userAgent: contactsByExtension[agent.extension]?.userAgent ?? null,
+        roundtripUsec: contactsByExtension[agent.extension]?.roundtripUsec ?? null,
+      }));
     });
+  }
+
+  private async fetchPjsipContacts(): Promise<ParsedAmiFrame[]> {
+    try {
+      return await this.ami.sendActionWithResponse(
+        { Action: 'PJSIPShowContacts' },
+        { eventList: true, timeoutMs: 5000 },
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  private indexContactsByExtension(frames: ParsedAmiFrame[]) {
+    const indexed: Record<string, {
+      registrationStatus: string;
+      contactUri: string | null;
+      userAgent: string | null;
+      roundtripUsec: number | null;
+    }> = {};
+
+    for (const frame of frames) {
+      if (frame.Event !== 'ContactList') continue;
+      const endpointName = frame.Endpoint?.trim();
+      const objectName = frame.ObjectName ?? '';
+      const extension = endpointName || objectName.split('/')[0]?.trim();
+      if (!extension || !/^\d+$/.test(extension)) continue;
+
+      indexed[extension] = {
+        registrationStatus: frame.Status ?? 'UNKNOWN',
+        contactUri: frame.Uri ?? frame.URI ?? frame.Contact ?? null,
+        userAgent: frame.UserAgent ?? null,
+        roundtripUsec: frame.RoundtripUsec ? Number(frame.RoundtripUsec) : null,
+      };
+    }
+
+    return indexed;
   }
 
   async updateAgentSipPassword(tenantId: string, agentId: string, sipPassword: string) {
     const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
     if (!agent) throw new NotFoundException(`Agent ${agentId} not found`);
-    await this.prisma.agents.updateMany({ where: { agentId, tenantId }, data: { sipPassword } });
+    await this.prisma.agents.updateMany({
+      where: { agentId, tenantId },
+      data: { sipPassword: sipPassword.trim() || null },
+    });
     return this.prisma.agents.findFirst({ where: { agentId, tenantId } });
   }
 
   async syncAgentSip(tenantId: string) {
     await this.reload.executeReload(tenantId);
+  }
+
+  // ─── Forwarding Rules ──────────────────────────────────────────────────────
+
+  getForwardingRules(tenantId: string) {
+    return this.prisma.asteriskForwardingRules.findMany({
+      where: { tenantId },
+      include: {
+        did: {
+          select: {
+            id: true,
+            did: true,
+            description: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createForwardingRule(tenantId: string, dto: CreateForwardingRuleDto) {
+    await this.validateForwardingRule(tenantId, dto);
+    const rule = await this.prisma.asteriskForwardingRules.create({
+      data: {
+        tenantId,
+        didId: dto.didId,
+        forwardType: dto.forwardType,
+        targetValue: dto.targetValue,
+        description: dto.description,
+        enabled: dto.enabled ?? true,
+      },
+      include: {
+        did: {
+          select: {
+            id: true,
+            did: true,
+            description: true,
+          },
+        },
+      },
+    });
+    this.reload.scheduleReload(tenantId);
+    return rule;
+  }
+
+  async updateForwardingRule(tenantId: string, id: string, dto: UpdateForwardingRuleDto) {
+    await this.assertForwardingRuleBelongs(tenantId, id);
+    await this.validateForwardingRule(tenantId, dto, id);
+    const rule = await this.prisma.asteriskForwardingRules.update({
+      where: { id },
+      data: {
+        didId: dto.didId,
+        forwardType: dto.forwardType,
+        targetValue: dto.targetValue,
+        description: dto.description,
+        enabled: dto.enabled ?? true,
+      },
+      include: {
+        did: {
+          select: {
+            id: true,
+            did: true,
+            description: true,
+          },
+        },
+      },
+    });
+    this.reload.scheduleReload(tenantId);
+    return rule;
+  }
+
+  async deleteForwardingRule(tenantId: string, id: string) {
+    await this.assertForwardingRuleBelongs(tenantId, id);
+    await this.prisma.asteriskForwardingRules.delete({ where: { id } });
+    this.reload.scheduleReload(tenantId);
+  }
+
+  private async validateForwardingRule(
+    tenantId: string,
+    dto: { didId: string; forwardType: string; targetValue: string },
+    currentRuleId?: string,
+  ) {
+    const did = await this.prisma.asteriskDid.findFirst({
+      where: { tenantId, id: dto.didId },
+      select: { id: true },
+    });
+    if (!did) throw new BadRequestException(`DID "${dto.didId}" not found`);
+
+    const existing = await this.prisma.asteriskForwardingRules.findFirst({
+      where: {
+        tenantId,
+        didId: dto.didId,
+        ...(currentRuleId ? { NOT: { id: currentRuleId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException('A forwarding rule already exists for this DID');
+    }
+
+    if (dto.forwardType === 'QUEUE') {
+      const queue = await this.prisma.queues.findFirst({
+        where: { tenantId, queueName: dto.targetValue, isActive: true },
+        select: { queueId: true },
+      });
+      if (!queue) throw new BadRequestException(`Queue "${dto.targetValue}" not found`);
+      return;
+    }
+
+    if (dto.forwardType === 'EXTENSION') {
+      const agent = await this.prisma.agents.findFirst({
+        where: { tenantId, extension: dto.targetValue, isActive: true },
+        select: { agentId: true },
+      });
+      if (!agent) throw new BadRequestException(`Extension "${dto.targetValue}" not found`);
+      return;
+    }
+
+    throw new BadRequestException(`Unsupported forwardType "${dto.forwardType}"`);
+  }
+
+  private async assertForwardingRuleBelongs(tenantId: string, id: string) {
+    const rule = await this.prisma.asteriskForwardingRules.findFirst({ where: { id, tenantId } });
+    if (!rule) throw new NotFoundException(`Forwarding rule ${id} not found`);
+  }
+
+  // ─── Prompts ───────────────────────────────────────────────────────────────
+
+  getPrompts(tenantId: string) {
+    return this.prisma.asteriskPrompt.findMany({
+      where: { tenantId },
+      orderBy: [{ category: 'asc' }, { displayName: 'asc' }],
+    });
+  }
+
+  async createPrompt(tenantId: string, dto: CreatePromptDto) {
+    return this.prisma.asteriskPrompt.create({
+      data: {
+        tenantId,
+        promptKey: dto.promptKey,
+        displayName: dto.displayName,
+        fileName: dto.fileName,
+        category: dto.category ?? 'ivr',
+        description: dto.description,
+        isActive: dto.isActive ?? true,
+      },
+    });
+  }
+
+  async updatePrompt(tenantId: string, id: string, dto: UpdatePromptDto) {
+    const prompt = await this.assertPromptBelongs(tenantId, id);
+
+    if (!dto.isActive) {
+      await this.assertPromptNotInUse(tenantId, prompt.promptKey, '비활성화');
+    }
+
+    if (dto.promptKey !== prompt.promptKey) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.asteriskPrompt.update({
+          where: { id },
+          data: {
+            promptKey: dto.promptKey,
+            displayName: dto.displayName,
+            fileName: dto.fileName,
+            category: dto.category ?? 'ivr',
+            description: dto.description,
+            isActive: dto.isActive ?? true,
+          },
+        });
+        await tx.asteriskIvrMenu.updateMany({
+          where: { tenantId, welcomePrompt: prompt.promptKey },
+          data: { welcomePrompt: dto.promptKey },
+        });
+        await tx.asteriskIvrMenu.updateMany({
+          where: { tenantId, menuPrompt: prompt.promptKey },
+          data: { menuPrompt: dto.promptKey },
+        });
+      });
+      this.reload.scheduleReload(tenantId);
+      return this.prisma.asteriskPrompt.findUnique({ where: { id } });
+    }
+
+    return this.prisma.asteriskPrompt.update({
+      where: { id },
+      data: {
+        displayName: dto.displayName,
+        fileName: dto.fileName,
+        category: dto.category ?? 'ivr',
+        description: dto.description,
+        isActive: dto.isActive ?? true,
+      },
+    });
+  }
+
+  async deletePrompt(tenantId: string, id: string) {
+    const prompt = await this.assertPromptBelongs(tenantId, id);
+    await this.assertPromptNotInUse(tenantId, prompt.promptKey, '삭제');
+    await this.prisma.asteriskPrompt.delete({ where: { id } });
+  }
+
+  private async assertPromptBelongs(tenantId: string, id: string) {
+    const prompt = await this.prisma.asteriskPrompt.findFirst({ where: { id, tenantId } });
+    if (!prompt) throw new NotFoundException(`Prompt ${id} not found`);
+    return prompt;
+  }
+
+  private async assertPromptNotInUse(tenantId: string, promptKey: string, action: string) {
+    const inUse = await this.prisma.asteriskIvrMenu.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { welcomePrompt: promptKey },
+          { menuPrompt: promptKey },
+        ],
+      },
+      select: { id: true, name: true },
+    });
+    if (inUse) {
+      throw new BadRequestException(`Prompt "${promptKey}" is used by IVR menu "${inUse.name}" and cannot be ${action}.`);
+    }
+  }
+
+  // ─── 080 Blocklist ────────────────────────────────────────────────────────
+
+  getBlocklistEntries(tenantId: string) {
+    return this.prisma.asteriskBlocklistEntry.findMany({
+      where: { tenantId },
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async createBlocklistEntry(tenantId: string, dto: CreateBlocklistEntryDto) {
+    const phoneNumber = this.normalizePhoneNumber(dto.phoneNumber);
+    const entry = await this.prisma.asteriskBlocklistEntry.create({
+      data: {
+        tenantId,
+        phoneNumber,
+        description: dto.description,
+        isActive: dto.isActive ?? true,
+      },
+    });
+    this.reload.scheduleReload(tenantId);
+    return entry;
+  }
+
+  async updateBlocklistEntry(tenantId: string, id: string, dto: UpdateBlocklistEntryDto) {
+    await this.assertBlocklistEntryBelongs(tenantId, id);
+    const entry = await this.prisma.asteriskBlocklistEntry.update({
+      where: { id },
+      data: {
+        phoneNumber: this.normalizePhoneNumber(dto.phoneNumber),
+        description: dto.description,
+        isActive: dto.isActive ?? true,
+      },
+    });
+    this.reload.scheduleReload(tenantId);
+    return entry;
+  }
+
+  async deleteBlocklistEntry(tenantId: string, id: string) {
+    await this.assertBlocklistEntryBelongs(tenantId, id);
+    await this.prisma.asteriskBlocklistEntry.delete({ where: { id } });
+    this.reload.scheduleReload(tenantId);
+  }
+
+  private normalizePhoneNumber(phoneNumber: string) {
+    const normalized = phoneNumber.replace(/\D/g, '');
+    if (!/^\d{8,16}$/.test(normalized)) {
+      throw new BadRequestException('phoneNumber must contain 8 to 16 digits');
+    }
+    return normalized;
+  }
+
+  private async assertBlocklistEntryBelongs(tenantId: string, id: string) {
+    const entry = await this.prisma.asteriskBlocklistEntry.findFirst({ where: { id, tenantId } });
+    if (!entry) throw new NotFoundException(`Blocklist entry ${id} not found`);
   }
 }

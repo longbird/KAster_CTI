@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../src/common/prisma.service';
 import { MenuPermissionService } from '../src/common/menu-permission.service';
+import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AdminService } from '../src/modules/admin/admin.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
 
@@ -27,7 +28,15 @@ describe('Admin/Permission service integration', () => {
     });
 
     it('저장된 rolePermissions 값이 기본 권한보다 우선한다', async () => {
-      prisma.rolePermissions.findUnique.mockResolvedValue({ canAccess: false });
+      prisma.rolePermissions.findUnique.mockResolvedValue({
+        canAccess: false,
+        canView: false,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+        canOperate: false,
+        canExport: false,
+      });
 
       const allowed = await service.canAccess('tenant-1', 'supervisor', 'dashboard');
 
@@ -39,7 +48,15 @@ describe('Admin/Permission service integration', () => {
             menuKey: 'dashboard',
           },
         },
-        select: { canAccess: true },
+        select: {
+          canAccess: true,
+          canView: true,
+          canCreate: true,
+          canUpdate: true,
+          canDelete: true,
+          canOperate: true,
+          canExport: true,
+        },
       });
       expect(allowed).toBe(false);
     });
@@ -57,6 +74,22 @@ describe('Admin/Permission service integration', () => {
       await expect(
         service.assertAnyMenuAccess('tenant-1', 'supervisor', ['unknown-menu', 'agents']),
       ).resolves.toBeUndefined();
+    });
+
+    it('assertMenuAction 은 저장된 액션 권한을 검사한다', async () => {
+      prisma.rolePermissions.findUnique.mockResolvedValue({
+        canAccess: true,
+        canView: true,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+        canOperate: false,
+        canExport: false,
+      });
+
+      await expect(
+        service.assertMenuAction('tenant-1', 'supervisor', 'announcements', 'create'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -87,6 +120,9 @@ describe('Admin/Permission service integration', () => {
     const queuesService = {
       getSummary: jest.fn(),
     };
+    const reloadService = {
+      executeReload: jest.fn(),
+    };
 
     beforeEach(async () => {
       jest.clearAllMocks();
@@ -95,6 +131,7 @@ describe('Admin/Permission service integration', () => {
           AdminService,
           { provide: PrismaService, useValue: prisma },
           { provide: QueuesService, useValue: queuesService },
+          { provide: AsteriskReloadService, useValue: reloadService },
         ],
       }).compile();
 

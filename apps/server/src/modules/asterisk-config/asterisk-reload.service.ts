@@ -2,8 +2,10 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
+import { renderAgentDialplan } from './renderers/agent-dialplan.renderer';
 import { renderDialplan } from './renderers/dialplan.renderer';
 import { renderPjsip } from './renderers/pjsip.renderer';
 import { renderQueuesConf } from './renderers/queues.renderer';
@@ -29,7 +31,11 @@ export class AsteriskReloadService implements OnModuleDestroy {
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
       this.debounceTimers.delete(tenantId);
-      void this.executeReload(tenantId);
+      void this.executeReload(tenantId).catch((error) => {
+        this.logger.error(
+          `Asterisk reload failed for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
     }, 5000);
     this.debounceTimers.set(tenantId, timer);
   }
@@ -40,7 +46,11 @@ export class AsteriskReloadService implements OnModuleDestroy {
       clearTimeout(existing);
       this.debounceTimers.delete(tenantId);
     }
-    await this.writeConfFiles(tenantId);
+    const reloadable = await this.writeConfFiles(tenantId);
+    if (!reloadable) {
+      this.logger.warn(`Skipping AMI reload because Asterisk conf directory is not available for tenant ${tenantId}`);
+      return;
+    }
     this.logger.debug(`Sending AMI reload commands for tenant ${tenantId}`);
     this.ami.sendAction({ Action: 'Command', Command: 'module reload res_pjsip' });
     this.ami.sendAction({ Action: 'Command', Command: 'dialplan reload' });
@@ -48,18 +58,42 @@ export class AsteriskReloadService implements OnModuleDestroy {
     this.logger.log(`Asterisk reload triggered for tenant ${tenantId}`);
   }
 
-  async writeConfFiles(tenantId: string): Promise<void> {
+  async writeConfFiles(tenantId: string): Promise<boolean> {
     const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
 
     if (!path.isAbsolute(confDir)) {
       throw new Error(`ASTERISK_CONF_DIR must be an absolute path, got: "${confDir}"`);
     }
 
-    const { trunks, agents, dids, ivrMenus } = await this.fetchTenantData(tenantId);
+    if (!fs.existsSync(confDir)) {
+      this.logger.warn(
+        `Asterisk conf directory "${confDir}" does not exist. Skipping config file generation for tenant ${tenantId}`,
+      );
+      return false;
+    }
+
+    const {
+      trunks,
+      agents,
+      dids,
+      ivrMenus,
+      forwardingRules,
+      blocklistEntries,
+      sipRegisterPort,
+      allowDirectSipDial,
+      allowedOutboundCallerIds,
+      defaultOutboundCallerId,
+    } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
 
-    const pjsipContent = renderPjsip({ trunks, agents });
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus });
+    const pjsipContent = renderPjsip({ trunks, agents, sipRegisterPort });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
+    const extensionsAgent = renderAgentDialplan({
+      allowDirectSipDial,
+      allowedOutboundCallerIds,
+      defaultOutboundCallerId,
+      trunks,
+    });
     const queuesContent = renderQueuesConf(
       rawQueues.map((q) => ({
         queueName: q.queueName,
@@ -83,20 +117,40 @@ export class AsteriskReloadService implements OnModuleDestroy {
     fs.writeFileSync(path.join(confDir, 'pjsip.conf'), pjsipContent, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_inbound.conf'), extensionsInbound, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_queue.conf'), extensionsQueue, 'utf8');
+    fs.writeFileSync(path.join(confDir, 'extensions_agent.conf'), extensionsAgent, 'utf8');
     fs.writeFileSync(path.join(confDir, 'queues.conf'), queuesContent, 'utf8');
+    return true;
   }
 
   async previewConfFiles(tenantId: string): Promise<{
     pjsip: string;
     extensionsInbound: string;
     extensionsQueue: string;
+    extensionsAgent: string;
     queues: string;
   }> {
-    const { trunks, agents, dids, ivrMenus } = await this.fetchTenantData(tenantId);
+    const {
+      trunks,
+      agents,
+      dids,
+      ivrMenus,
+      forwardingRules,
+      blocklistEntries,
+      sipRegisterPort,
+      allowDirectSipDial,
+      allowedOutboundCallerIds,
+      defaultOutboundCallerId,
+    } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
 
-    const pjsip = renderPjsip({ trunks, agents });
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus });
+    const pjsip = renderPjsip({ trunks, agents, sipRegisterPort });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
+    const extensionsAgent = renderAgentDialplan({
+      allowDirectSipDial,
+      allowedOutboundCallerIds,
+      defaultOutboundCallerId,
+      trunks,
+    });
     const queues = renderQueuesConf(
       rawQueues.map((q) => ({
         queueName: q.queueName,
@@ -119,11 +173,11 @@ export class AsteriskReloadService implements OnModuleDestroy {
 
     const maskedPjsip = pjsip.replace(/^(password=).+$/gm, '$1***');
 
-    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue, queues };
+    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue, extensionsAgent, queues };
   }
 
   private async fetchTenantData(tenantId: string) {
-    const [trunks, agents, dids, ivrMenus] = await Promise.all([
+    const [trunks, agents, dids, ivrMenus, forwardingRules, blocklistEntries, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
       this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
       this.prisma.asteriskDid.findMany({ where: { tenantId } }),
@@ -131,8 +185,35 @@ export class AsteriskReloadService implements OnModuleDestroy {
         where: { tenantId },
         include: { entries: true },
       }),
+      this.prisma.asteriskForwardingRules.findMany({ where: { tenantId, enabled: true } }),
+      this.prisma.asteriskBlocklistEntry.findMany({ where: { tenantId, isActive: true } }),
+      this.prisma.tenantSystemSettings.findUnique({
+        where: { tenantId },
+        select: {
+          allowDirectSipDial: true,
+          defaultSipPassword: true,
+          allowedOutboundCallerIds: true,
+          defaultOutboundCallerId: true,
+          sipRegisterPort: true,
+        },
+      }),
     ]);
-    return { trunks, agents, dids, ivrMenus };
+    const defaultSipPassword = settings?.defaultSipPassword ?? null;
+    return {
+      trunks,
+      sipRegisterPort: settings?.sipRegisterPort ?? 36070,
+      allowDirectSipDial: settings?.allowDirectSipDial ?? false,
+      allowedOutboundCallerIds: parseAllowedCallerIds(settings?.allowedOutboundCallerIds),
+      defaultOutboundCallerId: settings?.defaultOutboundCallerId ?? null,
+      agents: agents.map((agent) => ({
+        ...agent,
+        sipPassword: agent.sipPassword || defaultSipPassword,
+      })),
+      dids,
+      ivrMenus,
+      forwardingRules,
+      blocklistEntries,
+    };
   }
 
   private async fetchQueueData(tenantId: string) {

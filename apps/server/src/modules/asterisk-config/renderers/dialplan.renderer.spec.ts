@@ -33,6 +33,32 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
   });
 
+  it('renders DID forwarding rule to extension before default DID target', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-forward', did: '07055555555', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+      forwardingRules: [
+        { id: 'f1', didId: 'd-forward', forwardType: 'EXTENSION', targetValue: '1001', enabled: true },
+      ],
+    });
+    expect(extensionsInbound).toContain('exten => 07055555555');
+    expect(extensionsInbound).toContain('Goto(from-queue,1001,1)');
+    expect(extensionsInbound).not.toContain('Goto(queue-entry,sales,1)');
+  });
+
+  it('renders blocklist check before DID routing', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-block', did: '07012341234', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+      blocklistEntries: [
+        { id: 'b1', phoneNumber: '08012345678', isActive: true },
+      ],
+    });
+    expect(extensionsInbound).toContain('GotoIf($["${CALLERID(num)}"="08012345678"]?blocked-ani,s,1)');
+    expect(extensionsInbound).toContain('[blocked-ani]');
+    expect(extensionsInbound).toContain('Playback(ss-noservice)');
+  });
+
   it('skips disabled DIDs', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{ id: 'd3', did: '07011111111', ivrMenuId: null, directQueue: 'sales', enabled: false, description: null }],

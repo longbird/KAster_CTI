@@ -1,0 +1,2 @@
+ALTER TABLE "tenantSystemSettings"
+ADD COLUMN IF NOT EXISTS "sipRegisterPort" INTEGER NOT NULL DEFAULT 5060;

@@ -1,4 +1,4 @@
-import { Card, Col, Divider, Row, Skeleton, Space, Tag, Typography } from 'antd';
+import { Card, Col, Row, Skeleton, Space, Spin, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -13,7 +13,7 @@ import { BranchFilterSelect } from '../../../shared/branches/BranchFilterSelect'
 
 export function AdminDashboardPage() {
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
-  const { data, loading } = useDashboardData(branchId);
+  const { data, loading, refreshing, error } = useDashboardData(branchId);
 
   if (loading) {
     return <Skeleton active paragraph={{ rows: 18 }} />;
@@ -23,7 +23,7 @@ export function AdminDashboardPage() {
     return (
       <Card>
         <Typography.Text type="secondary">
-          대시보드 데이터를 불러올 수 없습니다. 백엔드 서버 연결을 확인하세요.
+          {error ?? '대시보드 데이터를 불러올 수 없습니다. 백엔드 서버 연결을 확인하세요.'}
         </Typography.Text>
       </Card>
     );
@@ -42,6 +42,8 @@ export function AdminDashboardPage() {
           <BranchFilterSelect value={branchId} onChange={setBranchId} />
           <Tag color="blue">/admin/dashboard 기준 UI</Tag>
           <Tag color="geekblue">queue.summary.updated / agent.status.changed / call.updated</Tag>
+          {refreshing ? <Spin size="small" /> : null}
+          {error ? <Tag color="warning">{error}</Tag> : null}
         </Space>
       </Card>
 
@@ -68,17 +70,6 @@ export function AdminDashboardPage() {
       </Row>
 
       <ActiveCallsTable items={data.activeCalls} />
-
-      <Card title="운영 메모">
-        <Typography.Paragraph>
-          이 프로젝트는 mock 데이터 기반으로 바로 실행되는 관리자 대시보드 기준선입니다. 이후 실제 백엔드가 준비되면
-          <Typography.Text code>src/features/dashboard/api/dashboardApi.ts</Typography.Text> 만 실제 Axios 호출로 바꾸면 됩니다.
-        </Typography.Paragraph>
-        <Divider />
-        <Typography.Paragraph style={{ marginBottom: 0 }}>
-          추천 다음 단계: 인증, 라우트 보호, Axios 계층, WebSocket 실시간 반영, Queue 상세 페이지, 상담원 상세 drawer.
-        </Typography.Paragraph>
-      </Card>
     </Space>
   );
 }
