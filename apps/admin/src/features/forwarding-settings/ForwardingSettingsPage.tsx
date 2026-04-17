@@ -1,6 +1,7 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
 import {
   createForwardingRule,
@@ -26,6 +27,7 @@ interface QueueOption {
 }
 
 export function ForwardingSettingsPage() {
+  const forwardingPermission = usePermissionStore((state) => state.permissionsByMenu['settings/forwarding']);
   const [rows, setRows] = useState<AsteriskForwardingRule[] | null>(null);
   const [dids, setDids] = useState<AsteriskDid[]>([]);
   const [agents, setAgents] = useState<AgentOption[]>([]);
@@ -125,9 +127,11 @@ export function ForwardingSettingsPage() {
             DID별 우선 라우팅 규칙입니다. 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다.
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          규칙 등록
-        </Button>
+        {forwardingPermission?.canCreate !== false ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            규칙 등록
+          </Button>
+        ) : null}
       </Space>
 
       <Table<AsteriskForwardingRule>
@@ -178,12 +182,16 @@ export function ForwardingSettingsPage() {
             width: 180,
             render: (_: unknown, row) => (
               <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
-                  수정
-                </Button>
-                <Popconfirm title="규칙을 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
-                  <Button size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
+                {forwardingPermission?.canUpdate !== false ? (
+                  <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
+                    수정
+                  </Button>
+                ) : null}
+                {forwardingPermission?.canDelete !== false ? (
+                  <Popconfirm title="규칙을 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                ) : null}
               </Space>
             ),
           },
@@ -199,23 +207,27 @@ export function ForwardingSettingsPage() {
         </Space>
       </div>
 
-      <ForwardingRuleModal
-        open={createOpen}
-        didOptions={didOptions}
-        extensionOptions={extensionOptions}
-        queueOptions={queueOptions}
-        onClose={() => setCreateOpen(false)}
-        onSave={save}
-      />
-      <ForwardingRuleModal
-        open={!!editing}
-        rule={editing}
-        didOptions={didOptions}
-        extensionOptions={extensionOptions}
-        queueOptions={queueOptions}
-        onClose={() => setEditing(null)}
-        onSave={save}
-      />
+      {forwardingPermission?.canCreate !== false ? (
+        <ForwardingRuleModal
+          open={createOpen}
+          didOptions={didOptions}
+          extensionOptions={extensionOptions}
+          queueOptions={queueOptions}
+          onClose={() => setCreateOpen(false)}
+          onSave={save}
+        />
+      ) : null}
+      {forwardingPermission?.canUpdate !== false ? (
+        <ForwardingRuleModal
+          open={!!editing}
+          rule={editing}
+          didOptions={didOptions}
+          extensionOptions={extensionOptions}
+          queueOptions={queueOptions}
+          onClose={() => setEditing(null)}
+          onSave={save}
+        />
+      ) : null}
     </Card>
   );
 }

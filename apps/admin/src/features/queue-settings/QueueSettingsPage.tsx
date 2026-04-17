@@ -16,12 +16,14 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
 import { QueueCreateModal } from './QueueCreateModal';
 import { QueueEditModal, type QueueRow } from './QueueEditModal';
 import { QueueMembersDrawer } from './QueueMembersDrawer';
 
 export function QueueSettingsPage() {
+  const queuePermission = usePermissionStore((state) => state.permissionsByMenu['settings/queues']);
   const [rows, setRows] = useState<QueueRow[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<QueueRow | null>(null);
@@ -59,9 +61,11 @@ export function QueueSettingsPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           호 분배룰 설정
         </Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
-          신규 생성
-        </Button>
+        {queuePermission?.canCreate !== false ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
+            신규 생성
+          </Button>
+        ) : null}
       </Space>
 
       <Table<QueueRow>
@@ -100,7 +104,7 @@ export function QueueSettingsPage() {
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => setEditing(r)}
-                  disabled={!r.isActive}
+                  disabled={!r.isActive || queuePermission?.canUpdate === false}
                 >
                   수정
                 </Button>
@@ -108,7 +112,7 @@ export function QueueSettingsPage() {
                   size="small"
                   icon={<TeamOutlined />}
                   onClick={() => setManagingMembers(r)}
-                  disabled={!r.isActive}
+                  disabled={!r.isActive || queuePermission?.canOperate === false}
                 >
                   멤버
                 </Button>
@@ -117,9 +121,14 @@ export function QueueSettingsPage() {
                   onConfirm={() => void deactivate(r.queueId)}
                   okText="예"
                   cancelText="아니오"
-                  disabled={!r.isActive}
+                  disabled={!r.isActive || queuePermission?.canDelete === false}
                 >
-                  <Button size="small" danger icon={<StopOutlined />} disabled={!r.isActive}>
+                  <Button
+                    size="small"
+                    danger
+                    icon={<StopOutlined />}
+                    disabled={!r.isActive || queuePermission?.canDelete === false}
+                  >
                     비활성화
                   </Button>
                 </Popconfirm>
@@ -129,17 +138,23 @@ export function QueueSettingsPage() {
         ]}
       />
 
-      <QueueCreateModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => void load()}
-      />
-      <QueueEditModal
-        queue={editing}
-        onClose={() => setEditing(null)}
-        onSaved={() => void load()}
-      />
-      <QueueMembersDrawer queue={managingMembers} onClose={() => setManagingMembers(null)} />
+      {queuePermission?.canCreate !== false ? (
+        <QueueCreateModal
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => void load()}
+        />
+      ) : null}
+      {queuePermission?.canUpdate !== false ? (
+        <QueueEditModal
+          queue={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => void load()}
+        />
+      ) : null}
+      {queuePermission?.canOperate !== false ? (
+        <QueueMembersDrawer queue={managingMembers} onClose={() => setManagingMembers(null)} />
+      ) : null}
     </Card>
   );
 }

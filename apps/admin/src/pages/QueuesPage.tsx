@@ -1,7 +1,10 @@
-import { Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../config';
+import { downloadCsv } from '../shared/lib/csv';
+import { usePermissionStore } from '../store/usePermissionStore';
 
 interface QueueRow {
   queueId: string;
@@ -27,6 +30,7 @@ function readToken(): string | null {
 
 // /queues/summary 를 주기 폴링해 표 형태로 렌더. 클릭 시 drill-down 은 후속.
 export function QueuesPage() {
+  const queuePermission = usePermissionStore((state) => state.permissionsByMenu['queues']);
   const [rows, setRows] = useState<QueueRow[] | null>(null);
 
   useEffect(() => {
@@ -56,14 +60,38 @@ export function QueuesPage() {
 
   if (!rows) return <Skeleton active paragraph={{ rows: 8 }} />;
 
+  const exportRows = () => {
+    downloadCsv(
+      `queues-summary-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.csv`,
+      ['큐', '대기', 'Ringing', 'Talking', 'Available', 'Paused', '최장 대기(초)', '최근 응답', '최근 포기'],
+      rows.map((row) => [
+        row.queueDisplayName ?? row.queueName,
+        row.waiting,
+        row.ringing,
+        row.talking,
+        row.available,
+        row.paused,
+        row.longestWaitSeconds,
+        row.recentAnswered,
+        row.recentAbandoned,
+      ]),
+    );
+  };
+
   return (
     <Card>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
         큐 현황
       </Typography.Title>
-      <Typography.Text type="secondary">5초 주기로 `/api/v1/queues/summary` 폴링</Typography.Text>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <Typography.Text type="secondary">5초 주기로 `/api/v1/queues/summary` 폴링</Typography.Text>
+        {queuePermission?.canExport ? (
+          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
+            CSV 내보내기
+          </Button>
+        ) : null}
+      </div>
       <Table<QueueRow>
-        style={{ marginTop: 16 }}
         rowKey="queueId"
         dataSource={rows}
         pagination={false}

@@ -1,6 +1,7 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import {
   createBlocklistEntry,
   deleteBlocklistEntry,
@@ -11,6 +12,7 @@ import type { AsteriskBlocklistEntry } from '../asterisk-config/types/asterisk-c
 import { BlocklistEntryModal, type BlocklistEntryFormValue } from './BlocklistEntryModal';
 
 export function BlocklistPage() {
+  const blocklistPermission = usePermissionStore((state) => state.permissionsByMenu['blocklist']);
   const [rows, setRows] = useState<AsteriskBlocklistEntry[] | null>(null);
   const [editing, setEditing] = useState<AsteriskBlocklistEntry | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -69,9 +71,11 @@ export function BlocklistPage() {
             등록된 ANI는 inbound dialplan에서 먼저 검사되며, 일치하면 안내 멘트 후 통화가 종료됩니다.
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          번호 등록
-        </Button>
+        {blocklistPermission?.canCreate !== false ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            번호 등록
+          </Button>
+        ) : null}
       </Space>
 
       <Table<AsteriskBlocklistEntry>
@@ -109,12 +113,16 @@ export function BlocklistPage() {
             width: 180,
             render: (_: unknown, row) => (
               <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
-                  수정
-                </Button>
-                <Popconfirm title="수신거부 번호를 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
-                  <Button size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
+                {blocklistPermission?.canUpdate !== false ? (
+                  <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
+                    수정
+                  </Button>
+                ) : null}
+                {blocklistPermission?.canDelete !== false ? (
+                  <Popconfirm title="수신거부 번호를 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                ) : null}
               </Space>
             ),
           },
@@ -130,17 +138,21 @@ export function BlocklistPage() {
         </Space>
       </div>
 
-      <BlocklistEntryModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSave={save}
-      />
-      <BlocklistEntryModal
-        open={!!editing}
-        entry={editing}
-        onClose={() => setEditing(null)}
-        onSave={save}
-      />
+      {blocklistPermission?.canCreate !== false ? (
+        <BlocklistEntryModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onSave={save}
+        />
+      ) : null}
+      {blocklistPermission?.canUpdate !== false ? (
+        <BlocklistEntryModal
+          open={!!editing}
+          entry={editing}
+          onClose={() => setEditing(null)}
+          onSave={save}
+        />
+      ) : null}
     </Card>
   );
 }

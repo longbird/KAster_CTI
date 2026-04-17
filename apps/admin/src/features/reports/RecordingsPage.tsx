@@ -1,8 +1,10 @@
 import { Button, Card, DatePicker, Space, Table, Tag, Typography } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { downloadCsv } from '../../shared/lib/csv';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
 interface RecRow {
@@ -21,6 +23,7 @@ interface RecRow {
 }
 
 export function RecordingsPage() {
+  const reportPermission = usePermissionStore((state) => state.permissionsByMenu['reports/recordings']);
   const [rows, setRows]       = useState<RecRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs()]);
@@ -44,6 +47,22 @@ export function RecordingsPage() {
     }
   };
 
+  const exportRows = () => {
+    downloadCsv(
+      `recordings-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      ['시작', '발신번호', '큐', '상담원', '파일명', '형식', '길이(초)'],
+      rows.map((row) => [
+        row.recordingStartedAt ? dayjs(row.recordingStartedAt).format('YYYY-MM-DD HH:mm:ss') : '-',
+        row.session?.ani ?? '-',
+        row.session?.queueName ?? '-',
+        row.session?.primaryAgent?.agentName ?? '-',
+        row.fileName,
+        row.fileFormat.toUpperCase(),
+        row.durationSeconds,
+      ]),
+    );
+  };
+
   return (
     <Card>
       <Typography.Title level={4} style={{ marginTop: 0 }}>녹취 목록</Typography.Title>
@@ -57,6 +76,11 @@ export function RecordingsPage() {
         <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
           조회
         </Button>
+        {reportPermission?.canExport ? (
+          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
+            CSV 내보내기
+          </Button>
+        ) : null}
       </Space>
       <Table<RecRow>
         rowKey="recordingId"

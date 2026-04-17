@@ -1,8 +1,11 @@
-import { Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../config';
 import { getAgentSip } from '../features/asterisk-config/api/asteriskConfigApi';
+import { downloadCsv } from '../shared/lib/csv';
+import { usePermissionStore } from '../store/usePermissionStore';
 
 interface AgentRow {
   agentId: string;
@@ -37,6 +40,7 @@ function readToken(): string | null {
 }
 
 export function AgentsPage() {
+  const agentPermission = usePermissionStore((state) => state.permissionsByMenu['agents']);
   const [rows, setRows] = useState<AgentRow[] | null>(null);
 
   useEffect(() => {
@@ -81,14 +85,36 @@ export function AgentsPage() {
 
   if (!rows) return <Skeleton active paragraph={{ rows: 8 }} />;
 
+  const exportRows = () => {
+    downloadCsv(
+      `agents-status-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.csv`,
+      ['이름', '로그인 ID', '내선', '전화기 등록', '역할', '현재 상태', '마지막 로그인'],
+      rows.map((row) => [
+        row.agentName,
+        row.loginId,
+        row.extension,
+        row.sipRegistrationStatus ?? 'UNREGISTERED',
+        row.role,
+        row.currentStatus?.statusCode ?? 'OFFLINE',
+        row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString() : '-',
+      ]),
+    );
+  };
+
   return (
     <Card>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
         상담원 현황
       </Typography.Title>
-      <Typography.Text type="secondary">5초 주기로 `/api/v1/agents` 폴링</Typography.Text>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <Typography.Text type="secondary">5초 주기로 `/api/v1/agents` 폴링</Typography.Text>
+        {agentPermission?.canExport ? (
+          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
+            CSV 내보내기
+          </Button>
+        ) : null}
+      </div>
       <Table<AgentRow>
-        style={{ marginTop: 16 }}
         rowKey="agentId"
         dataSource={rows}
         pagination={false}

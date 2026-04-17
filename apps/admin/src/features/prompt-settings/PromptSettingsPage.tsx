@@ -1,6 +1,7 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import {
   createPrompt,
   deletePrompt,
@@ -11,6 +12,7 @@ import type { AsteriskPrompt } from '../asterisk-config/types/asterisk-config';
 import { PromptModal, type PromptFormValue } from './PromptModal';
 
 export function PromptSettingsPage() {
+  const promptPermission = usePermissionStore((state) => state.permissionsByMenu['settings/prompts']);
   const [rows, setRows] = useState<AsteriskPrompt[] | null>(null);
   const [editing, setEditing] = useState<AsteriskPrompt | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -69,9 +71,11 @@ export function PromptSettingsPage() {
             PBX Playback에서 사용하는 프롬프트 메타데이터를 관리합니다. 실제 음성 파일 배포는 운영 절차로 따로 관리합니다.
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          멘트 등록
-        </Button>
+        {promptPermission?.canCreate !== false ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            멘트 등록
+          </Button>
+        ) : null}
       </Space>
 
       <Table<AsteriskPrompt>
@@ -117,12 +121,16 @@ export function PromptSettingsPage() {
             width: 180,
             render: (_: unknown, row) => (
               <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
-                  수정
-                </Button>
-                <Popconfirm title="멘트를 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
-                  <Button size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
+                {promptPermission?.canUpdate !== false ? (
+                  <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
+                    수정
+                  </Button>
+                ) : null}
+                {promptPermission?.canDelete !== false ? (
+                  <Popconfirm title="멘트를 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                ) : null}
               </Space>
             ),
           },
@@ -138,17 +146,21 @@ export function PromptSettingsPage() {
         </Space>
       </div>
 
-      <PromptModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSave={save}
-      />
-      <PromptModal
-        open={!!editing}
-        prompt={editing}
-        onClose={() => setEditing(null)}
-        onSave={save}
-      />
+      {promptPermission?.canCreate !== false ? (
+        <PromptModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onSave={save}
+        />
+      ) : null}
+      {promptPermission?.canUpdate !== false ? (
+        <PromptModal
+          open={!!editing}
+          prompt={editing}
+          onClose={() => setEditing(null)}
+          onSave={save}
+        />
+      ) : null}
     </Card>
   );
 }

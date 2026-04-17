@@ -17,6 +17,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AgentCreateModal } from './AgentCreateModal';
 import { AgentEditModal, type AgentRow } from './AgentEditModal';
@@ -33,6 +34,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export function AgentSettingsPage() {
+  const agentPermission = usePermissionStore((state) => state.permissionsByMenu['settings/agents']);
   const [rows, setRows] = useState<AgentRow[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<AgentRow | null>(null);
@@ -90,9 +92,11 @@ export function AgentSettingsPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           상담원 설정
         </Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
-          신규 등록
-        </Button>
+        {agentPermission?.canCreate !== false ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
+            신규 등록
+          </Button>
+        ) : null}
       </Space>
 
       <Table<AgentRow>
@@ -127,7 +131,7 @@ export function AgentSettingsPage() {
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => setEditing(r)}
-                  disabled={!r.isActive}
+                  disabled={!r.isActive || agentPermission?.canUpdate === false}
                 >
                   수정
                 </Button>
@@ -135,7 +139,7 @@ export function AgentSettingsPage() {
                   size="small"
                   icon={<KeyOutlined />}
                   onClick={() => void resetPassword(r.agentId, r.agentName)}
-                  disabled={!r.isActive}
+                  disabled={!r.isActive || agentPermission?.canOperate === false}
                 >
                   PW 초기화
                 </Button>
@@ -144,9 +148,14 @@ export function AgentSettingsPage() {
                   onConfirm={() => void deactivate(r.agentId)}
                   okText="예"
                   cancelText="아니오"
-                  disabled={!r.isActive}
+                  disabled={!r.isActive || agentPermission?.canDelete === false}
                 >
-                  <Button size="small" danger icon={<StopOutlined />} disabled={!r.isActive}>
+                  <Button
+                    size="small"
+                    danger
+                    icon={<StopOutlined />}
+                    disabled={!r.isActive || agentPermission?.canDelete === false}
+                  >
                     비활성화
                   </Button>
                 </Popconfirm>
@@ -156,16 +165,20 @@ export function AgentSettingsPage() {
         ]}
       />
 
-      <AgentCreateModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => void load()}
-      />
-      <AgentEditModal
-        agent={editing}
-        onClose={() => setEditing(null)}
-        onSaved={() => void load()}
-      />
+      {agentPermission?.canCreate !== false ? (
+        <AgentCreateModal
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => void load()}
+        />
+      ) : null}
+      {agentPermission?.canUpdate !== false ? (
+        <AgentEditModal
+          agent={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => void load()}
+        />
+      ) : null}
     </Card>
   );
 }

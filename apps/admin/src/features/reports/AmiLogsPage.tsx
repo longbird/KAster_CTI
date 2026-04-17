@@ -1,8 +1,10 @@
-import { SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Card, DatePicker, Drawer, Input, Space, Table, Tag, Typography } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { downloadCsv } from '../../shared/lib/csv';
+import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
 interface AmiLogRow {
@@ -22,6 +24,7 @@ interface AmiLogResponse {
 }
 
 export function AmiLogsPage() {
+  const reportPermission = usePermissionStore((state) => state.permissionsByMenu['reports/logs']);
   const [rows, setRows] = useState<AmiLogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<[Dayjs, Dayjs]>([
@@ -67,6 +70,20 @@ export function AmiLogsPage() {
     void load(1, pageSize);
   }, []);
 
+  const exportRows = () => {
+    downloadCsv(
+      `ami-logs-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      ['시각', '이벤트', 'Linkedid', 'Uniqueid', 'Payload'],
+      rows.map((row) => [
+        dayjs(row.eventTime).format('YYYY-MM-DD HH:mm:ss'),
+        row.eventName,
+        row.linkedid ?? '',
+        row.uniqueid ?? '',
+        JSON.stringify(row.payload ?? {}),
+      ]),
+    );
+  };
+
   return (
     <Card>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
@@ -99,6 +116,11 @@ export function AmiLogsPage() {
         >
           조회
         </Button>
+        {reportPermission?.canExport ? (
+          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
+            CSV 내보내기
+          </Button>
+        ) : null}
       </Space>
 
       <Table<AmiLogRow>

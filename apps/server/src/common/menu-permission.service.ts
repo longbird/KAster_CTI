@@ -140,7 +140,7 @@ function defaultPermissionFlags(roleCode: string, menuKey: string): PermissionFl
     canUpdate: MUTABLE_MENU_KEYS.has(menuKey),
     canDelete: MUTABLE_MENU_KEYS.has(menuKey),
     canOperate: MUTABLE_MENU_KEYS.has(menuKey) || OPERABLE_MENU_KEYS.has(menuKey),
-    canExport: menuKey.startsWith(REPORT_MENU_PREFIX),
+    canExport: menuKey.startsWith(REPORT_MENU_PREFIX) || menuKey === 'queues' || menuKey === 'agents',
   };
 }
 
