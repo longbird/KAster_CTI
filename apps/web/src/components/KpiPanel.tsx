@@ -87,18 +87,18 @@ export function KpiPanel() {
 
   return (
     <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
-      <KpiTile label="Today's Answered" value={agentSession?.todayAnswered ?? 0} />
-      <KpiTile label="Avg Talk Time" value={formatSeconds(avgTalk)} suffix="min" />
+      <KpiTile label="오늘 응대 건수" value={agentSession?.todayAnswered ?? 0} />
+      <KpiTile label="평균 통화 시간" value={formatSeconds(avgTalk)} suffix="분" />
       <KpiTile
-        label="Current Waiting"
+        label="현재 대기"
         value={String(totalWaiting).padStart(2, '0')}
         accent
         waveform
       />
       <KpiTile
-        label="Current Calls"
+        label="현재 통화"
         value={String(totalTalking).padStart(2, '0')}
-        delta={totalTalking > 5 ? { value: 'Peak', tone: 'warn' } : undefined}
+        delta={totalTalking > 5 ? { value: '혼잡', tone: 'warn' } : undefined}
       />
     </section>
   );

@@ -53,6 +53,7 @@ describe('CallsService branch filter integration', () => {
     completeAttendedTransfer: jest.fn(),
     pickup: jest.fn(),
     muteAudio: jest.fn(),
+    sendFeatureCode: jest.fn(),
     hangup: jest.fn(),
   };
   const transferDetector = {
@@ -643,5 +644,38 @@ describe('CallsService branch filter integration', () => {
       },
       error: null,
     });
+  });
+
+  it('hold 는 feature code 가 설정된 경우 agent leg 에 DTMF 요청을 보낸다', async () => {
+    process.env.ASTERISK_HOLD_FEATURE_CODE = '*55';
+    prisma.callSessions.findUnique.mockResolvedValue({
+      callId: 'call-hold-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-hold-1',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000hold',
+        },
+      ],
+    });
+
+    const result = await service.hold('call-hold-1', 'hold');
+
+    expect(asteriskManager.sendFeatureCode).toHaveBeenCalledWith(
+      'PJSIP/1001-00000hold',
+      '*55',
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        callId: 'call-hold-1',
+        accepted: true,
+        action: 'hold',
+      },
+      error: null,
+    });
+    delete process.env.ASTERISK_HOLD_FEATURE_CODE;
   });
 });

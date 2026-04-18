@@ -4,32 +4,32 @@ import type { EventLogItem } from '../types/cti';
 
 const TYPE_META: Record<EventLogItem['type'], { label: string; icon: string; tone: string }> = {
   'call.created': {
-    label: 'New Call',
+    label: '신규 콜',
     icon: 'add_call',
     tone: 'bg-primary/10 text-primary',
   },
   'call.updated': {
-    label: 'Call Update',
+    label: '콜 변경',
     icon: 'sync',
     tone: 'bg-secondary-container text-on-secondary-container',
   },
-  'call.ended': { label: 'Call Ended', icon: 'call_end', tone: 'bg-error-container/30 text-error' },
+  'call.ended': { label: '통화 종료', icon: 'call_end', tone: 'bg-error-container/30 text-error' },
   'screenpop.customer': {
-    label: 'Screen Pop',
+    label: '고객 팝업',
     icon: 'person',
     tone: 'bg-surface-container-high text-on-surface-variant',
   },
   'agent.status.changed': {
-    label: 'Agent Status',
+    label: '상담원 상태',
     icon: 'how_to_reg',
     tone: 'bg-tertiary/10 text-tertiary',
   },
   'queue.summary.updated': {
-    label: 'Queue Update',
+    label: '큐 갱신',
     icon: 'stacked_line_chart',
     tone: 'bg-surface-container-high text-on-surface-variant',
   },
-  info: { label: 'Info', icon: 'info', tone: 'bg-surface-container text-on-surface-variant' },
+  info: { label: '안내', icon: 'info', tone: 'bg-surface-container text-on-surface-variant' },
 };
 
 // "The Precision Curator" Real-time Events feed.
@@ -41,9 +41,9 @@ export function EventLogPanel() {
     <div className="rounded-lg bg-surface-container-low p-1">
       <div className="rounded-lg bg-surface-container-lowest p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h4 className="font-headline text-base font-bold text-on-surface">Real-time Events</h4>
+          <h4 className="font-headline text-base font-bold text-on-surface">실시간 이벤트</h4>
           <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
-            Live Feed
+            실시간
           </span>
         </div>
 
@@ -55,10 +55,10 @@ export function EventLogPanel() {
               </span>
             </div>
             <h5 className="font-headline text-base font-semibold text-on-surface">
-              No recent events
+              최근 이벤트 없음
             </h5>
             <p className="mt-2 max-w-xs text-sm text-outline">
-              New incoming activity, call transfers, and queue updates will appear here automatically.
+              신규 수신, 통화 전환, 큐 변경 내역이 자동으로 여기에 표시됩니다.
             </p>
           </div>
         ) : (

@@ -27,6 +27,11 @@ export interface AgentSession {
   todayAnswered: number;
   todayMissed: number;
   todayTalkSeconds: number;
+  callControlCapabilities?: {
+    muteEnabled: boolean;
+    holdEnabled: boolean;
+    holdMode: 'feature_code' | 'disabled';
+  };
 }
 
 export interface QueueSummary {

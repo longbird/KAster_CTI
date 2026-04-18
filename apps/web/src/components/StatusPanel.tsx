@@ -11,10 +11,10 @@ export function StatusPanel({ queues }: Props) {
   return (
     <div className="overflow-hidden rounded-lg bg-surface-container-lowest shadow-panel">
       <div className="p-6">
-        <h4 className="font-headline text-base font-bold text-on-surface">Queue Status</h4>
+        <h4 className="font-headline text-base font-bold text-on-surface">큐 상태</h4>
       </div>
       {queues.length === 0 ? (
-        <div className="p-6 pt-0 text-sm text-outline">No queues to show.</div>
+        <div className="p-6 pt-0 text-sm text-outline">표시할 큐가 없습니다.</div>
       ) : (
         <div>
           {queues.map((q, idx) => {
@@ -37,12 +37,12 @@ export function StatusPanel({ queues }: Props) {
                     </span>
                   </div>
                   <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-secondary-container">
-                    {q.availableAgents} Agents
+                    상담원 {q.availableAgents}명
                   </span>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-on-surface-variant">Waiting</span>
+                    <span className="text-sm text-on-surface-variant">대기</span>
                     <span className="font-headline text-lg font-bold text-primary">
                       {String(q.waitingCount).padStart(2, '0')}
                     </span>
@@ -54,7 +54,7 @@ export function StatusPanel({ queues }: Props) {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-outline">Longest Wait</span>
+                    <span className="text-xs text-outline">최대 대기</span>
                     <span className={`text-xs font-bold ${longestWaitColor}`}>
                       {formatWait(q.longestWaitSeconds)}
                     </span>

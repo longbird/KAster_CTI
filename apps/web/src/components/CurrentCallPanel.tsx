@@ -3,8 +3,10 @@ import type { ActiveCall } from '../types/cti';
 
 interface Props {
   call?: ActiveCall;
+  holdEnabled?: boolean;
   onPickup: () => Promise<void>;
   onToggleMute: () => Promise<void>;
+  onToggleHold: () => Promise<void>;
   onHangup: () => Promise<void>;
 }
 
@@ -18,7 +20,14 @@ function formatCallDuration(iso?: string): string {
 
 // "The Precision Curator" 의 Active Call Panel — 프라이머리 그라디언트 hero 카드.
 // glassmorphism 컨트롤 + 고정 waveform.
-export function CurrentCallPanel({ call, onPickup, onToggleMute, onHangup }: Props) {
+export function CurrentCallPanel({
+  call,
+  holdEnabled = false,
+  onPickup,
+  onToggleMute,
+  onToggleHold,
+  onHangup,
+}: Props) {
   // 1초마다 통화 시간 리렌더
   const [, tick] = useState(0);
   useEffect(() => {
@@ -34,7 +43,7 @@ export function CurrentCallPanel({ call, onPickup, onToggleMute, onHangup }: Pro
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-container">
             <span className="material-symbols-outlined text-3xl text-outline">call</span>
           </div>
-          <h5 className="font-headline text-base font-semibold text-on-surface">No active call</h5>
+          <h5 className="font-headline text-base font-semibold text-on-surface">진행 중인 통화 없음</h5>
           <p className="max-w-xs text-sm text-outline">
             새 콜이 배정되면 여기에 고객 정보와 통화 제어가 표시됩니다.
           </p>
@@ -77,7 +86,7 @@ export function CurrentCallPanel({ call, onPickup, onToggleMute, onHangup }: Pro
             </p>
             <div className="mt-4 flex items-center gap-3">
               <span className="rounded-full bg-tertiary-fixed px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-tertiary">
-                Active Call
+                진행 중 통화
               </span>
               <span className="font-headline text-lg font-bold">{duration}</span>
               <div className="flex h-5 items-end gap-0.5">
@@ -116,18 +125,25 @@ export function CurrentCallPanel({ call, onPickup, onToggleMute, onHangup }: Pro
               className="glass-panel flex h-12 items-center gap-2 rounded-full px-5 text-white transition-all hover:bg-white/20 active:scale-95"
             >
               <span className="material-symbols-outlined">phone_in_talk</span>
-              Pickup
+              당겨받기
             </button>
           ) : null}
           <IconButton
             icon={call.isMuted ? 'mic' : 'mic_off'}
-            label={call.isMuted ? 'Unmute' : 'Mute'}
+            label={call.isMuted ? '음소거 해제' : '음소거'}
             onClick={async () => {
               await onToggleMute();
             }}
           />
-          <IconButton icon="pause" label="Hold" />
-          <IconButton icon="phone_forwarded" label="Transfer" />
+          <IconButton
+            icon={call.sessionStatus === 'HOLD' ? 'play_arrow' : 'pause'}
+            label={call.sessionStatus === 'HOLD' ? '보류 해제' : '보류'}
+            disabled={!holdEnabled}
+            onClick={async () => {
+              await onToggleHold();
+            }}
+          />
+          <IconButton icon="phone_forwarded" label="전환" />
           <button
             onClick={async () => {
               await onHangup();
@@ -135,7 +151,7 @@ export function CurrentCallPanel({ call, onPickup, onToggleMute, onHangup }: Pro
             className="flex h-12 items-center gap-2 rounded-full bg-error px-6 font-headline font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
           >
             <span className="material-symbols-outlined">call_end</span>
-            End
+            종료
           </button>
         </div>
       </div>
@@ -147,18 +163,21 @@ function IconButton({
   icon,
   label,
   onClick,
+  disabled = false,
 }: {
   icon: string;
   label: string;
   onClick?: () => void | Promise<void>;
+  disabled?: boolean;
 }) {
   return (
     <button
       title={label}
+      disabled={disabled}
       onClick={() => {
         void onClick?.();
       }}
-      className="glass-panel flex h-12 w-12 items-center justify-center rounded-full text-white transition-all hover:bg-white/20 active:scale-95"
+      className="glass-panel flex h-12 w-12 items-center justify-center rounded-full text-white transition-all hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
     >
       <span className="material-symbols-outlined">{icon}</span>
     </button>

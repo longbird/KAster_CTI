@@ -183,6 +183,44 @@ export class CallsController {
     return this.callsService.mute(callId, dto);
   }
 
+  @Post(':callId/hold')
+  @ApiOperation({
+    summary: '통화 hold 요청',
+    description:
+      '표준 AMI hold 액션이 없으므로, 운영자가 검증한 feature code 가 설정된 경우에만 AMI PlayDTMF 로 hold 요청을 전달한다. 실제 상태는 후속 Hold/Unhold 이벤트를 신뢰한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  async hold(@Req() req: any, @Param('callId') callId: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
+    return this.callsService.hold(callId, 'hold');
+  }
+
+  @Post(':callId/resume')
+  @ApiOperation({
+    summary: '통화 resume 요청',
+    description:
+      '표준 AMI resume 액션이 없으므로, 운영자가 검증한 feature code 가 설정된 경우에만 AMI PlayDTMF 로 resume 요청을 전달한다. 실제 상태는 후속 Hold/Unhold 이벤트를 신뢰한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  async resume(@Req() req: any, @Param('callId') callId: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
+    return this.callsService.hold(callId, 'resume');
+  }
+
   @Post(':callId/memo')
   @ApiOperation({ summary: '상담 메모 / 후처리 코드 저장' })
   @ApiOkResponse({ type: ApiResponseDto })

@@ -1,5 +1,4 @@
 import { LogoutOutlined } from '@ant-design/icons';
-import { Modal } from 'antd';
 import { logout } from '../api';
 import { useCtiStore } from '../store/useCtiStore';
 import { AgentStatusTag } from './AgentStatusTag';
@@ -10,15 +9,10 @@ export function TopAppBar() {
   const agentSession = useCtiStore((s) => s.agentSession);
   const changeStatus = useCtiStore((s) => s.changeStatus);
 
-  const onLogout = () => {
-    Modal.confirm({
-      title: '로그아웃',
-      content: '현재 세션을 종료합니다. 계속하시겠습니까?',
-      okText: '로그아웃',
-      okType: 'danger',
-      cancelText: '취소',
-      onOk: () => logout(),
-    });
+  const onLogout = async () => {
+    if (!window.confirm('현재 세션을 종료하시겠습니까?')) return;
+    await logout();
+    window.location.reload();
   };
 
   return (
@@ -27,8 +21,8 @@ export function TopAppBar() {
         <span className="font-headline text-lg font-extrabold uppercase tracking-widest text-primary">
           KAster CTI
         </span>
-        <div className="hidden h-6 w-px bg-outline-variant/30 md:block" />
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="h-6 w-px bg-outline-variant/30" />
+        <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary-fixed">
             <span className="material-symbols-outlined text-base text-primary">person</span>
           </div>
@@ -37,7 +31,7 @@ export function TopAppBar() {
               {agentSession?.agentName ?? '-'}
             </p>
             <p className="mt-0.5 text-[10px] font-medium tracking-wide text-on-surface-variant">
-              EXT {agentSession?.extension ?? '-'}
+              내선 {agentSession?.extension ?? '-'}
             </p>
           </div>
         </div>
@@ -47,11 +41,13 @@ export function TopAppBar() {
         <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
         <div className="h-6 w-px bg-outline-variant/30" />
         <button
-          onClick={onLogout}
+          onClick={() => {
+            void onLogout();
+          }}
           className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-error transition-all hover:bg-error-container/20 active:scale-95"
         >
           <LogoutOutlined />
-          Logout
+          로그아웃
         </button>
       </div>
     </header>

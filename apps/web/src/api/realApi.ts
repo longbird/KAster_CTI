@@ -41,6 +41,7 @@ export async function logout() {
 export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
   const res = await apiClient.get('/me/session');
   const agent = res.data?.data?.agent;
+  const capabilities = res.data?.data?.callControlCapabilities;
   // 현재 백엔드는 오늘 통계를 /agents/:id 에 노출. 기본값은 0 으로 채운다.
   const session: AgentSession = {
     agentId: agent?.agentId ?? '',
@@ -50,6 +51,11 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
     todayAnswered: 0,
     todayMissed: 0,
     todayTalkSeconds: 0,
+    callControlCapabilities: {
+      muteEnabled: capabilities?.muteEnabled !== false,
+      holdEnabled: capabilities?.holdEnabled === true,
+      holdMode: capabilities?.holdMode === 'feature_code' ? 'feature_code' : 'disabled',
+    },
   };
 
   // 오늘 통계 보강 — agents/:id
@@ -203,6 +209,14 @@ export async function muteCall(
     state,
     direction: 'all',
   });
+  return { success: true, data: res.data?.data, error: null };
+}
+
+export async function holdCall(
+  callId: string,
+  action: 'hold' | 'resume',
+): Promise<ApiResponse<{ callId: string; accepted: boolean; action: 'hold' | 'resume' }>> {
+  const res = await apiClient.post(`/calls/${callId}/${action}`);
   return { success: true, data: res.data?.data, error: null };
 }
 

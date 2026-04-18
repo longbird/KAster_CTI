@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../common/prisma.service';
+import { CallsService } from '../calls/calls.service';
 import { LoginDto } from './login.dto';
 
 // share 69de045b: access 는 짧게, refresh 는 길게. refresh token 은 평문 저장 금지
@@ -26,6 +27,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly callsService: CallsService,
   ) {}
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
@@ -142,7 +144,11 @@ export class AuthService {
 
     return {
       success: true,
-      data: { agent, jwt: user },
+      data: {
+        agent,
+        jwt: user,
+        callControlCapabilities: this.callsService.getCallControlCapabilities(),
+      },
       error: null,
     };
   }

@@ -28,7 +28,7 @@ export function LoginPage() {
           KAster CTI 상담원 로그인
         </Typography.Title>
         <Typography.Text type="secondary" className="text-xs">
-          loginId + 내선번호 + 비밀번호로 로그인합니다.
+          로그인 ID, 내선번호, 비밀번호로 로그인합니다.
         </Typography.Text>
 
         {error && (
@@ -54,7 +54,7 @@ export function LoginPage() {
             name="loginId"
             rules={[{ required: true, message: '로그인 ID 를 입력하세요' }]}
           >
-            <Input placeholder="agent1001" autoFocus />
+            <Input placeholder="예: agent1001" autoFocus />
           </Form.Item>
 
           <Form.Item
@@ -62,7 +62,7 @@ export function LoginPage() {
             name="extension"
             rules={[{ required: true, message: '내선 번호를 입력하세요' }]}
           >
-            <Input placeholder="1001" />
+            <Input placeholder="예: 1001" />
           </Form.Item>
 
           <Form.Item
@@ -70,7 +70,7 @@ export function LoginPage() {
             name="password"
             rules={[{ required: true, message: '비밀번호를 입력하세요' }]}
           >
-            <Input.Password placeholder="Password123!" />
+            <Input.Password placeholder="비밀번호 입력" />
           </Form.Item>
 
           <Button type="primary" htmlType="submit" block loading={loading}>

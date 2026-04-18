@@ -7,6 +7,7 @@ import {
   getCallHistory,
   getQueuesSummary,
   hangupCall,
+  holdCall,
   muteCall,
   pickupCall,
   saveCallMemo,
@@ -38,6 +39,7 @@ interface CtiState {
   saveMemo: (memo: string, resultCode: string) => Promise<void>;
   pickup: () => Promise<void>;
   toggleMute: () => Promise<void>;
+  toggleHold: () => Promise<void>;
   transfer: (target: string, mode?: 'blind' | 'attended') => Promise<void>;
   cancelAttendedTransfer: () => Promise<void>;
   completeAttendedTransfer: () => Promise<void>;
@@ -180,6 +182,26 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId ? { ...call, isMuted: nextState === 'on' } : call,
       ),
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  toggleHold: async () => {
+    const callId = get().selectedCallId;
+    if (!callId) return;
+
+    const session = get().agentSession;
+    if (!session?.callControlCapabilities?.holdEnabled) {
+      throw new Error('현재 PBX 설정에서는 hold/resume 제어가 비활성화되어 있습니다.');
+    }
+
+    const current = get().activeCalls.find((call) => call.callId === callId);
+    const action = current?.sessionStatus === 'HOLD' ? 'resume' : 'hold';
+    await holdCall(callId, action);
+    const msg = action === 'hold'
+      ? '보류 요청이 접수되었습니다. 실제 상태는 PBX 이벤트를 기다립니다.'
+      : '보류 해제 요청이 접수되었습니다. 실제 상태는 PBX 이벤트를 기다립니다.';
+    set((state) => ({
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),
     }));

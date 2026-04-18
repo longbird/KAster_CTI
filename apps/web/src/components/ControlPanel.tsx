@@ -12,15 +12,15 @@ interface Props {
 }
 
 const RESULT_CODES = [
-  { value: 'ORDER_COMPLETE', label: 'Order Complete' },
-  { value: 'FOLLOW_UP', label: 'Follow-up Required' },
-  { value: 'CALLBACK', label: 'Callback Scheduled' },
-  { value: 'SOLD', label: 'Sold' },
-  { value: 'NO_INTEREST', label: 'No Interest' },
-  { value: 'COMPLAINT', label: 'Complaint' },
-  { value: 'TECH_ISSUE', label: 'Technical Issue' },
-  { value: 'INQUIRY', label: 'Inquiry Only' },
-  { value: 'OTHER', label: 'Other' },
+  { value: 'ORDER_COMPLETE', label: '주문 완료' },
+  { value: 'FOLLOW_UP', label: '후속 조치 필요' },
+  { value: 'CALLBACK', label: '콜백 예약' },
+  { value: 'SOLD', label: '판매 완료' },
+  { value: 'NO_INTEREST', label: '관심 없음' },
+  { value: 'COMPLAINT', label: '불만 접수' },
+  { value: 'TECH_ISSUE', label: '기술 이슈' },
+  { value: 'INQUIRY', label: '단순 문의' },
+  { value: 'OTHER', label: '기타' },
 ];
 
 type Tab = 'memo' | 'control' | 'kb';
@@ -100,13 +100,13 @@ export function ControlPanel({
       {/* 탭 */}
       <div className="mb-8 flex items-center gap-8 border-b border-outline-variant/15">
         <TabButton active={tab === 'memo'} onClick={() => setTab('memo')}>
-          Memo / After-call
+          메모 / 후처리
         </TabButton>
         <TabButton active={tab === 'control'} onClick={() => setTab('control')}>
-          Control
+          제어
         </TabButton>
         <TabButton active={tab === 'kb'} onClick={() => setTab('kb')}>
-          Knowledge Base
+          상담 가이드
         </TabButton>
       </div>
 
@@ -117,13 +117,13 @@ export function ControlPanel({
           className="flex flex-1 flex-col"
           onFinish={async (values) => {
             await onSaveMemo(values.memo, values.resultCode);
-            message.success('Memo saved');
+            message.success('메모를 저장했습니다');
           }}
         >
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <Form.Item
               name="resultCode"
-              label={<FormLabel>Result Code</FormLabel>}
+              label={<FormLabel>처리 결과</FormLabel>}
               className="!mb-0"
             >
               <Select
@@ -139,19 +139,19 @@ export function ControlPanel({
             </Form.Item>
             <Form.Item
               name="transferTarget"
-              label={<FormLabel>Transfer Extension</FormLabel>}
+              label={<FormLabel>전환 내선</FormLabel>}
               className="!mb-0"
             >
-              <Input placeholder="e.g. 5501" size="large" />
+              <Input placeholder="예: 5501" size="large" />
             </Form.Item>
           </div>
 
           <div className="mt-6 flex flex-1 flex-col">
-            <FormLabel>Consultation Memo</FormLabel>
+            <FormLabel>상담 메모</FormLabel>
             <Form.Item name="memo" className="!mb-0 flex flex-1 flex-col">
               <Input.TextArea
                 rows={8}
-                placeholder="Type session notes here..."
+                placeholder="상담 메모를 입력하세요..."
                 className="!min-h-[200px] !resize-none !rounded-lg"
                 style={{ background: '#e1e3e4' }}
               />
@@ -166,15 +166,15 @@ export function ControlPanel({
                 onClick={async () => {
                   const target = form.getFieldValue('transferTarget');
                   if (!target) {
-                    message.warning('Enter transfer extension first');
+                    message.warning('전환할 내선을 먼저 입력해 주세요');
                     return;
                   }
                   await onTransfer(target, 'blind');
-                  message.success(`Blind transfer requested: ${target}`);
+                  message.success(`블라인드 전환을 요청했습니다: ${target}`);
                 }}
                 className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container-low active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Blind Transfer
+                블라인드 전환
               </button>
               <button
                 type="button"
@@ -182,33 +182,33 @@ export function ControlPanel({
                 onClick={async () => {
                   const target = form.getFieldValue('transferTarget');
                   if (!target) {
-                    message.warning('Enter transfer extension first');
+                    message.warning('전환할 내선을 먼저 입력해 주세요');
                     return;
                   }
                   await onTransfer(target, 'attended');
-                  message.success(`Consult transfer requested: ${target}`);
+                  message.success(`상담 전환을 요청했습니다: ${target}`);
                 }}
                 className="rounded-xl border border-primary/30 px-6 py-3 text-sm font-bold text-primary transition-all hover:bg-primary/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Consult Transfer
+                상담 전환
               </button>
               <button
                 type="button"
                 disabled={!call}
                 onClick={async () => {
                   await onHangup();
-                  message.success('End call requested');
+                  message.success('통화 종료를 요청했습니다');
                 }}
                 className="rounded-xl border border-error/30 px-6 py-3 text-sm font-bold text-error transition-all hover:bg-error-container/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                End Call
+                통화 종료
               </button>
             </div>
             <button
               type="submit"
               className="btn-primary-gradient rounded-xl px-12 py-3 font-headline text-sm font-bold shadow-lg shadow-primary/20"
             >
-              Save Memo
+              메모 저장
             </button>
           </div>
         </Form>
@@ -218,7 +218,7 @@ export function ControlPanel({
         <div className="flex flex-1 flex-col justify-center gap-5">
           <div className="rounded-2xl border border-outline-variant/20 bg-surface-container p-5">
             <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              Consult Transfer
+              상담 전환
             </p>
             <p className="mt-2 text-sm text-on-surface">
               {hasOpenConsult
@@ -231,22 +231,22 @@ export function ControlPanel({
                 disabled={!hasOpenConsult}
                 onClick={async () => {
                   await onCompleteAttendedTransfer();
-                  message.success('Consult transfer completion requested');
+                  message.success('상담 전환 완료를 요청했습니다');
                 }}
                 className="rounded-xl border border-primary/30 px-5 py-3 text-sm font-bold text-primary transition-all hover:bg-primary/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Complete Consult
+                전환 완료
               </button>
               <button
                 type="button"
                 disabled={!hasOpenConsult}
                 onClick={async () => {
                   await onCancelAttendedTransfer();
-                  message.success('Consult transfer canceled');
+                  message.success('상담 전환을 취소했습니다');
                 }}
                 className="rounded-xl border border-error/30 px-5 py-3 text-sm font-bold text-error transition-all hover:bg-error-container/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Cancel Consult
+                전환 취소
               </button>
             </div>
           </div>
@@ -260,12 +260,12 @@ export function ControlPanel({
         <div className="flex flex-1 flex-col gap-5">
           <div className="rounded-2xl border border-outline-variant/20 bg-surface-container p-5">
             <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              Quick Search
+              빠른 검색
             </p>
             <Input
               value={kbQuery}
               onChange={(event) => setKbQuery(event.target.value)}
-              placeholder="vip, callback, complaint, transfer..."
+              placeholder="VIP, 콜백, 민원, 전환..."
               size="large"
               className="mt-3"
             />
@@ -282,7 +282,15 @@ export function ControlPanel({
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-bold text-on-surface">{item.title}</p>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {item.tags[0]}
+                    {item.id === 'opening'
+                      ? '기본 응대'
+                      : item.id === 'vip'
+                        ? 'VIP'
+                        : item.id === 'callback'
+                          ? '콜백'
+                          : item.id === 'claim'
+                            ? '민원'
+                            : '전환'}
                   </span>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-on-surface-variant">{item.body}</p>

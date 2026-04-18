@@ -83,6 +83,15 @@ export async function muteCall(callId: string, state: 'on' | 'off'): Promise<Api
   };
 }
 
+export async function holdCall(callId: string, action: 'hold' | 'resume'): Promise<ApiResponse<{ callId: string; accepted: boolean; action: 'hold' | 'resume' }>> {
+  await wait();
+  return {
+    success: true,
+    data: { callId, accepted: true, action },
+    error: null,
+  };
+}
+
 export async function hangupCall(callId: string): Promise<ApiResponse<{ callId: string; endedAt: string }>> {
   await wait();
   return {

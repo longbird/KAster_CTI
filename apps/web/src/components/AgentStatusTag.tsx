@@ -13,14 +13,14 @@ const SELECTABLE_STATUSES: AgentStatusCode[] = [
 ];
 
 const LABEL: Record<AgentStatusCode, string> = {
-  AVAILABLE: 'Available',
-  RINGING: 'Ringing',
-  TALKING: 'Talking',
-  AFTER_CALL_WORK: 'ACW',
-  BREAK: 'Break',
-  MEAL: 'Meal',
-  TRAINING: 'Training',
-  MANUAL_PAUSED: 'Paused',
+  AVAILABLE: '대기',
+  RINGING: '벨 울림',
+  TALKING: '통화 중',
+  AFTER_CALL_WORK: '후처리',
+  BREAK: '휴식',
+  MEAL: '식사',
+  TRAINING: '교육',
+  MANUAL_PAUSED: '일시중지',
 };
 
 // 디자인 시스템의 색 매핑. dot + text color + bg tint.

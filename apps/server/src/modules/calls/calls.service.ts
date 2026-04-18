@@ -556,6 +556,59 @@ export class CallsService {
     };
   }
 
+  getCallControlCapabilities() {
+    const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
+    const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
+    return {
+      muteEnabled: true,
+      holdEnabled: Boolean(holdCode && resumeCode),
+      holdMode: holdCode && resumeCode ? 'feature_code' : 'disabled',
+    };
+  }
+
+  async hold(callId: string, action: 'hold' | 'resume') {
+    const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
+    const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
+    const featureCode = action === 'hold' ? holdCode : resumeCode;
+    if (!featureCode) {
+      throw new BadRequestException('현재 PBX 설정에서는 hold/resume 제어가 비활성화되어 있습니다.');
+    }
+
+    const call = await this.prisma.callSessions.findUnique({
+      where: { callId },
+      include: { callLegs: { orderBy: { startedAt: 'desc' } } },
+    });
+    if (!call) {
+      throw new NotFoundException('Call not found');
+    }
+
+    const agentLeg = call.callLegs.find(
+      (leg) => leg.legType === 'agent' && !leg.endedAt,
+    );
+    if (!agentLeg?.channelName) {
+      throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
+    }
+
+    this.asteriskManager.sendFeatureCode(agentLeg.channelName, featureCode);
+    await this.eventBus.publish('ami.command.hold.requested', {
+      callId,
+      linkedid: call.linkedid,
+      channel: agentLeg.channelName,
+      action,
+      requestedAt: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      data: {
+        callId,
+        accepted: true,
+        action,
+      },
+      error: null,
+    };
+  }
+
   async saveMemo(callId: string, dto: CreateMemoDto) {
     const call = await this.prisma.callSessions.findUnique({ where: { callId } });
     if (!call) {

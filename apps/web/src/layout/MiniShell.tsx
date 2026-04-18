@@ -1,4 +1,4 @@
-import { Form, Input, Modal, Select, Spin, message } from 'antd';
+import { Form, Input, Select, Spin, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api';
 import { AgentStatusTag } from '../components/AgentStatusTag';
@@ -36,6 +36,7 @@ export function MiniShell() {
     saveMemo,
     pickup,
     toggleMute,
+    toggleHold,
     transfer,
     cancelAttendedTransfer,
     completeAttendedTransfer,
@@ -76,14 +77,10 @@ export function MiniShell() {
     });
   }, [selectedCall?.callId, form]);
 
-  const onLogout = () => {
-    Modal.confirm({
-      title: '로그아웃',
-      content: '현재 세션을 종료합니다.',
-      okText: '로그아웃',
-      okType: 'danger',
-      onOk: () => logout(),
-    });
+  const onLogout = async () => {
+    if (!window.confirm('현재 세션을 종료하시겠습니까?')) return;
+    await logout();
+    window.location.reload();
   };
 
   if (loading) {
@@ -113,7 +110,7 @@ export function MiniShell() {
                 KAster CTI
               </p>
               <p className="truncate text-[10px] font-medium text-on-surface-variant">
-                {agentSession?.agentName ?? '-'} · EXT {agentSession?.extension ?? '-'}
+                {agentSession?.agentName ?? '-'} · 내선 {agentSession?.extension ?? '-'}
               </p>
             </div>
           </div>
@@ -126,7 +123,9 @@ export function MiniShell() {
               <span className="material-symbols-outlined text-[18px]">open_in_full</span>
             </button>
             <button
-              onClick={onLogout}
+              onClick={() => {
+                void onLogout();
+              }}
               title="로그아웃"
               className="flex h-8 w-8 items-center justify-center rounded-full text-error transition-all hover:bg-error-container/20 active:scale-95"
             >
@@ -138,7 +137,7 @@ export function MiniShell() {
         {/* Status row */}
         <div className="flex items-center justify-between rounded-lg bg-surface-container-lowest p-3 shadow-panel">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-            Current Status
+            현재 상태
           </span>
           <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
         </div>
@@ -171,7 +170,7 @@ export function MiniShell() {
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <span className="rounded-full bg-tertiary-fixed px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-tertiary">
-                  Active
+                  진행 중
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="font-headline text-base font-bold">{duration}</span>
@@ -211,7 +210,7 @@ export function MiniShell() {
         <div className="grid grid-cols-4 gap-2">
           <MiniCtrlButton
             icon={isActive && !selectedCall?.answeredAt ? 'phone_in_talk' : 'mic_off'}
-            label={isActive && !selectedCall?.answeredAt ? 'Pickup' : selectedCall?.isMuted ? 'Unmute' : 'Mute'}
+            label={isActive && !selectedCall?.answeredAt ? '당겨받기' : selectedCall?.isMuted ? '음소거 해제' : '음소거'}
             disabled={!isActive}
             onClick={async () => {
               if (selectedCall && !selectedCall.answeredAt) {
@@ -224,14 +223,21 @@ export function MiniShell() {
             }}
           />
           <MiniCtrlButton
-            icon="pause"
-            label="Hold"
-            disabled={!isActive}
-            onClick={() => message.info('AMI 연동 후 활성화')}
+            icon={selectedCall?.sessionStatus === 'HOLD' ? 'play_arrow' : 'pause'}
+            label={selectedCall?.sessionStatus === 'HOLD' ? '보류 해제' : '보류'}
+            disabled={!isActive || !agentSession?.callControlCapabilities?.holdEnabled}
+            onClick={async () => {
+              await toggleHold();
+              message.success(
+                selectedCall?.sessionStatus === 'HOLD'
+                  ? '보류 해제 요청'
+                  : '보류 요청',
+              );
+            }}
           />
           <MiniCtrlButton
             icon="phone_forwarded"
-            label="Transfer"
+            label="전환"
             disabled={!isActive}
             onClick={async () => {
               const target = form.getFieldValue('transferTarget');
@@ -250,7 +256,7 @@ export function MiniShell() {
           />
           <MiniCtrlButton
             icon="call_end"
-            label="End"
+            label="종료"
             tone="danger"
             disabled={!isActive}
             onClick={async () => {
@@ -264,7 +270,7 @@ export function MiniShell() {
           <div className="grid grid-cols-2 gap-2">
             <MiniCtrlButton
               icon="merge"
-              label="Complete"
+              label="완료"
               onClick={async () => {
                 await completeAttendedTransfer();
                 message.success('상담 전환 완료 요청');
@@ -272,7 +278,7 @@ export function MiniShell() {
             />
             <MiniCtrlButton
               icon="close"
-              label="Cancel"
+              label="취소"
               tone="danger"
               onClick={async () => {
                 await cancelAttendedTransfer();
@@ -308,8 +314,8 @@ export function MiniShell() {
               <Select
                 size="middle"
                 options={[
-                  { value: 'blind', label: 'Blind Transfer' },
-                  { value: 'attended', label: 'Consult Transfer' },
+                  { value: 'blind', label: '블라인드 전환' },
+                  { value: 'attended', label: '상담 전환' },
                 ]}
               />
             </Form.Item>

@@ -5,8 +5,10 @@ import { create } from 'zustand';
 //  - 'full': CTI 앱 안에서 고객/메모/후처리까지 다 처리하는 전체 화면
 // URL `?mode=mini` 또는 localStorage 로 영속, 기본은 full.
 export type WorkspaceMode = 'mini' | 'full';
+export type FullWorkspaceSection = 'overview' | 'call' | 'queues' | 'history';
 
 const LS_KEY = 'kaster.workspace_mode';
+const LS_SECTION_KEY = 'kaster.full_section';
 
 function detectInitialMode(): WorkspaceMode {
   if (typeof window === 'undefined') return 'full';
@@ -24,11 +26,32 @@ function detectInitialMode(): WorkspaceMode {
 
 interface UiState {
   mode: WorkspaceMode;
+  fullSection: FullWorkspaceSection;
   setMode: (mode: WorkspaceMode) => void;
+  setFullSection: (section: FullWorkspaceSection) => void;
+}
+
+function detectInitialSection(): FullWorkspaceSection {
+  if (typeof window === 'undefined') return 'overview';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('section');
+    if (fromUrl === 'overview' || fromUrl === 'call' || fromUrl === 'queues' || fromUrl === 'history') {
+      return fromUrl;
+    }
+    const stored = localStorage.getItem(LS_SECTION_KEY);
+    if (stored === 'overview' || stored === 'call' || stored === 'queues' || stored === 'history') {
+      return stored;
+    }
+  } catch {
+    // noop
+  }
+  return 'overview';
 }
 
 export const useUiStore = create<UiState>((set) => ({
   mode: detectInitialMode(),
+  fullSection: detectInitialSection(),
   setMode: (mode) => {
     try {
       localStorage.setItem(LS_KEY, mode);
@@ -36,5 +59,13 @@ export const useUiStore = create<UiState>((set) => ({
       // noop
     }
     set({ mode });
+  },
+  setFullSection: (fullSection) => {
+    try {
+      localStorage.setItem(LS_SECTION_KEY, fullSection);
+    } catch {
+      // noop
+    }
+    set({ fullSection });
   },
 }));

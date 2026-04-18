@@ -70,18 +70,7 @@ export class AsteriskManagerService {
     const digits = (featureCode ?? process.env.ASTERISK_ATXFER_COMPLETE_CODE ?? '*2')
       .trim()
       .replace(/\s+/g, '');
-    if (!digits) {
-      throw new Error('Attended transfer complete feature code is empty');
-    }
-
-    for (const digit of digits) {
-      this.ami.sendAction({
-        Action: 'PlayDTMF',
-        Channel: channel,
-        Digit: digit,
-        Receive: 'true',
-      });
-    }
+    this.sendFeatureCode(channel, digits);
     this.logger.log(`Attended transfer complete requested: ${channel} -> ${digits}`);
   }
 
@@ -108,6 +97,22 @@ export class AsteriskManagerService {
       State: state,
     });
     this.logger.log(`MuteAudio requested: ${channel} state=${state} direction=${direction}`);
+  }
+
+  sendFeatureCode(channel: string, featureCode: string): void {
+    const digits = featureCode.trim().replace(/\s+/g, '');
+    if (!digits) {
+      throw new Error('Feature code is empty');
+    }
+
+    for (const digit of digits) {
+      this.ami.sendAction({
+        Action: 'PlayDTMF',
+        Channel: channel,
+        Digit: digit,
+        Receive: 'true',
+      });
+    }
   }
 
   hangup(channel: string): void {
