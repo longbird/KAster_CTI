@@ -196,15 +196,24 @@ export class AsteriskReloadService implements OnModuleDestroy {
           defaultOutboundCallerId: true,
           sipRegisterPort: true,
         },
-      }),
+      } as any),
     ]);
+    const typedSettings = settings as
+      | {
+          allowDirectSipDial?: boolean | null;
+          defaultSipPassword?: string | null;
+          allowedOutboundCallerIds?: string | null;
+          defaultOutboundCallerId?: string | null;
+          sipRegisterPort?: number | null;
+        }
+      | null;
     const defaultSipPassword = settings?.defaultSipPassword ?? null;
     return {
       trunks,
-      sipRegisterPort: settings?.sipRegisterPort ?? 36070,
-      allowDirectSipDial: settings?.allowDirectSipDial ?? false,
-      allowedOutboundCallerIds: parseAllowedCallerIds(settings?.allowedOutboundCallerIds),
-      defaultOutboundCallerId: settings?.defaultOutboundCallerId ?? null,
+      sipRegisterPort: typedSettings?.sipRegisterPort ?? 36070,
+      allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
+      allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),
+      defaultOutboundCallerId: typedSettings?.defaultOutboundCallerId ?? null,
       agents: agents.map((agent) => ({
         ...agent,
         sipPassword: agent.sipPassword || defaultSipPassword,

@@ -42,6 +42,7 @@ export interface AsteriskBulkTrunkInput {
 export interface AsteriskDid {
   id: string;
   did: string;
+  representativeNumber: string | null;
   description: string | null;
   ivrMenuId: string | null;
   directQueue: string | null;

@@ -95,6 +95,16 @@ export async function getActiveCalls(): Promise<ApiResponse<ActiveCall[]>> {
     queuedAt: c.queuedAt ?? undefined,
     answeredAt: c.answeredAt ?? undefined,
     primaryAgentId: c.primaryAgentId ?? undefined,
+    latestTransfer: c.latestTransfer
+      ? {
+          phase: c.latestTransfer.phase,
+          toExtension: c.latestTransfer.toExtension ?? undefined,
+          requestedAt: c.latestTransfer.requestedAt ?? undefined,
+          completedAt: c.latestTransfer.completedAt ?? null,
+          expiredAt: c.latestTransfer.expiredAt ?? null,
+        }
+      : null,
+    isMuted: false,
   }));
   return { success: true, data, error: null };
 }
@@ -153,14 +163,47 @@ export async function saveCallMemo(
 export async function transferCall(
   callId: string,
   target: string,
+  mode: 'blind' | 'attended' = 'blind',
 ): Promise<ApiResponse<{ callId: string; target: string; requestedAt: string }>> {
   const extension = useAuthStore.getState().agent?.extension ?? '';
   await apiClient.post(`/calls/${callId}/transfer`, {
-    transferType: 'blind',
+    transferType: mode,
     target,
     fromExtension: extension,
   });
   return { success: true, data: { callId, target, requestedAt: new Date().toISOString() }, error: null };
+}
+
+export async function cancelAttendedTransferCall(
+  callId: string,
+): Promise<ApiResponse<{ callId: string; canceled: boolean; requestedAt: string }>> {
+  const res = await apiClient.post(`/calls/${callId}/transfer/attended/cancel`);
+  return { success: true, data: res.data?.data, error: null };
+}
+
+export async function completeAttendedTransferCall(
+  callId: string,
+): Promise<ApiResponse<{ callId: string; accepted: boolean; requestedAt: string }>> {
+  const res = await apiClient.post(`/calls/${callId}/transfer/attended/complete`);
+  return { success: true, data: res.data?.data, error: null };
+}
+
+export async function pickupCall(
+  callId: string,
+): Promise<ApiResponse<{ callId: string; accepted: boolean; extension: string; requestedAt: string }>> {
+  const res = await apiClient.post(`/calls/${callId}/pickup`);
+  return { success: true, data: res.data?.data, error: null };
+}
+
+export async function muteCall(
+  callId: string,
+  state: 'on' | 'off',
+): Promise<ApiResponse<{ callId: string; accepted: boolean; state: 'on' | 'off'; direction: string }>> {
+  const res = await apiClient.post(`/calls/${callId}/mute`, {
+    state,
+    direction: 'all',
+  });
+  return { success: true, data: res.data?.data, error: null };
 }
 
 export async function hangupCall(

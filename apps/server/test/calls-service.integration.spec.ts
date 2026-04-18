@@ -8,11 +8,16 @@ import { TransferDetectorService } from '../src/modules/calls/transfer-detector.
 describe('CallsService branch filter integration', () => {
   let service: CallsService;
   const prisma = {
+    asteriskDid: {
+      findMany: jest.fn(),
+    },
     tenantSystemSettings: {
       findUnique: jest.fn(),
     },
     attendedTransferCandidates: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
     branchAgents: {
       findMany: jest.fn(),
@@ -27,6 +32,8 @@ describe('CallsService branch filter integration', () => {
     },
     callTransfers: {
       create: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
     callRecordings: {
       findMany: jest.fn(),
@@ -42,6 +49,10 @@ describe('CallsService branch filter integration', () => {
     originate: jest.fn(),
     blindTransfer: jest.fn(),
     attendedTransfer: jest.fn(),
+    cancelAttendedTransfer: jest.fn(),
+    completeAttendedTransfer: jest.fn(),
+    pickup: jest.fn(),
+    muteAudio: jest.fn(),
     hangup: jest.fn(),
   };
   const transferDetector = {
@@ -50,6 +61,7 @@ describe('CallsService branch filter integration', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.asteriskDid.findMany.mockResolvedValue([]);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CallsService,
@@ -70,6 +82,8 @@ describe('CallsService branch filter integration', () => {
       {
         callId: 'call-1',
         linkedid: 'L-1',
+        dnis: '15771577',
+        didNumber: '15771577',
         primaryAgentId: 'agent-1',
         sessionStatus: 'TALKING',
         startedAt: new Date('2026-04-16T09:00:00.000Z'),
@@ -86,6 +100,12 @@ describe('CallsService branch filter integration', () => {
         requestedAt: new Date('2026-04-16T09:01:00.000Z'),
         completedAt: null,
         expiredAt: null,
+      },
+    ]);
+    prisma.asteriskDid.findMany.mockResolvedValue([
+      {
+        did: '15771577',
+        representativeNumber: '1577-1577',
       },
     ]);
 
@@ -125,6 +145,7 @@ describe('CallsService branch filter integration', () => {
         {
           callId: 'call-1',
           agentName: '상담원1',
+          representativeNumber: '1577-1577',
           latestTransfer: {
             phase: 'CONSULT_RINGING',
             toExtension: '2001',
@@ -172,6 +193,7 @@ describe('CallsService branch filter integration', () => {
         linkedid: true,
         ani: true,
         dnis: true,
+        didNumber: true,
         queueName: true,
         sessionStatus: true,
         direction: true,
@@ -209,9 +231,17 @@ describe('CallsService branch filter integration', () => {
         recordingStartedAt: new Date('2026-04-16T10:00:00.000Z'),
         session: {
           ani: '01012345678',
+          dnis: '15771577',
+          didNumber: '15771577',
           queueName: 'Q1',
           primaryAgent: { agentName: '상담원9' },
         },
+      },
+    ]);
+    prisma.asteriskDid.findMany.mockResolvedValue([
+      {
+        did: '15771577',
+        representativeNumber: '1577-1577',
       },
     ]);
 
@@ -246,6 +276,8 @@ describe('CallsService branch filter integration', () => {
         session: {
           select: {
             ani: true,
+            dnis: true,
+            didNumber: true,
             queueName: true,
             primaryAgent: { select: { agentName: true } },
           },
@@ -258,6 +290,9 @@ describe('CallsService branch filter integration', () => {
         {
           recordingId: 'rec-1',
           fileName: 'rec-1.wav',
+          session: {
+            representativeNumber: '1577-1577',
+          },
         },
       ],
       error: null,
@@ -403,5 +438,210 @@ describe('CallsService branch filter integration', () => {
       'PJSIP/2001-00000011',
       '3001',
     );
+  });
+
+  it('attended transfer 취소는 열린 candidate 를 닫고 CancelAtxfer 를 요청한다', async () => {
+    prisma.callSessions.findUnique.mockResolvedValue({
+      callId: 'call-9',
+      tenantId: 'tenant-1',
+      linkedid: 'L-900',
+      answeredAt: new Date('2026-04-18T01:00:00.000Z'),
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000090',
+        },
+      ],
+    });
+    prisma.attendedTransferCandidates.findFirst.mockResolvedValue({
+      candidateId: 'candidate-9',
+      tenantId: 'tenant-1',
+      linkedid: 'L-900',
+      phase: 'CONSULT_TALKING',
+      requestedAt: new Date('2026-04-18T01:01:00.000Z'),
+    });
+    prisma.callTransfers.findFirst.mockResolvedValue({
+      transferId: 'transfer-9',
+      requestedAt: new Date('2026-04-18T01:01:00.000Z'),
+    });
+    prisma.attendedTransferCandidates.update.mockResolvedValue({ candidateId: 'candidate-9' });
+    prisma.callTransfers.update.mockResolvedValue({ transferId: 'transfer-9' });
+    prisma.callSessions.update.mockResolvedValue({ callId: 'call-9', sessionStatus: 'TALKING' });
+
+    const result = await service.cancelAttendedTransfer('call-9');
+
+    expect(prisma.attendedTransferCandidates.update).toHaveBeenCalledWith({
+      where: { candidateId: 'candidate-9' },
+      data: expect.objectContaining({
+        phase: 'FAILED',
+        completedAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      }),
+    });
+    expect(prisma.callTransfers.update).toHaveBeenCalledWith({
+      where: { transferId: 'transfer-9' },
+      data: {
+        transferResult: 'CANCELED',
+        completedAt: expect.any(Date),
+      },
+    });
+    expect(prisma.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-9' },
+      data: expect.objectContaining({
+        sessionStatus: 'TALKING',
+        updatedAt: expect.any(Date),
+      }),
+    });
+    expect(asteriskManager.cancelAttendedTransfer).toHaveBeenCalledWith('PJSIP/1001-00000090');
+    expect(result).toMatchObject({
+      success: true,
+      data: { callId: 'call-9', canceled: true },
+      error: null,
+    });
+  });
+
+  it('attended transfer 완료는 제어 채널에 기능 코드를 주입하고 AttendedTransfer 이벤트를 기다린다', async () => {
+    prisma.callSessions.findUnique.mockResolvedValue({
+      callId: 'call-10',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1000',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000100',
+        },
+      ],
+    });
+    prisma.attendedTransferCandidates.findFirst.mockResolvedValue({
+      candidateId: 'candidate-10',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1000',
+      phase: 'CONSULT_TALKING',
+      requestedAt: new Date('2026-04-18T02:00:00.000Z'),
+    });
+    prisma.callSessions.update.mockResolvedValue({ callId: 'call-10', sessionStatus: 'TRANSFERRING' });
+
+    const result = await service.completeAttendedTransfer('call-10');
+
+    expect(prisma.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-10' },
+      data: expect.objectContaining({
+        sessionStatus: 'TRANSFERRING',
+        updatedAt: expect.any(Date),
+      }),
+    });
+    expect(asteriskManager.completeAttendedTransfer).toHaveBeenCalledWith('PJSIP/1001-00000100');
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'ami.command.transfer.complete.requested',
+      expect.objectContaining({
+        callId: 'call-10',
+        linkedid: 'L-1000',
+        candidateId: 'candidate-10',
+      }),
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: { callId: 'call-10', accepted: true },
+      error: null,
+    });
+  });
+
+  it('pickup 은 queued call 의 고객 leg 를 현재 상담원 내선으로 redirect 한다', async () => {
+    prisma.callSessions.findUnique.mockResolvedValue({
+      callId: 'call-3',
+      tenantId: 'tenant-1',
+      linkedid: 'L-300',
+      sessionStatus: 'QUEUED',
+      ringingAt: null,
+      callLegs: [
+        {
+          legType: 'inbound',
+          endedAt: null,
+          channelName: 'PJSIP/trunk-provider-00000020',
+        },
+      ],
+    });
+    prisma.callSessions.update.mockResolvedValue({ callId: 'call-3' });
+
+    const result = await service.pickup('call-3', {
+      agentId: 'agent-3',
+      extension: '1003',
+    });
+
+    expect(prisma.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-3' },
+      data: {
+        primaryAgentId: 'agent-3',
+        sessionStatus: 'RINGING_AGENT',
+        ringingAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(asteriskManager.pickup).toHaveBeenCalledWith(
+      'PJSIP/trunk-provider-00000020',
+      '1003',
+    );
+    expect(eventBus.publish).toHaveBeenCalledWith('ami.command.pickup.requested', {
+      callId: 'call-3',
+      linkedid: 'L-300',
+      agentId: 'agent-3',
+      extension: '1003',
+    });
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        callId: 'call-3',
+        accepted: true,
+        extension: '1003',
+      },
+      error: null,
+    });
+  });
+
+  it('mute 는 활성 agent leg 에 MuteAudio 를 요청한다', async () => {
+    prisma.callSessions.findUnique.mockResolvedValue({
+      callId: 'call-mute-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-mute-1',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000abc',
+        },
+      ],
+    });
+
+    const result = await service.mute('call-mute-1', {
+      state: 'on',
+      direction: 'all',
+    });
+
+    expect(asteriskManager.muteAudio).toHaveBeenCalledWith(
+      'PJSIP/1001-00000abc',
+      'on',
+      'all',
+    );
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'ami.command.mute.requested',
+      expect.objectContaining({
+        callId: 'call-mute-1',
+        linkedid: 'L-mute-1',
+        state: 'on',
+        direction: 'all',
+      }),
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        callId: 'call-mute-1',
+        accepted: true,
+        state: 'on',
+        direction: 'all',
+      },
+      error: null,
+    });
   });
 });

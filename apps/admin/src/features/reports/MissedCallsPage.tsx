@@ -11,6 +11,8 @@ interface MissedRow {
   callId: string;
   ani: string;
   dnis: string;
+  didNumber?: string | null;
+  representativeNumber?: string | null;
   queueName: string;
   startedAt: string;
   waitSeconds: number;
@@ -46,11 +48,12 @@ export function MissedCallsPage() {
   const exportRows = () => {
     downloadCsv(
       `missed-calls-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['시작', '발신번호', '수신번호', '큐', '최종 상담원', '대기(초)', '결과'],
+      ['시작', '발신번호', '대표번호', 'DID', '큐', '최종 상담원', '대기(초)', '결과'],
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
         row.ani,
-        row.dnis,
+        row.representativeNumber ?? '-',
+        row.didNumber ?? row.dnis,
         row.queueName,
         row.primaryAgent?.agentName ?? '-',
         row.waitSeconds,
@@ -92,7 +95,16 @@ export function MissedCallsPage() {
             width: 130,
           },
           { title: '발신번호', dataIndex: 'ani', width: 130 },
-          { title: '수신번호', dataIndex: 'dnis', width: 130 },
+          {
+            title: '대표번호 / DID',
+            width: 180,
+            render: (_: unknown, row: MissedRow) => (
+              <Space direction="vertical" size={0}>
+                <Typography.Text strong>{row.representativeNumber ?? '-'}</Typography.Text>
+                <Typography.Text type="secondary">{row.didNumber ?? row.dnis ?? '-'}</Typography.Text>
+              </Space>
+            ),
+          },
           { title: '큐', dataIndex: 'queueName', width: 140 },
           {
             title: '최종 상담원',

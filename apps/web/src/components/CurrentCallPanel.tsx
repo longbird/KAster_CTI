@@ -3,6 +3,8 @@ import type { ActiveCall } from '../types/cti';
 
 interface Props {
   call?: ActiveCall;
+  onPickup: () => Promise<void>;
+  onToggleMute: () => Promise<void>;
   onHangup: () => Promise<void>;
 }
 
@@ -16,7 +18,7 @@ function formatCallDuration(iso?: string): string {
 
 // "The Precision Curator" 의 Active Call Panel — 프라이머리 그라디언트 hero 카드.
 // glassmorphism 컨트롤 + 고정 waveform.
-export function CurrentCallPanel({ call, onHangup }: Props) {
+export function CurrentCallPanel({ call, onPickup, onToggleMute, onHangup }: Props) {
   // 1초마다 통화 시간 리렌더
   const [, tick] = useState(0);
   useEffect(() => {
@@ -43,6 +45,7 @@ export function CurrentCallPanel({ call, onHangup }: Props) {
 
   const customer = call.customer;
   const duration = formatCallDuration(call.answeredAt ?? call.startedAt);
+  const canPickup = ['QUEUED', 'RINGING_AGENT'].includes(call.sessionStatus) && !call.answeredAt;
 
   return (
     <div
@@ -105,7 +108,24 @@ export function CurrentCallPanel({ call, onHangup }: Props) {
 
         {/* 콜 제어 버튼 — glassmorphism */}
         <div className="flex flex-wrap gap-3">
-          <IconButton icon="mic_off" label="Mute" />
+          {canPickup ? (
+            <button
+              onClick={async () => {
+                await onPickup();
+              }}
+              className="glass-panel flex h-12 items-center gap-2 rounded-full px-5 text-white transition-all hover:bg-white/20 active:scale-95"
+            >
+              <span className="material-symbols-outlined">phone_in_talk</span>
+              Pickup
+            </button>
+          ) : null}
+          <IconButton
+            icon={call.isMuted ? 'mic' : 'mic_off'}
+            label={call.isMuted ? 'Unmute' : 'Mute'}
+            onClick={async () => {
+              await onToggleMute();
+            }}
+          />
           <IconButton icon="pause" label="Hold" />
           <IconButton icon="phone_forwarded" label="Transfer" />
           <button
@@ -123,10 +143,21 @@ export function CurrentCallPanel({ call, onHangup }: Props) {
   );
 }
 
-function IconButton({ icon, label }: { icon: string; label: string }) {
+function IconButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  onClick?: () => void | Promise<void>;
+}) {
   return (
     <button
       title={label}
+      onClick={() => {
+        void onClick?.();
+      }}
       className="glass-panel flex h-12 w-12 items-center justify-center rounded-full text-white transition-all hover:bg-white/20 active:scale-95"
     >
       <span className="material-symbols-outlined">{icon}</span>

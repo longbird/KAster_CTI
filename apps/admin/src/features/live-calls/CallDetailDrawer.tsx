@@ -8,6 +8,8 @@ export interface CallRow {
   linkedid: string;
   ani: string;
   dnis?: string;
+  didNumber?: string | null;
+  representativeNumber?: string | null;
   queueName?: string;
   primaryAgentId?: string;
   agentName?: string;
@@ -148,7 +150,8 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
             <Descriptions.Item label="Call ID">{detail.callId}</Descriptions.Item>
             <Descriptions.Item label="Linked ID">{detail.linkedid}</Descriptions.Item>
             <Descriptions.Item label="고객 번호">{detail.ani}</Descriptions.Item>
-            <Descriptions.Item label="DID">{detail.dnis ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="대표번호">{detail.representativeNumber ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="DID">{detail.didNumber ?? detail.dnis ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="큐">{detail.queueName ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="상담원">{detail.agentName || detail.primaryAgentId || '-'}</Descriptions.Item>
             <Descriptions.Item label="상태">

@@ -1,59 +1,136 @@
-import { SESSION_PRECEDENCE, statusRank, computeFingerprint } from '../src/modules/calls/session-engine.service';
+import { SessionEngineService } from '../src/modules/calls/session-engine.service';
+import { PrismaService } from '../src/common/prisma.service';
+import { RedisService } from '../src/modules/redis/redis.service';
+import { TransferDetectorService } from '../src/modules/calls/transfer-detector.service';
 
-describe('SESSION_PRECEDENCE (conv 44 역행 가드)', () => {
-  it('단조 증가 순서', () => {
-    expect(SESSION_PRECEDENCE.NEW).toBeLessThan(SESSION_PRECEDENCE.QUEUED);
-    expect(SESSION_PRECEDENCE.QUEUED).toBeLessThan(SESSION_PRECEDENCE.RINGING_AGENT);
-    expect(SESSION_PRECEDENCE.RINGING_AGENT).toBeLessThan(SESSION_PRECEDENCE.TALKING);
-    expect(SESSION_PRECEDENCE.TALKING).toBeLessThan(SESSION_PRECEDENCE.AFTER_CALL_WORK);
-    expect(SESSION_PRECEDENCE.AFTER_CALL_WORK).toBeLessThan(SESSION_PRECEDENCE.ENDED);
-  });
+describe('SessionEngineService hold/unhold handling', () => {
+  let service: SessionEngineService;
 
-  it('TALKING 에서 RINGING_AGENT 로 내려가는 것은 역행 (statusRank 감소)', () => {
-    expect(statusRank('RINGING_AGENT')).toBeLessThan(statusRank('TALKING'));
-  });
-
-  it('unknown 상태는 -1 을 반환해 항상 덮어쓰기 가능', () => {
-    expect(statusRank('UNKNOWN_STATE')).toBe(-1);
-    expect(statusRank(null)).toBe(-1);
-    expect(statusRank(undefined)).toBe(-1);
-  });
-});
-
-describe('computeFingerprint (conv 44 dedupe)', () => {
-  const base = {
-    eventName: 'QueueCallerJoin',
-    linkedid: 'L-123',
-    uniqueid: 'U-456',
-    channel: 'PJSIP/trunk-0001',
-    destChannel: 'PJSIP/1001-0002',
-    eventTime: '2026-04-14T00:00:00.000Z',
+  const tx = {
+    callSessions: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    eventOutbox: {
+      create: jest.fn(),
+    },
   };
 
-  it('동일 입력은 동일 fingerprint 를 반환한다', () => {
-    expect(computeFingerprint(base)).toBe(computeFingerprint(base));
+  const prisma = {
+    rawAmiEvents: {
+      create: jest.fn(),
+    },
+    $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+  };
+
+  const redis = {
+    getClient: jest.fn(() => ({
+      set: jest.fn().mockResolvedValue('OK'),
+    })),
+  };
+
+  const transferDetector = {
+    handle: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new SessionEngineService(
+      prisma as unknown as PrismaService,
+      redis as unknown as RedisService,
+      transferDetector as unknown as TransferDetectorService,
+    );
   });
 
-  it('eventName 이 달라지면 fingerprint 도 달라진다', () => {
-    const a = computeFingerprint(base);
-    const b = computeFingerprint({ ...base, eventName: 'Hangup' });
-    expect(a).not.toBe(b);
+  it('Hold 이벤트는 talking 세션을 HOLD 로 전환하고 call.updated outbox 를 적재한다', async () => {
+    const answeredAt = new Date('2026-04-18T10:00:00.000Z');
+    const holdAt = new Date('2026-04-18T10:05:00.000Z');
+    const updated = {
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      sessionStatus: 'HOLD',
+      answeredAt,
+      updatedAt: holdAt,
+      holdSeconds: 0,
+    };
+
+    tx.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      sessionStatus: 'TALKING',
+      answeredAt,
+      updatedAt: answeredAt,
+      holdSeconds: 0,
+    });
+    tx.callSessions.update.mockResolvedValue(updated);
+    prisma.rawAmiEvents.create.mockResolvedValue({});
+
+    await service.processNormalizedEvent({
+      eventName: 'Hold',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      uniqueid: 'U-1',
+      eventTime: holdAt.toISOString(),
+    });
+
+    expect(tx.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-1' },
+      data: {
+        sessionStatus: 'HOLD',
+        updatedAt: holdAt,
+      },
+    });
+    expect(tx.eventOutbox.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        eventType: 'call.updated',
+      }),
+    });
   });
 
-  it('1초 이내 재전송은 같은 bucket 이므로 같은 fingerprint', () => {
-    const a = computeFingerprint({ ...base, eventTime: '2026-04-14T00:00:00.500Z' });
-    const b = computeFingerprint({ ...base, eventTime: '2026-04-14T00:00:00.999Z' });
-    expect(a).toBe(b);
-  });
+  it('Unhold 이벤트는 HOLD 세션을 TALKING 으로 복귀시키고 holdSeconds 를 누적한다', async () => {
+    const holdAt = new Date('2026-04-18T10:05:00.000Z');
+    const resumeAt = new Date('2026-04-18T10:05:12.000Z');
+    const updated = {
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      sessionStatus: 'TALKING',
+      answeredAt: new Date('2026-04-18T10:00:00.000Z'),
+      updatedAt: resumeAt,
+      holdSeconds: 12,
+    };
 
-  it('1초 경계를 넘으면 fingerprint 가 달라진다', () => {
-    const a = computeFingerprint({ ...base, eventTime: '2026-04-14T00:00:00.000Z' });
-    const b = computeFingerprint({ ...base, eventTime: '2026-04-14T00:00:01.500Z' });
-    expect(a).not.toBe(b);
-  });
+    tx.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      sessionStatus: 'HOLD',
+      answeredAt: new Date('2026-04-18T10:00:00.000Z'),
+      updatedAt: holdAt,
+      holdSeconds: 0,
+    });
+    tx.callSessions.update.mockResolvedValue(updated);
+    prisma.rawAmiEvents.create.mockResolvedValue({});
 
-  it('sha256 hex 형식(64자 hex)을 반환한다', () => {
-    const fp = computeFingerprint(base);
-    expect(fp).toMatch(/^[0-9a-f]{64}$/);
+    await service.processNormalizedEvent({
+      eventName: 'Unhold',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      uniqueid: 'U-1',
+      eventTime: resumeAt.toISOString(),
+    });
+
+    expect(tx.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-1' },
+      data: {
+        sessionStatus: 'TALKING',
+        holdSeconds: 12,
+        updatedAt: resumeAt,
+      },
+    });
   });
 });

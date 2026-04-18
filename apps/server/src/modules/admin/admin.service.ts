@@ -651,7 +651,17 @@ export class AdminService {
     const rows = await this.prisma.rolePermissions.findMany({
       where: { tenantId },
       orderBy: [{ roleCode: 'asc' }, { menuKey: 'asc' }],
-    });
+    } as any) as Array<{
+      roleCode: string;
+      menuKey: string;
+      canAccess?: boolean;
+      canView?: boolean;
+      canCreate?: boolean;
+      canUpdate?: boolean;
+      canDelete?: boolean;
+      canOperate?: boolean;
+      canExport?: boolean;
+    }>;
 
     const persisted = new Map(
       rows.map((row) => [`${row.roleCode}:${row.menuKey}`, row]),
@@ -709,7 +719,7 @@ export class AdminService {
             canDelete: item.canDelete,
             canOperate: item.canOperate,
             canExport: item.canExport,
-          },
+          } as any,
           update: {
             canAccess: item.canView,
             canView: item.canView,
@@ -719,7 +729,7 @@ export class AdminService {
             canOperate: item.canOperate,
             canExport: item.canExport,
             updatedAt: new Date(),
-          },
+          } as any,
         }),
       ),
     );
@@ -735,7 +745,19 @@ export class AdminService {
 
     const row = await this.prisma.tenantSystemSettings.findUnique({
       where: { tenantId },
-    });
+    } as any) as
+      | {
+          recordingEnabled: boolean;
+          defaultMaxWaitSeconds: number;
+          allowDirectSipDial?: boolean | null;
+          defaultSipPassword?: string | null;
+          allowedOutboundCallerIds?: string | null;
+          defaultOutboundCallerId?: string | null;
+          sipRegisterPort?: number | null;
+          timezone: string;
+          dateFormat: string;
+        }
+      | null;
 
     const defaults = {
       tenantId,
@@ -791,7 +813,7 @@ export class AdminService {
         sipRegisterPort: dto.sipRegisterPort,
         timezone: dto.timezone,
         dateFormat: dto.dateFormat,
-      },
+      } as any,
       update: {
         recordingEnabled: dto.recordingEnabled,
         defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
@@ -803,8 +825,8 @@ export class AdminService {
         timezone: dto.timezone,
         dateFormat: dto.dateFormat,
         updatedAt: new Date(),
-      },
-    });
+      } as any,
+    } as any);
 
     await this.prisma.tenants.update({
       where: { tenantId },

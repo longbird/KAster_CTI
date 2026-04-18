@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import {
+  cancelAttendedTransferCall,
+  completeAttendedTransferCall,
   getActiveCalls,
   getAgentSession,
   getCallHistory,
   getQueuesSummary,
   hangupCall,
+  muteCall,
+  pickupCall,
   saveCallMemo,
   transferCall,
   updateAgentStatus,
@@ -32,7 +36,11 @@ interface CtiState {
   selectCall: (callId: string) => void;
   changeStatus: (statusCode: AgentSession['statusCode']) => Promise<void>;
   saveMemo: (memo: string, resultCode: string) => Promise<void>;
-  transfer: (target: string) => Promise<void>;
+  pickup: () => Promise<void>;
+  toggleMute: () => Promise<void>;
+  transfer: (target: string, mode?: 'blind' | 'attended') => Promise<void>;
+  cancelAttendedTransfer: () => Promise<void>;
+  completeAttendedTransfer: () => Promise<void>;
   hangup: () => Promise<void>;
   applyEvent: (event: CtiEvent) => void;
 }
@@ -141,15 +149,111 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       eventLog: pushLog(state, 'info', msg),
     }));
   },
-  transfer: async (target) => {
+  pickup: async () => {
     const callId = get().selectedCallId;
     if (!callId) return;
 
-    await transferCall(callId, target);
-    const msg = `호 전환 요청이 접수되었습니다. 대상: ${target}`;
+    await pickupCall(callId);
+    const agent = get().agentSession;
+    const msg = `당겨받기 요청이 접수되었습니다. 내선: ${agent?.extension ?? '-'}`;
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
-        call.callId === callId ? { ...call, sessionStatus: 'TRANSFERRING' } : call,
+        call.callId === callId
+          ? { ...call, sessionStatus: 'RINGING_AGENT', primaryAgentId: agent?.agentId }
+          : call,
+      ),
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  toggleMute: async () => {
+    const callId = get().selectedCallId;
+    if (!callId) return;
+
+    const current = get().activeCalls.find((call) => call.callId === callId);
+    const nextState = current?.isMuted ? 'off' : 'on';
+    await muteCall(callId, nextState);
+    const msg = nextState === 'on'
+      ? '통화 음소거 요청이 처리되었습니다.'
+      : '통화 음소거 해제 요청이 처리되었습니다.';
+    set((state) => ({
+      activeCalls: state.activeCalls.map((call) =>
+        call.callId === callId ? { ...call, isMuted: nextState === 'on' } : call,
+      ),
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  transfer: async (target, mode = 'blind') => {
+    const callId = get().selectedCallId;
+    if (!callId) return;
+
+    await transferCall(callId, target, mode);
+    const msg = mode === 'attended'
+      ? `상담 전환 요청이 접수되었습니다. 대상: ${target}`
+      : `호 전환 요청이 접수되었습니다. 대상: ${target}`;
+    set((state) => ({
+      activeCalls: state.activeCalls.map((call) =>
+        call.callId === callId
+          ? {
+              ...call,
+              sessionStatus: 'TRANSFERRING',
+              latestTransfer: mode === 'attended'
+                ? {
+                    phase: 'REQUESTED',
+                    toExtension: target,
+                    requestedAt: new Date().toISOString(),
+                    completedAt: null,
+                    expiredAt: null,
+                  }
+                : call.latestTransfer ?? null,
+            }
+          : call,
+      ),
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  cancelAttendedTransfer: async () => {
+    const callId = get().selectedCallId;
+    if (!callId) return;
+
+    await cancelAttendedTransferCall(callId);
+    const msg = '상담 전환 취소 요청이 처리되었습니다.';
+    set((state) => ({
+      activeCalls: state.activeCalls.map((call) =>
+        call.callId === callId
+          ? {
+              ...call,
+              sessionStatus: call.answeredAt ? 'TALKING' : 'RINGING_AGENT',
+              latestTransfer: null,
+            }
+          : call,
+      ),
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  completeAttendedTransfer: async () => {
+    const callId = get().selectedCallId;
+    if (!callId) return;
+
+    await completeAttendedTransferCall(callId);
+    const msg = '상담 전환 완료 요청이 처리되었습니다.';
+    set((state) => ({
+      activeCalls: state.activeCalls.map((call) =>
+        call.callId === callId
+          ? {
+              ...call,
+              sessionStatus: 'TRANSFERRING',
+              latestTransfer: call.latestTransfer
+                ? {
+                    ...call.latestTransfer,
+                    phase: 'REBRIDGING',
+                  }
+                : call.latestTransfer,
+            }
+          : call,
       ),
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),

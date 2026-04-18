@@ -6,8 +6,13 @@ import { AmiLeaderElectionService } from '../src/modules/redis/ami-leader-electi
 describe('TransferDetectorService integration', () => {
   let service: TransferDetectorService;
   const prisma = {
+    callSessions: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
     attendedTransferCandidates: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
@@ -193,6 +198,10 @@ describe('TransferDetectorService integration', () => {
     prisma.callTransfers.findFirst.mockResolvedValue({
       transferId: 'transfer-5',
     });
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-5',
+      answeredAt: new Date('2026-04-18T03:00:00.000Z'),
+    });
 
     await service.handle({
       eventName: 'DialEnd',
@@ -215,6 +224,13 @@ describe('TransferDetectorService integration', () => {
       where: { transferId: 'transfer-5' },
       data: expect.objectContaining({
         transferResult: 'FAILED',
+      }),
+    });
+    expect(prisma.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-5' },
+      data: expect.objectContaining({
+        sessionStatus: 'TALKING',
+        transferFlag: false,
       }),
     });
   });
@@ -266,21 +282,75 @@ describe('TransferDetectorService integration', () => {
   });
 
   it('REQUESTED transfer 가 오래 남아 있으면 EXPIRED 로 만료 처리한다', async () => {
+    prisma.attendedTransferCandidates.findMany.mockResolvedValue([
+      {
+        candidateId: 'candidate-exp-1',
+        tenantId: 'tenant-1',
+        linkedid: 'L-exp-1',
+      },
+      {
+        candidateId: 'candidate-exp-2',
+        tenantId: 'tenant-1',
+        linkedid: 'L-exp-2',
+      },
+    ]);
     prisma.attendedTransferCandidates.updateMany.mockResolvedValue({ count: 2 });
+    prisma.callTransfers.findFirst
+      .mockResolvedValueOnce({ transferId: 'transfer-exp-1' })
+      .mockResolvedValueOnce(null);
+    prisma.callSessions.findFirst
+      .mockResolvedValueOnce({
+        callId: 'call-exp-1',
+        answeredAt: new Date('2026-04-18T03:10:00.000Z'),
+      })
+      .mockResolvedValueOnce({
+        callId: 'call-exp-2',
+        answeredAt: null,
+      });
 
     const count = await service.sweepExpired(15);
 
-    expect(prisma.attendedTransferCandidates.updateMany).toHaveBeenCalledWith({
+    expect(prisma.attendedTransferCandidates.findMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
         phase: {
           in: ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'],
         },
         requestedAt: { lt: expect.any(Date) },
       }),
+      select: {
+        candidateId: true,
+        tenantId: true,
+        linkedid: true,
+      },
+    });
+    expect(prisma.attendedTransferCandidates.updateMany).toHaveBeenCalledWith({
+      where: {
+        candidateId: { in: ['candidate-exp-1', 'candidate-exp-2'] },
+      },
       data: expect.objectContaining({
         phase: 'EXPIRED',
         expiredAt: expect.any(Date),
         updatedAt: expect.any(Date),
+      }),
+    });
+    expect(prisma.callTransfers.update).toHaveBeenCalledWith({
+      where: { transferId: 'transfer-exp-1' },
+      data: expect.objectContaining({
+        transferResult: 'EXPIRED',
+      }),
+    });
+    expect(prisma.callSessions.update).toHaveBeenNthCalledWith(1, {
+      where: { callId: 'call-exp-1' },
+      data: expect.objectContaining({
+        sessionStatus: 'TALKING',
+        transferFlag: false,
+      }),
+    });
+    expect(prisma.callSessions.update).toHaveBeenNthCalledWith(2, {
+      where: { callId: 'call-exp-2' },
+      data: expect.objectContaining({
+        sessionStatus: 'RINGING_AGENT',
+        transferFlag: false,
       }),
     });
     expect(count).toBe(2);

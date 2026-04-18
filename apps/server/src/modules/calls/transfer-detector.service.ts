@@ -147,6 +147,27 @@ export class TransferDetectorService implements OnModuleInit {
     });
   }
 
+  private async restoreCallSessionAfterTransferFallback(
+    tenantId: string,
+    linkedid: string,
+    now: Date,
+  ) {
+    const session = await this.prisma.callSessions.findFirst({
+      where: { tenantId, linkedid },
+      select: { callId: true, answeredAt: true },
+    });
+    if (!session) return;
+
+    await this.prisma.callSessions.update({
+      where: { callId: session.callId },
+      data: {
+        sessionStatus: session.answeredAt ? 'TALKING' : 'RINGING_AGENT',
+        transferFlag: false,
+        updatedAt: now,
+      },
+    });
+  }
+
   private async markConsultRinging(event: Record<string, any>) {
     const tenantId = event.tenantId;
     const linkedid = event.linkedid || event.Linkedid;
@@ -265,6 +286,8 @@ export class TransferDetectorService implements OnModuleInit {
         },
       });
     }
+
+    await this.restoreCallSessionAfterTransferFallback(tenantId, linkedid, now);
   }
 
   private async completeTransfer(event: Record<string, any>, type: 'blind' | 'attended') {
@@ -365,13 +388,56 @@ export class TransferDetectorService implements OnModuleInit {
   // SessionRecoverySweeperService 와 같은 방식으로 리더 노드에서 주기 sweep.
   async sweepExpired(olderThanMinutes = 15): Promise<number> {
     const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
-    const result = await this.prisma.attendedTransferCandidates.updateMany({
+    const expiredCandidates = await this.prisma.attendedTransferCandidates.findMany({
       where: {
         phase: { in: ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'] as TransferPhase[] as any },
         requestedAt: { lt: cutoff },
       },
-      data: { phase: 'EXPIRED', expiredAt: new Date(), updatedAt: new Date() },
+      select: {
+        candidateId: true,
+        tenantId: true,
+        linkedid: true,
+      },
     });
+    if (expiredCandidates.length === 0) {
+      return 0;
+    }
+
+    const now = new Date();
+    const result = await this.prisma.attendedTransferCandidates.updateMany({
+      where: {
+        candidateId: { in: expiredCandidates.map((candidate) => candidate.candidateId) },
+      },
+      data: { phase: 'EXPIRED', expiredAt: now, updatedAt: now },
+    });
+
+    for (const candidate of expiredCandidates) {
+      const pending = await this.prisma.callTransfers.findFirst({
+        where: {
+          tenantId: candidate.tenantId,
+          linkedid: candidate.linkedid,
+          transferType: 'attended',
+          OR: [{ transferResult: null }, { transferResult: 'REQUESTED' }],
+        },
+        orderBy: { requestedAt: 'desc' },
+      });
+      if (pending) {
+        await this.prisma.callTransfers.update({
+          where: { transferId: pending.transferId },
+          data: {
+            transferResult: 'EXPIRED',
+            completedAt: now,
+          },
+        });
+      }
+
+      await this.restoreCallSessionAfterTransferFallback(
+        candidate.tenantId,
+        candidate.linkedid,
+        now,
+      );
+    }
+
     return result.count;
   }
 }

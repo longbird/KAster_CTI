@@ -13,6 +13,10 @@ export const getCallHistory = api.getCallHistory;
 export const updateAgentStatus = api.updateAgentStatus;
 export const saveCallMemo = api.saveCallMemo;
 export const transferCall = api.transferCall;
+export const cancelAttendedTransferCall = api.cancelAttendedTransferCall;
+export const completeAttendedTransferCall = api.completeAttendedTransferCall;
+export const pickupCall = api.pickupCall;
+export const muteCall = api.muteCall;
 export const hangupCall = api.hangupCall;
 
 // 로그인/로그아웃은 real 쪽에만 구현. mock 모드에서는 no-op.

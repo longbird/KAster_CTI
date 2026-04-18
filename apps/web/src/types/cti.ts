@@ -59,9 +59,17 @@ export interface ActiveCall {
   queuedAt?: string;
   answeredAt?: string;
   primaryAgentId?: string;
+  latestTransfer?: {
+    phase: string;
+    toExtension?: string;
+    requestedAt?: string;
+    completedAt?: string | null;
+    expiredAt?: string | null;
+  } | null;
   customer?: Customer;
   memo?: string;
   resultCode?: string;
+  isMuted?: boolean;
 }
 
 export interface CallHistoryItem {

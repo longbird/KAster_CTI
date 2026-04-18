@@ -12,6 +12,8 @@ interface CdrRow {
   linkedid: string;
   ani: string;
   dnis: string;
+  didNumber?: string | null;
+  representativeNumber?: string | null;
   queueName: string;
   sessionStatus: string;
   direction: string;
@@ -77,11 +79,12 @@ export function CallsReportPage() {
   const exportRows = () => {
     downloadCsv(
       `calls-report-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['시작', '발신번호', '수신번호', '큐', '상담원', '상태', '전환', '대기(초)', '통화(초)', '포기', '녹취'],
+      ['시작', '발신번호', '대표번호', 'DID', '큐', '상담원', '상태', '전환', '대기(초)', '통화(초)', '포기', '녹취'],
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
         row.ani,
-        row.dnis,
+        row.representativeNumber ?? '-',
+        row.didNumber ?? row.dnis,
         row.queueName,
         row.primaryAgent?.agentName ?? '-',
         row.sessionStatus,
@@ -138,7 +141,16 @@ export function CallsReportPage() {
             width: 130,
           },
           { title: '발신번호', dataIndex: 'ani', width: 120 },
-          { title: '수신번호', dataIndex: 'dnis', width: 120 },
+          {
+            title: '대표번호 / DID',
+            width: 180,
+            render: (_: unknown, row: CdrRow) => (
+              <Space direction="vertical" size={0}>
+                <Typography.Text strong>{row.representativeNumber ?? '-'}</Typography.Text>
+                <Typography.Text type="secondary">{row.didNumber ?? row.dnis ?? '-'}</Typography.Text>
+              </Space>
+            ),
+          },
           { title: '큐', dataIndex: 'queueName', width: 120 },
           {
             title: '상담원',

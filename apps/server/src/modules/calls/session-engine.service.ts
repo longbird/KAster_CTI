@@ -132,6 +132,20 @@ export class SessionEngineService {
           event.tenantId,
         );
         break;
+      case 'Hold':
+        await this.markHold(
+          linkedid,
+          event.tenantId,
+          event.eventTime ? new Date(event.eventTime) : new Date(),
+        );
+        break;
+      case 'Unhold':
+        await this.resumeHold(
+          linkedid,
+          event.tenantId,
+          event.eventTime ? new Date(event.eventTime) : new Date(),
+        );
+        break;
       case 'Hangup':
         await this.finalizeHangup(linkedid, event.tenantId);
         break;
@@ -218,13 +232,62 @@ export class SessionEngineService {
       const talkSeconds = found.answeredAt
         ? Math.max(0, Math.floor((endedAt.getTime() - found.answeredAt.getTime()) / 1000))
         : 0;
+      const pendingHoldSeconds = found.sessionStatus === 'HOLD'
+        ? Math.max(0, Math.floor((endedAt.getTime() - found.updatedAt.getTime()) / 1000))
+        : 0;
 
       const updated = await tx.callSessions.update({
         where: { callId: found.callId },
-        data: { sessionStatus: 'ENDED', endedAt, talkSeconds },
+        data: {
+          sessionStatus: 'ENDED',
+          endedAt,
+          talkSeconds,
+          holdSeconds: found.holdSeconds + pendingHoldSeconds,
+        },
       });
 
       await this.enqueueOutbox(tx, tenantId, 'call.ended', updated);
+    });
+  }
+
+  private async markHold(linkedid: string, tenantId: string, eventAt: Date) {
+    await this.prisma.$transaction(async (tx) => {
+      const found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+      if (!found || found.sessionStatus === 'ENDED' || !found.answeredAt) return;
+      if (found.sessionStatus === 'HOLD') return;
+
+      const updated = await tx.callSessions.update({
+        where: { callId: found.callId },
+        data: {
+          sessionStatus: 'HOLD',
+          updatedAt: eventAt,
+        },
+      });
+
+      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
+    });
+  }
+
+  private async resumeHold(linkedid: string, tenantId: string, eventAt: Date) {
+    await this.prisma.$transaction(async (tx) => {
+      const found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+      if (!found || found.sessionStatus !== 'HOLD') return;
+
+      const additionalHoldSeconds = Math.max(
+        0,
+        Math.floor((eventAt.getTime() - found.updatedAt.getTime()) / 1000),
+      );
+
+      const updated = await tx.callSessions.update({
+        where: { callId: found.callId },
+        data: {
+          sessionStatus: 'TALKING',
+          holdSeconds: found.holdSeconds + additionalHoldSeconds,
+          updatedAt: eventAt,
+        },
+      });
+
+      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
     });
   }
 

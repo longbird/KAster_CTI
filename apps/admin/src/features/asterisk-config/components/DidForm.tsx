@@ -29,6 +29,7 @@ export function DidForm({ open, initial, onOk, onCancel }: Props) {
     const vals = await form.validateFields();
     const result: Omit<AsteriskDid, 'id'> = {
       did: vals.did,
+      representativeNumber: vals.representativeNumber ?? null,
       description: vals.description ?? null,
       ivrMenuId: vals._mode === 'ivr' ? vals.ivrMenuId : null,
       directQueue: vals._mode === 'queue' ? vals.directQueue : null,
@@ -42,6 +43,9 @@ export function DidForm({ open, initial, onOk, onCancel }: Props) {
       <Form form={form} layout="vertical">
         <Form.Item name="did" label="착신번호 (DID)" rules={[{ required: true }]}>
           <Input placeholder="07012345678" />
+        </Form.Item>
+        <Form.Item name="representativeNumber" label="대표번호">
+          <Input placeholder="1577-1577" />
         </Form.Item>
         <Form.Item name="description" label="설명">
           <Input />

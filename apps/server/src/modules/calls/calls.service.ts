@@ -6,6 +6,7 @@ import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
+import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { TransferDetectorService } from './transfer-detector.service';
@@ -77,6 +78,36 @@ export class CallsService {
     return latestTransferCandidateMap;
   }
 
+  private async getDidMetaMap(tenantId: string, didNumbers: Array<string | null | undefined>) {
+    const normalized = [...new Set(
+      didNumbers
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value)),
+    )];
+    if (normalized.length === 0) return new Map<string, { did: string; representativeNumber: string | null }>();
+
+    const dids = await this.prisma.asteriskDid.findMany({
+      where: {
+        tenantId,
+        did: { in: normalized },
+      },
+      select: {
+        did: true,
+        representativeNumber: true,
+      },
+    } as any) as Array<{ did: string; representativeNumber?: string | null }>;
+
+    return new Map(
+      dids.map((row) => [
+        row.did,
+        {
+          did: row.did,
+          representativeNumber: row.representativeNumber ?? null,
+        },
+      ]),
+    );
+  }
+
   async getActiveCalls(tenantId: string, branchId?: string) {
     const branchScope = await this.getBranchScope(tenantId, branchId);
     const rows = await this.prisma.callSessions.findMany({
@@ -105,6 +136,10 @@ export class CallsService {
       rows.map((r) => r.linkedid).filter((id): id is string => Boolean(id)),
     )];
     const latestTransferCandidateMap = await this.getLatestTransferCandidateMap(tenantId, linkedids);
+    const didMetaMap = await this.getDidMetaMap(
+      tenantId,
+      rows.map((row) => row.didNumber ?? row.dnis),
+    );
 
     const now = new Date();
     const data = rows.map((r) => {
@@ -120,6 +155,8 @@ export class CallsService {
         agentName: agentNameMap.get(r.primaryAgentId ?? '') ?? '',
         waitSeconds: Math.max(0, waitSeconds),
         latestTransfer: latestTransferCandidateMap.get(r.linkedid) ?? null,
+        representativeNumber:
+          didMetaMap.get(r.didNumber ?? r.dnis ?? '')?.representativeNumber ?? null,
       };
     });
 
@@ -149,11 +186,14 @@ export class CallsService {
       },
       orderBy: { requestedAt: 'desc' },
     });
+    const didMetaMap = await this.getDidMetaMap( call.tenantId, [call.didNumber ?? call.dnis] );
+    const didMeta = didMetaMap.get(call.didNumber ?? call.dnis ?? '');
 
     return {
       success: true,
       data: {
         ...call,
+        representativeNumber: didMeta?.representativeNumber ?? null,
         transferCandidates,
       },
       error: null,
@@ -170,7 +210,9 @@ export class CallsService {
         allowedOutboundCallerIds: true,
         defaultOutboundCallerId: true,
       },
-    });
+    } as any) as
+      | { allowedOutboundCallerIds?: string | null; defaultOutboundCallerId?: string | null }
+      | null;
 
     const allowedCallerIds = parseAllowedCallerIds(settings?.allowedOutboundCallerIds);
     if (allowedCallerIds.length === 0) {
@@ -273,6 +315,247 @@ export class CallsService {
     return { success: true, data: { callId, transferred: true }, error: null };
   }
 
+  async cancelAttendedTransfer(callId: string) {
+    const call = await this.prisma.callSessions.findUnique({
+      where: { callId },
+      include: {
+        callLegs: { orderBy: { startedAt: 'desc' } },
+      },
+    });
+    if (!call) {
+      throw new NotFoundException('Call not found');
+    }
+
+    const candidate = await this.prisma.attendedTransferCandidates.findFirst({
+      where: {
+        tenantId: call.tenantId,
+        linkedid: call.linkedid,
+        phase: {
+          in: ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'] as any,
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+    if (!candidate) {
+      throw new BadRequestException('취소 가능한 상담 전환이 없습니다.');
+    }
+
+    const agentLeg = call.callLegs.find(
+      (leg) => leg.legType === 'agent' && !leg.endedAt,
+    );
+    if (!agentLeg?.channelName) {
+      throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
+    }
+
+    const now = new Date();
+    await this.prisma.attendedTransferCandidates.update({
+      where: { candidateId: candidate.candidateId },
+      data: {
+        phase: 'FAILED',
+        completedAt: now,
+        updatedAt: now,
+      },
+    });
+
+    const pendingTransfer = await this.prisma.callTransfers.findFirst({
+      where: {
+        tenantId: call.tenantId,
+        linkedid: call.linkedid,
+        transferType: 'attended',
+        OR: [{ transferResult: null }, { transferResult: 'REQUESTED' }],
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+    if (pendingTransfer) {
+      await this.prisma.callTransfers.update({
+        where: { transferId: pendingTransfer.transferId },
+        data: {
+          transferResult: 'CANCELED',
+          completedAt: now,
+        },
+      });
+    }
+
+    await this.prisma.callSessions.update({
+      where: { callId },
+      data: {
+        sessionStatus: call.answeredAt ? 'TALKING' : 'RINGING_AGENT',
+        updatedAt: now,
+      },
+    });
+
+    this.asteriskManager.cancelAttendedTransfer(agentLeg.channelName);
+    await this.eventBus.publish('ami.command.transfer.cancel.requested', {
+      callId,
+      linkedid: call.linkedid,
+      candidateId: candidate.candidateId,
+      requestedAt: now.toISOString(),
+    });
+
+    return {
+      success: true,
+      data: {
+        callId,
+        canceled: true,
+        requestedAt: now.toISOString(),
+      },
+      error: null,
+    };
+  }
+
+  async completeAttendedTransfer(callId: string) {
+    const call = await this.prisma.callSessions.findUnique({
+      where: { callId },
+      include: {
+        callLegs: { orderBy: { startedAt: 'desc' } },
+      },
+    });
+    if (!call) {
+      throw new NotFoundException('Call not found');
+    }
+
+    const candidate = await this.prisma.attendedTransferCandidates.findFirst({
+      where: {
+        tenantId: call.tenantId,
+        linkedid: call.linkedid,
+        phase: {
+          in: ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'] as any,
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+    if (!candidate) {
+      throw new BadRequestException('완료 가능한 상담 전환이 없습니다.');
+    }
+
+    const agentLeg = call.callLegs.find(
+      (leg) => leg.legType === 'agent' && !leg.endedAt,
+    );
+    if (!agentLeg?.channelName) {
+      throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
+    }
+
+    const now = new Date();
+    await this.prisma.callSessions.update({
+      where: { callId },
+      data: {
+        sessionStatus: 'TRANSFERRING',
+        updatedAt: now,
+      },
+    });
+
+    this.asteriskManager.completeAttendedTransfer(agentLeg.channelName);
+    await this.eventBus.publish('ami.command.transfer.complete.requested', {
+      callId,
+      linkedid: call.linkedid,
+      candidateId: candidate.candidateId,
+      requestedAt: now.toISOString(),
+    });
+
+    return {
+      success: true,
+      data: {
+        callId,
+        accepted: true,
+        requestedAt: now.toISOString(),
+      },
+      error: null,
+    };
+  }
+
+  async pickup(callId: string, params: { agentId: string; extension: string }) {
+    const call = await this.prisma.callSessions.findUnique({
+      where: { callId },
+      include: {
+        callLegs: { orderBy: { startedAt: 'desc' } },
+      },
+    });
+    if (!call) {
+      throw new NotFoundException('Call not found');
+    }
+
+    if (!['QUEUED', 'RINGING_AGENT'].includes(call.sessionStatus)) {
+      throw new BadRequestException('현재 상태에서는 당겨받기를 요청할 수 없습니다.');
+    }
+
+    const customerLeg = call.callLegs.find(
+      (leg) => ['inbound', 'customer'].includes(leg.legType) && !leg.endedAt,
+    );
+    if (!customerLeg?.channelName) {
+      throw new BadRequestException('당겨받기 대상 고객 채널을 찾을 수 없습니다.');
+    }
+
+    await this.prisma.callSessions.update({
+      where: { callId },
+      data: {
+        primaryAgentId: params.agentId,
+        sessionStatus: 'RINGING_AGENT',
+        ringingAt: call.ringingAt ?? new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    this.asteriskManager.pickup(customerLeg.channelName, params.extension);
+    await this.eventBus.publish('ami.command.pickup.requested', {
+      callId,
+      linkedid: call.linkedid,
+      agentId: params.agentId,
+      extension: params.extension,
+    });
+
+    return {
+      success: true,
+      data: {
+        callId,
+        accepted: true,
+        extension: params.extension,
+        requestedAt: new Date().toISOString(),
+      },
+      error: null,
+    };
+  }
+
+  async mute(callId: string, dto: MuteCallDto) {
+    const call = await this.prisma.callSessions.findUnique({
+      where: { callId },
+      include: { callLegs: { orderBy: { startedAt: 'desc' } } },
+    });
+    if (!call) {
+      throw new NotFoundException('Call not found');
+    }
+
+    const agentLeg = call.callLegs.find(
+      (leg) => leg.legType === 'agent' && !leg.endedAt,
+    );
+    if (!agentLeg?.channelName) {
+      throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
+    }
+
+    const state = dto.state ?? 'on';
+    const direction = dto.direction ?? 'all';
+    this.asteriskManager.muteAudio(agentLeg.channelName, state, direction);
+
+    await this.eventBus.publish('ami.command.mute.requested', {
+      callId,
+      linkedid: call.linkedid,
+      channel: agentLeg.channelName,
+      state,
+      direction,
+      requestedAt: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      data: {
+        callId,
+        accepted: true,
+        state,
+        direction,
+      },
+      error: null,
+    };
+  }
+
   async saveMemo(callId: string, dto: CreateMemoDto) {
     const call = await this.prisma.callSessions.findUnique({ where: { callId } });
     if (!call) {
@@ -339,7 +622,7 @@ export class CallsService {
       orderBy: { startedAt: 'desc' },
       take: 500,
       select: {
-        callId: true, linkedid: true, ani: true, dnis: true, queueName: true,
+        callId: true, linkedid: true, ani: true, dnis: true, didNumber: true, queueName: true,
         sessionStatus: true, direction: true,
         resultCode: true,
         startedAt: true, answeredAt: true, endedAt: true,
@@ -363,9 +646,15 @@ export class CallsService {
     });
     const linkedids = [...new Set(rows.map((row) => row.linkedid).filter(Boolean))];
     const latestTransferCandidateMap = await this.getLatestTransferCandidateMap(tenantId, linkedids);
+    const didMetaMap = await this.getDidMetaMap(
+      tenantId,
+      rows.map((row) => row.didNumber ?? row.dnis),
+    );
     const data = rows.map((row) => ({
       ...row,
       latestTransfer: latestTransferCandidateMap.get(row.linkedid) ?? null,
+      representativeNumber:
+        didMetaMap.get(row.didNumber ?? row.dnis ?? '')?.representativeNumber ?? null,
     }));
     return { success: true, data, error: null };
   }
@@ -396,12 +685,26 @@ export class CallsService {
         durationSeconds: true, recordingStartedAt: true,
         session: {
           select: {
-            ani: true, queueName: true,
+            ani: true, dnis: true, didNumber: true, queueName: true,
             primaryAgent: { select: { agentName: true } },
           },
         },
       },
     });
-    return { success: true, data: rows, error: null };
+    const didMetaMap = await this.getDidMetaMap(
+      tenantId,
+      rows.map((row) => row.session?.didNumber ?? row.session?.dnis),
+    );
+    const data = rows.map((row) => ({
+      ...row,
+      session: row.session
+        ? {
+            ...row.session,
+            representativeNumber:
+              didMetaMap.get(row.session.didNumber ?? row.session.dnis ?? '')?.representativeNumber ?? null,
+          }
+        : null,
+    }));
+    return { success: true, data, error: null };
   }
 }

@@ -47,8 +47,45 @@ export class AsteriskManagerService {
   }
 
   // conv 32 attended transfer 상태머신은 별도 서브모듈 (transfer-detector) 에서
-  // 완료 판정을 한다. 여기서는 consult leg 를 만들기 위한 초기 Redirect 만 수행.
+  // 완료 판정을 한다. consult 시작은 AMI Atxfer 로 요청한다.
   attendedTransfer(channel: string, exten: string, context = 'transfer-target'): void {
+    this.ami.sendAction({
+      Action: 'Atxfer',
+      Channel: channel,
+      Exten: exten,
+      Context: context,
+    });
+    this.logger.log(`Attended transfer (consult start): ${channel} -> ${exten}@${context}`);
+  }
+
+  cancelAttendedTransfer(channel: string): void {
+    this.ami.sendAction({
+      Action: 'CancelAtxfer',
+      Channel: channel,
+    });
+    this.logger.log(`Attended transfer cancel requested: ${channel}`);
+  }
+
+  completeAttendedTransfer(channel: string, featureCode?: string): void {
+    const digits = (featureCode ?? process.env.ASTERISK_ATXFER_COMPLETE_CODE ?? '*2')
+      .trim()
+      .replace(/\s+/g, '');
+    if (!digits) {
+      throw new Error('Attended transfer complete feature code is empty');
+    }
+
+    for (const digit of digits) {
+      this.ami.sendAction({
+        Action: 'PlayDTMF',
+        Channel: channel,
+        Digit: digit,
+        Receive: 'true',
+      });
+    }
+    this.logger.log(`Attended transfer complete requested: ${channel} -> ${digits}`);
+  }
+
+  pickup(channel: string, exten: string, context = 'transfer-target'): void {
     this.ami.sendAction({
       Action: 'Redirect',
       Channel: channel,
@@ -56,7 +93,21 @@ export class AsteriskManagerService {
       Context: context,
       Priority: 1,
     });
-    this.logger.log(`Attended transfer (consult start): ${channel} -> ${exten}@${context}`);
+    this.logger.log(`Pickup requested: ${channel} -> ${exten}@${context}`);
+  }
+
+  muteAudio(
+    channel: string,
+    state: 'on' | 'off' = 'on',
+    direction: 'in' | 'out' | 'all' = 'all',
+  ): void {
+    this.ami.sendAction({
+      Action: 'MuteAudio',
+      Channel: channel,
+      Direction: direction,
+      State: state,
+    });
+    this.logger.log(`MuteAudio requested: ${channel} state=${state} direction=${direction}`);
   }
 
   hangup(channel: string): void {

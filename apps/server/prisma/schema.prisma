@@ -567,6 +567,7 @@ model AsteriskDid {
   id          String           @id @default(uuid()) @db.Uuid
   tenantId    String           @db.Uuid
   did         String           @db.VarChar(32)
+  representativeNumber String? @db.VarChar(32)
   description String?          @db.VarChar(255)
   ivrMenuId   String?          @db.Uuid
   directQueue String?          @db.VarChar(64)

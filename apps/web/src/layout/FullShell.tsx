@@ -22,7 +22,11 @@ export function FullShell() {
     selectedCallId,
     init,
     saveMemo,
+    pickup,
+    toggleMute,
     transfer,
+    cancelAttendedTransfer,
+    completeAttendedTransfer,
     hangup,
   } = useCtiStore();
 
@@ -54,7 +58,12 @@ export function FullShell() {
           <KpiPanel />
 
           {/* Active Call (전체 너비 hero) */}
-          <CurrentCallPanel call={selectedCall} onHangup={hangup} />
+          <CurrentCallPanel
+            call={selectedCall}
+            onPickup={pickup}
+            onToggleMute={toggleMute}
+            onHangup={hangup}
+          />
 
           {/* 12-col grid: 좌 8 = Control / 우 4 = Queue + Events */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -63,6 +72,8 @@ export function FullShell() {
                 call={selectedCall}
                 onSaveMemo={saveMemo}
                 onTransfer={transfer}
+                onCancelAttendedTransfer={cancelAttendedTransfer}
+                onCompleteAttendedTransfer={completeAttendedTransfer}
                 onHangup={hangup}
               />
             </div>

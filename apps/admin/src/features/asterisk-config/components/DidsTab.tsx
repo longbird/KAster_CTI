@@ -55,6 +55,11 @@ export function DidsTab() {
 
   const columns = [
     {
+      title: '대표번호',
+      dataIndex: 'representativeNumber',
+      render: (value: string | null) => value || '-',
+    },
+    {
       title: '착신번호',
       dataIndex: 'did',
       render: (value: string) => formatDid(value),

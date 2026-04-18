@@ -34,7 +34,11 @@ export function MiniShell() {
     init,
     changeStatus,
     saveMemo,
+    pickup,
+    toggleMute,
     transfer,
+    cancelAttendedTransfer,
+    completeAttendedTransfer,
     hangup,
   } = useCtiStore();
   const setMode = useUiStore((s) => s.setMode);
@@ -56,13 +60,19 @@ export function MiniShell() {
     return () => clearInterval(id);
   }, [selectedCall?.answeredAt]);
 
-  const [form] = Form.useForm<{ memo: string; resultCode: string; transferTarget: string }>();
+  const [form] = Form.useForm<{
+    memo: string;
+    resultCode: string;
+    transferTarget: string;
+    transferMode: 'blind' | 'attended';
+  }>();
 
   useEffect(() => {
     form.setFieldsValue({
       memo: selectedCall?.memo ?? '',
       resultCode: selectedCall?.resultCode ?? 'ORDER_COMPLETE',
       transferTarget: '',
+      transferMode: 'blind',
     });
   }, [selectedCall?.callId, form]);
 
@@ -86,6 +96,8 @@ export function MiniShell() {
 
   const duration = formatCallDuration(selectedCall?.answeredAt ?? selectedCall?.startedAt);
   const isActive = !!selectedCall;
+  const hasOpenConsult = !!selectedCall?.latestTransfer
+    && ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'].includes(selectedCall.latestTransfer.phase);
 
   return (
     <div className="min-h-screen bg-surface p-3 font-body text-on-background">
@@ -198,10 +210,18 @@ export function MiniShell() {
         {/* 컨트롤 버튼 — 4개 그리드 */}
         <div className="grid grid-cols-4 gap-2">
           <MiniCtrlButton
-            icon="mic_off"
-            label="Mute"
+            icon={isActive && !selectedCall?.answeredAt ? 'phone_in_talk' : 'mic_off'}
+            label={isActive && !selectedCall?.answeredAt ? 'Pickup' : selectedCall?.isMuted ? 'Unmute' : 'Mute'}
             disabled={!isActive}
-            onClick={() => message.info('AMI 연동 후 활성화')}
+            onClick={async () => {
+              if (selectedCall && !selectedCall.answeredAt) {
+                await pickup();
+                message.success('당겨받기 요청');
+                return;
+              }
+              await toggleMute();
+              message.success(selectedCall?.isMuted ? '음소거 해제 요청' : '음소거 요청');
+            }}
           />
           <MiniCtrlButton
             icon="pause"
@@ -215,12 +235,17 @@ export function MiniShell() {
             disabled={!isActive}
             onClick={async () => {
               const target = form.getFieldValue('transferTarget');
+              const transferMode = form.getFieldValue('transferMode') ?? 'blind';
               if (!target) {
                 message.warning('아래 내선 입력 필요');
                 return;
               }
-              await transfer(target);
-              message.success(`전환: ${target}`);
+              await transfer(target, transferMode);
+              message.success(
+                transferMode === 'attended'
+                  ? `상담 전환: ${target}`
+                  : `전환: ${target}`,
+              );
             }}
           />
           <MiniCtrlButton
@@ -234,6 +259,28 @@ export function MiniShell() {
             }}
           />
         </div>
+
+        {hasOpenConsult ? (
+          <div className="grid grid-cols-2 gap-2">
+            <MiniCtrlButton
+              icon="merge"
+              label="Complete"
+              onClick={async () => {
+                await completeAttendedTransfer();
+                message.success('상담 전환 완료 요청');
+              }}
+            />
+            <MiniCtrlButton
+              icon="close"
+              label="Cancel"
+              tone="danger"
+              onClick={async () => {
+                await cancelAttendedTransfer();
+                message.success('상담 전환 취소 요청');
+              }}
+            />
+          </div>
+        ) : null}
 
         {/* 메모 / 후처리 */}
         <div className="rounded-lg bg-surface-container-lowest p-5 shadow-panel">
@@ -257,6 +304,15 @@ export function MiniShell() {
                 <Input placeholder="예: 1002" size="middle" />
               </Form.Item>
             </div>
+            <Form.Item name="transferMode" label={<MiniLabel>전환 방식</MiniLabel>} className="!mb-3">
+              <Select
+                size="middle"
+                options={[
+                  { value: 'blind', label: 'Blind Transfer' },
+                  { value: 'attended', label: 'Consult Transfer' },
+                ]}
+              />
+            </Form.Item>
             <Form.Item name="memo" label={<MiniLabel>메모</MiniLabel>} className="!mb-3">
               <Input.TextArea rows={3} placeholder="상담 메모" className="!resize-none" />
             </Form.Item>

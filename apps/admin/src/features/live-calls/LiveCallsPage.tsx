@@ -1,4 +1,4 @@
-import { Badge, Card, Table, Tag, Typography } from 'antd';
+import { Badge, Card, Space, Table, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { CallDetailDrawer, type CallRow } from './CallDetailDrawer';
@@ -75,6 +75,16 @@ export function LiveCallsPage() {
             render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v}</Tag>,
           },
           { title: '고객 번호', dataIndex: 'ani', width: 140 },
+          {
+            title: '대표번호 / DID',
+            width: 180,
+            render: (_: unknown, r: CallRow) => (
+              <Space direction="vertical" size={0}>
+                <Typography.Text strong>{r.representativeNumber ?? '-'}</Typography.Text>
+                <Typography.Text type="secondary">{r.didNumber ?? r.dnis ?? '-'}</Typography.Text>
+              </Space>
+            ),
+          },
           { title: '큐', dataIndex: 'queueName', render: (v?: string) => v ?? '-' },
           {
             title: '상담원',

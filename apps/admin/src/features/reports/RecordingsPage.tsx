@@ -17,6 +17,9 @@ interface RecRow {
   recordingStartedAt: string | null;
   session: {
     ani: string;
+    dnis?: string | null;
+    didNumber?: string | null;
+    representativeNumber?: string | null;
     queueName: string;
     primaryAgent: { agentName: string } | null;
   } | null;
@@ -50,10 +53,12 @@ export function RecordingsPage() {
   const exportRows = () => {
     downloadCsv(
       `recordings-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['시작', '발신번호', '큐', '상담원', '파일명', '형식', '길이(초)'],
+      ['시작', '발신번호', '대표번호', 'DID', '큐', '상담원', '파일명', '형식', '길이(초)'],
       rows.map((row) => [
         row.recordingStartedAt ? dayjs(row.recordingStartedAt).format('YYYY-MM-DD HH:mm:ss') : '-',
         row.session?.ani ?? '-',
+        row.session?.representativeNumber ?? '-',
+        row.session?.didNumber ?? row.session?.dnis ?? '-',
         row.session?.queueName ?? '-',
         row.session?.primaryAgent?.agentName ?? '-',
         row.fileName,
@@ -99,6 +104,16 @@ export function RecordingsPage() {
             title: '발신번호',
             render: (_: unknown, r: RecRow) => r.session?.ani ?? '-',
             width: 120,
+          },
+          {
+            title: '대표번호 / DID',
+            render: (_: unknown, r: RecRow) => (
+              <Space direction="vertical" size={0}>
+                <Typography.Text strong>{r.session?.representativeNumber ?? '-'}</Typography.Text>
+                <Typography.Text type="secondary">{r.session?.didNumber ?? r.session?.dnis ?? '-'}</Typography.Text>
+              </Space>
+            ),
+            width: 180,
           },
           {
             title: '큐',

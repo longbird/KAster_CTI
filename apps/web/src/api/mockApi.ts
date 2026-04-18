@@ -38,11 +38,47 @@ export async function saveCallMemo(callId: string, memo: string, resultCode: str
   };
 }
 
-export async function transferCall(callId: string, target: string): Promise<ApiResponse<{ callId: string; target: string; requestedAt: string }>> {
+export async function transferCall(callId: string, target: string, _mode: 'blind' | 'attended' = 'blind'): Promise<ApiResponse<{ callId: string; target: string; requestedAt: string }>> {
   await wait();
   return {
     success: true,
     data: { callId, target, requestedAt: dayjs().toISOString() },
+    error: null,
+  };
+}
+
+export async function cancelAttendedTransferCall(callId: string): Promise<ApiResponse<{ callId: string; canceled: boolean; requestedAt: string }>> {
+  await wait();
+  return {
+    success: true,
+    data: { callId, canceled: true, requestedAt: dayjs().toISOString() },
+    error: null,
+  };
+}
+
+export async function completeAttendedTransferCall(callId: string): Promise<ApiResponse<{ callId: string; accepted: boolean; requestedAt: string }>> {
+  await wait();
+  return {
+    success: true,
+    data: { callId, accepted: true, requestedAt: dayjs().toISOString() },
+    error: null,
+  };
+}
+
+export async function pickupCall(callId: string): Promise<ApiResponse<{ callId: string; accepted: boolean; extension: string; requestedAt: string }>> {
+  await wait();
+  return {
+    success: true,
+    data: { callId, accepted: true, extension: '1001', requestedAt: dayjs().toISOString() },
+    error: null,
+  };
+}
+
+export async function muteCall(callId: string, state: 'on' | 'off'): Promise<ApiResponse<{ callId: string; accepted: boolean; state: 'on' | 'off'; direction: string }>> {
+  await wait();
+  return {
+    success: true,
+    data: { callId, accepted: true, state, direction: 'all' },
     error: null,
   };
 }

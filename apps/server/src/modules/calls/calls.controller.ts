@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
+import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { CallsService } from './calls.service';
@@ -109,6 +110,77 @@ export class CallsController {
       );
     }
     return this.callsService.transfer(callId, dto);
+  }
+
+  @Post(':callId/transfer/attended/cancel')
+  @ApiOperation({
+    summary: '상담 전환 취소',
+    description:
+      '열린 attended transfer candidate 를 FAILED/CANCELED 로 닫고, AMI CancelAtxfer 로 취소를 요청한다. 실제 취소 동작은 Asterisk features.conf 의 atxferabort 설정에 의존한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  async cancelAttendedTransfer(@Req() req: any, @Param('callId') callId: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
+    return this.callsService.cancelAttendedTransfer(callId);
+  }
+
+  @Post(':callId/transfer/attended/complete')
+  @ApiOperation({
+    summary: '상담 전환 완료',
+    description:
+      'Asterisk features.conf 의 atxfercomplete 기능 코드를 AMI PlayDTMF 로 제어 채널에 주입한다. 실제 완료 판정은 후속 AttendedTransfer 이벤트 수신 시 TransferDetectorService 가 COMPLETED 로 확정한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  async completeAttendedTransfer(@Req() req: any, @Param('callId') callId: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
+    return this.callsService.completeAttendedTransfer(callId);
+  }
+
+  @Post(':callId/pickup')
+  @ApiOperation({
+    summary: '대기 콜 당겨받기 요청',
+    description:
+      '큐 대기 중 고객 leg 를 현재 로그인한 상담원 내선으로 Redirect 한다. 실제 연결 성공 판정은 후속 Dial/Bridge 이벤트로 SessionEngine 이 담당하며, 이 응답은 즉시 accepted:true 를 반환한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  async pickup(@Param('callId') callId: string, @Req() req: any) {
+    return this.callsService.pickup(callId, {
+      agentId: req.user.sub,
+      extension: req.user.extension,
+    });
+  }
+
+  @Post(':callId/mute')
+  @ApiOperation({
+    summary: '통화 음소거/해제 요청',
+    description:
+      '상담원 leg 에 AMI MuteAudio 를 전송한다. 현재 구조에서는 후속 mute 상태 이벤트를 별도로 동기화하지 않으므로, UI는 요청 성공 기준으로 상태를 갱신한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  async mute(@Req() req: any, @Param('callId') callId: string, @Body() dto: MuteCallDto) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+      );
+    }
+    return this.callsService.mute(callId, dto);
   }
 
   @Post(':callId/memo')
