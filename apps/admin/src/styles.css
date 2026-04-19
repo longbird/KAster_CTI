@@ -126,4 +126,30 @@ body {
   .app-content {
     padding: 12px;
   }
+
+  .app-header {
+    background: rgba(255, 255, 255, 1);
+    backdrop-filter: none;
+  }
+}
+
+/* Tables: horizontal scroll on mobile */
+@media (max-width: 767px) {
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+  .ant-table table {
+    min-width: 600px;
+  }
+}
+
+/* Modals: clamp to viewport width on mobile */
+@media (max-width: 767px) {
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+  }
+  .ant-modal-content {
+    padding: 16px !important;
+  }
 }
