@@ -30,12 +30,14 @@ export function AppLayout() {
 
   const screens = Grid.useBreakpoint();
   const isMobile = screens.md === false;
-  const [collapsed, setCollapsed] = useState(false);
-  const isExpanded = !collapsed;
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
+  const showOverlay = isMobile && !collapsed;
 
   useEffect(() => {
-    setCollapsed(isMobile);
-  }, [isMobile]);
+    if (screens.md !== undefined) {
+      setCollapsed(isMobile);
+    }
+  }, [isMobile, screens.md]);
 
   const allowedPathSet = useMemo(() => new Set(allowedPaths), [allowedPaths]);
   const menuItems = useMemo(
@@ -63,7 +65,7 @@ export function AppLayout() {
         collapsedWidth={60}
         collapsed={collapsed}
         theme="light"
-        className={`app-sider${isMobile && isExpanded ? ' sider-overlay' : ''}`}
+        className={`app-sider${showOverlay ? ' sider-overlay' : ''}`}
       >
         <div className="brand-block">
           <div className="brand-title">CTI Admin</div>
@@ -86,7 +88,7 @@ export function AppLayout() {
             <Button
               className="header-menu-toggle"
               type="text"
-              icon={isExpanded ? <CloseOutlined /> : <MenuOutlined />}
+              icon={!collapsed ? <CloseOutlined /> : <MenuOutlined />}
               onClick={() => setCollapsed((c) => !c)}
               style={{ marginRight: 8 }}
             />
@@ -117,10 +119,8 @@ export function AppLayout() {
             />
           )}
         </Content>
-          {isMobile && isExpanded && (
-            <div className="sider-backdrop" onClick={() => setCollapsed(true)} />
-          )}
       </Layout>
+      {showOverlay && <div className="sider-backdrop" onClick={() => setCollapsed(true)} />}
     </Layout>
   );
 }
