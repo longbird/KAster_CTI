@@ -2,6 +2,7 @@ import { LogoutOutlined } from '@ant-design/icons';
 import { logout } from '../api';
 import { useCtiStore } from '../store/useCtiStore';
 import { AgentStatusTag } from './AgentStatusTag';
+import { ThemeToggle } from './ThemeToggle';
 
 // "The Precision Curator" 디자인 시스템의 TopAppBar.
 // 로고 + 브랜드 + 에이전트 식별자 + 상태 + 로그아웃.
@@ -38,6 +39,7 @@ export function TopAppBar() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">
+        <ThemeToggle compact />
         <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
         <div className="h-6 w-px bg-outline-variant/30" />
         <button
@@ -47,7 +49,7 @@ export function TopAppBar() {
           className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-error transition-all hover:bg-error-container/20 active:scale-95"
         >
           <LogoutOutlined />
-          로그아웃
+          <span className="hidden md:inline">로그아웃</span>
         </button>
       </div>
     </header>

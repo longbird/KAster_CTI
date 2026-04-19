@@ -6,9 +6,11 @@ import { create } from 'zustand';
 // URL `?mode=mini` 또는 localStorage 로 영속, 기본은 full.
 export type WorkspaceMode = 'mini' | 'full';
 export type FullWorkspaceSection = 'overview' | 'call' | 'queues' | 'history';
+export type ThemeMode = 'light' | 'dark';
 
 const LS_KEY = 'kaster.workspace_mode';
 const LS_SECTION_KEY = 'kaster.full_section';
+const LS_THEME_KEY = 'kaster.theme_mode';
 
 function detectInitialMode(): WorkspaceMode {
   if (typeof window === 'undefined') return 'full';
@@ -27,8 +29,10 @@ function detectInitialMode(): WorkspaceMode {
 interface UiState {
   mode: WorkspaceMode;
   fullSection: FullWorkspaceSection;
+  themeMode: ThemeMode;
   setMode: (mode: WorkspaceMode) => void;
   setFullSection: (section: FullWorkspaceSection) => void;
+  setThemeMode: (themeMode: ThemeMode) => void;
 }
 
 function detectInitialSection(): FullWorkspaceSection {
@@ -49,9 +53,22 @@ function detectInitialSection(): FullWorkspaceSection {
   return 'overview';
 }
 
+function detectInitialTheme(): ThemeMode {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    const stored = localStorage.getItem(LS_THEME_KEY);
+    if (stored === 'light' || stored === 'dark') return stored;
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+  } catch {
+    // noop
+  }
+  return 'light';
+}
+
 export const useUiStore = create<UiState>((set) => ({
   mode: detectInitialMode(),
   fullSection: detectInitialSection(),
+  themeMode: detectInitialTheme(),
   setMode: (mode) => {
     try {
       localStorage.setItem(LS_KEY, mode);
@@ -67,5 +84,13 @@ export const useUiStore = create<UiState>((set) => ({
       // noop
     }
     set({ fullSection });
+  },
+  setThemeMode: (themeMode) => {
+    try {
+      localStorage.setItem(LS_THEME_KEY, themeMode);
+    } catch {
+      // noop
+    }
+    set({ themeMode });
   },
 }));
