@@ -150,11 +150,17 @@ export class QueuesService {
       },
       orderBy: { queueName: 'asc' },
     });
+    const queueUsageMap = await this.getQueueRoutingUsageMap(
+      tenantId,
+      rows.map((row) => row.queueName),
+    );
+
     return {
       success: true,
       data: rows.map((row) => ({
         ...row,
         isDefaultRule: row.queueId === defaultQueue.queueId,
+        ...this.buildQueueProtection(row.queueName, row.queueId === defaultQueue.queueId, queueUsageMap),
       })),
       error: null,
     };
@@ -251,6 +257,17 @@ export class QueuesService {
   async deactivate(tenantId: string, queueId: string) {
     const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
     if (!queue) throw new NotFoundException('Queue not found');
+
+    const defaultQueue = await this.ensureDefaultRule(tenantId);
+    const protection = this.buildQueueProtection(
+      queue.queueName,
+      queue.queueId === defaultQueue.queueId,
+      await this.getQueueRoutingUsageMap(tenantId, [queue.queueName]),
+    );
+
+    if (!protection.canDeactivate) {
+      throw new ConflictException(protection.deactivateBlockedReason);
+    }
 
     await this.prisma.queues.update({
       where: { queueId },
@@ -392,5 +409,159 @@ export class QueuesService {
         });
       }
     });
+  }
+
+  private async getQueueRoutingUsageMap(tenantId: string, queueNames: string[]) {
+    const normalizedNames = [...new Set(queueNames.filter(Boolean))];
+    if (normalizedNames.length === 0) {
+      return new Map<
+        string,
+        {
+          directDidCount: number;
+          forwardingRuleCount: number;
+          ivrEntryCount: number;
+          ivrMenuCount: number;
+        }
+      >();
+    }
+
+    const [directDidRefs, forwardingRefs, ivrEntries] = await Promise.all([
+      this.prisma.asteriskDid.findMany({
+        where: {
+          tenantId,
+          directQueue: { in: normalizedNames },
+        },
+        select: {
+          directQueue: true,
+        },
+      }),
+      this.prisma.asteriskForwardingRules.findMany({
+        where: {
+          tenantId,
+          forwardType: 'QUEUE',
+          targetValue: { in: normalizedNames },
+        },
+        select: {
+          targetValue: true,
+        },
+      }),
+      this.prisma.asteriskIvrEntry.findMany({
+        where: {
+          tenantId,
+          queueName: { in: normalizedNames },
+        },
+        select: {
+          queueName: true,
+          menuId: true,
+        },
+      }),
+    ]);
+
+    const usageMap = new Map<
+      string,
+      {
+        directDidCount: number;
+        forwardingRuleCount: number;
+        ivrEntryCount: number;
+        ivrMenuCount: number;
+      }
+    >();
+
+    for (const queueName of normalizedNames) {
+      usageMap.set(queueName, {
+        directDidCount: 0,
+        forwardingRuleCount: 0,
+        ivrEntryCount: 0,
+        ivrMenuCount: 0,
+      });
+    }
+
+    for (const directDidRef of directDidRefs) {
+      if (!directDidRef.directQueue) continue;
+      const entry = usageMap.get(directDidRef.directQueue);
+      if (!entry) continue;
+      entry.directDidCount += 1;
+    }
+
+    for (const forwardingRef of forwardingRefs) {
+      const entry = usageMap.get(forwardingRef.targetValue);
+      if (!entry) continue;
+      entry.forwardingRuleCount += 1;
+    }
+
+    const ivrMenusByQueue = new Map<string, Set<string>>();
+    for (const ivrEntry of ivrEntries) {
+      const entry = usageMap.get(ivrEntry.queueName);
+      if (!entry) continue;
+      entry.ivrEntryCount += 1;
+
+      let menuIds = ivrMenusByQueue.get(ivrEntry.queueName);
+      if (!menuIds) {
+        menuIds = new Set<string>();
+        ivrMenusByQueue.set(ivrEntry.queueName, menuIds);
+      }
+      menuIds.add(ivrEntry.menuId);
+    }
+
+    for (const [queueName, menuIds] of ivrMenusByQueue.entries()) {
+      const entry = usageMap.get(queueName);
+      if (!entry) continue;
+      entry.ivrMenuCount = menuIds.size;
+    }
+
+    return usageMap;
+  }
+
+  private buildQueueProtection(
+    queueName: string,
+    isDefaultRule: boolean,
+    usageMap: Map<
+      string,
+      {
+        directDidCount: number;
+        forwardingRuleCount: number;
+        ivrEntryCount: number;
+        ivrMenuCount: number;
+      }
+    >,
+  ) {
+    const usage = usageMap.get(queueName) ?? {
+      directDidCount: 0,
+      forwardingRuleCount: 0,
+      ivrEntryCount: 0,
+      ivrMenuCount: 0,
+    };
+    const routingReferenceCount =
+      usage.directDidCount + usage.forwardingRuleCount + usage.ivrEntryCount;
+
+    if (isDefaultRule) {
+      return {
+        routingReferences: usage,
+        routingReferenceCount,
+        canDeactivate: false,
+        deactivateBlockedReason: '기본 호 분배룰은 비활성화할 수 없습니다',
+      };
+    }
+
+    if (routingReferenceCount === 0) {
+      return {
+        routingReferences: usage,
+        routingReferenceCount,
+        canDeactivate: true,
+        deactivateBlockedReason: null,
+      };
+    }
+
+    const parts: string[] = [];
+    if (usage.directDidCount > 0) parts.push(`DID ${usage.directDidCount}건`);
+    if (usage.forwardingRuleCount > 0) parts.push(`착신전환 ${usage.forwardingRuleCount}건`);
+    if (usage.ivrEntryCount > 0) parts.push(`IVR 엔트리 ${usage.ivrEntryCount}건`);
+
+    return {
+      routingReferences: usage,
+      routingReferenceCount,
+      canDeactivate: false,
+      deactivateBlockedReason: `${parts.join(', ')}에서 사용 중이라 비활성화할 수 없습니다`,
+    };
   }
 }

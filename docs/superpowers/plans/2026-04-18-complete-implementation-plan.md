@@ -6,9 +6,10 @@
 
 ## Current State
 - Admin core menus, PBX settings, branch mapping, dashboard, blocklist, forwarding, announcements, and system settings are implemented at first-pass level.
+- Distribution-rule CRUD is implemented at first-pass level across admin UI, queue membership management, DID direct-queue linkage, and `queues.conf` render/reload.
 - Agent app real API mode is wired for login, history, realtime, and call control.
 - PBX runtime is attached to the operational server and direct SIP phone registration is working.
-- Remaining gaps are concentrated in transfer accuracy, action-level permissions, outbound policy depth, operations automation, and higher-fidelity operational tools.
+- Remaining gaps are concentrated in transfer accuracy, distribution-rule policy completion, action-level permissions, outbound policy depth, operations automation, and higher-fidelity operational tools.
 
 ## Phase Plan
 
@@ -33,7 +34,29 @@
 - Completion criteria:
   - Unapproved caller IDs cannot be used through any call path.
 
-### Phase 3. Permission Model 2nd Pass
+### Phase 3. Distribution Rule Completion
+- Treat queue CRUD as only the base layer; close the operational policy around distribution rules.
+- Define and enforce:
+  - default distribution rule lifecycle
+  - DID direct-queue fallback behavior
+  - member ordering vs penalty semantics
+  - allowed strategy set and defaults per tenant
+  - safe deactivation/update rules when a queue is referenced by DID or forwarding
+- Improve admin/operator tooling:
+  - explicit default-rule indication and guardrails
+  - penalty/member-order editing UX
+  - rule usage visibility from DID/queue/member views
+  - routing impact preview before save where practical
+- Add verification coverage for:
+  - `queues.conf` render correctness
+  - `queue reload all` reflection
+  - default-rule auto-ensure behavior
+  - DID -> queue routing consistency
+- Completion criteria:
+  - Distribution rules are not just editable but operationally predictable.
+  - A DID or queue change cannot silently break routing.
+
+### Phase 4. Permission Model 2nd Pass
 - Extend menu access rules to action-level permissions:
   - `view`
   - `create`
@@ -45,7 +68,7 @@
 - Completion criteria:
   - UI exposure and API authorization follow the same rule set.
 
-### Phase 4. Operational Features 2nd Pass
+### Phase 5. Operational Features 2nd Pass
 - Forwarding:
   - time window
   - weekday
@@ -64,14 +87,14 @@
 - Completion criteria:
   - Admin can investigate and act without leaving the console.
 
-### Phase 5. Agent App Completion
+### Phase 6. Agent App Completion
 - Validate end-to-end status, memo, transfer, hangup, and recent history flows in real mode.
 - Harden UI recovery for delayed/missed realtime events.
 - Finish mini-mode operational QA path.
 - Completion criteria:
   - Agent can work full shift in app-only mode without manual refresh or operational workaround.
 
-### Phase 6. PBX Ops Automation
+### Phase 7. PBX Ops Automation
 - Add deploy-time smoke checks for:
   - health
   - SIP registration
@@ -83,9 +106,10 @@
 - Completion criteria:
   - Runtime verification is script-driven, not manual-only.
 
-### Phase 7. Test Completion
+### Phase 8. Test Completion
 - Add service/integration tests for:
   - transfer state machine
+  - distribution-rule routing/render behavior
   - action-level permissions
   - outbound caller ID policy
   - PBX config render/reload consistency
@@ -101,9 +125,10 @@
 
 ## Release Order
 1. Transfer core completion
-2. Outbound policy completion
-3. Permission model 2nd pass
-4. Operational feature 2nd pass
-5. Agent app completion
-6. PBX ops automation
-7. Final verification and pilot checklist
+2. Distribution rule completion
+3. Outbound policy completion
+4. Permission model 2nd pass
+5. Operational feature 2nd pass
+6. Agent app completion
+7. PBX ops automation
+8. Final verification and pilot checklist

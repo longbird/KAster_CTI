@@ -6,6 +6,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
@@ -74,7 +75,15 @@ export function QueueSettingsPage() {
         pagination={false}
         rowClassName={(r) => (!r.isActive ? 'ant-table-row-disabled' : '')}
         columns={[
-          { title: '큐명', render: (_: unknown, r: QueueRow) => r.queueDisplayName ?? r.queueName },
+          {
+            title: '큐명',
+            render: (_: unknown, r: QueueRow) => (
+              <Space size={[4, 4]} wrap>
+                <span>{r.queueDisplayName ?? r.queueName}</span>
+                {r.isDefaultRule ? <Tag color="gold">기본 룰</Tag> : null}
+              </Space>
+            ),
+          },
           { title: '내부명', dataIndex: 'queueName' },
           { title: '내선', dataIndex: 'queueExten' },
           {
@@ -96,44 +105,87 @@ export function QueueSettingsPage() {
             render: (v?: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '활성' : '비활성'}</Tag>,
           },
           {
+            title: '라우팅 참조',
+            width: 240,
+            render: (_: unknown, r: QueueRow) => {
+              const refs = r.routingReferences;
+              const tags = [
+                refs?.directDidCount ? (
+                  <Tag key="did" color="blue">
+                    DID {refs.directDidCount}
+                  </Tag>
+                ) : null,
+                refs?.forwardingRuleCount ? (
+                  <Tag key="forward" color="purple">
+                    착신전환 {refs.forwardingRuleCount}
+                  </Tag>
+                ) : null,
+                refs?.ivrEntryCount ? (
+                  <Tag key="ivr" color="cyan">
+                    IVR {refs.ivrEntryCount}
+                  </Tag>
+                ) : null,
+              ].filter(Boolean);
+
+              if (tags.length === 0) {
+                return <Tag>없음</Tag>;
+              }
+
+              return (
+                <Tooltip title={r.deactivateBlockedReason ?? undefined}>
+                  <Space size={[4, 4]} wrap>
+                    {tags}
+                  </Space>
+                </Tooltip>
+              );
+            },
+          },
+          {
             title: '액션',
             width: 220,
-            render: (_: unknown, r: QueueRow) => (
-              <Space size="small">
-                <Button
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => setEditing(r)}
-                  disabled={!r.isActive || queuePermission?.canUpdate === false}
-                >
-                  수정
-                </Button>
-                <Button
-                  size="small"
-                  icon={<TeamOutlined />}
-                  onClick={() => setManagingMembers(r)}
-                  disabled={!r.isActive || queuePermission?.canOperate === false}
-                >
-                  분배룰
-                </Button>
-                <Popconfirm
-                  title="정말 비활성화할까요?"
-                  onConfirm={() => void deactivate(r.queueId)}
-                  okText="예"
-                  cancelText="아니오"
-                  disabled={!r.isActive || queuePermission?.canDelete === false}
-                >
+            render: (_: unknown, r: QueueRow) => {
+              const deleteDisabled =
+                !r.isActive || r.canDeactivate === false || queuePermission?.canDelete === false;
+
+              return (
+                <Space size="small">
                   <Button
                     size="small"
-                    danger
-                    icon={<StopOutlined />}
-                    disabled={!r.isActive || queuePermission?.canDelete === false}
+                    icon={<EditOutlined />}
+                    onClick={() => setEditing(r)}
+                    disabled={!r.isActive || queuePermission?.canUpdate === false}
                   >
-                    비활성화
+                    수정
                   </Button>
-                </Popconfirm>
-              </Space>
-            ),
+                  <Button
+                    size="small"
+                    icon={<TeamOutlined />}
+                    onClick={() => setManagingMembers(r)}
+                    disabled={!r.isActive || queuePermission?.canOperate === false}
+                  >
+                    분배룰
+                  </Button>
+                  <Tooltip title={deleteDisabled ? r.deactivateBlockedReason ?? undefined : undefined}>
+                    <Popconfirm
+                      title={r.deactivateBlockedReason ?? '정말 비활성화할까요?'}
+                      onConfirm={() => void deactivate(r.queueId)}
+                      okText="예"
+                      cancelText="아니오"
+                      disabled={deleteDisabled}
+                    >
+                      <Button
+                        size="small"
+                        danger
+                        icon={<StopOutlined />}
+                        disabled={deleteDisabled}
+                      >
+                        비활성화
+                      </Button>
+                    </Popconfirm>
+                  </Tooltip>
+                </Space>
+              );
+            },
           },
         ]}
       />

@@ -13,6 +13,16 @@ export interface QueueRow {
   wrapupSeconds?: number;
   autopause?: boolean;
   isActive?: boolean;
+  isDefaultRule?: boolean;
+  routingReferenceCount?: number;
+  canDeactivate?: boolean;
+  deactivateBlockedReason?: string | null;
+  routingReferences?: {
+    directDidCount: number;
+    forwardingRuleCount: number;
+    ivrEntryCount: number;
+    ivrMenuCount: number;
+  };
 }
 
 interface Props {

@@ -92,3 +92,5 @@ Are they installed?
 [2m오후 4:46:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
 [2m오후 4:46:43[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
 [2m오후 4:48:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/agent-settings/AgentSettingsPage.tsx[22m
+[2m오후 5:55:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueEditModal.tsx[22m
+[2m오후 5:56:09[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueSettingsPage.tsx[22m
