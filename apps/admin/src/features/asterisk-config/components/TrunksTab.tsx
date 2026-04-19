@@ -1,4 +1,4 @@
-import { Button, Popconfirm, Space, Table, Tag, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createTrunk, createTrunksBulk, deleteTrunk, getTrunks, updateTrunk } from '../api/asteriskConfigApi';
 import type { AsteriskBulkTrunkInput, AsteriskTrunk, AsteriskTrunkInput } from '../types/asterisk-config';
@@ -88,14 +88,28 @@ export function TrunksTab() {
   ];
 
   return (
-    <>
-      <Space style={{ marginBottom: 12 }}>
-        {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>트렁크 추가</Button> : null}
-        {canCreate ? <Button onClick={() => setBulkOpen(true)}>일괄 등록</Button> : null}
-      </Space>
-      <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
+          <div>
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              트렁크
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              통신사 SIP 트렁크 또는 타 PBX와의 연동 접속 정보를 등록하고 관리합니다.
+            </Typography.Text>
+          </div>
+          <Space wrap>
+            {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>트렁크 추가</Button> : null}
+            {canCreate ? <Button onClick={() => setBulkOpen(true)}>일괄 등록</Button> : null}
+          </Space>
+        </Space>
+      </Card>
+      <Card title="트렁크 목록">
+        <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+      </Card>
       <TrunkForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
       <BulkTrunkModal open={bulkOpen} onOk={handleBulkSave} onCancel={() => setBulkOpen(false)} />
-    </>
+    </Space>
   );
 }

@@ -19,10 +19,38 @@ body {
 
 .app-sider {
   border-right: 1px solid #eef2f6;
+  height: 100vh;
+  position: sticky !important;
+  top: 0;
+  overflow: hidden;
+}
+
+.app-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-sider-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 12px;
+}
+
+.app-main-layout {
+  min-width: 0;
 }
 
 .brand-block {
   padding: 24px 20px 16px;
+  overflow: hidden;
+}
+
+.brand-block--collapsed {
+  padding: 16px 0;
+  min-height: 56px;
 }
 
 .brand-title {
@@ -101,6 +129,7 @@ body {
     top: 0;
     left: 0;
     bottom: 0;
+    height: 100vh;
     z-index: 100;
   }
 }
@@ -130,6 +159,11 @@ body {
   .app-header {
     background: rgba(255, 255, 255, 1);
     backdrop-filter: none;
+    padding: 0 12px;
+  }
+
+  .header-agent-info {
+    display: none !important;
   }
 }
 

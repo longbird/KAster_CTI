@@ -5,6 +5,7 @@ import * as path from 'path';
 import { parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
+import { buildPickupGroupName, normalizeAgentRuntimeProfile } from './renderers/agent-settings';
 import { renderAgentDialplan } from './renderers/agent-dialplan.renderer';
 import { renderDialplan } from './renderers/dialplan.renderer';
 import { renderPjsip } from './renderers/pjsip.renderer';
@@ -75,6 +76,7 @@ export class AsteriskReloadService implements OnModuleDestroy {
     const {
       trunks,
       agents,
+      pjsipAgents,
       dids,
       ivrMenus,
       forwardingRules,
@@ -86,13 +88,22 @@ export class AsteriskReloadService implements OnModuleDestroy {
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
 
-    const pjsipContent = renderPjsip({ trunks, agents, sipRegisterPort });
+    const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
       trunks,
+      agents: agents.map((agent) => {
+        const profile = normalizeAgentRuntimeProfile(agent.settingsProfile);
+        return {
+          extension: agent.extension,
+          outboundEnabled: profile.inoutType !== 'INBOUND_ONLY',
+          callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
+          liveRecordingEnabled: profile.liveRecording === 'USE',
+        };
+      }),
     });
     const queuesContent = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -104,7 +115,11 @@ export class AsteriskReloadService implements OnModuleDestroy {
         maxWaitSeconds: q.maxWaitSeconds,
         autopause: q.autopause,
         members: q.members
-          .filter((m) => m.agent.isActive)
+          .filter((m) => {
+            if (!m.agent.isActive) return false;
+            const profile = normalizeAgentRuntimeProfile(m.agent.settingsProfile);
+            return profile.inoutType !== 'OUTBOUND_ONLY';
+          })
           .map((m) => ({
             extension: m.agent.extension,
             agentName: m.agent.agentName,
@@ -132,6 +147,7 @@ export class AsteriskReloadService implements OnModuleDestroy {
     const {
       trunks,
       agents,
+      pjsipAgents,
       dids,
       ivrMenus,
       forwardingRules,
@@ -143,13 +159,22 @@ export class AsteriskReloadService implements OnModuleDestroy {
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
 
-    const pjsip = renderPjsip({ trunks, agents, sipRegisterPort });
+    const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
       trunks,
+      agents: agents.map((agent) => {
+        const profile = normalizeAgentRuntimeProfile(agent.settingsProfile);
+        return {
+          extension: agent.extension,
+          outboundEnabled: profile.inoutType !== 'INBOUND_ONLY',
+          callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
+          liveRecordingEnabled: profile.liveRecording === 'USE',
+        };
+      }),
     });
     const queues = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -161,7 +186,11 @@ export class AsteriskReloadService implements OnModuleDestroy {
         maxWaitSeconds: q.maxWaitSeconds,
         autopause: q.autopause,
         members: q.members
-          .filter((m) => m.agent.isActive)
+          .filter((m) => {
+            if (!m.agent.isActive) return false;
+            const profile = normalizeAgentRuntimeProfile(m.agent.settingsProfile);
+            return profile.inoutType !== 'OUTBOUND_ONLY';
+          })
           .map((m) => ({
             extension: m.agent.extension,
             agentName: m.agent.agentName,
@@ -214,9 +243,19 @@ export class AsteriskReloadService implements OnModuleDestroy {
       allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),
       defaultOutboundCallerId: typedSettings?.defaultOutboundCallerId ?? null,
-      agents: agents.map((agent) => ({
-        ...agent,
+      agents,
+      pjsipAgents: agents.map((agent) => ({
+        extension: agent.extension,
+        agentName: agent.agentName,
         sipPassword: agent.sipPassword || defaultSipPassword,
+        context: `agent-phone-${agent.extension}`,
+        callerIdPrivacy: (
+          normalizeAgentRuntimeProfile(agent.settingsProfile).numberMasking === 'USE'
+            ? 'prohib'
+            : 'allowed_not_screened'
+        ) as 'prohib' | 'allowed_not_screened',
+        pickupGroup: buildPickupGroupName(agent.defaultQueueId),
+        pickupType: normalizeAgentRuntimeProfile(agent.settingsProfile).pickupType,
       })),
       dids,
       ivrMenus,
@@ -233,7 +272,7 @@ export class AsteriskReloadService implements OnModuleDestroy {
           where: { isActive: true },
           include: {
             agent: {
-              select: { extension: true, agentName: true, isActive: true },
+              select: { extension: true, agentName: true, isActive: true, settingsProfile: true },
             },
           },
         },

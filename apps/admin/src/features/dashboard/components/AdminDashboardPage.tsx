@@ -1,4 +1,4 @@
-import { Card, Col, Row, Skeleton, Space, Spin, Tag, Typography } from 'antd';
+import { Card, Col, Row, Skeleton, Space, Spin, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -40,10 +40,8 @@ export function AdminDashboardPage() {
             </Typography.Text>
           </div>
           <BranchFilterSelect value={branchId} onChange={setBranchId} />
-          <Tag color="blue">/admin/dashboard 기준 UI</Tag>
-          <Tag color="geekblue">queue.summary.updated / agent.status.changed / call.updated</Tag>
           {refreshing ? <Spin size="small" /> : null}
-          {error ? <Tag color="warning">{error}</Tag> : null}
+          {error ? <Typography.Text type="warning">{error}</Typography.Text> : null}
         </Space>
       </Card>
 

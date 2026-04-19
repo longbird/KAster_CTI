@@ -32,6 +32,23 @@ export interface AgentSession {
     holdEnabled: boolean;
     holdMode: 'feature_code' | 'disabled';
   };
+  outboundDialOptions?: {
+    allowedCallerIds: string[];
+    defaultCallerId: string | null;
+  };
+}
+
+export interface AgentDirectoryItem {
+  agentId: string;
+  agentName: string;
+  extension: string;
+  role: string;
+  isActive: boolean;
+  currentStatus?: {
+    statusCode: AgentStatusCode;
+    reasonCode?: string | null;
+    startedAt?: string;
+  } | null;
 }
 
 export interface QueueSummary {

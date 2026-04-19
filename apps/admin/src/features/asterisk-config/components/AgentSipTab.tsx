@@ -1,4 +1,4 @@
-import { Button, Input, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Input, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { getAgentSip, syncAgentSip, updateAgentSipPassword } from '../api/asteriskConfigApi';
 import type { AgentSipRow } from '../types/asterisk-config';
@@ -108,20 +108,36 @@ export function AgentSipTab() {
   ];
 
   return (
-    <>
-      <Space style={{ marginBottom: 12 }}>
-        {canOperate ? <Button type="primary" loading={syncing} onClick={handleSync}>PJSIP 동기화 (전체 reload)</Button> : null}
-        <span style={{ color: '#888', fontSize: 12 }}>개별 SIP 비밀번호가 비어 있으면 사이트 기본 SIP 비밀번호를 사용합니다</span>
-      </Space>
-      <Table
-        rowKey="agentId"
-        dataSource={rows}
-        columns={columns}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1180 }}
-      />
-    </>
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
+          <div>
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              에이전트 내선
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              상담원 전화기 또는 소프트폰이 등록하는 PJSIP 내선의 비밀번호와 등록 상태를 관리합니다.
+            </Typography.Text>
+          </div>
+          <Space wrap>
+            <Typography.Text type="secondary">
+              개별 SIP 비밀번호가 비어 있으면 사이트 기본 SIP 비밀번호를 사용합니다.
+            </Typography.Text>
+            {canOperate ? <Button type="primary" loading={syncing} onClick={handleSync}>PJSIP 동기화</Button> : null}
+          </Space>
+        </Space>
+      </Card>
+      <Card title="내선 등록 상태">
+        <Table
+          rowKey="agentId"
+          dataSource={rows}
+          columns={columns}
+          loading={loading}
+          pagination={false}
+          size="small"
+          scroll={{ x: 1180 }}
+        />
+      </Card>
+    </Space>
   );
 }

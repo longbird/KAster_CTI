@@ -63,7 +63,7 @@ export function QueueSettingsPage() {
         </Typography.Title>
         {queuePermission?.canCreate !== false ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
-            신규 생성
+            신규 룰 생성
           </Button>
         ) : null}
       </Space>
@@ -114,7 +114,7 @@ export function QueueSettingsPage() {
                   onClick={() => setManagingMembers(r)}
                   disabled={!r.isActive || queuePermission?.canOperate === false}
                 >
-                  멤버
+                  분배룰
                 </Button>
                 <Popconfirm
                   title="정말 비활성화할까요?"

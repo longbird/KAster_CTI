@@ -48,7 +48,8 @@ export function AppLayout() {
 
   const pathname = location.pathname || '/dashboard';
   const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
-  const isAllowed = USE_MOCK || allowedPathSet.has(normalizedPath);
+  const canonicalPath = normalizedPath === '/integrations' ? '/asterisk' : normalizedPath;
+  const isAllowed = USE_MOCK || allowedPathSet.has(canonicalPath);
 
   if (!USE_MOCK && (!loaded || loading)) {
     return (
@@ -66,23 +67,29 @@ export function AppLayout() {
         collapsed={collapsed}
         theme="light"
         className={`app-sider${showOverlay ? ' sider-overlay' : ''}`}
-      >
-        <div className="brand-block">
-          <div className="brand-title">CTI Admin</div>
-          <div className="brand-subtitle">PBX 운영 대시보드</div>
+        >
+        <div className={`brand-block${collapsed ? ' brand-block--collapsed' : ''}`}>
+          {!collapsed && (
+            <>
+              <div className="brand-title">CTI Admin</div>
+              <div className="brand-subtitle">PBX 운영 대시보드</div>
+            </>
+          )}
         </div>
-        <Menu
-          mode="inline"
-          inlineCollapsed={collapsed}
-          selectedKeys={[normalizedPath]}
-          items={antdMenuItems}
-          onClick={({ key }) => {
-            navigate(key as string);
-            if (isMobile) setCollapsed(true);
-          }}
-        />
+        <div className="app-sider-menu">
+          <Menu
+            mode="inline"
+            inlineCollapsed={collapsed}
+            selectedKeys={[canonicalPath]}
+            items={antdMenuItems}
+            onClick={({ key }) => {
+              navigate(key as string);
+              if (isMobile) setCollapsed(true);
+            }}
+          />
+        </div>
       </Sider>
-      <Layout>
+      <Layout className="app-main-layout">
         <Header className="app-header" style={{ justifyContent: 'space-between' }}>
           <Space size="middle" align="center">
             <Button
@@ -99,7 +106,7 @@ export function AppLayout() {
           </Space>
           <Space>
             {agent && (
-              <Typography.Text type="secondary">
+              <Typography.Text type="secondary" className="header-agent-info">
                 {agent.agentName} ({agent.role})
               </Typography.Text>
             )}
@@ -115,7 +122,7 @@ export function AppLayout() {
             <Result
               status="403"
               title="메뉴 접근 권한 없음"
-              subTitle={`${pathToMenuKey(normalizedPath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
+              subTitle={`${pathToMenuKey(canonicalPath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
             />
           )}
         </Content>

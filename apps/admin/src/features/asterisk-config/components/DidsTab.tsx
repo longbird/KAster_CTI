@@ -1,4 +1,4 @@
-import { Button, Popconfirm, Space, Table, Tag, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createDid, deleteDid, getDids, updateDid } from '../api/asteriskConfigApi';
 import type { AsteriskDid } from '../types/asterisk-config';
@@ -106,12 +106,24 @@ export function DidsTab() {
   ];
 
   return (
-    <>
-      <Space style={{ marginBottom: 12 }}>
-        {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>DID 추가</Button> : null}
-      </Space>
-      <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
+          <div>
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              DID 설정
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              통신사에서 수신한 DID 번호를 대표번호, IVR, 호 분배룰과 연결합니다.
+            </Typography.Text>
+          </div>
+          {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>DID 추가</Button> : null}
+        </Space>
+      </Card>
+      <Card title="DID 목록">
+        <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+      </Card>
       <DidForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
-    </>
+    </Space>
   );
 }

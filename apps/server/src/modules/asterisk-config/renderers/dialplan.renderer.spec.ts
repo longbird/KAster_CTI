@@ -69,6 +69,8 @@ describe('renderDialplan', () => {
 
   it('renders IVR menu context with DTMF entries', () => {
     const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [baseMenu] });
+    expect(extensionsQueue).toContain('[queue-entry]');
+    expect(extensionsQueue).toContain('Queue(${QUEUE_NAME},tT,,,45,,,agent-pre-bridge)');
     expect(extensionsQueue).toContain('[ivr-menu-main-menu]');
     expect(extensionsQueue).toContain('exten => 1,1,Goto(queue-entry,sales,1)');
     expect(extensionsQueue).toContain('exten => 2,1,Goto(queue-entry,support,1)');
@@ -89,7 +91,8 @@ describe('renderDialplan', () => {
   it('skips IVR menu with no entries in extensionsQueue', () => {
     const emptyMenu = { id: 'm2', name: 'Empty Menu', welcomePrompt: null, menuPrompt: null, timeoutSecs: 5, entries: [] };
     const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [emptyMenu] });
-    expect(extensionsQueue).toBe('');
+    expect(extensionsQueue).toContain('[queue-entry]');
+    expect(extensionsQueue).not.toContain('[ivr-menu-empty-menu]');
   });
 
   it('throws on newline injection in did number', () => {

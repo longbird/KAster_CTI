@@ -66,11 +66,11 @@ export function FloatingDialerWindow({
       <button
         type="button"
         onClick={onRestore}
-        className="fixed bottom-20 left-4 z-[70] flex items-center gap-3 rounded-full bg-slate-950 px-5 py-3 text-left text-white shadow-2xl shadow-slate-950/20 transition-all hover:translate-y-[-1px] active:scale-95 md:bottom-6 md:left-[17rem]"
+        className="fixed bottom-20 left-4 z-[70] flex items-center gap-3 rounded-full bg-inverse-surface px-5 py-3 text-left text-inverse-on-surface shadow-2xl shadow-inverse-surface/20 transition-all hover:translate-y-[-1px] active:scale-95 md:bottom-6 md:left-[17rem]"
       >
         <span className="material-symbols-outlined">dialpad</span>
         <span>
-          <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-300">
+          <span className="block text-[10px] font-bold uppercase tracking-widest opacity-70">
             Dialer
           </span>
           <span className="block text-sm font-bold">전화 발신</span>
@@ -80,23 +80,23 @@ export function FloatingDialerWindow({
   }
 
   return (
-    <aside className="fixed bottom-20 left-4 z-[70] w-[min(440px,calc(100vw-2rem))] rounded-[28px] border border-white/70 bg-white/95 p-4 shadow-2xl shadow-slate-900/15 backdrop-blur md:bottom-6 md:left-[17rem] md:w-[min(440px,calc(100vw-19rem))]">
+    <aside className="fixed bottom-20 left-4 z-[70] w-[min(440px,calc(100vw-2rem))] rounded-[28px] border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-2xl shadow-shadow/10 md:bottom-6 md:left-[17rem] md:w-[min(440px,calc(100vw-19rem))]">
       <div className="mb-4 flex items-center justify-between gap-3 px-2">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Call Popup</p>
-          <h3 className="font-headline text-lg font-bold text-slate-950">전화 발신</h3>
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-outline">Call Popup</p>
+          <h3 className="font-headline text-lg font-bold text-on-surface">전화 발신</h3>
         </div>
         <button
           type="button"
           onClick={onMinimize}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all hover:bg-slate-200 active:scale-95"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-95"
           title="발신창 최소화"
         >
           <span className="material-symbols-outlined">remove</span>
         </button>
       </div>
 
-      <div className="mb-4 inline-flex rounded-full bg-slate-100 p-1">
+      <div className="mb-4 inline-flex rounded-full bg-surface-container p-1">
         {(['external', 'internal'] as Tab[]).map((item) => (
           <button
             key={item}
@@ -104,8 +104,8 @@ export function FloatingDialerWindow({
             onClick={() => setTab(item)}
             className={
               tab === item
-                ? 'rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-950 shadow-sm'
-                : 'rounded-full px-4 py-2 text-sm font-bold text-slate-500'
+                ? 'rounded-full bg-surface-container-lowest px-4 py-2 text-sm font-bold text-on-surface shadow-sm'
+                : 'rounded-full px-4 py-2 text-sm font-bold text-on-surface-variant'
             }
           >
             {item === 'external' ? '외부 발신' : '내선 통화'}
@@ -120,7 +120,7 @@ export function FloatingDialerWindow({
             <select
               value={selectedCallerId}
               onChange={(event) => setSelectedCallerId(event.target.value)}
-              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-primary"
+              className="mt-3 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-3 text-sm text-on-surface outline-none transition-all focus:border-primary"
             >
               {callerIds.length === 0 ? (
                 <option value="">설정된 발신번호 없음</option>
@@ -137,7 +137,7 @@ export function FloatingDialerWindow({
               value={phoneNumber}
               onChange={(event) => setPhoneNumber(event.target.value)}
               placeholder="전화번호 입력"
-              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-primary"
+              className="mt-3 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-3 text-sm text-on-surface outline-none transition-all placeholder:text-outline focus:border-primary"
             />
             <button
               type="button"
@@ -165,12 +165,12 @@ export function FloatingDialerWindow({
               value={agentQuery}
               onChange={(event) => setAgentQuery(event.target.value)}
               placeholder="이름, 내선, 역할 검색"
-              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-primary"
+              className="mt-3 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-3 text-sm text-on-surface outline-none transition-all placeholder:text-outline focus:border-primary"
             />
           </div>
           <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
             {filteredAgents.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+              <div className="rounded-2xl border border-dashed border-outline-variant/30 p-8 text-center text-sm text-outline">
                 표시할 상담원이 없습니다.
               </div>
             ) : filteredAgents.map((agent) => {

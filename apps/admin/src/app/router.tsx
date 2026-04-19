@@ -46,6 +46,7 @@ export const router = createBrowserRouter([
       { path: 'queues',               element: <QueuesPage /> },
       { path: 'agents',               element: <AgentsPage /> },
       { path: 'monitoring',           element: <MonitoringPage /> },
+      { path: 'integrations',         element: <Navigate to="/asterisk" replace /> },
       { path: 'asterisk',             element: <AsteriskConfigPage /> },
     ],
   },

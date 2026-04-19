@@ -33,6 +33,17 @@ const STATUS_COLOR: Record<string, string> = {
   MANUAL_PAUSED: 'default',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  AVAILABLE: '대기',
+  TALKING: '통화 중',
+  RINGING: '벨 울림',
+  RINGING_AGENT: '벨 울림',
+  AFTER_CALL_WORK: '후처리',
+  BREAK: '휴식',
+  MEAL: '식사',
+  MANUAL_PAUSED: '일시정지',
+};
+
 export function AgentSettingsPage() {
   const agentPermission = usePermissionStore((state) => state.permissionsByMenu['settings/agents']);
   const [rows, setRows] = useState<AgentRow[] | null>(null);
@@ -50,6 +61,10 @@ export function AgentSettingsPage() {
 
   useEffect(() => {
     void load();
+    const timer = window.setInterval(() => {
+      void load();
+    }, 5000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const deactivate = async (agentId: string) => {
@@ -93,12 +108,18 @@ export function AgentSettingsPage() {
           상담원 설정
         </Typography.Title>
         {agentPermission?.canCreate !== false ? (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditing(null);
+              setShowCreate(true);
+            }}
+          >
             신규 등록
           </Button>
         ) : null}
       </Space>
-
       <Table<AgentRow>
         rowKey="agentId"
         dataSource={rows}
@@ -116,10 +137,10 @@ export function AgentSettingsPage() {
                 <Tag color="default">비활성</Tag>
               ) : r.currentStatus ? (
                 <Tag color={STATUS_COLOR[r.currentStatus.statusCode] ?? 'default'}>
-                  {r.currentStatus.statusCode}
+                  {STATUS_LABEL[r.currentStatus.statusCode] ?? r.currentStatus.statusCode}
                 </Tag>
               ) : (
-                <Tag>OFFLINE</Tag>
+                <Tag>오프라인</Tag>
               ),
           },
           {
@@ -130,7 +151,10 @@ export function AgentSettingsPage() {
                 <Button
                   size="small"
                   icon={<EditOutlined />}
-                  onClick={() => setEditing(r)}
+                  onClick={() => {
+                    setShowCreate(false);
+                    setEditing(r);
+                  }}
                   disabled={!r.isActive || agentPermission?.canUpdate === false}
                 >
                   수정
@@ -167,15 +191,19 @@ export function AgentSettingsPage() {
 
       {agentPermission?.canCreate !== false ? (
         <AgentCreateModal
-          open={showCreate}
-          onClose={() => setShowCreate(false)}
+          open={showCreate && !editing}
+          onClose={() => {
+            setShowCreate(false);
+          }}
           onCreated={() => void load()}
         />
       ) : null}
       {agentPermission?.canUpdate !== false ? (
         <AgentEditModal
-          agent={editing}
-          onClose={() => setEditing(null)}
+          agent={showCreate ? null : editing}
+          onClose={() => {
+            setEditing(null);
+          }}
           onSaved={() => void load()}
         />
       ) : null}

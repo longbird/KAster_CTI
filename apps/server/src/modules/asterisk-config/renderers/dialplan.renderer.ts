@@ -162,9 +162,25 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
   ].join('\n');
 
   const extensionsInbound = [`[inbound-main]`, ...didLines, blockedAniContext].join('\n\n');
-  const extensionsQueue = input.ivrMenus
+  const queueEntry = [
+    '[queue-entry]',
+    'exten => s,1,NoOp(Queue Entry / ${QUEUE_NAME} / ${CHANNEL(linkedid)})',
+    ' same => n,Set(__REC_FILE=${STRFTIME(${EPOCH},,%Y/%m/%d)}/${CHANNEL(linkedid)}-${UNIQUEID}.wav)',
+    ' same => n,Set(__CALL_START_TS=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})',
+    ' same => n,Set(CDR(userfield)=linkedid=${CHANNEL(linkedid)};queue=${QUEUE_NAME};rec=${REC_FILE})',
+    ' same => n,Queue(${QUEUE_NAME},tT,,,45,,,agent-pre-bridge)',
+    ' same => n,NoOp(Queue Result: ${QUEUESTATUS})',
+    ' same => n,Goto(queue-exit,s,1)',
+    '',
+    '[queue-exit]',
+    'exten => s,1,NoOp(Queue Exit / STATUS=${QUEUESTATUS} / ABANDONED?=${ABANDONED})',
+    ' same => n,ExecIf($["${QUEUESTATUS}"="TIMEOUT"]?Playback(custom/queue_timeout))',
+    ' same => n,Hangup()',
+  ].join('\n');
+
+  const extensionsQueue = [queueEntry, ...input.ivrMenus
     .filter((m) => m.entries.length > 0)
-    .map(renderIvrMenu)
+    .map(renderIvrMenu)]
     .join('\n\n');
 
   return { extensionsInbound, extensionsQueue };

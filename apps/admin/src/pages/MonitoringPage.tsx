@@ -1,5 +1,5 @@
 // apps/admin/src/pages/MonitoringPage.tsx
-import { Alert, Button, Card, Col, Row, Space, Statistic, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Space, Statistic, Tag, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useHealthData } from '../features/monitoring/hooks/useHealthData';
@@ -70,19 +70,41 @@ function InfraCards({ data }: { data: ReturnType<typeof useHealthData>['data'] }
   ] as { label: string; value: InfraVal }[];
 
   return (
-    <Row gutter={[16, 16]}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: 16,
+      }}
+    >
       {items.map(({ label, value }) => (
-        <Col key={label} xs={24} sm={8}>
-          <Card>
+        <Card
+          key={label}
+          size="small"
+          styles={{ body: { padding: 18 } }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text type="secondary" strong>
+              {label}
+            </Text>
+            <Tag color={value === 'up' || value === 'connected' ? 'success' : value === 'degraded' ? 'warning' : 'error'}>
+              {value}
+            </Tag>
+          </div>
+          <Card
+            size="small"
+            bordered={false}
+            styles={{ body: { padding: 14, background: '#f8fafc', borderRadius: 12 } }}
+          >
             <Statistic
-              title={label}
               value={value.toUpperCase()}
               valueStyle={{ color: infraColor(value) }}
+              formatter={(current) => <span style={{ fontSize: 24, fontWeight: 700 }}>{current}</span>}
             />
           </Card>
-        </Col>
+        </Card>
       ))}
-    </Row>
+    </div>
   );
 }
 
@@ -97,18 +119,28 @@ interface MetricItem {
 function MetricGrid({ title, items }: { title: string; items: MetricItem[] }) {
   return (
     <Card title={title}>
-      <Row gutter={[16, 16]}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 16,
+        }}
+      >
         {items.map(({ label, value, suffix, danger }) => (
-          <Col key={label} xs={12} sm={8} md={6}>
+          <Card
+            key={label}
+            size="small"
+            styles={{ body: { padding: 16 } }}
+          >
             <Statistic
               title={label}
               value={value}
               suffix={suffix}
               valueStyle={danger && value > 0 ? { color: '#ff4d4f' } : undefined}
             />
-          </Col>
+          </Card>
         ))}
-      </Row>
+      </div>
     </Card>
   );
 }
@@ -120,10 +152,12 @@ export function MonitoringPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      {/* Control bar */}
-      <Card size="small">
+      <Card>
         <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-          <Title level={4} style={{ margin: 0 }}>시스템 모니터링</Title>
+          <div>
+            <Title level={4} style={{ margin: 0 }}>시스템 모니터링</Title>
+            <Text type="secondary">인프라 연결 상태와 실시간 콜/에이전트/큐 지표를 확인합니다.</Text>
+          </div>
           <Space>
             {lastUpdated && (
               <Text type="secondary">마지막 갱신: {dayjs(lastUpdated).format('HH:mm:ss')}</Text>
@@ -141,13 +175,8 @@ export function MonitoringPage() {
         </Space>
       </Card>
 
-      {/* Alert banners */}
       {data && <AlertBanners data={data} />}
-
-      {/* Infra status */}
       {data && <InfraCards data={data} />}
-
-      {/* Call metrics */}
       {data && (
         <MetricGrid
           title="콜 지표"
@@ -163,8 +192,6 @@ export function MonitoringPage() {
           ]}
         />
       )}
-
-      {/* Agent metrics */}
       {data && (
         <MetricGrid
           title="에이전트 지표"
@@ -177,8 +204,6 @@ export function MonitoringPage() {
           ]}
         />
       )}
-
-      {/* Queue metrics */}
       {data && (
         <MetricGrid
           title="큐 지표"
@@ -191,8 +216,6 @@ export function MonitoringPage() {
           ]}
         />
       )}
-
-      {/* Initial load / error state */}
       {isLoading && !data && (
         <Card>
           <Text type="secondary">데이터 로딩 중...</Text>

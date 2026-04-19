@@ -1,8 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
 import { ParsedAmiFrame } from '../ami/ami.parser';
 import { AsteriskReloadService } from './asterisk-reload.service';
+import {
+  DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
+  DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
+} from '../../common/call-routing.constants';
 import { CreateBlocklistEntryDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
 import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
@@ -130,9 +135,19 @@ export class AsteriskConfigService {
   }
 
   async createDid(tenantId: string, dto: CreateDidDto) {
-    await this.validateDidXorAndQueue(tenantId, dto);
+    const normalized = await this.normalizeDidRouting(tenantId, dto);
+    await this.validateDidXorAndQueue(tenantId, normalized);
+    const data: Prisma.AsteriskDidUncheckedCreateInput = {
+      tenantId,
+      did: normalized.did!,
+      representativeNumber: normalized.representativeNumber ?? null,
+      description: normalized.description ?? null,
+      ivrMenuId: normalized.ivrMenuId ?? null,
+      directQueue: normalized.directQueue ?? null,
+      enabled: normalized.enabled ?? true,
+    };
     const did = await this.prisma.asteriskDid.create({
-      data: { tenantId, ...dto, enabled: dto.enabled ?? true },
+      data,
     });
     this.reload.scheduleReload(tenantId);
     return did;
@@ -144,8 +159,17 @@ export class AsteriskConfigService {
    */
   async updateDid(tenantId: string, id: string, dto: UpdateDidDto) {
     await this.assertDidBelongs(tenantId, id);
-    await this.validateDidXorAndQueue(tenantId, dto);
-    const did = await this.prisma.asteriskDid.update({ where: { id }, data: dto });
+    const normalized = await this.normalizeDidRouting(tenantId, dto);
+    await this.validateDidXorAndQueue(tenantId, normalized);
+    const data: Prisma.AsteriskDidUncheckedUpdateInput = {
+      did: normalized.did,
+      representativeNumber: normalized.representativeNumber ?? null,
+      description: normalized.description ?? null,
+      ivrMenuId: normalized.ivrMenuId ?? null,
+      directQueue: normalized.directQueue ?? null,
+      enabled: normalized.enabled ?? true,
+    };
+    const did = await this.prisma.asteriskDid.update({ where: { id }, data });
     this.reload.scheduleReload(tenantId);
     return did;
   }
@@ -172,6 +196,81 @@ export class AsteriskConfigService {
       });
       if (!queue) throw new BadRequestException(`Queue "${dto.directQueue}" not found`);
     }
+  }
+
+  private async normalizeDidRouting(
+    tenantId: string,
+    dto: CreateDidDto | UpdateDidDto,
+  ): Promise<CreateDidDto | UpdateDidDto> {
+    if (dto.ivrMenuId) return dto;
+    if (dto.directQueue) return dto;
+
+    const defaultQueue = await this.ensureDefaultDistributionQueue(tenantId);
+    return { ...dto, directQueue: defaultQueue.queueName };
+  }
+
+  private async ensureDefaultDistributionQueue(tenantId: string) {
+    const existing = await this.prisma.queues.findFirst({
+      where: { tenantId, queueName: DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME },
+    });
+    if (existing) {
+      await this.syncDefaultDistributionMembers(tenantId, existing.queueId);
+      return existing;
+    }
+
+    const queueExtens = await this.prisma.queues.findMany({
+      where: { tenantId },
+      select: { queueExten: true },
+    });
+    const used = new Set(queueExtens.map((item) => item.queueExten));
+    let queueExten = '9999';
+    for (let candidate = 9999; candidate < 11000; candidate += 1) {
+      const value = String(candidate);
+      if (!used.has(value)) {
+        queueExten = value;
+        break;
+      }
+    }
+
+    const created = await this.prisma.queues.create({
+      data: {
+        tenantId,
+        queueName: DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
+        queueExten,
+        queueDisplayName: DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
+        strategy: 'leastrecent',
+        ringTimeoutSeconds: 15,
+        wrapupSeconds: 30,
+        maxWaitSeconds: 45,
+        autopause: true,
+        isActive: true,
+      },
+    });
+    await this.syncDefaultDistributionMembers(tenantId, created.queueId);
+    return created;
+  }
+
+  private async syncDefaultDistributionMembers(tenantId: string, queueId: string) {
+    const activeAgents = await this.prisma.agents.findMany({
+      where: { tenantId, isActive: true },
+      select: { agentId: true },
+      orderBy: { agentCode: 'asc' },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.queueAgentMembers.deleteMany({ where: { queueId } });
+      if (activeAgents.length === 0) return;
+      await tx.queueAgentMembers.createMany({
+        data: activeAgents.map((agent, index) => ({
+          tenantId,
+          queueId,
+          agentId: agent.agentId,
+          penalty: 0,
+          memberOrder: index,
+          isActive: true,
+        })),
+      });
+    });
   }
 
   private async assertDidBelongs(tenantId: string, id: string) {

@@ -3,12 +3,15 @@ import {
   cancelAttendedTransferCall,
   completeAttendedTransferCall,
   getActiveCalls,
+  getAgents,
   getAgentSession,
   getCallHistory,
   getQueuesSummary,
   hangupCall,
   holdCall,
   muteCall,
+  originateExternalCall,
+  originateInternalCall,
   pickupCall,
   saveCallMemo,
   transferCall,
@@ -17,6 +20,7 @@ import {
 import { connectSocket } from '../ws';
 import type {
   ActiveCall,
+  AgentDirectoryItem,
   AgentSession,
   CallHistoryItem,
   CtiEvent,
@@ -28,6 +32,7 @@ interface CtiState {
   loading: boolean;
   agentSession: AgentSession | null;
   queues: QueueSummary[];
+  agentDirectory: AgentDirectoryItem[];
   activeCalls: ActiveCall[];
   selectedCallId: string | null;
   recentHistory: CallHistoryItem[];
@@ -41,6 +46,8 @@ interface CtiState {
   toggleMute: () => Promise<void>;
   toggleHold: () => Promise<void>;
   transfer: (target: string, mode?: 'blind' | 'attended') => Promise<void>;
+  originateExternal: (phoneNumber: string, callerId?: string) => Promise<void>;
+  originateInternal: (target: AgentDirectoryItem) => Promise<void>;
   cancelAttendedTransfer: () => Promise<void>;
   completeAttendedTransfer: () => Promise<void>;
   hangup: () => Promise<void>;
@@ -83,6 +90,7 @@ export const useCtiStore = create<CtiState>((set, get) => ({
   loading: true,
   agentSession: null,
   queues: [],
+  agentDirectory: [],
   activeCalls: [],
   selectedCallId: null,
   recentHistory: [],
@@ -103,17 +111,19 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       }
     };
 
-    const [agentSession, queues, activeCalls, recentHistory] = await Promise.all([
+    const [agentSession, queues, activeCalls, recentHistory, agentDirectory] = await Promise.all([
       safe(getAgentSession(), null as any),
       safe(getQueuesSummary(), [] as any),
       safe(getActiveCalls(), [] as any),
       safe(getCallHistory(), [] as any),
+      safe(getAgents(), [] as any),
     ]);
 
     set({
       loading: false,
       agentSession,
       queues,
+      agentDirectory,
       activeCalls,
       selectedCallId: activeCalls[0]?.callId ?? null,
       recentHistory,
@@ -232,6 +242,25 @@ export const useCtiStore = create<CtiState>((set, get) => ({
             }
           : call,
       ),
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  originateExternal: async (phoneNumber, callerId) => {
+    const normalized = phoneNumber.trim();
+    if (!normalized) return;
+
+    await originateExternalCall(normalized, callerId);
+    const msg = `외부 발신 요청이 접수되었습니다. 대상: ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`;
+    set((state) => ({
+      notifications: [msg, ...state.notifications].slice(0, 5),
+      eventLog: pushLog(state, 'info', msg),
+    }));
+  },
+  originateInternal: async (target) => {
+    await originateInternalCall(target.agentId, target.extension);
+    const msg = `내선 통화 요청이 접수되었습니다. 대상: ${target.agentName} (${target.extension})`;
+    set((state) => ({
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),
     }));

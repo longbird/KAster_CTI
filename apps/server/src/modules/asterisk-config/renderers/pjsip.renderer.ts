@@ -13,6 +13,10 @@ export interface AgentInput {
   extension: string;
   agentName: string;
   sipPassword: string | null;
+  context?: string;
+  callerIdPrivacy?: 'allowed_not_screened' | 'prohib';
+  pickupGroup?: string | null;
+  pickupType?: 'STRONG' | 'NORMAL' | 'NOT_USE';
 }
 
 export interface PjsipInput {
@@ -78,6 +82,16 @@ function renderAgent(agent: AgentInput): string {
   assertNoNewlines(agent.extension, 'extension');
   assertNoNewlines(agent.agentName, 'agentName');
   assertNoNewlines(agent.sipPassword, 'sipPassword');
+  if (agent.context) assertNoNewlines(agent.context, 'context');
+  if (agent.pickupGroup) assertNoNewlines(agent.pickupGroup, 'pickupGroup');
+
+  const namedCallGroup = agent.pickupType && agent.pickupType !== 'NOT_USE'
+    ? agent.pickupGroup || 'all-agents'
+    : null;
+  const namedPickupGroup = agent.pickupType === 'STRONG'
+    ? [namedCallGroup, 'all-agents'].filter(Boolean).join(',')
+    : namedCallGroup;
+
   return [
     `[${agent.extension}-auth]`,
     `type=auth`,
@@ -93,12 +107,15 @@ function renderAgent(agent: AgentInput): string {
     ``,
     `[${agent.extension}]`,
     `type=endpoint`,
-    `context=agent-phone`,
+    `context=${agent.context || `agent-phone-${agent.extension}`}`,
     `disallow=all`,
     `allow=alaw,ulaw`,
     `auth=${agent.extension}-auth`,
     `aors=${agent.extension}`,
     `callerid=${agent.agentName} <${agent.extension}>`,
+    `callerid_privacy=${agent.callerIdPrivacy || 'allowed_not_screened'}`,
+    ...(namedCallGroup ? [`named_call_group=${namedCallGroup}`] : []),
+    ...(namedPickupGroup ? [`named_pickup_group=${namedPickupGroup}`] : []),
     `direct_media=no`,
     `rtp_symmetric=yes`,
     `force_rport=yes`,

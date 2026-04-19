@@ -44,7 +44,7 @@ export function FloatingCallWindow({
       >
         <span className="material-symbols-outlined">call</span>
         <span>
-          <span className="block text-[10px] font-bold uppercase tracking-widest text-blue-100">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-white/70">
             현재 통화
           </span>
           <span className="block text-sm font-bold">
@@ -56,18 +56,18 @@ export function FloatingCallWindow({
   }
 
   return (
-    <aside className="fixed right-4 top-20 z-[70] w-[min(560px,calc(100vw-2rem))] rounded-[28px] border border-white/70 bg-white/95 p-4 shadow-2xl shadow-slate-900/15 backdrop-blur md:right-6 md:top-24">
+    <aside className="fixed right-4 top-20 z-[70] w-[min(560px,calc(100vw-2rem))] rounded-[28px] border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-2xl shadow-shadow/10 md:right-6 md:top-24">
       <div className="mb-4 flex items-center justify-between gap-3 px-2">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-outline">
             Live Call Popup
           </p>
-          <h3 className="font-headline text-lg font-bold text-slate-950">통화 제어 팝업</h3>
+          <h3 className="font-headline text-lg font-bold text-on-surface">통화 제어 팝업</h3>
         </div>
         <button
           type="button"
           onClick={onMinimize}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all hover:bg-slate-200 active:scale-95"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-95"
           title="팝업 최소화"
         >
           <span className="material-symbols-outlined">remove</span>

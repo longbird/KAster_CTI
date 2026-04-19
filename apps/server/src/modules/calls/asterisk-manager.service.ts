@@ -35,6 +35,27 @@ export class AsteriskManagerService {
     return { channel, actionId: params.actionId };
   }
 
+  originateInternal(params: {
+    agentExtension: string;
+    targetExtension: string;
+    context?: string;
+    actionId?: string;
+  }): { channel: string; actionId?: string } {
+    const channel = `PJSIP/${params.agentExtension}`;
+    this.ami.sendAction({
+      Action: 'Originate',
+      ...(params.actionId ? { ActionID: params.actionId } : {}),
+      Channel: channel,
+      Context: params.context || 'transfer-target',
+      Exten: params.targetExtension,
+      Priority: 1,
+      CallerID: params.agentExtension,
+      Async: 'true',
+    });
+    this.logger.log(`Internal originate requested: ${channel} -> ${params.targetExtension}`);
+    return { channel, actionId: params.actionId };
+  }
+
   blindTransfer(channel: string, exten: string, context = 'transfer-target'): void {
     this.ami.sendAction({
       Action: 'Redirect',

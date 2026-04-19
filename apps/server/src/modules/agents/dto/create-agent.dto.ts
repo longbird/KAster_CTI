@@ -1,6 +1,7 @@
 import {
   IsIn,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -45,4 +46,13 @@ export class CreateAgentDto {
   @IsOptional()
   @IsUUID()
   defaultQueueId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  sipPassword?: string;
+
+  @IsOptional()
+  @IsObject()
+  settingsProfile?: Record<string, any>;
 }

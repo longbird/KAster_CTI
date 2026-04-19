@@ -56,6 +56,13 @@ export interface AsteriskDid {
   }>;
 }
 
+export interface DistributionRuleOption {
+  queueId: string;
+  queueName: string;
+  queueDisplayName?: string;
+  isDefaultRule?: boolean;
+}
+
 export interface AsteriskIvrEntry {
   id?: string;
   digit: string;

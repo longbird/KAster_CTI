@@ -11,6 +11,7 @@ import { LoginDto } from './login.dto';
 // — SHA-256 해시만 DB 에 저장하고 원본은 클라이언트가 보관.
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_DAYS = 14;
+const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
 
 function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -32,10 +33,18 @@ export class AuthService {
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
     const agent = await this.prisma.agents.findFirst({
-      where: { loginId: dto.loginId, extension: dto.extension, isActive: true },
+      where: { loginId: dto.loginId, isActive: true },
     });
 
     if (!agent) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (dto.extension?.trim()) {
+      if (agent.extension !== dto.extension.trim()) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    } else if (!SUPERVISORY_ROLES.has(agent.role)) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -47,6 +56,20 @@ export class AuthService {
     await this.prisma.agents.update({
       where: { agentId: agent.agentId },
       data: { lastLoginAt: new Date() },
+    });
+
+    // 기존 열린 상태 종료 후 AVAILABLE 설정
+    await this.prisma.agentStatusHistory.updateMany({
+      where: { agentId: agent.agentId, endedAt: null },
+      data: { endedAt: new Date() },
+    });
+    await this.prisma.agentStatusHistory.create({
+      data: {
+        tenantId: agent.tenantId,
+        agentId: agent.agentId,
+        statusCode: 'AVAILABLE' as any,
+        startedAt: new Date(),
+      },
     });
 
     const accessToken = this.signAccessToken(agent);
@@ -121,10 +144,20 @@ export class AuthService {
       return { success: true, data: { loggedOut: true }, error: null };
     }
     const tokenHash = sha256(refreshToken);
+    const row = await this.prisma.refreshTokens.findUnique({
+      where: { tokenHash },
+      select: { agentId: true },
+    });
     await this.prisma.refreshTokens.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    if (row?.agentId) {
+      await this.prisma.agentStatusHistory.updateMany({
+        where: { agentId: row.agentId, endedAt: null },
+        data: { endedAt: new Date() },
+      });
+    }
     return { success: true, data: { loggedOut: true }, error: null };
   }
 
@@ -141,6 +174,7 @@ export class AuthService {
       where: { agentId: user.sub },
       include: { defaultQueue: true },
     });
+    const outboundDialOptions = await this.callsService.getOutboundDialOptions(user.tenantId);
 
     return {
       success: true,
@@ -148,6 +182,7 @@ export class AuthService {
         agent,
         jwt: user,
         callControlCapabilities: this.callsService.getCallControlCapabilities(),
+        outboundDialOptions,
       },
       error: null,
     };

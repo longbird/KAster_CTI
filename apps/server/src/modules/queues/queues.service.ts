@@ -3,6 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
+  DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
+} from '../../common/call-routing.constants';
 import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
@@ -15,6 +19,7 @@ export class QueuesService {
   ) {}
 
   async getSummary(tenantId: string, queueIds?: string[]) {
+    await this.ensureDefaultRule(tenantId);
     const queues = await this.prisma.queues.findMany({
       where: {
         tenantId,
@@ -128,6 +133,7 @@ export class QueuesService {
   }
 
   async listSettings(tenantId: string) {
+    const defaultQueue = await this.ensureDefaultRule(tenantId);
     const rows = await this.prisma.queues.findMany({
       where: { tenantId },
       select: {
@@ -144,7 +150,14 @@ export class QueuesService {
       },
       orderBy: { queueName: 'asc' },
     });
-    return { success: true, data: rows, error: null };
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        isDefaultRule: row.queueId === defaultQueue.queueId,
+      })),
+      error: null,
+    };
   }
 
   async create(tenantId: string, dto: CreateQueueDto) {
@@ -249,6 +262,7 @@ export class QueuesService {
   }
 
   async listMembers(tenantId: string, queueId: string) {
+    await this.ensureDefaultRule(tenantId);
     const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
     if (!queue) throw new NotFoundException('Queue not found');
 
@@ -276,6 +290,7 @@ export class QueuesService {
     queueId: string,
     members: Array<{ agentId: string; penalty?: number; memberOrder?: number }>,
   ) {
+    await this.ensureDefaultRule(tenantId);
     const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
     if (!queue) throw new NotFoundException('Queue not found');
 
@@ -309,5 +324,73 @@ export class QueuesService {
 
     this.reload.scheduleReload(tenantId);
     return this.listMembers(tenantId, queueId);
+  }
+
+  async getDefaultRule(tenantId: string) {
+    return this.ensureDefaultRule(tenantId);
+  }
+
+  private async ensureDefaultRule(tenantId: string) {
+    let queue = await this.prisma.queues.findFirst({
+      where: { tenantId, queueName: DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME },
+    });
+
+    if (!queue) {
+      queue = await this.prisma.queues.create({
+        data: {
+          tenantId,
+          queueName: DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
+          queueExten: await this.allocateDefaultQueueExten(tenantId),
+          queueDisplayName: DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
+          strategy: 'leastrecent',
+          ringTimeoutSeconds: 15,
+          wrapupSeconds: 30,
+          maxWaitSeconds: 45,
+          autopause: true,
+          isActive: true,
+        },
+      });
+    }
+
+    await this.syncDefaultRuleMembers(tenantId, queue.queueId);
+    return queue;
+  }
+
+  private async allocateDefaultQueueExten(tenantId: string) {
+    const queues = await this.prisma.queues.findMany({
+      where: { tenantId },
+      select: { queueExten: true },
+    });
+    const used = new Set(queues.map((item) => item.queueExten));
+    for (let candidate = 9999; candidate < 11000; candidate += 1) {
+      const value = String(candidate);
+      if (!used.has(value)) return value;
+    }
+    throw new ConflictException('기본 호 분배룰에 사용할 내선을 자동 배정할 수 없습니다');
+  }
+
+  private async syncDefaultRuleMembers(tenantId: string, queueId: string) {
+    const activeAgents = await this.prisma.agents.findMany({
+      where: { tenantId, isActive: true },
+      select: { agentId: true },
+      orderBy: [{ agentCode: 'asc' }],
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.queueAgentMembers.deleteMany({ where: { queueId } });
+
+      if (activeAgents.length > 0) {
+        await tx.queueAgentMembers.createMany({
+          data: activeAgents.map((agent, index) => ({
+            tenantId,
+            queueId,
+            agentId: agent.agentId,
+            penalty: 0,
+            memberOrder: index,
+            isActive: true,
+          })),
+        });
+      }
+    });
   }
 }

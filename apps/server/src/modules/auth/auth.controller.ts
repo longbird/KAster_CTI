@@ -15,7 +15,7 @@ export class AuthController {
   @Post('auth/login')
   @ApiOperation({
     summary: '상담원 로그인',
-    description: 'loginId + extension + password 검증 (bcrypt). 성공 시 access(15m) + refresh(14d) 토큰 쌍 반환.',
+    description: '기본적으로 loginId + extension + password 검증 (bcrypt). supervisor/admin 은 extension 없이도 로그인 가능. 성공 시 access(15m) + refresh(14d) 토큰 쌍 반환.',
   })
   @ApiOkResponse({ type: ApiResponseDto })
   login(

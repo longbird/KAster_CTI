@@ -62,7 +62,7 @@ export function QueueEditModal({ queue, onClose, onSaved }: Props) {
 
   return (
     <Modal
-      title={`큐 설정 수정 - ${queue?.queueDisplayName ?? queue?.queueName ?? ''}`}
+      title={`호 분배룰 수정 - ${queue?.queueDisplayName ?? queue?.queueName ?? ''}`}
       open={!!queue}
       onOk={() => void handleOk()}
       onCancel={onClose}
@@ -71,8 +71,8 @@ export function QueueEditModal({ queue, onClose, onSaved }: Props) {
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item label="표시명" name="queueDisplayName">
-          <Input placeholder="없으면 queueName 사용" maxLength={128} />
+        <Form.Item label="Rule명" name="queueDisplayName">
+          <Input placeholder="없으면 내부명 사용" maxLength={128} />
         </Form.Item>
         <Form.Item label="분배 전략" name="strategy">
           <Select options={STRATEGY_OPTIONS} />

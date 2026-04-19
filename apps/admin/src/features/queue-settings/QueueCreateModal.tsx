@@ -22,7 +22,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
     const values = await form.validateFields();
     try {
       await apiClient.post('/queues', values);
-      message.success('큐 생성 완료');
+      message.success('호 분배룰 생성 완료');
       form.resetFields();
       onCreated();
       onClose();
@@ -34,7 +34,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
 
   return (
     <Modal
-      title="신규 큐 생성"
+      title="신규 호 분배룰 생성"
       open={open}
       onOk={() => void handleOk()}
       onCancel={onClose}
@@ -45,18 +45,18 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
     >
       <Form form={form} layout="vertical" preserve={false}>
         <Form.Item
-          label="큐명 (PBX)"
+          label="Rule 내부명 (PBX)"
           name="queueName"
           rules={[
             { required: true, max: 64 },
             { pattern: /^[a-z0-9-]+$/, message: '영소문자·숫자·하이픈만 허용' },
           ]}
-          extra="PBX queues.conf에 그대로 사용됩니다. 예: sales-queue"
+          extra="PBX queues.conf에 그대로 사용되는 내부 식별자입니다. 예: sales-queue"
         >
           <Input placeholder="sales-queue" />
         </Form.Item>
         <Form.Item
-          label="큐 내선번호"
+          label="Rule 내선번호"
           name="queueExten"
           rules={[
             { required: true, max: 16 },
@@ -65,8 +65,8 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
         >
           <Input placeholder="9001" />
         </Form.Item>
-        <Form.Item label="표시명" name="queueDisplayName" rules={[{ required: true, max: 128 }]}>
-          <Input placeholder="영업팀 콜센터" />
+        <Form.Item label="Rule명" name="queueDisplayName" rules={[{ required: true, max: 128 }]}>
+          <Input placeholder="영업 대표 큐" />
         </Form.Item>
         <Form.Item label="분배 전략" name="strategy" initialValue="leastrecent">
           <Select options={STRATEGY_OPTIONS} />

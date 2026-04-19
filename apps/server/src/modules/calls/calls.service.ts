@@ -5,6 +5,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
+import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
@@ -234,6 +235,24 @@ export class CallsService {
     return callerId;
   }
 
+  async getOutboundDialOptions(tenantId: string) {
+    const settings = await this.prisma.tenantSystemSettings.findUnique({
+      where: { tenantId },
+      select: {
+        allowedOutboundCallerIds: true,
+        defaultOutboundCallerId: true,
+      },
+    } as any) as
+      | { allowedOutboundCallerIds?: string | null; defaultOutboundCallerId?: string | null }
+      | null;
+
+    const allowedCallerIds = parseAllowedCallerIds(settings?.allowedOutboundCallerIds);
+    return {
+      allowedCallerIds,
+      defaultCallerId: settings?.defaultOutboundCallerId ?? allowedCallerIds[0] ?? null,
+    };
+  }
+
   async originate(tenantId: string, dto: OriginateDto) {
     const callerId = await this.resolveAllowedOutboundCallerId(tenantId, dto.callerId);
     const { channel } = this.asteriskManager.originate({
@@ -247,6 +266,61 @@ export class CallsService {
     return {
       success: true,
       data: { accepted: true, channel, requestedAt: new Date().toISOString() },
+      error: null,
+    };
+  }
+
+  async originateInternal(
+    tenantId: string,
+    params: { agentId: string; agentExtension: string; targetExtension: string; targetAgentId?: string },
+  ) {
+    const targetExtension = params.targetExtension.trim();
+    if (!targetExtension) {
+      throw new BadRequestException('대상 내선이 필요합니다.');
+    }
+    if (targetExtension === params.agentExtension) {
+      throw new BadRequestException('본인 내선으로는 통화 요청을 보낼 수 없습니다.');
+    }
+
+    const targetAgent = await this.prisma.agents.findFirst({
+      where: {
+        tenantId,
+        extension: targetExtension,
+        ...(params.targetAgentId ? { agentId: params.targetAgentId } : {}),
+        isActive: true,
+      },
+      select: {
+        agentId: true,
+        agentName: true,
+        extension: true,
+      },
+    });
+    if (!targetAgent) {
+      throw new NotFoundException('대상 상담원을 찾을 수 없습니다.');
+    }
+
+    const { channel } = this.asteriskManager.originateInternal({
+      agentExtension: params.agentExtension,
+      targetExtension,
+    });
+
+    const payload = {
+      requestedByAgentId: params.agentId,
+      requestedByExtension: params.agentExtension,
+      targetAgentId: targetAgent.agentId,
+      targetExtension: targetAgent.extension,
+      requestedAt: new Date().toISOString(),
+    };
+    await this.eventBus.publish('ami.command.originate.internal.requested', payload);
+
+    return {
+      success: true,
+      data: {
+        accepted: true,
+        channel,
+        targetAgent,
+        requestedAt: payload.requestedAt,
+      },
       error: null,
     };
   }

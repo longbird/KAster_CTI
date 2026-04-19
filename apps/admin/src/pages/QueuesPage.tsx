@@ -79,45 +79,54 @@ export function QueuesPage() {
   };
 
   return (
-    <Card>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        큐 현황
-      </Typography.Title>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-        <Typography.Text type="secondary">5초 주기로 `/api/v1/queues/summary` 폴링</Typography.Text>
-        {queuePermission?.canExport ? (
-          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
-            CSV 내보내기
-          </Button>
-        ) : null}
-      </div>
-      <Table<QueueRow>
-        rowKey="queueId"
-        dataSource={rows}
-        pagination={false}
-        columns={[
-          { title: '큐', dataIndex: 'queueDisplayName', render: (v, r) => v ?? r.queueName },
-          { title: '대기', dataIndex: 'waiting' },
-          { title: 'Ringing', dataIndex: 'ringing' },
-          { title: 'Talking', dataIndex: 'talking' },
-          { title: 'Available', dataIndex: 'available' },
-          { title: 'Paused', dataIndex: 'paused' },
-          {
-            title: '최장 대기',
-            dataIndex: 'longestWaitSeconds',
-            render: (v: number) => `${v ?? 0}s`,
-          },
-          {
-            title: '최근 30분',
-            render: (_, r) => (
-              <>
-                <Tag color="green">응답 {r.recentAnswered}</Tag>
-                <Tag color="red">포기 {r.recentAbandoned}</Tag>
-              </>
-            ),
-          },
-        ]}
-      />
-    </Card>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              큐 현황
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              5초 주기로 `/api/v1/queues/summary`를 갱신합니다.
+            </Typography.Text>
+          </div>
+          {queuePermission?.canExport ? (
+            <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
+              CSV 내보내기
+            </Button>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card>
+        <Table<QueueRow>
+          rowKey="queueId"
+          dataSource={rows}
+          pagination={false}
+          columns={[
+            { title: '큐', dataIndex: 'queueDisplayName', render: (v, r) => v ?? r.queueName },
+            { title: '대기', dataIndex: 'waiting' },
+            { title: '링잉', dataIndex: 'ringing' },
+            { title: '통화 중', dataIndex: 'talking' },
+            { title: '가용', dataIndex: 'available' },
+            { title: '일시정지', dataIndex: 'paused' },
+            {
+              title: '최장 대기',
+              dataIndex: 'longestWaitSeconds',
+              render: (v: number) => `${v ?? 0}s`,
+            },
+            {
+              title: '최근 30분',
+              render: (_, r) => (
+                <>
+                  <Tag color="green">응답 {r.recentAnswered}</Tag>
+                  <Tag color="red">포기 {r.recentAbandoned}</Tag>
+                </>
+              ),
+            },
+          ]}
+        />
+      </Card>
+    </div>
   );
 }

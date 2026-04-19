@@ -40,6 +40,7 @@ describe('CallsService branch filter integration', () => {
     },
     agents: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
   const eventBus = {
@@ -47,6 +48,7 @@ describe('CallsService branch filter integration', () => {
   };
   const asteriskManager = {
     originate: jest.fn(),
+    originateInternal: jest.fn(),
     blindTransfer: jest.fn(),
     attendedTransfer: jest.fn(),
     cancelAttendedTransfer: jest.fn(),
@@ -343,6 +345,20 @@ describe('CallsService branch filter integration', () => {
     });
   });
 
+  it('getOutboundDialOptions 는 허용 발신번호 목록과 기본 발신번호를 반환한다', async () => {
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      allowedOutboundCallerIds: '07052346380\n07052346381',
+      defaultOutboundCallerId: '07052346381',
+    });
+
+    const result = await service.getOutboundDialOptions('tenant-1');
+
+    expect(result).toEqual({
+      allowedCallerIds: ['07052346380', '07052346381'],
+      defaultCallerId: '07052346381',
+    });
+  });
+
   it('originate 는 허용되지 않은 발신번호를 거부한다', async () => {
     prisma.tenantSystemSettings.findUnique.mockResolvedValue({
       allowedOutboundCallerIds: '07052346380',
@@ -356,6 +372,61 @@ describe('CallsService branch filter integration', () => {
         callerId: '07052349999',
       }),
     ).rejects.toThrow('허용되지 않은 발신번호입니다.');
+  });
+
+  it('originateInternal 은 현재 상담원 내선에서 대상 상담원에게 click-to-call 을 요청한다', async () => {
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-2',
+      agentName: '상담원2',
+      extension: '1002',
+    });
+    asteriskManager.originateInternal.mockReturnValue({ channel: 'PJSIP/1001' });
+
+    const result = await service.originateInternal('tenant-1', {
+      agentId: 'agent-1',
+      agentExtension: '1001',
+      targetExtension: '1002',
+      targetAgentId: 'agent-2',
+    });
+
+    expect(prisma.agents.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        extension: '1002',
+        agentId: 'agent-2',
+        isActive: true,
+      },
+      select: {
+        agentId: true,
+        agentName: true,
+        extension: true,
+      },
+    });
+    expect(asteriskManager.originateInternal).toHaveBeenCalledWith({
+      agentExtension: '1001',
+      targetExtension: '1002',
+    });
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'ami.command.originate.internal.requested',
+      expect.objectContaining({
+        requestedByAgentId: 'agent-1',
+        requestedByExtension: '1001',
+        targetAgentId: 'agent-2',
+        targetExtension: '1002',
+      }),
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        accepted: true,
+        channel: 'PJSIP/1001',
+        targetAgent: {
+          agentId: 'agent-2',
+          extension: '1002',
+        },
+      },
+      error: null,
+    });
   });
 
   it('attended transfer 요청은 REQUESTED candidate 를 기록하고 상담원 leg 로 AMI transfer 를 요청한다', async () => {

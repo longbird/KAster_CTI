@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../common/prisma.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
@@ -22,9 +23,11 @@ export class AgentsService {
         agentCode: true,
         agentName: true,
         extension: true,
+        sipPassword: true,
         role: true,
         employmentStatus: true,
         defaultQueueId: true,
+        settingsProfile: true,
         lastLoginAt: true,
         isActive: true,
       },
@@ -79,6 +82,10 @@ export class AgentsService {
         agentName: dto.agentName,
         extension: dto.extension,
         loginPasswordHash: hash,
+        sipPassword: dto.sipPassword?.trim() || null,
+        ...(dto.settingsProfile !== undefined
+          ? { settingsProfile: dto.settingsProfile as Prisma.InputJsonValue }
+          : {}),
         role: dto.role ?? 'agent',
         defaultQueueId: dto.defaultQueueId ?? null,
       },
@@ -88,8 +95,10 @@ export class AgentsService {
         agentCode: true,
         agentName: true,
         extension: true,
+        sipPassword: true,
         role: true,
         defaultQueueId: true,
+        settingsProfile: true,
       },
     });
 
@@ -153,13 +162,50 @@ export class AgentsService {
     const agent = await this.prisma.agents.findFirst({ where: { agentId, tenantId } });
     if (!agent) throw new NotFoundException('Agent not found');
 
+    if (
+      (dto.loginId !== undefined && dto.loginId !== agent.loginId) ||
+      (dto.extension !== undefined && dto.extension !== agent.extension)
+    ) {
+      const duplicate = await this.prisma.agents.findFirst({
+        where: {
+          tenantId,
+          agentId: { not: agentId },
+          OR: [
+            ...(dto.loginId !== undefined ? [{ loginId: dto.loginId }] : []),
+            ...(dto.extension !== undefined ? [{ extension: dto.extension }] : []),
+          ],
+        },
+        select: { loginId: true, extension: true },
+      });
+
+      if (duplicate) {
+        if (dto.loginId !== undefined && duplicate.loginId === dto.loginId) {
+          throw new ConflictException(`loginId '${dto.loginId}' 이미 사용 중`);
+        }
+        if (dto.extension !== undefined && duplicate.extension === dto.extension) {
+          throw new ConflictException(`extension '${dto.extension}' 이미 사용 중`);
+        }
+      }
+    }
+
+    const passwordHash =
+      dto.password !== undefined && dto.password.trim()
+        ? await bcrypt.hash(dto.password, 10)
+        : undefined;
+
     const updated = await this.prisma.agents.update({
       where: { agentId },
       data: {
+        ...(dto.loginId !== undefined && { loginId: dto.loginId }),
+        ...(passwordHash !== undefined && { loginPasswordHash: passwordHash }),
         ...(dto.agentName !== undefined && { agentName: dto.agentName }),
         ...(dto.extension !== undefined && { extension: dto.extension }),
         ...(dto.role !== undefined && { role: dto.role }),
         ...(dto.defaultQueueId !== undefined && { defaultQueueId: dto.defaultQueueId }),
+        ...(dto.sipPassword !== undefined && { sipPassword: dto.sipPassword?.trim() || null }),
+        ...(dto.settingsProfile !== undefined
+          ? { settingsProfile: dto.settingsProfile as Prisma.InputJsonValue }
+          : {}),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         updatedAt: new Date(),
       },
@@ -170,6 +216,8 @@ export class AgentsService {
         role: true,
         loginId: true,
         defaultQueueId: true,
+        sipPassword: true,
+        settingsProfile: true,
         isActive: true,
       },
     });

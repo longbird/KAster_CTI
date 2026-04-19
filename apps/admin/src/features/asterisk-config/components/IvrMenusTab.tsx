@@ -1,4 +1,4 @@
-import { Button, Popconfirm, Space, Table, Tag, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createIvrMenu, deleteIvrMenu, getIvrMenus, updateIvrMenu } from '../api/asteriskConfigApi';
 import type { AsteriskIvrMenu } from '../types/asterisk-config';
@@ -65,12 +65,24 @@ export function IvrMenusTab() {
   ];
 
   return (
-    <>
-      <Space style={{ marginBottom: 12 }}>
-        {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>IVR 메뉴 추가</Button> : null}
-      </Space>
-      <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
+          <div>
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              IVR 메뉴
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              수신 DID가 연결할 안내 멘트와 선택 번호, 후속 연결 대상을 관리합니다.
+            </Typography.Text>
+          </div>
+          {canCreate ? <Button type="primary" onClick={() => { setEditing(null); setFormOpen(true); }}>IVR 메뉴 추가</Button> : null}
+        </Space>
+      </Card>
+      <Card title="IVR 메뉴 목록">
+        <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+      </Card>
       <IvrMenuForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
-    </>
+    </Space>
   );
 }

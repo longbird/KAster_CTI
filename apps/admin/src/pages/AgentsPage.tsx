@@ -31,6 +31,18 @@ const STATUS_COLORS: Record<string, string> = {
   MANUAL_PAUSED: 'default',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  AVAILABLE: '대기',
+  TALKING: '통화중',
+  RINGING: '링중',
+  RINGING_AGENT: '호출중',
+  AFTER_CALL_WORK: '후처리',
+  BREAK: '휴식',
+  MEAL: '식사',
+  TRAINING: '교육',
+  MANUAL_PAUSED: '일시정지',
+};
+
 function readToken(): string | null {
   try {
     return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -141,10 +153,10 @@ export function AgentsPage() {
             render: (_, r) =>
               r.currentStatus ? (
                 <Tag color={STATUS_COLORS[r.currentStatus.statusCode] ?? 'default'}>
-                  {r.currentStatus.statusCode}
+                  {STATUS_LABELS[r.currentStatus.statusCode] ?? r.currentStatus.statusCode}
                 </Tag>
               ) : (
-                <Tag>OFFLINE</Tag>
+                <Tag>오프라인</Tag>
               ),
           },
           {

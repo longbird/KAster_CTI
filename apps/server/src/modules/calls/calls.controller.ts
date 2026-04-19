@@ -4,6 +4,7 @@ import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
+import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
@@ -91,6 +92,22 @@ export class CallsController {
         .then(() => this.callsService.originate(req.user.tenantId, dto));
     }
     return this.callsService.originate(req.user.tenantId, dto);
+  }
+
+  @Post('originate/internal')
+  @ApiOperation({
+    summary: '상담원 간 내선 Click-to-Call 요청',
+    description:
+      '현재 로그인한 상담원 내선을 먼저 울린 뒤, 응답하면 targetExtension 으로 내선 연결을 시도한다. 상대 상담원이 응답하면 통화가 성립한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  originateInternal(@Req() req: any, @Body() dto: InternalOriginateDto) {
+    return this.callsService.originateInternal(req.user.tenantId, {
+      agentId: req.user.sub,
+      agentExtension: req.user.extension,
+      targetExtension: dto.targetExtension,
+      targetAgentId: dto.targetAgentId,
+    });
   }
 
   @Post(':callId/transfer')

@@ -44,3 +44,51 @@ Are they installed?
 [2m오후 3:03:05[22m [36m[1m[vite][22m[39m server restarted.
 [2m오후 3:03:29[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
 [2m오후 3:03:29[22m [36m[1m[vite][22m[39m server restarted.
+[2m오전 9:54:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m오전 9:56:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:26[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:34[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:40[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:47[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:56:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:58:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:58:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:59:01[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:59:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 9:59:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오전 10:33:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m오후 12:17:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 12:17:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 12:17:16[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m오후 12:17:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m오후 12:37:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AgentsPage.tsx[22m
+[2m오후 12:37:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AgentsPage.tsx[22m
+[2m오후 12:40:39[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueMembersDrawer.tsx[22m
+[2m오후 12:40:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueMembersDrawer.tsx[22m
+[2m오후 12:40:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueMembersDrawer.tsx[22m
+[2m오후 12:41:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueMembersDrawer.tsx[22m
+[2m오후 4:07:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/queue-settings/QueueMembersDrawer.tsx[22m
+[2m오후 4:13:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/MonitoringPage.tsx[22m
+[2m오후 4:22:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/dashboard/components/AdminDashboardPage.tsx[22m
+[2m오후 4:28:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AsteriskConfigPage.tsx[22m
+[2m오후 4:28:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/QueuesPage.tsx[22m
+[2m오후 4:28:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/MonitoringPage.tsx[22m
+[2m오후 4:32:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx, /src/pages/ForbiddenPage.tsx, /src/pages/LoginPage.tsx[22m
+[2m오후 4:32:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/LoginPage.tsx[22m
+[2m오후 4:36:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/DidsTab.tsx[22m
+[2m오후 4:36:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/AgentSipTab.tsx[22m
+[2m오후 4:36:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunksTab.tsx[22m
+[2m오후 4:36:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/IvrMenusTab.tsx[22m
+[2m오후 4:38:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 4:38:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m오후 4:42:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx, /src/features/permission-settings/PermissionSettingsPage.tsx, /src/pages/AgentsPage.tsx, /src/features/reports/MissedCallsPage.tsx, /src/pages/AsteriskConfigPage.tsx, /src/features/reports/RecordingsPage.tsx, /src/features/queue-settings/QueueSettingsPage.tsx, /src/pages/QueuesPage.tsx, /src/features/reports/AmiLogsPage.tsx, /src/features/agent-settings/AgentSettingsPage.tsx, /src/features/announcements/AnnouncementsPage.tsx, /src/features/reports/CallsReportPage.tsx, /src/features/branch-settings/BranchSettingsPage.tsx, /src/features/forwarding-settings/ForwardingSettingsPage.tsx, /src/features/prompt-settings/PromptSettingsPage.tsx, /src/features/blocklist/BlocklistPage.tsx, /src/features/system-settings/SystemSettingsPage.tsx, /src/features/asterisk-config/components/DidsTab.tsx, /src/features/asterisk-config/components/TrunksTab.tsx, /src/features/asterisk-config/components/IvrMenusTab.tsx, /src/features/live-calls/CallDetailDrawer.tsx, /src/features/asterisk-config/components/AgentSipTab.tsx, /src/pages/ForbiddenPage.tsx, /src/pages/LoginPage.tsx[22m
+[2m오후 4:42:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AsteriskConfigPage.tsx[22m
+[2m오후 4:42:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/TrunksTab.tsx[22m
+[2m오후 4:42:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/DidsTab.tsx[22m
+[2m오후 4:42:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/IvrMenusTab.tsx[22m
+[2m오후 4:42:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/asterisk-config/components/AgentSipTab.tsx[22m
+[2m오후 4:46:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AppLayout.tsx[22m
+[2m오후 4:46:43[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/app/router.tsx[22m
+[2m오후 4:48:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/agent-settings/AgentSettingsPage.tsx[22m

@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import type { ActiveCall, AgentSession, CallHistoryItem, QueueSummary } from '../types/cti';
+import type { ActiveCall, AgentDirectoryItem, AgentSession, CallHistoryItem, QueueSummary } from '../types/cti';
 
 export const initialAgentSession: AgentSession = {
   agentId: 'agent-1001',
@@ -9,7 +9,38 @@ export const initialAgentSession: AgentSession = {
   todayAnswered: 27,
   todayMissed: 1,
   todayTalkSeconds: 7640,
+  outboundDialOptions: {
+    allowedCallerIds: ['07052346380', '07052346381'],
+    defaultCallerId: '07052346380',
+  },
 };
+
+export const initialAgentDirectory: AgentDirectoryItem[] = [
+  {
+    agentId: 'agent-1001',
+    agentName: '박재성',
+    extension: '1001',
+    role: 'agent',
+    isActive: true,
+    currentStatus: { statusCode: 'AVAILABLE' },
+  },
+  {
+    agentId: 'agent-1002',
+    agentName: '김소연',
+    extension: '1002',
+    role: 'agent',
+    isActive: true,
+    currentStatus: { statusCode: 'TALKING' },
+  },
+  {
+    agentId: 'agent-2001',
+    agentName: '이수빈',
+    extension: '2001',
+    role: 'supervisor',
+    isActive: true,
+    currentStatus: { statusCode: 'AFTER_CALL_WORK' },
+  },
+];
 
 export const initialQueues: QueueSummary[] = [
   {

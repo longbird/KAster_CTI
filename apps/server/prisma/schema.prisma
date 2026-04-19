@@ -58,6 +58,7 @@ model agents {
   extension          String    @db.VarChar(16)
   sipPassword        String?   @db.Text
   sipEndpoint        String?   @db.VarChar(64)
+  settingsProfile    Json?
   role               String    @default("agent") @db.VarChar(32)
   employmentStatus   String    @default("active") @db.VarChar(16)
   defaultQueueId     String?   @db.Uuid

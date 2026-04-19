@@ -58,7 +58,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
   { key: '/queues', icon: <NotificationOutlined />, label: '큐 현황' },
   { key: '/agents', icon: <TeamOutlined />, label: '상담원 현황' },
   { key: '/monitoring', icon: <DesktopOutlined />, label: '시스템 모니터링' },
-  { key: '/asterisk', icon: <SettingOutlined />, label: 'PBX 설정' },
+  { key: '/asterisk', icon: <SettingOutlined />, label: '연동 설정' },
 ];
 
 export function pathToMenuKey(pathname: string) {

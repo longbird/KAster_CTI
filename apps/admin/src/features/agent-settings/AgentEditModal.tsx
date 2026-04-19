@@ -1,6 +1,19 @@
-import { Form, Input, Modal, Select, Switch, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { QuestionCircleOutlined, SettingOutlined } from '@ant-design/icons';
+import { Button, Card, Checkbox, Col, Form, Input, Modal, Row, Select, Switch, Tag, Tooltip, Typography, message } from 'antd';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import {
+  AGENT_TYPE_OPTIONS,
+  CLOSE_STATUS_PERMISSION_OPTIONS,
+  DEFAULT_AGENT_SETTINGS_PROFILE,
+  INOUT_TYPE_OPTIONS,
+  normalizeAgentSettingsProfile,
+  NUMBER_MASKING_OPTIONS,
+  PICKUP_TYPE_OPTIONS,
+  POPUP_CLOSE_READY_OPTIONS,
+  READY_DELAY_OPTIONS,
+  SIMPLE_USE_OPTIONS,
+} from './agentSettingProfile';
 
 export interface AgentRow {
   agentId: string;
@@ -28,33 +41,131 @@ interface Props {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'agent', label: 'Agent' },
-  { value: 'supervisor', label: 'Supervisor' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'agent', label: '상담원' },
+  { value: 'supervisor', label: '슈퍼바이저' },
+  { value: 'admin', label: '관리자' },
 ];
+
+const STATUS_COLOR: Record<string, string> = {
+  AVAILABLE: 'green',
+  TALKING: 'blue',
+  RINGING: 'gold',
+  RINGING_AGENT: 'gold',
+  AFTER_CALL_WORK: 'purple',
+  BREAK: 'red',
+  MEAL: 'orange',
+  MANUAL_PAUSED: 'default',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  AVAILABLE: '대기',
+  TALKING: '통화 중',
+  RINGING: '벨 울림',
+  RINGING_AGENT: '벨 울림',
+  AFTER_CALL_WORK: '후처리',
+  BREAK: '휴식',
+  MEAL: '식사',
+  MANUAL_PAUSED: '일시정지',
+};
+
+function labelWithHelp(label: string, help?: string) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span>{label}</span>
+      {help ? (
+        <Tooltip title={help}>
+          <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+        </Tooltip>
+      ) : null}
+    </span>
+  );
+}
+
+function SectionTitle({ title, help }: { title: string; help?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <Typography.Title level={5} style={{ margin: 0 }}>
+        {title}
+      </Typography.Title>
+      {help ? (
+        <Tooltip title={help}>
+          <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+        </Tooltip>
+      ) : null}
+    </div>
+  );
+}
+
+function renderCurrentStatusTag(currentStatus: AgentRow['currentStatus']) {
+  return currentStatus ? (
+    <Tag color={STATUS_COLOR[currentStatus.statusCode] ?? 'default'} style={{ marginInlineEnd: 0 }}>
+      현재 상태: {STATUS_LABEL[currentStatus.statusCode] ?? currentStatus.statusCode}
+    </Tag>
+  ) : (
+    <Tag style={{ marginInlineEnd: 0 }}>현재 상태: 오프라인</Tag>
+  );
+}
+
+const PANEL_STYLE: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid rgba(195, 197, 215, 0.45)',
+  boxShadow: '0 10px 24px rgba(25, 28, 29, 0.04)',
+};
+
+const PANEL_BODY_STYLE: CSSProperties = {
+  padding: 20,
+};
 
 export function AgentEditModal({ agent, onClose, onSaved }: Props) {
   const [form] = Form.useForm();
   const [queues, setQueues] = useState<QueueOption[]>([]);
+  const [detail, setDetail] = useState<any>(null);
+  const isOpen = !!agent;
 
   useEffect(() => {
     if (!agent) {
       form.resetFields();
+      setDetail(null);
       return;
     }
 
-    form.setFieldsValue({
-      agentName: agent.agentName,
-      extension: agent.extension,
-      role: agent.role,
-      defaultQueueId: agent.defaultQueueId ?? undefined,
-      isActive: agent.isActive,
-    });
-
-    void apiClient
-      .get('/queues')
-      .then((res) => setQueues((res.data?.data ?? []).filter((q: QueueOption) => q.isActive !== false)))
-      .catch(() => setQueues([]));
+    void Promise.all([
+      apiClient.get(`/agents/${agent.agentId}`),
+      apiClient.get('/queues'),
+    ])
+      .then(([detailRes, queueRes]) => {
+        const loaded = detailRes.data?.data?.agent ?? null;
+        setDetail(loaded);
+        form.resetFields();
+        form.setFieldsValue({
+          loginId: loaded?.loginId ?? agent.loginId,
+          agentName: loaded?.agentName ?? agent.agentName,
+          extension: loaded?.extension ?? agent.extension,
+          role: loaded?.role ?? agent.role,
+          defaultQueueId: loaded?.defaultQueueId ?? agent.defaultQueueId ?? undefined,
+          isActive: loaded?.isActive ?? agent.isActive,
+          password: '',
+          sipPassword: loaded?.sipPassword ?? '',
+          settingsProfile: normalizeAgentSettingsProfile(loaded?.settingsProfile),
+        });
+        setQueues((queueRes.data?.data ?? []).filter((q: QueueOption) => q.isActive !== false));
+      })
+      .catch(() => {
+        setDetail(null);
+        form.resetFields();
+        form.setFieldsValue({
+          loginId: agent.loginId,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          role: agent.role,
+          defaultQueueId: agent.defaultQueueId ?? undefined,
+          isActive: agent.isActive,
+          password: '',
+          sipPassword: '',
+          settingsProfile: DEFAULT_AGENT_SETTINGS_PROFILE,
+        });
+        setQueues([]);
+      });
   }, [agent, form]);
 
   const handleOk = async () => {
@@ -72,43 +183,225 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
 
   return (
     <Modal
-      title={`상담원 정보 수정 - ${agent?.agentName ?? ''}`}
-      open={!!agent}
+      title={(
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingRight: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(19, 83, 216, 0.08)',
+                color: '#1353d8',
+              }}
+            >
+              <SettingOutlined style={{ fontSize: 22 }} />
+            </div>
+            <div>
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                상담원 설정
+              </Typography.Title>
+            </div>
+          </div>
+          {renderCurrentStatusTag(agent?.currentStatus ?? null)}
+        </div>
+      )}
+      open={isOpen}
       onOk={() => void handleOk()}
       onCancel={onClose}
-      okText="저장"
-      cancelText="취소"
       destroyOnClose
+      forceRender
+      width={1080}
+      footer={(
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '8px 0' }}>
+          <Button onClick={onClose}>취소</Button>
+          <Button type="primary" onClick={() => void handleOk()}>
+            변경사항 저장
+          </Button>
+        </div>
+      )}
+      styles={{
+        header: { padding: '24px 28px 18px', borderBottom: '1px solid rgba(195, 197, 215, 0.35)' },
+        body: { maxHeight: '75vh', overflowY: 'auto', overflowX: 'hidden', padding: 28, background: '#f8f9fa' },
+        footer: { padding: '16px 28px 20px', borderTop: '1px solid rgba(195, 197, 215, 0.25)', background: '#f3f4f5' },
+        content: { borderRadius: 20, overflow: 'hidden' },
+      }}
     >
-      <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item label="이름" name="agentName" rules={[{ required: true, max: 128 }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item
-          label="내선번호"
-          name="extension"
-          rules={[
-            { required: true, max: 16 },
-            { pattern: /^\d+$/, message: '숫자만 허용' },
-          ]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item label="역할" name="role" rules={[{ required: true }]}>
-          <Select options={ROLE_OPTIONS} />
-        </Form.Item>
-        <Form.Item label="기본 큐" name="defaultQueueId">
-          <Select
-            allowClear
-            options={queues.map((q) => ({
-              value: q.queueId,
-              label: q.queueDisplayName ?? q.queueName,
-            }))}
-          />
-        </Form.Item>
-        <Form.Item label="활성 여부" name="isActive" valuePropName="checked">
-          <Switch />
-        </Form.Item>
+      <Form key={agent?.agentId ?? 'agent-edit-empty'} form={form} layout="vertical" preserve={false}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} xl={12}>
+            <Card style={PANEL_STYLE} styles={{ body: PANEL_BODY_STYLE }}>
+              <SectionTitle title="기본 정보" help="상담원의 계정과 대표 소속 정보를 설정합니다." />
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item label="상담원ID">
+                    <Input value={detail?.agentCode ?? agent?.agentCode ?? ''} disabled />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="상담원명" name="agentName" rules={[{ required: true, max: 128 }]}>
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="권한" name="role" rules={[{ required: true }]}>
+                    <Select options={ROLE_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label="로그인 ID"
+                    name="loginId"
+                    rules={[{ required: true, max: 64 }]}
+                  >
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label={labelWithHelp('비밀번호', '로그인 비밀번호를 변경할 때만 입력합니다.')}
+                    name="password"
+                    rules={[{ min: 8, message: '8자 이상 입력하세요.' }]}
+                  >
+                    <Input.Password placeholder="변경 시에만 입력" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label={labelWithHelp('그룹(대표 큐)', '대표 소속 그룹/큐만 여기서 설정합니다. 실제 큐 멤버십은 큐 설정에서 별도로 관리합니다.')}
+                    name="defaultQueueId"
+                  >
+                    <Select
+                      allowClear
+                      placeholder="대표 소속 그룹 선택"
+                      options={queues.map((q) => ({
+                        value: q.queueId,
+                        label: q.queueDisplayName ?? q.queueName,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label="내선번호"
+                    name="extension"
+                    rules={[
+                      { required: true, max: 16 },
+                      { pattern: /^\d+$/, message: '숫자만 허용' },
+                    ]}
+                  >
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="활성 여부" name="isActive" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Form.Item label="상담원설명" name={['settingsProfile', 'description']}>
+                    <Input.TextArea rows={3} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+
+          <Col xs={24} xl={12}>
+            <Card style={PANEL_STYLE} styles={{ body: PANEL_BODY_STYLE }}>
+              <SectionTitle title="운영 설정" help="현재 버전에서 실제 PBX 동작과 연결된 상담원 운영 옵션입니다." />
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item label="인아웃타입" name={['settingsProfile', 'inoutType']}>
+                    <Select options={INOUT_TYPE_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="번호가림" name={['settingsProfile', 'numberMasking']}>
+                    <Select options={NUMBER_MASKING_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="당겨받기" name={['settingsProfile', 'pickupType']}>
+                    <Select options={PICKUP_TYPE_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="수발신 권한 설정 고정" name={['settingsProfile', 'outboundAccessFixed']}>
+                    <Select options={NUMBER_MASKING_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="관리자권한" name={['settingsProfile', 'adminPermission']}>
+                    <Select options={NUMBER_MASKING_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="상담원 타입" name={['settingsProfile', 'agentType']}>
+                    <Select options={AGENT_TYPE_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 16,
+                      padding: 16,
+                      borderRadius: 14,
+                      background: '#ffffff',
+                      border: '1px solid rgba(195, 197, 215, 0.35)',
+                    }}
+                  >
+                    <div>
+                      <Typography.Text strong style={{ display: 'block' }}>
+                        실시간 녹취 사용
+                      </Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        모든 통화 연결 시점에 따라 녹취 정책을 적용합니다.
+                      </Typography.Text>
+                    </div>
+                    <Form.Item name={['settingsProfile', 'liveRecording']} noStyle>
+                      <Select style={{ width: 120 }} options={SIMPLE_USE_OPTIONS} />
+                    </Form.Item>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+
+          <Col span={24}>
+            <Card style={PANEL_STYLE} styles={{ body: PANEL_BODY_STYLE }}>
+              <SectionTitle title="통화 종료 후 상태" help="업무처리 자동 전환과 상담대기 복귀 조건을 함께 설정합니다." />
+              <Row gutter={16}>
+                <Col xs={24} md={8}>
+                  <Form.Item label="설정 권한" name={['settingsProfile', 'closeStatusPermission']}>
+                    <Select options={CLOSE_STATUS_PERMISSION_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item label="업무처리 후 상담대기 복귀" name={['settingsProfile', 'acwToReadyDelay']}>
+                    <Select options={READY_DELAY_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item label="접수창 종료 후 상담대기 복귀" name={['settingsProfile', 'popupCloseToReady']}>
+                    <Select options={POPUP_CLOSE_READY_OPTIONS} />
+                  </Form.Item>
+                </Col>
+                <Col span={24}>
+                  <Form.Item name={['settingsProfile', 'autoChangeToAcw']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                    <Checkbox>통화 종료 시 '업무처리' 상태로 자동 변경</Checkbox>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+        </Row>
       </Form>
     </Modal>
   );

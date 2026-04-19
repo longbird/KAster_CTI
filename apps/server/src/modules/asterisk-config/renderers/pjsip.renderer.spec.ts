@@ -55,12 +55,23 @@ describe('renderPjsip', () => {
   it('renders agent endpoint for agent with sipPassword', () => {
     const result = renderPjsip({
       trunks: [],
-      agents: [{ extension: '1001', agentName: 'Agent1', sipPassword: 'sip123' }],
+      agents: [{
+        extension: '1001',
+        agentName: 'Agent1',
+        sipPassword: 'sip123',
+        callerIdPrivacy: 'prohib',
+        pickupGroup: 'queue-sales',
+        pickupType: 'STRONG',
+      }],
     });
     expect(result).toContain('[1001-auth]');
     expect(result).toContain('password=sip123');
     expect(result).toContain('[1001]');
     expect(result).toContain('callerid=Agent1 <1001>');
+    expect(result).toContain('context=agent-phone-1001');
+    expect(result).toContain('callerid_privacy=prohib');
+    expect(result).toContain('named_call_group=queue-sales');
+    expect(result).toContain('named_pickup_group=queue-sales,all-agents');
   });
 
   it('skips agents without sipPassword', () => {

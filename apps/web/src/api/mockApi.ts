@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import { initialActiveCalls, initialAgentSession, initialQueues, recentHistory } from '../mock/data';
-import type { ActiveCall, AgentSession, ApiResponse, CallHistoryItem, QueueSummary } from '../types/cti';
+import { initialActiveCalls, initialAgentDirectory, initialAgentSession, initialQueues, recentHistory } from '../mock/data';
+import type { ActiveCall, AgentDirectoryItem, AgentSession, ApiResponse, CallHistoryItem, QueueSummary } from '../types/cti';
 
 const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -22,6 +22,11 @@ export async function getActiveCalls(): Promise<ApiResponse<ActiveCall[]>> {
 export async function getCallHistory(): Promise<ApiResponse<CallHistoryItem[]>> {
   await wait();
   return { success: true, data: recentHistory, error: null };
+}
+
+export async function getAgents(): Promise<ApiResponse<AgentDirectoryItem[]>> {
+  await wait();
+  return { success: true, data: initialAgentDirectory, error: null };
 }
 
 export async function updateAgentStatus(statusCode: AgentSession['statusCode']): Promise<ApiResponse<{ statusCode: AgentSession['statusCode'] }>> {
@@ -97,6 +102,42 @@ export async function hangupCall(callId: string): Promise<ApiResponse<{ callId: 
   return {
     success: true,
     data: { callId, endedAt: dayjs().toISOString() },
+    error: null,
+  };
+}
+
+export async function originateExternalCall(
+  phoneNumber: string,
+  callerId?: string,
+): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; phoneNumber: string; callerId?: string }>> {
+  await wait();
+  return {
+    success: true,
+    data: {
+      accepted: true,
+      channel: 'PJSIP/1001',
+      requestedAt: dayjs().toISOString(),
+      phoneNumber,
+      callerId,
+    },
+    error: null,
+  };
+}
+
+export async function originateInternalCall(
+  targetAgentId: string,
+  targetExtension: string,
+): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; targetAgentId: string; targetExtension: string }>> {
+  await wait();
+  return {
+    success: true,
+    data: {
+      accepted: true,
+      channel: 'PJSIP/1001',
+      requestedAt: dayjs().toISOString(),
+      targetAgentId,
+      targetExtension,
+    },
     error: null,
   };
 }

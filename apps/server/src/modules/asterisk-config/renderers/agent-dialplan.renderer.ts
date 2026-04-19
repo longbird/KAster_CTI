@@ -5,11 +5,19 @@ export interface AgentDialplanTrunkInput {
   enabled: boolean;
 }
 
+export interface AgentDialplanAgentInput {
+  extension: string;
+  outboundEnabled: boolean;
+  callerIdPrivacy: 'allowed_not_screened' | 'prohib';
+  liveRecordingEnabled: boolean;
+}
+
 export interface AgentDialplanInput {
   allowDirectSipDial: boolean;
   defaultOutboundCallerId: string | null;
   allowedOutboundCallerIds: string[];
   trunks: AgentDialplanTrunkInput[];
+  agents: AgentDialplanAgentInput[];
 }
 
 function getPrimaryTrunkEndpoint(trunks: AgentDialplanTrunkInput[]): string | null {
@@ -19,7 +27,38 @@ function getPrimaryTrunkEndpoint(trunks: AgentDialplanTrunkInput[]): string | nu
   return slug ? `trunk-${slug}` : null;
 }
 
-function renderOutboundRoute(contextName: string, trunkEndpoint: string | null, callerId: string | null): string {
+function buildRecordFileLines(): string[] {
+  return [
+    ' same => n,ExecIf($["${LEN(${REC_FILE})}"="0"]?Set(__REC_FILE=${STRFTIME(${EPOCH},,%Y/%m/%d)}/${CHANNEL(linkedid)}-${UNIQUEID}.wav))',
+  ];
+}
+
+function renderAgentEntryContext(
+  agent: AgentDialplanAgentInput,
+  allowDirectSipDial: boolean,
+): string {
+  const contextName = `agent-phone-${agent.extension}`;
+  const lines = [
+    `[${contextName}]`,
+    `exten => _0X.,1,NoOp(Agent endpoint context ${agent.extension} / \${EXTEN})`,
+  ];
+
+  if (!allowDirectSipDial || !agent.outboundEnabled) {
+    lines.push(' same => n,Playback(ss-noservice)');
+    lines.push(' same => n,Hangup()');
+    return lines.join('\n');
+  }
+
+  lines.push(` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`);
+  return lines.join('\n');
+}
+
+function renderAgentOutboundRoute(
+  agent: AgentDialplanAgentInput,
+  trunkEndpoint: string | null,
+  callerId: string | null,
+): string {
+  const contextName = `outbound-main-${agent.extension}`;
   const lines = [
     `[${contextName}]`,
     'exten => _0X.,1,NoOp(Outbound ${EXTEN})',
@@ -34,10 +73,41 @@ function renderOutboundRoute(contextName: string, trunkEndpoint: string | null, 
   assertNoNewlines(callerId, 'defaultOutboundCallerId');
   assertNoNewlines(trunkEndpoint, 'trunkEndpoint');
 
+  lines.push(...buildRecordFileLines());
   lines.push(` same => n,Set(CALLERID(num)=${callerId})`);
   lines.push(` same => n,Set(CALLERID(name)=${callerId})`);
-  lines.push(` same => n,Dial(PJSIP/\${EXTEN}@${trunkEndpoint},60,b(func-set-sipheaders^s^1))`);
+  lines.push(` same => n,Set(CALLERID(pres)=${agent.callerIdPrivacy})`);
+  lines.push(` same => n,Dial(PJSIP/\${EXTEN}@${trunkEndpoint},60,b(func-set-sipheaders^s^1)U(agent-pre-bridge))`);
   lines.push(' same => n,Hangup()');
+  return lines.join('\n');
+}
+
+function renderPreBridgeAgentBranch(agent: AgentDialplanAgentInput): string {
+  const lines = [
+    `[agent-pre-bridge-${agent.extension}]`,
+    'exten => s,1,NoOp(Agent pre-bridge handler)',
+  ];
+
+  if (agent.liveRecordingEnabled) {
+    lines.push(' same => n,ExecIf($["${LEN(${REC_FILE})}"!="0"]?MixMonitor(${REC_BASE_DIR}/${REC_FILE},b))');
+  }
+
+  lines.push(' same => n,Return()');
+  return lines.join('\n');
+}
+
+function renderPreBridgeDispatcher(agents: AgentDialplanAgentInput[]): string {
+  const lines = [
+    '[agent-pre-bridge]',
+    'exten => s,1,NoOp(Agent pre-bridge dispatcher)',
+    ' same => n,Set(__KASTER_AGENT_EXT=${CUT(CUT(CHANNEL(name),/,2),-,1)})',
+  ];
+
+  for (const agent of agents) {
+    lines.push(` same => n,GotoIf($["\${KASTER_AGENT_EXT}"="${agent.extension}"]?agent-pre-bridge-${agent.extension},s,1)`);
+  }
+
+  lines.push(' same => n,Return()');
   return lines.join('\n');
 }
 
@@ -47,22 +117,28 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
     ? input.allowedOutboundCallerIds.join(',')
     : 'none';
 
-  const agentPhoneLines = [
+  const header = [
     '[agent-phone]',
-    'exten => _X.,1,NoOp(Agent endpoint context ${EXTEN})',
+    'exten => _X.,1,NoOp(Shared agent context ${EXTEN})',
     ` same => n,NoOp(Allowed caller IDs ${allowedCallerIdText})`,
-  ];
+    ' same => n,Playback(ss-noservice)',
+    ' same => n,Hangup()',
+  ].join('\n');
 
-  if (input.allowDirectSipDial) {
-    agentPhoneLines.push(' same => n,Goto(phone-outbound-main,${EXTEN},1)');
-  } else {
-    agentPhoneLines.push(' same => n,Playback(ss-noservice)');
-    agentPhoneLines.push(' same => n,Hangup()');
-  }
+  const fromQueue = [
+    '[from-queue]',
+    'exten => _X.,1,NoOp(From Queue to Agent ${EXTEN})',
+    ...buildRecordFileLines(),
+    ' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))',
+    ' same => n,Hangup()',
+  ].join('\n');
 
   return [
-    agentPhoneLines.join('\n'),
-    renderOutboundRoute('outbound-main', primaryTrunkEndpoint, input.defaultOutboundCallerId),
-    renderOutboundRoute('phone-outbound-main', primaryTrunkEndpoint, input.defaultOutboundCallerId),
+    header,
+    ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial)),
+    ...input.agents.map((agent) => renderAgentOutboundRoute(agent, primaryTrunkEndpoint, input.defaultOutboundCallerId)),
+    fromQueue,
+    renderPreBridgeDispatcher(input.agents),
+    ...input.agents.map(renderPreBridgeAgentBranch),
   ].join('\n\n');
 }

@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import { useAuthStore } from '../store/useAuthStore';
 import type {
   ActiveCall,
+  AgentDirectoryItem,
   AgentSession,
   AgentStatusCode,
   ApiResponse,
@@ -42,6 +43,7 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
   const res = await apiClient.get('/me/session');
   const agent = res.data?.data?.agent;
   const capabilities = res.data?.data?.callControlCapabilities;
+  const outboundDialOptions = res.data?.data?.outboundDialOptions;
   // 현재 백엔드는 오늘 통계를 /agents/:id 에 노출. 기본값은 0 으로 채운다.
   const session: AgentSession = {
     agentId: agent?.agentId ?? '',
@@ -55,6 +57,12 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
       muteEnabled: capabilities?.muteEnabled !== false,
       holdEnabled: capabilities?.holdEnabled === true,
       holdMode: capabilities?.holdMode === 'feature_code' ? 'feature_code' : 'disabled',
+    },
+    outboundDialOptions: {
+      allowedCallerIds: Array.isArray(outboundDialOptions?.allowedCallerIds)
+        ? outboundDialOptions.allowedCallerIds
+        : [],
+      defaultCallerId: outboundDialOptions?.defaultCallerId ?? null,
     },
   };
 
@@ -135,6 +143,26 @@ export async function getCallHistory(): Promise<ApiResponse<CallHistoryItem[]>> 
     startedAt: call.startedAt,
     talkSeconds: call.talkSeconds ?? 0,
     queueName: call.queueName ?? '-',
+  }));
+  return { success: true, data, error: null };
+}
+
+export async function getAgents(): Promise<ApiResponse<AgentDirectoryItem[]>> {
+  const res = await apiClient.get('/agents');
+  const raw: any[] = res.data?.data ?? [];
+  const data: AgentDirectoryItem[] = raw.map((agent) => ({
+    agentId: agent.agentId,
+    agentName: agent.agentName,
+    extension: agent.extension,
+    role: agent.role,
+    isActive: agent.isActive !== false,
+    currentStatus: agent.currentStatus
+      ? {
+          statusCode: agent.currentStatus.statusCode,
+          reasonCode: agent.currentStatus.reasonCode ?? null,
+          startedAt: agent.currentStatus.startedAt ?? undefined,
+        }
+      : null,
   }));
   return { success: true, data, error: null };
 }
@@ -225,4 +253,44 @@ export async function hangupCall(
 ): Promise<ApiResponse<{ callId: string; endedAt: string }>> {
   await apiClient.post(`/calls/${callId}/hangup`);
   return { success: true, data: { callId, endedAt: new Date().toISOString() }, error: null };
+}
+
+export async function originateExternalCall(
+  phoneNumber: string,
+  callerId?: string,
+): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; phoneNumber: string; callerId?: string }>> {
+  const agentExtension = useAuthStore.getState().agent?.extension ?? '';
+  const res = await apiClient.post('/calls/originate', {
+    agentExtension,
+    phoneNumber,
+    callerId,
+  });
+  return {
+    success: true,
+    data: {
+      ...res.data?.data,
+      phoneNumber,
+      callerId,
+    },
+    error: null,
+  };
+}
+
+export async function originateInternalCall(
+  targetAgentId: string,
+  targetExtension: string,
+): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; targetAgentId: string; targetExtension: string }>> {
+  const res = await apiClient.post('/calls/originate/internal', {
+    targetAgentId,
+    targetExtension,
+  });
+  return {
+    success: true,
+    data: {
+      ...res.data?.data,
+      targetAgentId,
+      targetExtension,
+    },
+    error: null,
+  };
 }
