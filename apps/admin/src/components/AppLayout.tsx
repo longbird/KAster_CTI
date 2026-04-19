@@ -37,7 +37,7 @@ export function AppLayout() {
     if (screens.md !== undefined) {
       setCollapsed(isMobile);
     }
-  }, [isMobile, screens.md]);
+  }, [isMobile]);
 
   const allowedPathSet = useMemo(() => new Set(allowedPaths), [allowedPaths]);
   const menuItems = useMemo(
