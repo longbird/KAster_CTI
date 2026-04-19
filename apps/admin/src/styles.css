@@ -93,3 +93,37 @@ body {
 .traffic-bar.abandoned {
   background: linear-gradient(90deg, #fca5a5, #dc2626);
 }
+
+/* Mobile sidebar overlay (expanded state) */
+@media (max-width: 767px) {
+  .app-sider.sider-overlay {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+  }
+}
+
+/* Backdrop behind expanded mobile sidebar */
+.sider-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 99;
+}
+
+/* Header toggle button — hidden on desktop, visible on mobile */
+.header-menu-toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .header-menu-toggle {
+    display: inline-flex;
+  }
+
+  .app-content {
+    padding: 12px;
+  }
+}
