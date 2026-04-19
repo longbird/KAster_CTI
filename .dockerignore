@@ -1,0 +1,16 @@
+.git
+.github
+.claude
+.worktrees
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/.cache
+**/coverage
+*.log
+*.zip
+*.tar
+*.tar.gz
+docs/chatgpt-archive/html
+download

@@ -1,0 +1,116 @@
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: kaster-${SITE_CODE}-gateway
+    restart: unless-stopped
+    depends_on:
+      - web
+      - admin
+      - server
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+  postgres:
+    image: postgres:16
+    container_name: kaster-${SITE_CODE}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: kaster-${SITE_CODE}-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ../../..
+      dockerfile: apps/server/Dockerfile.prod
+    image: kaster/${SITE_CODE}-server:latest
+    container_name: kaster-${SITE_CODE}-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AMI_HOST: ${AMI_HOST}
+      AMI_PORT: ${AMI_PORT}
+      AMI_USERNAME: ${AMI_USERNAME}
+      AMI_SECRET: ${AMI_SECRET}
+      AMI_RECONNECT_MS: ${AMI_RECONNECT_MS}
+      ASTERISK_NODE_ID: ${ASTERISK_NODE_ID}
+      ASTERISK_OUTBOUND_CONTEXT: ${ASTERISK_OUTBOUND_CONTEXT}
+      ASTERISK_ATXFER_COMPLETE_CODE: ${ASTERISK_ATXFER_COMPLETE_CODE}
+      ASTERISK_HOLD_FEATURE_CODE: ${ASTERISK_HOLD_FEATURE_CODE}
+      ASTERISK_RESUME_FEATURE_CODE: ${ASTERISK_RESUME_FEATURE_CODE}
+      ASTERISK_CONF_DIR: ${ASTERISK_CONF_DIR}
+      REST_CORS_ORIGIN: ${REST_CORS_ORIGIN}
+      WS_CORS_ORIGIN: ${WS_CORS_ORIGIN}
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        node dist/main.js
+      "
+
+  web:
+    build:
+      context: ../../..
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_WS_URL: ${VITE_WS_URL}
+        VITE_USE_MOCK: ${VITE_USE_MOCK}
+    image: kaster/${SITE_CODE}-web:latest
+    container_name: kaster-${SITE_CODE}-web
+    restart: unless-stopped
+    depends_on:
+      - server
+
+  admin:
+    build:
+      context: ../../..
+      dockerfile: apps/admin/Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_USE_MOCK: ${VITE_USE_MOCK}
+        VITE_ACCESS_TOKEN_KEY: ${VITE_ACCESS_TOKEN_KEY}
+    image: kaster/${SITE_CODE}-admin:latest
+    container_name: kaster-${SITE_CODE}-admin
+    restart: unless-stopped
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  redis_data:
