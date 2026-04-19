@@ -1,14 +1,15 @@
 import { Input, Select, Spin } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { ControlPanel } from '../components/ControlPanel';
-import { CurrentCallPanel } from '../components/CurrentCallPanel';
 import { EventLogPanel } from '../components/EventLogPanel';
+import { FloatingCallWindow } from '../components/FloatingCallWindow';
+import { FloatingDialerWindow } from '../components/FloatingDialerWindow';
 import { KpiPanel } from '../components/KpiPanel';
 import { SideNav } from '../components/SideNav';
 import { StatusPanel } from '../components/StatusPanel';
 import { TopAppBar } from '../components/TopAppBar';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
+import { BottomTabBar } from '../components/BottomTabBar';
 
 function formatTime(value?: string) {
   if (!value) return '-';
@@ -28,6 +29,7 @@ export function FullShell() {
   const {
     loading,
     agentSession,
+    agentDirectory,
     queues,
     activeCalls,
     selectedCallId,
@@ -40,6 +42,8 @@ export function FullShell() {
     toggleMute,
     toggleHold,
     transfer,
+    originateExternal,
+    originateInternal,
     cancelAttendedTransfer,
     completeAttendedTransfer,
     hangup,
@@ -50,6 +54,8 @@ export function FullShell() {
   const [historyQuery, setHistoryQuery] = useState('');
   const [historyResultFilter, setHistoryResultFilter] = useState<'ALL' | string>('ALL');
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
+  const [isCallPopupMinimized, setIsCallPopupMinimized] = useState(false);
+  const [isDialerMinimized, setIsDialerMinimized] = useState(true);
 
   useEffect(() => {
     void init();
@@ -108,6 +114,7 @@ export function FullShell() {
     () => queues.reduce((sum, queue) => sum + queue.waitingCount + queue.talkingCount + queue.availableAgents, 0),
     [queues],
   );
+  const overviewHistory = useMemo(() => filteredHistory.slice(0, 5), [filteredHistory]);
 
   useEffect(() => {
     if (!selectedQueueId && queues[0]?.queueId) {
@@ -118,6 +125,12 @@ export function FullShell() {
       setSelectedQueueId(queues[0]?.queueId ?? null);
     }
   }, [queues, selectedQueueId]);
+
+  useEffect(() => {
+    if (selectedCall?.callId) {
+      setIsCallPopupMinimized(false);
+    }
+  }, [selectedCall?.callId]);
 
   if (loading) {
     return (
@@ -131,36 +144,116 @@ export function FullShell() {
     <div className="min-h-screen bg-surface text-on-background">
       <TopAppBar />
       <SideNav />
+      <FloatingCallWindow
+        call={selectedCall}
+        holdEnabled={agentSession?.callControlCapabilities?.holdEnabled}
+        minimized={isCallPopupMinimized}
+        onMinimize={() => setIsCallPopupMinimized(true)}
+        onRestore={() => setIsCallPopupMinimized(false)}
+        onPickup={pickup}
+        onToggleMute={toggleMute}
+        onToggleHold={toggleHold}
+        onHangup={hangup}
+        onSaveMemo={saveMemo}
+        onTransfer={transfer}
+        onCancelAttendedTransfer={cancelAttendedTransfer}
+        onCompleteAttendedTransfer={completeAttendedTransfer}
+      />
+      <FloatingDialerWindow
+        agents={agentDirectory.filter((agent) => agent.agentId !== agentSession?.agentId)}
+        callerIds={agentSession?.outboundDialOptions?.allowedCallerIds ?? []}
+        defaultCallerId={agentSession?.outboundDialOptions?.defaultCallerId ?? null}
+        minimized={isDialerMinimized}
+        onMinimize={() => setIsDialerMinimized(true)}
+        onRestore={() => setIsDialerMinimized(false)}
+        onOriginateExternal={originateExternal}
+        onOriginateInternal={originateInternal}
+      />
 
-      <main className="ml-64 min-h-screen p-8 pt-24">
+      <main className="min-h-screen p-4 pb-20 pt-20 md:ml-64 md:p-8 md:pb-0 md:pt-24">
         <div className="mx-auto max-w-7xl space-y-8">
           {fullSection === 'overview' ? (
             <>
               <KpiPanel />
-              <CurrentCallPanel
-                call={selectedCall}
-                holdEnabled={agentSession?.callControlCapabilities?.holdEnabled}
-                onPickup={pickup}
-                onToggleMute={toggleMute}
-                onToggleHold={toggleHold}
-                onHangup={hangup}
-              />
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-                <div className="lg:col-span-8">
-                  <ControlPanel
-                    call={selectedCall}
-                    onSaveMemo={saveMemo}
-                    onTransfer={transfer}
-                    onCancelAttendedTransfer={cancelAttendedTransfer}
-                    onCompleteAttendedTransfer={completeAttendedTransfer}
-                    onHangup={hangup}
-                  />
-                </div>
+                <section className="rounded-lg bg-surface-container-lowest p-6 shadow-panel lg:col-span-4">
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-headline text-lg font-bold text-on-surface">실시간 통화 요약</h3>
+                      <p className="mt-1 text-sm text-outline">실제 제어는 우측 팝업에서 처리합니다.</p>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+                      {activeCalls.length}건
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {activeCalls.length === 0 ? (
+                      <p className="py-10 text-center text-sm text-outline">현재 진행 중인 콜이 없습니다.</p>
+                    ) : activeCalls.slice(0, 5).map((call) => (
+                      <button
+                        key={call.callId}
+                        type="button"
+                        onClick={() => selectCall(call.callId)}
+                        className={`w-full rounded-xl border p-4 text-left transition-all ${
+                          call.callId === selectedCallId
+                            ? 'border-primary/30 bg-primary/5'
+                            : 'border-outline-variant/20 hover:border-primary/20 hover:bg-surface-container-low'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-on-surface">
+                              {call.customer?.customerName ?? call.ani ?? '미식별 고객'}
+                            </p>
+                            <p className="mt-1 truncate text-xs text-outline">
+                              {call.ani ?? '-'} · {call.queueName || '-'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                            {call.sessionStatus}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
                 <div className="space-y-6 lg:col-span-4">
                   <StatusPanel queues={queues} />
+                </div>
+                <div className="lg:col-span-4">
                   <EventLogPanel />
                 </div>
               </div>
+              <section className="rounded-lg bg-surface-container-lowest p-6 shadow-panel">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="font-headline text-lg font-bold text-on-surface">최근 통화 이력</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+                    {overviewHistory.length}건
+                  </span>
+                </div>
+                {overviewHistory.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-outline">최근 통화 이력이 없습니다.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {overviewHistory.map((item) => (
+                      <div key={item.callId} className="rounded-xl border border-outline-variant/20 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-on-surface">{item.customerName}</p>
+                            <p className="mt-1 truncate text-xs text-outline">
+                              {item.phoneNumber} · {item.queueName}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-xs text-outline">{formatTime(item.startedAt)}</span>
+                        </div>
+                        <p className="mt-3 text-xs font-bold uppercase tracking-wider text-primary">
+                          {item.resultCode}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </>
           ) : null}
 
@@ -220,22 +313,47 @@ export function FullShell() {
                 </div>
               </section>
               <div className="space-y-8 lg:col-span-8">
-                <CurrentCallPanel
-                  call={selectedCall}
-                  holdEnabled={agentSession?.callControlCapabilities?.holdEnabled}
-                  onPickup={pickup}
-                  onToggleMute={toggleMute}
-                  onToggleHold={toggleHold}
-                  onHangup={hangup}
-                />
-                <ControlPanel
-                  call={selectedCall}
-                  onSaveMemo={saveMemo}
-                  onTransfer={transfer}
-                  onCancelAttendedTransfer={cancelAttendedTransfer}
-                  onCompleteAttendedTransfer={completeAttendedTransfer}
-                  onHangup={hangup}
-                />
+                <section className="rounded-lg bg-surface-container-lowest p-6 shadow-panel">
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-headline text-lg font-bold text-on-surface">선택 통화 정보</h3>
+                      <p className="mt-1 text-sm text-outline">버튼 제어와 메모 저장은 통화 팝업에서 처리합니다.</p>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+                      {selectedCall ? '선택됨' : '대기 중'}
+                    </span>
+                  </div>
+                  {selectedCall ? (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <InfoTile label="고객명" value={selectedCall.customer?.customerName ?? '미식별 고객'} />
+                      <InfoTile label="전화번호" value={selectedCall.ani ?? '-'} />
+                      <InfoTile label="대표 큐" value={selectedCall.queueName || '-'} />
+                      <InfoTile label="현재 상태" value={selectedCall.sessionStatus} />
+                      <InfoTile label="유입 번호" value={selectedCall.dnis ?? '-'} />
+                      <InfoTile label="고객 등급" value={selectedCall.customer?.grade ?? '-'} />
+                      <InfoTile label="시작 시각" value={formatTime(selectedCall.startedAt)} />
+                      <InfoTile
+                        label="전환 상태"
+                        value={
+                          selectedCall.latestTransfer
+                            ? `${selectedCall.latestTransfer.phase} / ${selectedCall.latestTransfer.toExtension ?? '-'}`
+                            : '진행 없음'
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <p className="py-10 text-center text-sm text-outline">선택된 통화가 없습니다.</p>
+                  )}
+                </section>
+                <section className="rounded-lg bg-surface-container-lowest p-6 shadow-panel">
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="font-headline text-lg font-bold text-on-surface">실시간 이벤트</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+                      팝업 연동
+                    </span>
+                  </div>
+                  <EventLogPanel />
+                </section>
               </div>
             </div>
           ) : null}
@@ -478,6 +596,16 @@ export function FullShell() {
           ) : null}
         </div>
       </main>
+      <BottomTabBar />
+    </div>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-outline-variant/20 p-5">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
+      <p className="mt-3 text-sm font-bold text-on-surface">{value}</p>
     </div>
   );
 }

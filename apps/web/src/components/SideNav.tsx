@@ -22,7 +22,7 @@ export function SideNav() {
   const setFullSection = useUiStore((s) => s.setFullSection);
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-surface-container-low pb-8 pt-20">
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col bg-surface-container-low pb-8 pt-20 md:flex">
       <div className="mb-10 px-8">
         <h2 className="font-headline text-xl font-extrabold tracking-tight text-primary">
           상담원 포털
