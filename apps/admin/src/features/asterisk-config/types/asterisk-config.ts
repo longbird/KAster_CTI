@@ -97,6 +97,10 @@ export interface AsteriskForwardingRule {
   didId: string;
   forwardType: 'EXTENSION' | 'QUEUE';
   targetValue: string;
+  conditionType: 'ALWAYS' | 'TIME_RANGE';
+  timeStart: string | null;
+  timeEnd: string | null;
+  daysOfWeek: string[];
   description: string | null;
   enabled: boolean;
   did: {
@@ -118,6 +122,7 @@ export interface AsteriskPrompt {
 
 export interface AsteriskBlocklistEntry {
   id: string;
+  matchType: 'EXACT' | 'PREFIX';
   phoneNumber: string;
   description: string | null;
   isActive: boolean;

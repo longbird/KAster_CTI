@@ -74,8 +74,16 @@ export class CallsController {
   @Get(':callId')
   @ApiOperation({ summary: '콜 상세', description: '콜 세션 + callLegs + callMemos + callTransfers + callRecordings + queueEvents' })
   @ApiOkResponse({ type: ApiResponseDto })
-  getCallDetail(@Param('callId') callId: string) {
-    return this.callsService.getCallDetail(callId);
+  async getCallDetail(@Req() req: any, @Param('callId') callId: string) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls', 'reports/calls', 'reports/missed', 'reports/recordings'],
+        'view',
+      );
+    }
+    return this.callsService.getCallDetail(req.user.tenantId, callId);
   }
 
   @Post('originate')
@@ -126,7 +134,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.transfer(callId, dto);
+    return this.callsService.transfer(req.user.tenantId, callId, dto);
   }
 
   @Post(':callId/transfer/attended/cancel')
@@ -145,7 +153,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.cancelAttendedTransfer(callId);
+    return this.callsService.cancelAttendedTransfer(req.user.tenantId, callId);
   }
 
   @Post(':callId/transfer/attended/complete')
@@ -164,7 +172,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.completeAttendedTransfer(callId);
+    return this.callsService.completeAttendedTransfer(req.user.tenantId, callId);
   }
 
   @Post(':callId/pickup')
@@ -175,7 +183,7 @@ export class CallsController {
   })
   @ApiOkResponse({ type: ApiResponseDto })
   async pickup(@Param('callId') callId: string, @Req() req: any) {
-    return this.callsService.pickup(callId, {
+    return this.callsService.pickup(req.user.tenantId, callId, {
       agentId: req.user.sub,
       extension: req.user.extension,
     });
@@ -197,7 +205,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.mute(callId, dto);
+    return this.callsService.mute(req.user.tenantId, callId, dto);
   }
 
   @Post(':callId/hold')
@@ -216,7 +224,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.hold(callId, 'hold');
+    return this.callsService.hold(req.user.tenantId, callId, 'hold');
   }
 
   @Post(':callId/resume')
@@ -235,7 +243,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.hold(callId, 'resume');
+    return this.callsService.hold(req.user.tenantId, callId, 'resume');
   }
 
   @Post(':callId/memo')
@@ -250,7 +258,7 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.saveMemo(callId, dto);
+    return this.callsService.saveMemo(req.user.tenantId, callId, dto);
   }
 
   @Post(':callId/hangup')
@@ -268,6 +276,6 @@ export class CallsController {
         'operate',
       );
     }
-    return this.callsService.hangup(callId);
+    return this.callsService.hangup(req.user.tenantId, callId);
   }
 }

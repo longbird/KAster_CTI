@@ -90,6 +90,16 @@ export function BlocklistPage() {
             render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
           },
           {
+            title: '매칭',
+            dataIndex: 'matchType',
+            width: 120,
+            render: (value: 'EXACT' | 'PREFIX') => (
+              <Tag color={value === 'PREFIX' ? 'orange' : 'red'}>
+                {value === 'PREFIX' ? '접두어' : '정확히 일치'}
+              </Tag>
+            ),
+          },
+          {
             title: '사유',
             dataIndex: 'description',
             render: (value?: string | null) => value || '-',
@@ -133,7 +143,7 @@ export function BlocklistPage() {
         <Space>
           <StopOutlined />
           <Typography.Text type="secondary">
-            현재 1차 범위는 번호 exact match 차단입니다. 패턴 차단과 차단 이력 집계는 후속 범위입니다.
+            접두어 규칙은 동일 패턴으로 시작하는 ANI를 함께 차단합니다. 차단 이력 집계는 아직 후속 범위입니다.
           </Typography.Text>
         </Space>
       </div>

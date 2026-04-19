@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { Prisma } from '@prisma/client';
 import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
@@ -11,6 +12,7 @@ import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { TransferDetectorService } from './transfer-detector.service';
+import { normalizePhone } from '../customers/customers.service';
 
 @Injectable()
 export class CallsService {
@@ -18,10 +20,108 @@ export class CallsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly eventBus: EventBusService,
     private readonly asteriskManager: AsteriskManagerService,
     private readonly transferDetector: TransferDetectorService,
   ) {}
+
+  private muteStateKey(callId: string) {
+    return `kaster:cti:call:${callId}:mute`;
+  }
+
+  private async getMuteStateMap(callIds: string[]) {
+    const uniqueCallIds = [...new Set(callIds.filter(Boolean))];
+    const muteMap = new Map<string, boolean>();
+    if (uniqueCallIds.length === 0) return muteMap;
+
+    const keys = uniqueCallIds.map((callId) => this.muteStateKey(callId));
+    const values = await this.redis.getClient().mget(...keys);
+    values.forEach((value, index) => {
+      muteMap.set(uniqueCallIds[index], value === '1');
+    });
+    return muteMap;
+  }
+
+  private async getRealtimeCustomerMap(
+    tenantId: string,
+    rows: Array<{ customerId?: string | null; ani?: string | null }>,
+  ) {
+    const byCustomerId = new Map<string, any>();
+    const byPhone = new Map<string, any>();
+
+    const customerIds = [...new Set(
+      rows.map((row) => row.customerId).filter((value): value is string => Boolean(value)),
+    )];
+    if (customerIds.length > 0) {
+      const customers = await this.prisma.customers.findMany({
+        where: {
+          tenantId,
+          customerId: { in: customerIds },
+        },
+        include: {
+          phones: {
+            where: { isActive: true },
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+            take: 1,
+          },
+        },
+      });
+
+      customers.forEach((customer) => {
+        byCustomerId.set(customer.customerId, {
+          customerId: customer.customerId,
+          customerName: customer.customerName ?? '미식별 고객',
+          grade: customer.grade ?? 'NORMAL',
+          phoneNumber: customer.phones[0]?.phoneNumber ?? '',
+          companyName: customer.companyName ?? undefined,
+          memo: customer.memo ?? undefined,
+        });
+      });
+    }
+
+    const aniNumbers = [...new Set(
+      rows
+        .map((row) => normalizePhone(row.ani ?? ''))
+        .filter(Boolean),
+    )];
+    if (aniNumbers.length > 0) {
+      const phones = await this.prisma.customerPhones.findMany({
+        where: {
+          normalizedPhone: { in: aniNumbers },
+          isActive: true,
+          customer: {
+            tenantId,
+          },
+        },
+        include: {
+          customer: true,
+        },
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+      });
+
+      phones.forEach((phone) => {
+        if (!byPhone.has(phone.normalizedPhone)) {
+          byPhone.set(phone.normalizedPhone, {
+            customerId: phone.customer.customerId,
+            customerName: phone.customer.customerName ?? '미식별 고객',
+            grade: phone.customer.grade ?? 'NORMAL',
+            phoneNumber: phone.phoneNumber,
+            companyName: phone.customer.companyName ?? undefined,
+            memo: phone.customer.memo ?? undefined,
+          });
+        }
+      });
+    }
+
+    return rows.map((row) => {
+      if (row.customerId && byCustomerId.has(row.customerId)) {
+        return byCustomerId.get(row.customerId);
+      }
+      const normalizedAni = normalizePhone(row.ani ?? '');
+      return normalizedAni ? byPhone.get(normalizedAni) ?? null : null;
+    });
+  }
 
   private async getBranchScope(tenantId: string, branchId?: string) {
     if (!branchId) return null;
@@ -141,9 +241,11 @@ export class CallsService {
       tenantId,
       rows.map((row) => row.didNumber ?? row.dnis),
     );
+    const muteStateMap = await this.getMuteStateMap(rows.map((row) => row.callId));
+    const customers = await this.getRealtimeCustomerMap(tenantId, rows);
 
     const now = new Date();
-    const data = rows.map((r) => {
+    const data = rows.map((r, index) => {
       // 대기시간: 통화 중이면 queuedAt→answeredAt, 아직 대기 중이면 queuedAt→now
       const waitSeconds = r.answeredAt && r.queuedAt
         ? Math.round((r.answeredAt.getTime() - r.queuedAt.getTime()) / 1000)
@@ -156,6 +258,8 @@ export class CallsService {
         agentName: agentNameMap.get(r.primaryAgentId ?? '') ?? '',
         waitSeconds: Math.max(0, waitSeconds),
         latestTransfer: latestTransferCandidateMap.get(r.linkedid) ?? null,
+        customer: customers[index],
+        isMuted: muteStateMap.get(r.callId) ?? false,
         representativeNumber:
           didMetaMap.get(r.didNumber ?? r.dnis ?? '')?.representativeNumber ?? null,
       };
@@ -164,9 +268,9 @@ export class CallsService {
     return { success: true, data, error: null };
   }
 
-  async getCallDetail(callId: string) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async getCallDetail(tenantId: string, callId: string) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: {
         callLegs: true,
         callMemos: true,
@@ -325,9 +429,9 @@ export class CallsService {
     };
   }
 
-  async transfer(callId: string, dto: TransferDto) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async transfer(tenantId: string, callId: string, dto: TransferDto) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: {
         callLegs: { orderBy: { startedAt: 'desc' } },
       },
@@ -389,9 +493,9 @@ export class CallsService {
     return { success: true, data: { callId, transferred: true }, error: null };
   }
 
-  async cancelAttendedTransfer(callId: string) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async cancelAttendedTransfer(tenantId: string, callId: string) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: {
         callLegs: { orderBy: { startedAt: 'desc' } },
       },
@@ -477,9 +581,9 @@ export class CallsService {
     };
   }
 
-  async completeAttendedTransfer(callId: string) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async completeAttendedTransfer(tenantId: string, callId: string) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: {
         callLegs: { orderBy: { startedAt: 'desc' } },
       },
@@ -537,9 +641,9 @@ export class CallsService {
     };
   }
 
-  async pickup(callId: string, params: { agentId: string; extension: string }) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async pickup(tenantId: string, callId: string, params: { agentId: string; extension: string }) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: {
         callLegs: { orderBy: { startedAt: 'desc' } },
       },
@@ -589,9 +693,9 @@ export class CallsService {
     };
   }
 
-  async mute(callId: string, dto: MuteCallDto) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async mute(tenantId: string, callId: string, dto: MuteCallDto) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
     });
     if (!call) {
@@ -608,6 +712,7 @@ export class CallsService {
     const state = dto.state ?? 'on';
     const direction = dto.direction ?? 'all';
     this.asteriskManager.muteAudio(agentLeg.channelName, state, direction);
+    await this.redis.getClient().set(this.muteStateKey(callId), state === 'on' ? '1' : '0', 'EX', 86_400);
 
     await this.eventBus.publish('ami.command.mute.requested', {
       callId,
@@ -625,6 +730,7 @@ export class CallsService {
         accepted: true,
         state,
         direction,
+        isMuted: state === 'on',
       },
       error: null,
     };
@@ -640,7 +746,7 @@ export class CallsService {
     };
   }
 
-  async hold(callId: string, action: 'hold' | 'resume') {
+  async hold(tenantId: string, callId: string, action: 'hold' | 'resume') {
     const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
     const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
     const featureCode = action === 'hold' ? holdCode : resumeCode;
@@ -648,8 +754,8 @@ export class CallsService {
       throw new BadRequestException('현재 PBX 설정에서는 hold/resume 제어가 비활성화되어 있습니다.');
     }
 
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
     });
     if (!call) {
@@ -683,8 +789,8 @@ export class CallsService {
     };
   }
 
-  async saveMemo(callId: string, dto: CreateMemoDto) {
-    const call = await this.prisma.callSessions.findUnique({ where: { callId } });
+  async saveMemo(tenantId: string, callId: string, dto: CreateMemoDto) {
+    const call = await this.prisma.callSessions.findFirst({ where: { callId, tenantId } });
     if (!call) {
       throw new NotFoundException('Call not found');
     }
@@ -706,9 +812,9 @@ export class CallsService {
     return { success: true, data: memo, error: null };
   }
 
-  async hangup(callId: string) {
-    const call = await this.prisma.callSessions.findUnique({
-      where: { callId },
+  async hangup(tenantId: string, callId: string) {
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
     });
     if (!call) {

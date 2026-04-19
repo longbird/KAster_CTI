@@ -15,6 +15,11 @@ import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
 
+const FORWARDING_CONDITION_TYPES = new Set(['ALWAYS', 'TIME_RANGE']);
+const BLOCKLIST_MATCH_TYPES = new Set(['EXACT', 'PREFIX']);
+const WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+const WEEKDAY_SET = new Set(WEEKDAY_ORDER);
+
 @Injectable()
 export class AsteriskConfigService {
   constructor(
@@ -462,19 +467,24 @@ export class AsteriskConfigService {
         },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    }).then((rules) => rules.map((rule) => this.mapForwardingRule(rule)));
   }
 
   async createForwardingRule(tenantId: string, dto: CreateForwardingRuleDto) {
-    await this.validateForwardingRule(tenantId, dto);
+    const normalized = this.normalizeForwardingRuleInput(dto);
+    await this.validateForwardingRule(tenantId, normalized);
     const rule = await this.prisma.asteriskForwardingRules.create({
       data: {
         tenantId,
-        didId: dto.didId,
-        forwardType: dto.forwardType,
-        targetValue: dto.targetValue,
-        description: dto.description,
-        enabled: dto.enabled ?? true,
+        didId: normalized.didId,
+        forwardType: normalized.forwardType,
+        targetValue: normalized.targetValue,
+        conditionType: normalized.conditionType,
+        timeStart: normalized.timeStart,
+        timeEnd: normalized.timeEnd,
+        daysOfWeek: normalized.daysOfWeek,
+        description: normalized.description,
+        enabled: normalized.enabled,
       },
       include: {
         did: {
@@ -487,20 +497,25 @@ export class AsteriskConfigService {
       },
     });
     this.reload.scheduleReload(tenantId);
-    return rule;
+    return this.mapForwardingRule(rule);
   }
 
   async updateForwardingRule(tenantId: string, id: string, dto: UpdateForwardingRuleDto) {
     await this.assertForwardingRuleBelongs(tenantId, id);
-    await this.validateForwardingRule(tenantId, dto, id);
+    const normalized = this.normalizeForwardingRuleInput(dto);
+    await this.validateForwardingRule(tenantId, normalized, id);
     const rule = await this.prisma.asteriskForwardingRules.update({
       where: { id },
       data: {
-        didId: dto.didId,
-        forwardType: dto.forwardType,
-        targetValue: dto.targetValue,
-        description: dto.description,
-        enabled: dto.enabled ?? true,
+        didId: normalized.didId,
+        forwardType: normalized.forwardType,
+        targetValue: normalized.targetValue,
+        conditionType: normalized.conditionType,
+        timeStart: normalized.timeStart,
+        timeEnd: normalized.timeEnd,
+        daysOfWeek: normalized.daysOfWeek,
+        description: normalized.description,
+        enabled: normalized.enabled,
       },
       include: {
         did: {
@@ -513,7 +528,7 @@ export class AsteriskConfigService {
       },
     });
     this.reload.scheduleReload(tenantId);
-    return rule;
+    return this.mapForwardingRule(rule);
   }
 
   async deleteForwardingRule(tenantId: string, id: string) {
@@ -524,7 +539,15 @@ export class AsteriskConfigService {
 
   private async validateForwardingRule(
     tenantId: string,
-    dto: { didId: string; forwardType: string; targetValue: string },
+    dto: {
+      didId: string;
+      forwardType: string;
+      targetValue: string;
+      conditionType: string;
+      timeStart: string | null;
+      timeEnd: string | null;
+      daysOfWeek: string | null;
+    },
     currentRuleId?: string,
   ) {
     const did = await this.prisma.asteriskDid.findFirst({
@@ -564,6 +587,59 @@ export class AsteriskConfigService {
     }
 
     throw new BadRequestException(`Unsupported forwardType "${dto.forwardType}"`);
+  }
+
+  private normalizeForwardingRuleInput(dto: CreateForwardingRuleDto | UpdateForwardingRuleDto) {
+    const conditionType = dto.conditionType ?? 'ALWAYS';
+    if (!FORWARDING_CONDITION_TYPES.has(conditionType)) {
+      throw new BadRequestException(`Unsupported conditionType "${conditionType}"`);
+    }
+
+    const normalizedDays = this.normalizeWeekdays(dto.daysOfWeek);
+    const normalized = {
+      didId: dto.didId,
+      forwardType: dto.forwardType,
+      targetValue: dto.targetValue.trim(),
+      conditionType,
+      timeStart: dto.timeStart?.trim() ?? null,
+      timeEnd: dto.timeEnd?.trim() ?? null,
+      daysOfWeek: normalizedDays.length > 0 ? normalizedDays.join(',') : null,
+      description: dto.description?.trim() || null,
+      enabled: dto.enabled ?? true,
+    };
+
+    if (conditionType === 'TIME_RANGE') {
+      if (!normalized.timeStart || !normalized.timeEnd || !normalized.daysOfWeek) {
+        throw new BadRequestException('timeStart, timeEnd, and daysOfWeek are required for TIME_RANGE');
+      }
+      if (normalized.timeStart >= normalized.timeEnd) {
+        throw new BadRequestException('timeStart must be earlier than timeEnd');
+      }
+      return normalized;
+    }
+
+    return {
+      ...normalized,
+      timeStart: null,
+      timeEnd: null,
+      daysOfWeek: null,
+    };
+  }
+
+  private normalizeWeekdays(daysOfWeek?: string[]) {
+    const deduped = [...new Set((daysOfWeek ?? []).map((value) => value.trim().toLowerCase()))];
+    const invalid = deduped.filter((value) => !WEEKDAY_SET.has(value as (typeof WEEKDAY_ORDER)[number]));
+    if (invalid.length > 0) {
+      throw new BadRequestException(`Unsupported weekday(s): ${invalid.join(', ')}`);
+    }
+    return WEEKDAY_ORDER.filter((day) => deduped.includes(day));
+  }
+
+  private mapForwardingRule<T extends { daysOfWeek: string | null }>(rule: T) {
+    return {
+      ...rule,
+      daysOfWeek: rule.daysOfWeek ? rule.daysOfWeek.split(',').filter(Boolean) : [],
+    };
   }
 
   private async assertForwardingRuleBelongs(tenantId: string, id: string) {
@@ -677,12 +753,14 @@ export class AsteriskConfigService {
   }
 
   async createBlocklistEntry(tenantId: string, dto: CreateBlocklistEntryDto) {
-    const phoneNumber = this.normalizePhoneNumber(dto.phoneNumber);
+    const matchType = this.normalizeBlocklistMatchType(dto.matchType);
+    const phoneNumber = this.normalizePhoneNumber(dto.phoneNumber, matchType);
     const entry = await this.prisma.asteriskBlocklistEntry.create({
       data: {
         tenantId,
+        matchType,
         phoneNumber,
-        description: dto.description,
+        description: dto.description?.trim() || null,
         isActive: dto.isActive ?? true,
       },
     });
@@ -692,11 +770,13 @@ export class AsteriskConfigService {
 
   async updateBlocklistEntry(tenantId: string, id: string, dto: UpdateBlocklistEntryDto) {
     await this.assertBlocklistEntryBelongs(tenantId, id);
+    const matchType = this.normalizeBlocklistMatchType(dto.matchType);
     const entry = await this.prisma.asteriskBlocklistEntry.update({
       where: { id },
       data: {
-        phoneNumber: this.normalizePhoneNumber(dto.phoneNumber),
-        description: dto.description,
+        matchType,
+        phoneNumber: this.normalizePhoneNumber(dto.phoneNumber, matchType),
+        description: dto.description?.trim() || null,
         isActive: dto.isActive ?? true,
       },
     });
@@ -710,10 +790,24 @@ export class AsteriskConfigService {
     this.reload.scheduleReload(tenantId);
   }
 
-  private normalizePhoneNumber(phoneNumber: string) {
+  private normalizeBlocklistMatchType(matchType?: string) {
+    const normalized = matchType ?? 'EXACT';
+    if (!BLOCKLIST_MATCH_TYPES.has(normalized)) {
+      throw new BadRequestException(`Unsupported matchType "${normalized}"`);
+    }
+    return normalized;
+  }
+
+  private normalizePhoneNumber(phoneNumber: string, matchType: string) {
     const normalized = phoneNumber.replace(/\D/g, '');
-    if (!/^\d{8,16}$/.test(normalized)) {
-      throw new BadRequestException('phoneNumber must contain 8 to 16 digits');
+    const isValid =
+      matchType === 'PREFIX' ? /^\d{2,16}$/.test(normalized) : /^\d{8,16}$/.test(normalized);
+    if (!isValid) {
+      throw new BadRequestException(
+        matchType === 'PREFIX'
+          ? 'phoneNumber must contain 2 to 16 digits for PREFIX matching'
+          : 'phoneNumber must contain 8 to 16 digits for EXACT matching',
+      );
     }
     return normalized;
   }

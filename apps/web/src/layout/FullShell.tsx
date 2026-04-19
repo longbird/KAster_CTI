@@ -1,4 +1,6 @@
 import { Input, Select, Spin } from 'antd';
+import { ControlPanel } from '../components/ControlPanel';
+import { CurrentCallPanel } from '../components/CurrentCallPanel';
 import { useEffect, useMemo, useState } from 'react';
 import { EventLogPanel } from '../components/EventLogPanel';
 import { FloatingCallWindow } from '../components/FloatingCallWindow';
@@ -54,7 +56,7 @@ export function FullShell() {
   const [historyQuery, setHistoryQuery] = useState('');
   const [historyResultFilter, setHistoryResultFilter] = useState<'ALL' | string>('ALL');
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
-  const [isCallPopupMinimized, setIsCallPopupMinimized] = useState(false);
+  const [isCallPopupMinimized, setIsCallPopupMinimized] = useState(true);
   const [isDialerMinimized, setIsDialerMinimized] = useState(true);
 
   useEffect(() => {
@@ -126,12 +128,6 @@ export function FullShell() {
     }
   }, [queues, selectedQueueId]);
 
-  useEffect(() => {
-    if (selectedCall?.callId) {
-      setIsCallPopupMinimized(false);
-    }
-  }, [selectedCall?.callId]);
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface">
@@ -180,7 +176,7 @@ export function FullShell() {
                   <div className="mb-5 flex items-center justify-between">
                     <div>
                       <h3 className="font-headline text-lg font-bold text-on-surface">실시간 통화 요약</h3>
-                      <p className="mt-1 text-sm text-outline">실제 제어는 우측 팝업에서 처리합니다.</p>
+                      <p className="mt-1 text-sm text-outline">상세 제어는 콜센터 섹션 본문 작업면에서 바로 처리합니다.</p>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
                       {activeCalls.length}건
@@ -316,30 +312,58 @@ export function FullShell() {
                 <section className="rounded-lg bg-surface-container-lowest p-6 shadow-panel">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <h3 className="font-headline text-lg font-bold text-on-surface">선택 통화 정보</h3>
-                      <p className="mt-1 text-sm text-outline">버튼 제어와 메모 저장은 통화 팝업에서 처리합니다.</p>
+                      <h3 className="font-headline text-lg font-bold text-on-surface">선택 통화 작업면</h3>
+                      <p className="mt-1 text-sm text-outline">고객 확인, 통화 제어, 전환, ACW를 이 화면에서 바로 처리합니다.</p>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
                       {selectedCall ? '선택됨' : '대기 중'}
                     </span>
                   </div>
                   {selectedCall ? (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <InfoTile label="고객명" value={selectedCall.customer?.customerName ?? '미식별 고객'} />
-                      <InfoTile label="전화번호" value={selectedCall.ani ?? '-'} />
-                      <InfoTile label="대표 큐" value={selectedCall.queueName || '-'} />
-                      <InfoTile label="현재 상태" value={selectedCall.sessionStatus} />
-                      <InfoTile label="유입 번호" value={selectedCall.dnis ?? '-'} />
-                      <InfoTile label="고객 등급" value={selectedCall.customer?.grade ?? '-'} />
-                      <InfoTile label="시작 시각" value={formatTime(selectedCall.startedAt)} />
-                      <InfoTile
-                        label="전환 상태"
-                        value={
-                          selectedCall.latestTransfer
-                            ? `${selectedCall.latestTransfer.phase} / ${selectedCall.latestTransfer.toExtension ?? '-'}`
-                            : '진행 없음'
-                        }
+                    <div className="space-y-6">
+                      <CurrentCallPanel
+                        call={selectedCall}
+                        holdEnabled={agentSession?.callControlCapabilities?.holdEnabled}
+                        onPickup={pickup}
+                        onToggleMute={toggleMute}
+                        onToggleHold={toggleHold}
+                        onHangup={hangup}
                       />
+                      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">
+                        <ControlPanel
+                          call={selectedCall}
+                          onSaveMemo={saveMemo}
+                          onTransfer={transfer}
+                          onCancelAttendedTransfer={cancelAttendedTransfer}
+                          onCompleteAttendedTransfer={completeAttendedTransfer}
+                          onHangup={hangup}
+                        />
+                        <section className="rounded-lg bg-surface-container p-6">
+                          <div className="mb-5 flex items-center justify-between">
+                            <h4 className="font-headline text-base font-bold text-on-surface">선택 통화 요약</h4>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+                              live
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
+                            <InfoTile label="고객명" value={selectedCall.customer?.customerName ?? '미식별 고객'} />
+                            <InfoTile label="전화번호" value={selectedCall.ani ?? '-'} />
+                            <InfoTile label="대표 큐" value={selectedCall.queueName || '-'} />
+                            <InfoTile label="현재 상태" value={selectedCall.sessionStatus} />
+                            <InfoTile label="유입 번호" value={selectedCall.dnis ?? '-'} />
+                            <InfoTile label="고객 등급" value={selectedCall.customer?.grade ?? '-'} />
+                            <InfoTile label="시작 시각" value={formatTime(selectedCall.startedAt)} />
+                            <InfoTile
+                              label="전환 상태"
+                              value={
+                                selectedCall.latestTransfer
+                                  ? `${selectedCall.latestTransfer.phase} / ${selectedCall.latestTransfer.toExtension ?? '-'}`
+                                  : '진행 없음'
+                              }
+                            />
+                          </div>
+                        </section>
+                      </div>
                     </div>
                   ) : (
                     <p className="py-10 text-center text-sm text-outline">선택된 통화가 없습니다.</p>

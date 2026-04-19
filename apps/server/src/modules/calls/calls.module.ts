@@ -3,6 +3,7 @@ import { MenuPermissionService } from '../../common/menu-permission.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventsModule } from '../events/events.module';
 import { AmiModule } from '../ami/ami.module';
+import { QueuesModule } from '../queues/queues.module';
 import { CallsController } from './calls.controller';
 import { CallsService } from './calls.service';
 import { SessionEngineService } from './session-engine.service';
@@ -11,7 +12,7 @@ import { AsteriskManagerService } from './asterisk-manager.service';
 import { TransferDetectorService } from './transfer-detector.service';
 
 @Module({
-  imports: [EventsModule, forwardRef(() => AmiModule)],
+  imports: [EventsModule, QueuesModule, forwardRef(() => AmiModule)],
   controllers: [CallsController],
   providers: [
     CallsService,

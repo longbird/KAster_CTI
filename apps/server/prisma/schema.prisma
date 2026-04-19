@@ -589,6 +589,10 @@ model asteriskForwardingRules {
   didId          String      @unique @db.Uuid
   forwardType    String      @db.VarChar(16)
   targetValue    String      @db.VarChar(64)
+  conditionType  String      @default("ALWAYS") @db.VarChar(16)
+  timeStart      String?     @db.VarChar(5)
+  timeEnd        String?     @db.VarChar(5)
+  daysOfWeek     String?     @db.VarChar(32)
   description    String?     @db.VarChar(255)
   enabled        Boolean     @default(true)
   createdAt      DateTime    @default(now()) @db.Timestamptz(6)
@@ -650,6 +654,7 @@ model AsteriskPrompt {
 model AsteriskBlocklistEntry {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @db.Uuid
+  matchType   String   @default("EXACT") @db.VarChar(16)
   phoneNumber String   @db.VarChar(32)
   description String?  @db.VarChar(255)
   isActive    Boolean  @default(true)
@@ -658,6 +663,6 @@ model AsteriskBlocklistEntry {
 
   tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
-  @@unique([tenantId, phoneNumber])
+  @@unique([tenantId, matchType, phoneNumber])
   @@index([tenantId, isActive])
 }

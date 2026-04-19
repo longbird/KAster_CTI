@@ -1,4 +1,4 @@
-import { Form, Input, Modal, Switch } from 'antd';
+import { Form, Input, Modal, Select, Switch } from 'antd';
 import { useEffect } from 'react';
 import type { AsteriskBlocklistEntry } from '../asterisk-config/types/asterisk-config';
 
@@ -17,6 +17,7 @@ export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
   useEffect(() => {
     if (!open) return;
     form.setFieldsValue({
+      matchType: entry?.matchType ?? 'EXACT',
       phoneNumber: entry?.phoneNumber,
       description: entry?.description ?? undefined,
       isActive: entry?.isActive ?? true,
@@ -43,23 +44,39 @@ export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
+        <Form.Item name="matchType" label="매칭 방식" rules={[{ required: true }]}>
+          <Select
+            options={[
+              { value: 'EXACT', label: '정확히 일치' },
+              { value: 'PREFIX', label: '접두어 일치' },
+            ]}
+          />
+        </Form.Item>
         <Form.Item
           name="phoneNumber"
-          label="전화번호"
+          label="번호 또는 패턴"
+          dependencies={['matchType']}
           rules={[
             { required: true, message: '전화번호를 입력하세요.' },
-            {
+            ({ getFieldValue }) => ({
               validator: async (_, value: string | undefined) => {
+                const matchType = getFieldValue('matchType') as 'EXACT' | 'PREFIX' | undefined;
                 const digits = (value ?? '').replace(/\D/g, '');
-                if (!/^\d{8,16}$/.test(digits)) {
-                  throw new Error('숫자 8~16자리 형식이어야 합니다.');
+                const isValid =
+                  matchType === 'PREFIX' ? /^\d{2,16}$/.test(digits) : /^\d{8,16}$/.test(digits);
+                if (!isValid) {
+                  throw new Error(
+                    matchType === 'PREFIX'
+                      ? '접두어는 숫자 2~16자리 형식이어야 합니다.'
+                      : '전화번호는 숫자 8~16자리 형식이어야 합니다.',
+                  );
                 }
               },
-            },
+            }),
           ]}
-          extra="하이픈 없이 저장되며, 수신 ANI와 정확히 일치할 때 차단됩니다."
+          extra="정확히 일치는 전체 번호를, 접두어 일치는 해당 숫자로 시작하는 ANI를 차단합니다."
         >
-          <Input placeholder="08012345678" />
+          <Input placeholder="08012345678 또는 080" />
         </Form.Item>
         <Form.Item name="description" label="사유">
           <Input placeholder="수신거부 요청" />

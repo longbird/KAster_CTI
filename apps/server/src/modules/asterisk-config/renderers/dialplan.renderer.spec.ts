@@ -38,7 +38,17 @@ describe('renderDialplan', () => {
       dids: [{ id: 'd-forward', did: '07055555555', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
       ivrMenus: [],
       forwardingRules: [
-        { id: 'f1', didId: 'd-forward', forwardType: 'EXTENSION', targetValue: '1001', enabled: true },
+        {
+          id: 'f1',
+          didId: 'd-forward',
+          forwardType: 'EXTENSION',
+          targetValue: '1001',
+          conditionType: 'ALWAYS',
+          timeStart: null,
+          timeEnd: null,
+          daysOfWeek: null,
+          enabled: true,
+        },
       ],
     });
     expect(extensionsInbound).toContain('exten => 07055555555');
@@ -46,17 +56,51 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).not.toContain('Goto(queue-entry,sales,1)');
   });
 
+  it('renders conditional forwarding rule with DID fallback', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-conditional', did: '07055550000', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+      forwardingRules: [
+        {
+          id: 'f2',
+          didId: 'd-conditional',
+          forwardType: 'QUEUE',
+          targetValue: 'night',
+          conditionType: 'TIME_RANGE',
+          timeStart: '18:00',
+          timeEnd: '23:00',
+          daysOfWeek: 'mon,tue',
+          enabled: true,
+        },
+      ],
+    });
+    expect(extensionsInbound).toContain('GotoIfTime(18:00-23:00,mon,*,*?queue-entry,night,1)');
+    expect(extensionsInbound).toContain('GotoIfTime(18:00-23:00,tue,*,*?queue-entry,night,1)');
+    expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
+  });
+
   it('renders blocklist check before DID routing', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{ id: 'd-block', did: '07012341234', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
       ivrMenus: [],
       blocklistEntries: [
-        { id: 'b1', phoneNumber: '08012345678', isActive: true },
+        { id: 'b1', matchType: 'EXACT', phoneNumber: '08012345678', isActive: true },
       ],
     });
     expect(extensionsInbound).toContain('GotoIf($["${CALLERID(num)}"="08012345678"]?blocked-ani,s,1)');
     expect(extensionsInbound).toContain('[blocked-ani]');
     expect(extensionsInbound).toContain('Playback(ss-noservice)');
+  });
+
+  it('renders prefix blocklist check before DID routing', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-block-prefix', did: '07012340000', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+      blocklistEntries: [
+        { id: 'b2', matchType: 'PREFIX', phoneNumber: '080', isActive: true },
+      ],
+    });
+    expect(extensionsInbound).toContain('GotoIf($["${CALLERID(num):0:3}"="080"]?blocked-ani,s,1)');
   });
 
   it('skips disabled DIDs', () => {

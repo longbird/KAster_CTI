@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -8,22 +9,25 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { QueueMemberItemDto } from './set-queue-members.dto';
 
 const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
 
 export class CreateQueueDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(64)
   @Matches(/^[a-z0-9-]+$/, { message: '큐명은 영소문자·숫자·하이픈만 허용합니다' })
-  queueName: string;
+  queueName?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(16)
   @Matches(/^\d+$/, { message: '내선번호는 숫자만 허용합니다' })
-  queueExten: string;
+  queueExten?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -52,4 +56,10 @@ export class CreateQueueDto {
   @IsOptional()
   @IsBoolean()
   autopause?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QueueMemberItemDto)
+  members?: QueueMemberItemDto[];
 }

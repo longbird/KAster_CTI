@@ -2,6 +2,10 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
+import { RedisService } from '../redis/redis.service';
+import { QueuesService } from '../queues/queues.service';
+import { normalizePhone } from '../customers/customers.service';
+import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
 
 @Injectable()
 export class OutboxPublisherService implements OnModuleInit {
@@ -11,6 +15,8 @@ export class OutboxPublisherService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly eventBus: EventBusService,
     private readonly leader: AmiLeaderElectionService,
+    private readonly redis: RedisService,
+    private readonly queuesService: QueuesService,
   ) {}
 
   onModuleInit(): void {
@@ -27,11 +33,121 @@ export class OutboxPublisherService implements OnModuleInit {
     });
 
     for (const row of pending) {
-      await this.eventBus.publish(row.eventType, row.payload as any);
+      const payload = await this.enrichPayload(row.eventType, row.tenantId, row.payload as any);
+      await this.eventBus.publish(row.eventType, payload);
+      if (row.eventType === 'call.created' && payload?.customer) {
+        await this.eventBus.publish('screenpop.customer', {
+          callId: payload.callId,
+          customer: payload.customer,
+        });
+      }
+      if (row.eventType === 'call.created' || row.eventType === 'call.updated' || row.eventType === 'call.ended') {
+        await this.publishQueueSummary(row.tenantId);
+      }
+      if (row.eventType === 'call.ended' && payload?.callId) {
+        await this.redis.getClient().del(this.muteStateKey(payload.callId));
+      }
       await this.prisma.eventOutbox.update({
         where: { outboxId: row.outboxId },
         data: { publishedAt: new Date() },
       });
     }
+  }
+
+  private muteStateKey(callId: string) {
+    return `kaster:cti:call:${callId}:mute`;
+  }
+
+  private async publishQueueSummary(tenantId: string) {
+    const queueSummary = await this.queuesService.getSummary(tenantId);
+    await this.eventBus.publish(
+      'queue.summary.updated',
+      toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+    );
+  }
+
+  private async enrichPayload(
+    eventType: string,
+    tenantId: string,
+    payload: Record<string, any>,
+  ): Promise<Record<string, any>> {
+    if (eventType !== 'call.created' && eventType !== 'call.updated') {
+      return payload;
+    }
+
+    const [latestTransfer, customer, muteRaw] = await Promise.all([
+      payload.linkedid
+        ? this.prisma.attendedTransferCandidates.findFirst({
+            where: { tenantId, linkedid: payload.linkedid },
+            orderBy: { requestedAt: 'desc' },
+            select: {
+              phase: true,
+              toExtension: true,
+              requestedAt: true,
+              completedAt: true,
+              expiredAt: true,
+            },
+          })
+        : Promise.resolve(null),
+      this.resolveCustomerSummary(tenantId, payload),
+      payload.callId ? this.redis.getClient().get(this.muteStateKey(payload.callId)) : Promise.resolve(null),
+    ]);
+
+    const enriched = {
+      ...payload,
+      latestTransfer: latestTransfer ?? null,
+      customer,
+      isMuted: muteRaw === '1',
+    };
+
+    return enriched;
+  }
+
+  private async resolveCustomerSummary(tenantId: string, payload: Record<string, any>) {
+    if (payload.customerId) {
+      const customer = await this.prisma.customers.findFirst({
+        where: { tenantId, customerId: payload.customerId },
+        include: {
+          phones: {
+            where: { isActive: true },
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+            take: 1,
+          },
+        },
+      });
+      if (customer) {
+        return {
+          customerId: customer.customerId,
+          customerName: customer.customerName ?? '미식별 고객',
+          grade: customer.grade ?? 'NORMAL',
+          phoneNumber: customer.phones[0]?.phoneNumber ?? '',
+          companyName: customer.companyName ?? undefined,
+          memo: customer.memo ?? undefined,
+        };
+      }
+    }
+
+    const normalizedAni = normalizePhone(payload.ani ?? '');
+    if (!normalizedAni) return null;
+
+    const phone = await this.prisma.customerPhones.findFirst({
+      where: {
+        normalizedPhone: normalizedAni,
+        isActive: true,
+        customer: { tenantId },
+      },
+      include: { customer: true },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+    });
+    if (!phone) return null;
+
+    return {
+      customerId: phone.customer.customerId,
+      customerName: phone.customer.customerName ?? '미식별 고객',
+      grade: phone.customer.grade ?? 'NORMAL',
+      phoneNumber: phone.phoneNumber,
+      companyName: phone.customer.companyName ?? undefined,
+      memo: phone.customer.memo ?? undefined,
+    };
   }
 }

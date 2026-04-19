@@ -72,6 +72,7 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
     const stats = detail.data?.data?.todayStats;
     if (stats) {
       session.todayAnswered = stats.answered ?? 0;
+      session.todayMissed = stats.missed ?? 0;
       session.todayTalkSeconds = stats.totalTalkSeconds ?? 0;
     }
   } catch {
@@ -118,7 +119,18 @@ export async function getActiveCalls(): Promise<ApiResponse<ActiveCall[]>> {
           expiredAt: c.latestTransfer.expiredAt ?? null,
         }
       : null,
-    isMuted: false,
+    customer: c.customer
+      ? {
+          customerId: c.customer.customerId,
+          customerName: c.customer.customerName ?? '미식별 고객',
+          grade: c.customer.grade ?? 'NORMAL',
+          phoneNumber: c.customer.phoneNumber ?? c.ani ?? '',
+          companyName: c.customer.companyName ?? undefined,
+          memo: c.customer.memo ?? undefined,
+          recentOrders: Array.isArray(c.customer.recentOrders) ? c.customer.recentOrders : undefined,
+        }
+      : undefined,
+    isMuted: c.isMuted === true,
   }));
   return { success: true, data, error: null };
 }

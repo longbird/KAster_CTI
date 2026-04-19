@@ -1,9 +1,15 @@
-import { IsBoolean, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+
+const MATCH_TYPES = ['EXACT', 'PREFIX'] as const;
 
 export class CreateBlocklistEntryDto {
+  @IsOptional()
+  @IsIn(MATCH_TYPES)
+  matchType?: string;
+
   @IsString()
   @MaxLength(32)
-  @Matches(/^\d{8,16}$/, { message: 'phoneNumber must contain 8 to 16 digits' })
+  @Matches(/^\d{2,16}$/, { message: 'phoneNumber must contain 2 to 16 digits' })
   phoneNumber: string;
 
   @IsOptional()

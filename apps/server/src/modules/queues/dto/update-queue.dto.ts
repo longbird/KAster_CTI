@@ -1,4 +1,16 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { QueueMemberItemDto } from './set-queue-members.dto';
 
 const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
 
@@ -30,4 +42,10 @@ export class UpdateQueueDto {
   @IsOptional()
   @IsBoolean()
   autopause?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QueueMemberItemDto)
+  members?: QueueMemberItemDto[];
 }

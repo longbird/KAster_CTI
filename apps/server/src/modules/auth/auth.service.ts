@@ -5,6 +5,9 @@ import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../common/prisma.service';
 import { CallsService } from '../calls/calls.service';
+import { EventBusService } from '../events/event-bus.service';
+import { QueuesService } from '../queues/queues.service';
+import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
 import { LoginDto } from './login.dto';
 
 // share 69de045b: access 는 짧게, refresh 는 길게. refresh token 은 평문 저장 금지
@@ -29,6 +32,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly callsService: CallsService,
+    private readonly eventBus: EventBusService,
+    private readonly queuesService: QueuesService,
   ) {}
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
@@ -71,6 +76,17 @@ export class AuthService {
         startedAt: new Date(),
       },
     });
+
+    await this.eventBus.publish('agent.status.changed', {
+      agentId: agent.agentId,
+      statusCode: 'AVAILABLE',
+      reasonCode: null,
+    });
+    const queueSummary = await this.queuesService.getSummary(agent.tenantId);
+    await this.eventBus.publish(
+      'queue.summary.updated',
+      toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+    );
 
     const accessToken = this.signAccessToken(agent);
     const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, meta);
@@ -146,7 +162,7 @@ export class AuthService {
     const tokenHash = sha256(refreshToken);
     const row = await this.prisma.refreshTokens.findUnique({
       where: { tokenHash },
-      select: { agentId: true },
+      select: { agentId: true, tenantId: true },
     });
     await this.prisma.refreshTokens.updateMany({
       where: { tokenHash, revokedAt: null },
@@ -157,6 +173,11 @@ export class AuthService {
         where: { agentId: row.agentId, endedAt: null },
         data: { endedAt: new Date() },
       });
+      const queueSummary = await this.queuesService.getSummary(row.tenantId);
+      await this.eventBus.publish(
+        'queue.summary.updated',
+        toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+      );
     }
     return { success: true, data: { loggedOut: true }, error: null };
   }

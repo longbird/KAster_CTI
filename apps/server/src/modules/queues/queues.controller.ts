@@ -56,6 +56,9 @@ export class QueuesController {
   @Roles('supervisor', 'admin')
   async create(@CurrentUser() user: any, @Body() dto: CreateQueueDto) {
     await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'create');
+    if (dto.members !== undefined) {
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate');
+    }
     return this.queuesService.create(user.tenantId, dto);
   }
 
@@ -67,7 +70,20 @@ export class QueuesController {
     @Param('queueId') queueId: string,
     @Body() dto: UpdateQueueDto,
   ) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'update');
+    const queueFieldsRequested =
+      dto.queueDisplayName !== undefined ||
+      dto.strategy !== undefined ||
+      dto.maxWaitSeconds !== undefined ||
+      dto.ringTimeoutSeconds !== undefined ||
+      dto.wrapupSeconds !== undefined ||
+      dto.autopause !== undefined;
+
+    if (queueFieldsRequested) {
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'update');
+    }
+    if (dto.members !== undefined) {
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate');
+    }
     return this.queuesService.update(user.tenantId, queueId, dto);
   }
 

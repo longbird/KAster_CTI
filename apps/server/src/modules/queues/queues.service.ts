@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
   DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
@@ -10,6 +11,7 @@ import {
 import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
+import { UpdateQueueDto } from './dto/update-queue.dto';
 
 @Injectable()
 export class QueuesService {
@@ -148,7 +150,7 @@ export class QueuesService {
         autopause: true,
         isActive: true,
       },
-      orderBy: { queueName: 'asc' },
+      orderBy: [{ isActive: 'desc' }, { queueName: 'asc' }],
     });
     const queueUsageMap = await this.getQueueRoutingUsageMap(
       tenantId,
@@ -167,43 +169,62 @@ export class QueuesService {
   }
 
   async create(tenantId: string, dto: CreateQueueDto) {
+    const queueName = dto.queueName?.trim() || await this.allocateQueueName(tenantId);
+    const queueExten = dto.queueExten?.trim() || await this.allocateQueueExten(
+      tenantId,
+      10000,
+      20000,
+      '호 분배룰에 사용할 내부 대표 내선을 자동 배정할 수 없습니다',
+    );
+    if (dto.members !== undefined) {
+      await this.assertMembersExist(tenantId, dto.members);
+    }
+
     const existing = await this.prisma.queues.findFirst({
       where: {
         tenantId,
-        OR: [{ queueName: dto.queueName }, { queueExten: dto.queueExten }],
+        OR: [{ queueName }, { queueExten }],
       },
       select: { queueName: true, queueExten: true },
     });
 
     if (existing) {
-      if (existing.queueName === dto.queueName) {
-        throw new ConflictException(`큐명 '${dto.queueName}' 이미 사용 중`);
+      if (existing.queueName === queueName) {
+        throw new ConflictException(`큐명 '${queueName}' 이미 사용 중`);
       }
-      if (existing.queueExten === dto.queueExten) {
-        throw new ConflictException(`내선번호 '${dto.queueExten}' 이미 사용 중`);
+      if (existing.queueExten === queueExten) {
+        throw new ConflictException(`내선번호 '${queueExten}' 이미 사용 중`);
       }
     }
 
-    const queue = await this.prisma.queues.create({
-      data: {
-        tenantId,
-        queueName: dto.queueName,
-        queueExten: dto.queueExten,
-        queueDisplayName: dto.queueDisplayName,
-        strategy: dto.strategy ?? 'leastrecent',
-        ringTimeoutSeconds: dto.ringTimeoutSeconds ?? 15,
-        wrapupSeconds: dto.wrapupSeconds ?? 30,
-        maxWaitSeconds: dto.maxWaitSeconds ?? 45,
-        autopause: dto.autopause ?? true,
-      },
-      select: {
-        queueId: true,
-        queueName: true,
-        queueExten: true,
-        queueDisplayName: true,
-        strategy: true,
-        isActive: true,
-      },
+    const queue = await this.prisma.$transaction(async (tx) => {
+      const createdQueue = await tx.queues.create({
+        data: {
+          tenantId,
+          queueName,
+          queueExten,
+          queueDisplayName: dto.queueDisplayName,
+          strategy: dto.strategy ?? 'leastrecent',
+          ringTimeoutSeconds: dto.ringTimeoutSeconds ?? 15,
+          wrapupSeconds: dto.wrapupSeconds ?? 30,
+          maxWaitSeconds: dto.maxWaitSeconds ?? 45,
+          autopause: dto.autopause ?? true,
+        },
+        select: {
+          queueId: true,
+          queueName: true,
+          queueExten: true,
+          queueDisplayName: true,
+          strategy: true,
+          isActive: true,
+        },
+      });
+
+      if (dto.members !== undefined) {
+        await this.replaceMembers(tx, tenantId, createdQueue.queueId, dto.members);
+      }
+
+      return createdQueue;
     });
 
     this.reload.scheduleReload(tenantId);
@@ -213,41 +234,46 @@ export class QueuesService {
   async update(
     tenantId: string,
     queueId: string,
-    dto: {
-      queueDisplayName?: string;
-      strategy?: string;
-      maxWaitSeconds?: number;
-      ringTimeoutSeconds?: number;
-      wrapupSeconds?: number;
-      autopause?: boolean;
-    },
+    dto: UpdateQueueDto,
   ) {
     const queue = await this.prisma.queues.findFirst({ where: { queueId, tenantId } });
     if (!queue) throw new NotFoundException('Queue not found');
 
-    const updated = await this.prisma.queues.update({
-      where: { queueId },
-      data: {
-        ...(dto.queueDisplayName !== undefined && { queueDisplayName: dto.queueDisplayName }),
-        ...(dto.strategy !== undefined && { strategy: dto.strategy }),
-        ...(dto.maxWaitSeconds !== undefined && { maxWaitSeconds: dto.maxWaitSeconds }),
-        ...(dto.ringTimeoutSeconds !== undefined && { ringTimeoutSeconds: dto.ringTimeoutSeconds }),
-        ...(dto.wrapupSeconds !== undefined && { wrapupSeconds: dto.wrapupSeconds }),
-        ...(dto.autopause !== undefined && { autopause: dto.autopause }),
-        updatedAt: new Date(),
-      },
-      select: {
-        queueId: true,
-        queueName: true,
-        queueExten: true,
-        queueDisplayName: true,
-        strategy: true,
-        maxWaitSeconds: true,
-        ringTimeoutSeconds: true,
-        wrapupSeconds: true,
-        autopause: true,
-        isActive: true,
-      },
+    if (dto.members !== undefined) {
+      await this.assertMembersExist(tenantId, dto.members);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const savedQueue = await tx.queues.update({
+        where: { queueId },
+        data: {
+          ...(dto.queueDisplayName !== undefined && { queueDisplayName: dto.queueDisplayName }),
+          ...(dto.strategy !== undefined && { strategy: dto.strategy }),
+          ...(dto.maxWaitSeconds !== undefined && { maxWaitSeconds: dto.maxWaitSeconds }),
+          ...(dto.ringTimeoutSeconds !== undefined && { ringTimeoutSeconds: dto.ringTimeoutSeconds }),
+          ...(dto.wrapupSeconds !== undefined && { wrapupSeconds: dto.wrapupSeconds }),
+          ...(dto.autopause !== undefined && { autopause: dto.autopause }),
+          updatedAt: new Date(),
+        },
+        select: {
+          queueId: true,
+          queueName: true,
+          queueExten: true,
+          queueDisplayName: true,
+          strategy: true,
+          maxWaitSeconds: true,
+          ringTimeoutSeconds: true,
+          wrapupSeconds: true,
+          autopause: true,
+          isActive: true,
+        },
+      });
+
+      if (dto.members !== undefined) {
+        await this.replaceMembers(tx, tenantId, queueId, dto.members);
+      }
+
+      return savedQueue;
     });
 
     this.reload.scheduleReload(tenantId);
@@ -291,6 +317,8 @@ export class QueuesService {
             agentId: true,
             agentName: true,
             extension: true,
+            loginId: true,
+            defaultQueueId: true,
             role: true,
             isActive: true,
           },
@@ -312,31 +340,10 @@ export class QueuesService {
     if (!queue) throw new NotFoundException('Queue not found');
 
     const uniqueAgentIds = [...new Set(members.map((item) => item.agentId))];
-    if (uniqueAgentIds.length > 0) {
-      const agents = await this.prisma.agents.findMany({
-        where: { tenantId, agentId: { in: uniqueAgentIds } },
-        select: { agentId: true },
-      });
-      if (agents.length !== uniqueAgentIds.length) {
-        throw new NotFoundException('일부 상담원을 찾을 수 없습니다');
-      }
-    }
+    await this.assertMembersExist(tenantId, members);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.queueAgentMembers.deleteMany({ where: { queueId } });
-
-      if (members.length > 0) {
-        await tx.queueAgentMembers.createMany({
-          data: members.map((item, index) => ({
-            tenantId,
-            queueId,
-            agentId: item.agentId,
-            penalty: item.penalty ?? 0,
-            memberOrder: item.memberOrder ?? index,
-            isActive: true,
-          })),
-        });
-      }
+      await this.replaceMembers(tx, tenantId, queueId, members);
     });
 
     this.reload.scheduleReload(tenantId);
@@ -357,7 +364,12 @@ export class QueuesService {
         data: {
           tenantId,
           queueName: DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
-          queueExten: await this.allocateDefaultQueueExten(tenantId),
+          queueExten: await this.allocateQueueExten(
+            tenantId,
+            9999,
+            11000,
+            '기본 호 분배룰에 사용할 내선을 자동 배정할 수 없습니다',
+          ),
           queueDisplayName: DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
           strategy: 'leastrecent',
           ringTimeoutSeconds: 15,
@@ -367,23 +379,44 @@ export class QueuesService {
           isActive: true,
         },
       });
+
+      await this.syncDefaultRuleMembers(tenantId, queue.queueId);
     }
 
-    await this.syncDefaultRuleMembers(tenantId, queue.queueId);
     return queue;
   }
 
-  private async allocateDefaultQueueExten(tenantId: string) {
+  private async allocateQueueExten(
+    tenantId: string,
+    start: number,
+    end: number,
+    errorMessage: string,
+  ) {
     const queues = await this.prisma.queues.findMany({
       where: { tenantId },
       select: { queueExten: true },
     });
     const used = new Set(queues.map((item) => item.queueExten));
-    for (let candidate = 9999; candidate < 11000; candidate += 1) {
+    for (let candidate = start; candidate < end; candidate += 1) {
       const value = String(candidate);
       if (!used.has(value)) return value;
     }
-    throw new ConflictException('기본 호 분배룰에 사용할 내선을 자동 배정할 수 없습니다');
+    throw new ConflictException(errorMessage);
+  }
+
+  private async allocateQueueName(tenantId: string) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const candidate = `queue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const existing = await this.prisma.queues.findFirst({
+        where: { tenantId, queueName: candidate },
+        select: { queueId: true },
+      });
+      if (!existing) {
+        return candidate;
+      }
+    }
+
+    throw new ConflictException('호 분배룰 내부 식별자를 자동 생성할 수 없습니다');
   }
 
   private async syncDefaultRuleMembers(tenantId: string, queueId: string) {
@@ -409,6 +442,46 @@ export class QueuesService {
         });
       }
     });
+  }
+
+  private async assertMembersExist(
+    tenantId: string,
+    members: Array<{ agentId: string; penalty?: number; memberOrder?: number }>,
+  ) {
+    const uniqueAgentIds = [...new Set(members.map((item) => item.agentId))];
+    if (uniqueAgentIds.length === 0) {
+      return;
+    }
+
+    const agents = await this.prisma.agents.findMany({
+      where: { tenantId, agentId: { in: uniqueAgentIds } },
+      select: { agentId: true },
+    });
+    if (agents.length !== uniqueAgentIds.length) {
+      throw new NotFoundException('일부 상담원을 찾을 수 없습니다');
+    }
+  }
+
+  private async replaceMembers(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    queueId: string,
+    members: Array<{ agentId: string; penalty?: number; memberOrder?: number }>,
+  ) {
+    await tx.queueAgentMembers.deleteMany({ where: { queueId } });
+
+    if (members.length > 0) {
+      await tx.queueAgentMembers.createMany({
+        data: members.map((item, index) => ({
+          tenantId,
+          queueId,
+          agentId: item.agentId,
+          penalty: item.penalty ?? 0,
+          memberOrder: item.memberOrder ?? index,
+          isActive: true,
+        })),
+      });
+    }
   }
 
   private async getQueueRoutingUsageMap(tenantId: string, queueNames: string[]) {

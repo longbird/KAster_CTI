@@ -94,6 +94,8 @@ export function ForwardingSettingsPage() {
   const save = async (values: ForwardingRuleFormValue) => {
     const payload = {
       ...values,
+      timeStart: values.timeStart ?? null,
+      timeEnd: values.timeEnd ?? null,
       description: values.description?.trim() ? values.description : null,
     };
 
@@ -165,6 +167,26 @@ export function ForwardingSettingsPage() {
             width: 180,
           },
           {
+            title: '적용 조건',
+            width: 220,
+            render: (_: unknown, row) => {
+              if (row.conditionType === 'TIME_RANGE') {
+                const weekdayLabels: Record<string, string> = {
+                  mon: '월',
+                  tue: '화',
+                  wed: '수',
+                  thu: '목',
+                  fri: '금',
+                  sat: '토',
+                  sun: '일',
+                };
+                const days = row.daysOfWeek.map((day) => weekdayLabels[day] ?? day).join(', ');
+                return `${days} ${row.timeStart}-${row.timeEnd}`;
+              }
+              return '항상';
+            },
+          },
+          {
             title: '설명',
             dataIndex: 'description',
             render: (value?: string | null) => value || '-',
@@ -202,7 +224,7 @@ export function ForwardingSettingsPage() {
         <Space>
           <SwapOutlined />
           <Typography.Text type="secondary">
-            현재 1차 범위는 DID 기준 무조건 전환만 지원합니다. 시간대/조건부 전환은 후속 범위입니다.
+            조건형 규칙은 지정된 요일·시간대에만 우선 적용되고, 그 외 시간에는 DID 기본 IVR/큐 설정으로 복귀합니다.
           </Typography.Text>
         </Space>
       </div>

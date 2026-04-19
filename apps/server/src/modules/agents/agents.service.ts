@@ -135,6 +135,15 @@ export class AgentsService {
     });
 
     const answered = todaysCalls.length;
+    const missed = await this.prisma.callSessions.count({
+      where: {
+        tenantId,
+        primaryAgentId: agentId,
+        startedAt: { gte: startOfDay },
+        sessionStatus: 'ENDED',
+        answeredAt: null,
+      },
+    });
     const totalTalk = todaysCalls.reduce((sum, c) => sum + (c.talkSeconds ?? 0), 0);
     const avgTalk = answered > 0 ? Math.round(totalTalk / answered) : 0;
 
@@ -143,7 +152,7 @@ export class AgentsService {
       data: {
         agent,
         currentStatus,
-        todayStats: { answered, totalTalkSeconds: totalTalk, avgTalkSeconds: avgTalk },
+        todayStats: { answered, missed, totalTalkSeconds: totalTalk, avgTalkSeconds: avgTalk },
       },
       error: null,
     };

@@ -14,21 +14,38 @@ import {
   EditOutlined,
   PlusOutlined,
   StopOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
 import { QueueCreateModal } from './QueueCreateModal';
 import { QueueEditModal, type QueueRow } from './QueueEditModal';
-import { QueueMembersDrawer } from './QueueMembersDrawer';
+import { getQueueStrategyLabel } from './queueStrategy';
+
+function renderSingleLine(text: string) {
+  return (
+    <Typography.Text
+      style={{
+        display: 'block',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+      title={text}
+    >
+      {text}
+    </Typography.Text>
+  );
+}
 
 export function QueueSettingsPage() {
   const queuePermission = usePermissionStore((state) => state.permissionsByMenu['settings/queues']);
+  const canEditQueue = queuePermission?.canUpdate !== false;
+  const canEditMembers = queuePermission?.canOperate !== false;
+  const canOpenEditor = canEditQueue || canEditMembers;
   const [rows, setRows] = useState<QueueRow[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<QueueRow | null>(null);
-  const [managingMembers, setManagingMembers] = useState<QueueRow | null>(null);
 
   const load = async () => {
     try {
@@ -73,40 +90,63 @@ export function QueueSettingsPage() {
         rowKey="queueId"
         dataSource={rows}
         pagination={false}
+        tableLayout="fixed"
         rowClassName={(r) => (!r.isActive ? 'ant-table-row-disabled' : '')}
         columns={[
           {
             title: '큐명',
+            width: 180,
             render: (_: unknown, r: QueueRow) => (
               <Space size={[4, 4]} wrap>
-                <span>{r.queueDisplayName ?? r.queueName}</span>
+                {renderSingleLine(r.queueDisplayName ?? r.queueName)}
                 {r.isDefaultRule ? <Tag color="gold">기본 룰</Tag> : null}
               </Space>
             ),
           },
-          { title: '내부명', dataIndex: 'queueName' },
-          { title: '내선', dataIndex: 'queueExten' },
           {
-            title: '분배 전략',
+            title: '분배전략',
             dataIndex: 'strategy',
-            render: (v?: string) => (v ? <Tag>{v}</Tag> : '-'),
+            width: 120,
+            render: (v?: string) => <Tag>{getQueueStrategyLabel(v)}</Tag>,
           },
-          { title: '링 TM(초)', dataIndex: 'ringTimeoutSeconds', render: (v?: number) => v ?? '-' },
-          { title: '후처리(초)', dataIndex: 'wrapupSeconds', render: (v?: number) => v ?? '-' },
-          { title: '대기 TM(초)', dataIndex: 'maxWaitSeconds', render: (v?: number) => v ?? '-' },
+          {
+            title: '링',
+            dataIndex: 'ringTimeoutSeconds',
+            width: 60,
+            align: 'center',
+            render: (v?: number) => v ?? '-',
+          },
+          {
+            title: '후처리',
+            dataIndex: 'wrapupSeconds',
+            width: 72,
+            align: 'center',
+            render: (v?: number) => v ?? '-',
+          },
+          {
+            title: '대기',
+            dataIndex: 'maxWaitSeconds',
+            width: 60,
+            align: 'center',
+            render: (v?: number) => v ?? '-',
+          },
           {
             title: 'Auto Pause',
             dataIndex: 'autopause',
+            width: 90,
+            align: 'center',
             render: (v?: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'ON' : 'OFF'}</Tag>,
           },
           {
             title: '상태',
             dataIndex: 'isActive',
+            width: 82,
+            align: 'center',
             render: (v?: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '활성' : '비활성'}</Tag>,
           },
           {
             title: '라우팅 참조',
-            width: 240,
+            width: 150,
             render: (_: unknown, r: QueueRow) => {
               const refs = r.routingReferences;
               const tags = [
@@ -142,7 +182,7 @@ export function QueueSettingsPage() {
           },
           {
             title: '액션',
-            width: 220,
+            width: 150,
             render: (_: unknown, r: QueueRow) => {
               const deleteDisabled =
                 !r.isActive || r.canDeactivate === false || queuePermission?.canDelete === false;
@@ -153,17 +193,9 @@ export function QueueSettingsPage() {
                     size="small"
                     icon={<EditOutlined />}
                     onClick={() => setEditing(r)}
-                    disabled={!r.isActive || queuePermission?.canUpdate === false}
+                    disabled={!r.isActive || !canOpenEditor}
                   >
                     수정
-                  </Button>
-                  <Button
-                    size="small"
-                    icon={<TeamOutlined />}
-                    onClick={() => setManagingMembers(r)}
-                    disabled={!r.isActive || queuePermission?.canOperate === false}
-                  >
-                    분배룰
                   </Button>
                   <Tooltip title={deleteDisabled ? r.deactivateBlockedReason ?? undefined : undefined}>
                     <Popconfirm
@@ -197,15 +229,14 @@ export function QueueSettingsPage() {
           onCreated={() => void load()}
         />
       ) : null}
-      {queuePermission?.canUpdate !== false ? (
+      {canOpenEditor ? (
         <QueueEditModal
           queue={editing}
+          canEditSettings={canEditQueue}
+          canEditMembers={canEditMembers}
           onClose={() => setEditing(null)}
           onSaved={() => void load()}
         />
-      ) : null}
-      {queuePermission?.canOperate !== false ? (
-        <QueueMembersDrawer queue={managingMembers} onClose={() => setManagingMembers(null)} />
       ) : null}
     </Card>
   );

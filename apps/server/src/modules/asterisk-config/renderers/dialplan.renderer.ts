@@ -44,11 +44,16 @@ export interface ForwardingRuleInput {
   didId: string;
   forwardType: string;
   targetValue: string;
+  conditionType: string;
+  timeStart: string | null;
+  timeEnd: string | null;
+  daysOfWeek: string | null;
   enabled: boolean;
 }
 
 export interface BlocklistEntryInput {
   id: string;
+  matchType: string;
   phoneNumber: string;
   isActive: boolean;
 }
@@ -58,10 +63,82 @@ function renderBlocklistChecks(blocklistEntries: BlocklistEntryInput[]): string[
     .filter((entry) => entry.isActive)
     .flatMap((entry) => {
       assertNoNewlines(entry.phoneNumber, 'blocklist.phoneNumber');
-      return [
-        ` same => n,GotoIf($["\${CALLERID(num)}"="${entry.phoneNumber}"]?blocked-ani,s,1)`,
-      ];
+      if (entry.matchType === 'PREFIX') {
+        const prefixLength = entry.phoneNumber.length;
+        return [
+          ` same => n,GotoIf($["\${CALLERID(num):0:${prefixLength}}"="${entry.phoneNumber}"]?blocked-ani,s,1)`,
+        ];
+      }
+      return [` same => n,GotoIf($["\${CALLERID(num)}"="${entry.phoneNumber}"]?blocked-ani,s,1)`];
     });
+}
+
+function buildTargetGotoLines(forwardType: string, targetValue: string): string[] | null {
+  assertNoNewlines(targetValue, 'forwarding.targetValue');
+  if (forwardType === 'EXTENSION') {
+    return [` same => n,Goto(from-queue,${targetValue},1)`];
+  }
+  if (forwardType === 'QUEUE') {
+    return [` same => n,Goto(queue-entry,${targetValue},1)`];
+  }
+  return null;
+}
+
+function renderDidFallbackRoute(did: DidInput, ivrMenus: IvrMenuInput[]): string[] | null {
+  if (did.ivrMenuId) {
+    const menu = ivrMenus.find((m) => m.id === did.ivrMenuId);
+    if (!menu) {
+      console.warn(`[DialplanRenderer] DID ${did.did} references ivrMenuId ${did.ivrMenuId} but no matching menu found — skipped`);
+      return null;
+    }
+    const slug = toSlug(menu.name);
+    if (!slug) throw new Error(`IVR menu name "${menu.name}" produces an empty slug`);
+    return [` same => n,Goto(ivr-menu-${slug},s,1)`];
+  }
+
+  if (did.directQueue) {
+    assertNoNewlines(did.directQueue, 'directQueue');
+    return [` same => n,Goto(queue-entry,${did.directQueue},1)`];
+  }
+
+  return null;
+}
+
+function renderConditionalForwarding(
+  did: DidInput,
+  ivrMenus: IvrMenuInput[],
+  forwardingRule: ForwardingRuleInput,
+): string[] | null {
+  if (
+    forwardingRule.conditionType !== 'TIME_RANGE' ||
+    !forwardingRule.timeStart ||
+    !forwardingRule.timeEnd ||
+    !forwardingRule.daysOfWeek
+  ) {
+    return null;
+  }
+
+  const targetGotoLines = buildTargetGotoLines(forwardingRule.forwardType, forwardingRule.targetValue);
+  const fallbackLines = renderDidFallbackRoute(did, ivrMenus);
+  if (!targetGotoLines || !fallbackLines) {
+    console.warn(`[DialplanRenderer] DID ${did.did} has invalid conditional forwarding configuration — skipped`);
+    return null;
+  }
+
+  const days = forwardingRule.daysOfWeek
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  return [
+    `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> conditional forward ${forwardingRule.targetValue})`,
+    ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+    ...days.map(
+      (day) =>
+        ` same => n,GotoIfTime(${forwardingRule.timeStart}-${forwardingRule.timeEnd},${day},*,*?${targetGotoLines[0].replace(' same => n,Goto(', '').replace(')', '')})`,
+    ),
+    ...fallbackLines,
+  ];
 }
 
 function renderDidExtension(
@@ -74,48 +151,29 @@ function renderDidExtension(
   const blocklistLines = renderBlocklistChecks(blocklistEntries);
   const forwardingRule = forwardingRules.find((rule) => rule.didId === did.id && rule.enabled);
   if (forwardingRule) {
-    assertNoNewlines(forwardingRule.targetValue, 'forwarding.targetValue');
-    if (forwardingRule.forwardType === 'EXTENSION') {
-      return [
-        `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> forward extension ${forwardingRule.targetValue})`,
-        ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
-        ...blocklistLines,
-        ` same => n,Goto(from-queue,${forwardingRule.targetValue},1)`,
-      ].join('\n');
+    const conditionalLines = renderConditionalForwarding(did, ivrMenus, forwardingRule);
+    if (conditionalLines) {
+      return [...conditionalLines.slice(0, 2), ...blocklistLines, ...conditionalLines.slice(2)].join('\n');
     }
-    if (forwardingRule.forwardType === 'QUEUE') {
-      return [
-        `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> forward queue ${forwardingRule.targetValue})`,
-        ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
-        ...blocklistLines,
-        ` same => n,Goto(queue-entry,${forwardingRule.targetValue},1)`,
-      ].join('\n');
-    }
-    console.warn(`[DialplanRenderer] DID ${did.did} has unsupported forwarding type ${forwardingRule.forwardType} — skipped`);
-    return null;
-  }
-  if (did.ivrMenuId) {
-    const menu = ivrMenus.find((m) => m.id === did.ivrMenuId);
-    if (!menu) {
-      console.warn(`[DialplanRenderer] DID ${did.did} references ivrMenuId ${did.ivrMenuId} but no matching menu found — skipped`);
+    const targetGotoLines = buildTargetGotoLines(forwardingRule.forwardType, forwardingRule.targetValue);
+    if (!targetGotoLines) {
+      console.warn(`[DialplanRenderer] DID ${did.did} has unsupported forwarding type ${forwardingRule.forwardType} — skipped`);
       return null;
     }
-    const slug = toSlug(menu.name);
-    if (!slug) throw new Error(`IVR menu name "${menu.name}" produces an empty slug`);
     return [
-      `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
+      `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> forward ${forwardingRule.forwardType.toLowerCase()} ${forwardingRule.targetValue})`,
       ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
       ...blocklistLines,
-      ` same => n,Goto(ivr-menu-${slug},s,1)`,
+      ...targetGotoLines,
     ].join('\n');
   }
-  if (did.directQueue) {
-    assertNoNewlines(did.directQueue, 'directQueue');
+  const fallbackLines = renderDidFallbackRoute(did, ivrMenus);
+  if (fallbackLines) {
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
       ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
       ...blocklistLines,
-      ` same => n,Goto(queue-entry,${did.directQueue},1)`,
+      ...fallbackLines,
     ].join('\n');
   }
   console.warn(`[DialplanRenderer] DID ${did.did} has neither ivrMenuId nor directQueue — skipped`);
