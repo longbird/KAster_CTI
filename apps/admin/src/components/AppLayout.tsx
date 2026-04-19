@@ -1,8 +1,8 @@
-import { Button, Layout, Menu, Result, Space, Spin, Tag, Typography } from 'antd';
+import { Button, Grid, Layout, Menu, Result, Space, Spin, Tag, Typography } from 'antd';
 import type { MenuProps } from 'antd';
-import { LogoutOutlined } from '@ant-design/icons';
+import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api/authApi';
 import { USE_MOCK } from '../config';
 import { useAuthStore } from '../store/useAuthStore';
@@ -28,6 +28,15 @@ export function AppLayout() {
     void loadForRole(agent?.role);
   }, [agent?.role, loadForRole]);
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+  const [collapsed, setCollapsed] = useState(false);
+  const isExpanded = !collapsed;
+
+  useEffect(() => {
+    setCollapsed(isMobile);
+  }, [isMobile]);
+
   const allowedPathSet = useMemo(() => new Set(allowedPaths), [allowedPaths]);
   const menuItems = useMemo(
     () => filterMenuByAllowedPaths(ADMIN_MENU_CONFIG, allowedPathSet),
@@ -49,21 +58,38 @@ export function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={240} theme="light" className="app-sider">
+      <Sider
+        width={240}
+        collapsedWidth={60}
+        collapsed={collapsed}
+        theme="light"
+        className={`app-sider${isMobile && isExpanded ? ' sider-overlay' : ''}`}
+      >
         <div className="brand-block">
           <div className="brand-title">CTI Admin</div>
           <div className="brand-subtitle">PBX 운영 대시보드</div>
         </div>
         <Menu
           mode="inline"
+          inlineCollapsed={collapsed}
           selectedKeys={[normalizedPath]}
           items={antdMenuItems}
-          onClick={({ key }) => navigate(key as string)}
+          onClick={({ key }) => {
+            navigate(key as string);
+            if (isMobile) setCollapsed(true);
+          }}
         />
       </Sider>
       <Layout>
         <Header className="app-header" style={{ justifyContent: 'space-between' }}>
           <Space size="middle" align="center">
+            <Button
+              className="header-menu-toggle"
+              type="text"
+              icon={isExpanded ? <CloseOutlined /> : <MenuOutlined />}
+              onClick={() => setCollapsed((c) => !c)}
+              style={{ marginRight: 8 }}
+            />
             <Typography.Title level={4} style={{ margin: 0 }}>
               관리자 운영 콘솔
             </Typography.Title>
@@ -91,6 +117,9 @@ export function AppLayout() {
             />
           )}
         </Content>
+          {isMobile && isExpanded && (
+            <div className="sider-backdrop" onClick={() => setCollapsed(true)} />
+          )}
       </Layout>
     </Layout>
   );
