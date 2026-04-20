@@ -63,13 +63,21 @@ export class SessionEngineService {
       .split('-')[0]
       .trim();
 
+    const orConditions: Prisma.agentsWhereInput[] = [];
+    if (/^[0-9a-fA-F-]{36}$/.test(normalized)) {
+      orConditions.push({ agentId: normalized });
+    }
+    if (extensionCandidate) {
+      orConditions.push({ extension: extensionCandidate });
+    }
+    if (orConditions.length === 0) {
+      return undefined;
+    }
+
     const agent = await this.prisma.agents.findFirst({
       where: {
         tenantId,
-        OR: [
-          { agentId: normalized },
-          { extension: extensionCandidate },
-        ],
+        OR: orConditions,
       },
       select: { agentId: true },
     });
@@ -124,10 +132,9 @@ export class SessionEngineService {
 
     switch (event.eventName) {
       case 'Newchannel':
-        await this.upsertSession(
+        await this.ensureSessionStarted(
           linkedid,
           {
-            sessionStatus: 'NEW',
             ani: event.ani,
             dnis: event.dnis,
           },
@@ -207,6 +214,54 @@ export class SessionEngineService {
     ) {
       await this.transferDetector.handle(event);
     }
+  }
+
+  private async ensureSessionStarted(
+    linkedid: string,
+    patch: { ani?: string | null; dnis?: string | null },
+    tenantId: string,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      const found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+
+      if (!found) {
+        const created = await tx.callSessions.create({
+          data: {
+            tenantId,
+            linkedid,
+            direction: 'inbound',
+            sessionStatus: 'NEW',
+            ani: patch.ani ?? undefined,
+            aniNormalized: patch.ani ?? undefined,
+            dnis: patch.dnis ?? undefined,
+            startedAt: new Date(),
+          },
+        });
+
+        await this.enqueueOutbox(tx, tenantId, 'call.created', created);
+        return;
+      }
+
+      const data: Prisma.callSessionsUpdateInput = {};
+      if (!found.ani && patch.ani) {
+        data.ani = patch.ani;
+        data.aniNormalized = patch.ani;
+      }
+      if (!found.dnis && patch.dnis) {
+        data.dnis = patch.dnis;
+      }
+
+      if (Object.keys(data).length === 0) {
+        return;
+      }
+
+      const updated = await tx.callSessions.update({
+        where: { callId: found.callId },
+        data,
+      });
+
+      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
+    });
   }
 
   private async upsertSession(

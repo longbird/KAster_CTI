@@ -29,6 +29,9 @@ export function renderQueuesConf(queues: QueueInput[]): string {
   for (const q of queues) {
     lines.push(`[${q.queueName}]`);
     lines.push(`strategy=${q.strategy}`);
+    lines.push('ringinuse=no');
+    lines.push('joinempty=yes');
+    lines.push('leavewhenempty=no');
     lines.push(`timeout=${q.ringTimeoutSeconds}`);
     lines.push(`retry=${q.retrySeconds}`);
     lines.push(`wrapuptime=${q.wrapupSeconds}`);
