@@ -66,13 +66,14 @@ npm run build          # tsc -b && vite build
 - `src/store/useAuthStore.ts` 가 access/refresh token + agent 정보를 localStorage 에 영속 (`kaster.access_token`, `kaster.refresh_token`, `kaster.agent`)
 - `src/store/useUiStore.ts` 가 Mini/Full 모드를 URL `?mode=mini` 또는 localStorage 로 영속
 - 로그인 플로우: `pages/RequireAuth.tsx` 가 Mock 모드에선 bypass, Real 모드에선 미인증 시 `pages/LoginPage.tsx` 렌더
-- 레이아웃:
-  - `layout/AppShell.tsx` 는 mode 디스패처 (MiniShell | FullShell)
-  - `layout/FullShell.tsx`: HeaderBar + ModeSwitch + **LogoutButton** / KpiPanel / 3열(Status|CurrentCall|Action) / AcwPanel + EventLogPanel 2열 / BottomPanels
-  - `layout/MiniShell.tsx`: 420px 카드 + ModeSwitch + LogoutButton + 간이 ActionPanel
+- 레이아웃 (`feat/agent-portal-redesign` 기준 Dark Pro 테마):
+  - `layout/AppShell.tsx` — mode 디스패처 (MiniShell | FullShell)
+  - `layout/FullShell.tsx` — TopAppBar(46px) + 4열 본문:
+    - SideNav(56px 아이콘 레일) | CallListPanel(240px 통화 목록) | 메인 컨텐츠 | KpiPanel(170px 세로 KPI 스트립)
+  - `layout/MiniShell.tsx` — 420px Dark Pro 카드 (TopAppBar + 요약 패널)
+  - 컴포넌트: `SideNav`, `TopAppBar`, `CallListPanel`, `CurrentCallPanel` (Hero 카드), `ControlPanel`, `KpiPanel`, `AgentStatusTag` (CSS-var 인라인 스타일), `statusMeta` (한국어 레이블 + CSS-var 컬러맵)
 - 실제 백엔드 교체 지점은 `src/api/realApi.ts`
   - WebSocket: `src/mock/mockSocket.ts` → 실제 `/ws` namespace 연결
-- 레이아웃: `AppShell.tsx` 가 Header/Status/CurrentCall/Action/BottomPanels 5영역으로 구성. conv 10–17 의 Mini/Full 2모드는 **아직 적용 전**, 현재는 Full 단일 모드.
 
 ### 관리자 대시보드 (`apps/admin`)
 ```bash
