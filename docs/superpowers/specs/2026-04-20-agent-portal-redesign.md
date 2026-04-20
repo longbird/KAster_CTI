@@ -83,6 +83,17 @@
 - 하단: 테마 토글 버튼, 아바타 (이니셜)
 - 툴팁: 호버 시 메뉴명 표시
 
+**네비게이션 항목 (기존 4개 유지)**:
+
+| key | Material Symbol 아이콘 | 툴팁 |
+|-----|----------------------|------|
+| `overview` | `dashboard` | 개요 |
+| `call` | `headset_mic` | 콜 센터 |
+| `queues` | `stacked_line_chart` | 큐 현황 |
+| `history` | `history` | 이력 |
+
+**섹션 전환 모델 변경**: 기존 `fullSection` 스위칭 패턴을 유지하되, 레이아웃은 **항상 4열을 렌더**함. `CallListPanel`과 `KpiPanel`은 항상 표시되며, `WorkPanel` 내부 콘텐츠만 `fullSection` 값에 따라 전환됨. `useUiStore.fullSection` 상태는 그대로 유지.
+
 ### 3.2 TopBar (46px)
 
 - 배경: `--bg-base`, 하단 border
@@ -127,7 +138,7 @@
 
 ---
 
-## 4. Mini 모드 레이아웃 (400px 고정 너비)
+## 4. Mini 모드 레이아웃 (420px 고정 너비)
 
 ```
 ┌───────────────────────────────┐
@@ -197,18 +208,127 @@
 | 버튼 hover | `transition: all 150ms` |
 | 카드 hover | `border-color` transition |
 
+### 5.1 키프레임 정의 (`styles/index.css` 수정)
+
+```css
+/* pulse — 신규 추가 (기존 pulse-green / pulse-red 는 유지) */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* waveform — 기존 정의 교체 (styles/index.css 205–213행)
+   기존: 4px→16px, 신규: 3px→12px (Mini 카드 크기에 맞게 조정) */
+@keyframes waveform {
+  0%, 100% { height: 3px; }
+  50%       { height: 12px; }
+}
+/* 사용: animation: waveform 0.8s ease-in-out infinite;
+   4개 바에 각각 animation-delay: 0s, 0.15s, 0.30s, 0.45s
+   주의: waveform-bar 클래스는 <div> 요소에 적용 (::before/::after 에 적용 시
+   global transition 규칙과 충돌하여 높이가 ease 처리될 수 있음) */
+```
+
 ---
 
 ## 6. CSS 변수 교체 전략
 
-기존 `styles/index.css`의 Material Design 3 토큰을 위 컬러 시스템으로 교체:
+**전략: 별칭 유지 방식** — `styles/index.css`의 `[data-theme='dark']` 블록에 있는 기존 `--color-*` 토큰 값을 새 RGB 값으로 교체. `tailwind.config.js`의 `colorToken()` 헬퍼는 `rgb(var(--color-*) / <alpha-value>)` 합성을 사용하므로 값은 반드시 **공백 구분 RGB 3값** 형식이어야 함. 기존 TSX의 Tailwind 클래스(`bg-surface-container-lowest`, `text-on-surface` 등)는 수정 없이 새 색상을 자동 적용받음. 새 별칭 변수(`--bg-base` 등)는 신규 컴포넌트의 `style={}` 속성에서만 사용하므로 hex 형식 유지.
 
-- `--md-sys-color-primary` → `--accent`
-- `--md-sys-color-surface` → `--bg-surface`
-- `--md-sys-color-surface-container` → `--bg-elevated`
-- 기타 토큰 매핑 구현 시 정의
+### `--color-*` 토큰 → 새 값 전체 매핑
 
-Tailwind `tailwind.config.js`에 CSS 변수 참조 추가하여 `bg-bg-surface`, `text-accent` 등 유틸리티 클래스 사용 가능하게 함.
+```css
+/* styles/index.css — [data-theme='dark'] 블록 교체 */
+/* 값 형식: 공백 구분 R G B (Tailwind alpha 합성 호환) */
+
+/* 배경 계층 */
+--color-background:                  13 17 23;   /* #0d1117 */
+--color-surface:                     13 17 23;   /* #0d1117 */
+--color-surface-container-lowest:    1 4 9;      /* #010409 — 사이드바 */
+--color-surface-container-low:       17 23 32;   /* #11171f — hover 배경, #0d1117보다 구분 가능 */
+--color-surface-container:           22 27 34;   /* #161b22 — 패널/카드 */
+--color-surface-container-high:      33 38 45;   /* #21262d — 버튼/입력 */
+--color-surface-container-highest:   48 54 61;   /* #30363d — 최상위 경계 */
+--color-surface-variant:             22 27 34;   /* #161b22 */
+--color-surface-dim:                 13 17 23;
+--color-surface-bright:              33 38 45;
+--color-surface-tint:                52 211 153; /* #34d399 에메랄드 */
+--color-inverse-surface:             230 237 243;
+--color-inverse-on-surface:          22 27 34;
+
+/* 텍스트 */
+--color-on-background:               230 237 243; /* #e6edf3 */
+--color-on-surface:                  230 237 243; /* #e6edf3 */
+--color-on-surface-variant:          139 148 158; /* #8b949e */
+--color-outline:                     72 79 88;    /* #484f58 */
+--color-outline-variant:             33 38 45;    /* #21262d */
+
+/* Primary (에메랄드) */
+--color-primary:                     52 211 153;  /* #34d399 */
+--color-on-primary:                  1 4 9;       /* #010409 */
+--color-primary-container:           8 40 25;     /* rgba(52,211,153,0.12) 근사 */
+--color-on-primary-container:        52 211 153;
+--color-primary-fixed:               52 211 153;
+--color-primary-fixed-dim:           5 150 105;   /* #059669 */
+--color-on-primary-fixed:            1 4 9;
+--color-on-primary-fixed-variant:    5 150 105;
+--color-inverse-primary:             5 150 105;
+
+/* Error (레드) */
+--color-error:                       248 81 73;   /* #f85149 */
+--color-on-error:                    1 4 9;
+--color-error-container:             46 10 8;     /* rgba(248,81,73,0.15) 근사 */
+--color-on-error-container:          248 81 73;
+
+/* Tertiary (앰버 — 경고/벨울림) */
+--color-tertiary:                    210 153 34;  /* #d29922 */
+--color-on-tertiary:                 1 4 9;
+--color-tertiary-container:          42 30 6;
+--color-on-tertiary-container:       210 153 34;
+--color-tertiary-fixed:              251 191 36;  /* #fbbf24 */
+--color-tertiary-fixed-dim:          210 153 34;
+--color-on-tertiary-fixed:           1 4 9;
+--color-on-tertiary-fixed-variant:   42 30 6;
+
+/* Secondary (뉴트럴 그레이) */
+--color-secondary:                   139 148 158; /* #8b949e */
+--color-on-secondary:                1 4 9;
+--color-secondary-container:         22 27 34;
+--color-on-secondary-container:      230 237 243;
+--color-secondary-fixed:             33 38 45;
+--color-secondary-fixed-dim:         48 54 61;
+--color-on-secondary-fixed:          230 237 243;
+--color-on-secondary-fixed-variant:  139 148 158;
+
+--gradient-primary-from: #059669;
+--gradient-primary-to:   #34d399;
+
+/* 신규 별칭 (신규 컴포넌트 style={} 전용 — hex 형식 유지) */
+--bg-base:       #010409;
+--bg-surface:    #0d1117;
+--bg-elevated:   #161b22;
+--bg-raised:     #21262d;
+--border-subtle: #21262d;
+--border-dim:    #30363d;
+--text-primary:  #e6edf3;
+--text-secondary:#8b949e;
+--text-muted:    #484f58;
+--accent:        #34d399;
+--accent-strong: #059669;
+--accent-dim:    rgba(52,211,153,0.12);
+--accent-border: rgba(52,211,153,0.25);
+--accent-glow:   rgba(52,211,153,0.35);
+--status-talking:#34d399;
+--status-ringing:#d29922;
+--status-queued: #8b949e;
+--status-danger: #f85149;
+--mini-card-from:#052e1a;
+--mini-card-to:  #041a0f;
+```
+
+`tailwind.config.js`의 기존 `colorToken()` 헬퍼와 `colors` 객체는 변경하지 않음 — `[data-theme='dark']` 블록의 `--color-*` 값 교체만으로 모든 Tailwind 색상 클래스가 자동으로 새 팔레트를 적용받음.
+
+**알려진 부수 효과**: `styles/index.css`의 `.btn-primary-gradient` 클래스는 `--gradient-primary-from/to` 변수를 읽음. 위 매핑에서 이 변수를 에메랄드(`#059669` → `#34d399`)로 변경하므로, `MiniShell.tsx`의 저장 버튼과 기존 CTA 버튼 색상이 함께 변경됨 — 의도된 동작임.
 
 ---
 
@@ -217,7 +337,7 @@ Tailwind `tailwind.config.js`에 CSS 변수 참조 추가하여 `bg-bg-surface`,
 | 파일 | 변경 수준 | 내용 |
 |------|----------|------|
 | `styles/index.css` | 전면 교체 | CSS 변수 재정의 |
-| `tailwind.config.js` | 수정 | CSS 변수 참조 추가 |
+| `tailwind.config.js` | **유지** | 변경 없음 — `colorToken()` 헬퍼가 `--color-*` 재지정만으로 자동 반영 |
 | `layout/FullShell.tsx` | 리팩터 | TopBar + 3패널 레이아웃 구조화 |
 | `layout/MiniShell.tsx` | 리팩터 | 헤더/카드/컨트롤/메모 섹션 스타일 교체 |
 | `layout/AppShell.tsx` | 유지 | 모드 디스패처 로직 변경 없음 |
@@ -226,8 +346,79 @@ Tailwind `tailwind.config.js`에 CSS 변수 참조 추가하여 `bg-bg-surface`,
 | `components/CurrentCallPanel.tsx` | 리팩터 | Hero 카드 + 컨트롤 버튼 행 |
 | `components/ControlPanel.tsx` | 리팩터 | 탭 + 폼 영역 스타일 |
 | `components/KpiPanel.tsx` | 리팩터 | 우측 KPI 스트립으로 이동 |
-| `components/AgentStatusTag.tsx` | 리팩터 | 에메랄드 pill 스타일 |
+| `components/AgentStatusTag.tsx` | 리팩터 | 에메랄드 pill 스타일 (TONE 맵 교체) |
 | `components/statusMeta.ts` | 수정 | 상태→한글 레이블 매핑 |
+| `components/CallListPanel.tsx` | **신규 생성** | 콜 목록, 검색박스, 필터 칩 (FullShell에서 추출) |
+
+### 7.1 CallListPanel 추출 명세
+
+- **출처**: `layout/FullShell.tsx`의 `fullSection === 'call'` 분기에 인라인된 콜 목록(검색 Input + 필터 Select + 콜 카드 목록) 추출
+- **상태 소유**: `useCtiStore`를 직접 구독 (props 드릴링 없음)
+- **Section 3.3 UI 교체**: 기존 Antd `Input` + `Select` 필터를 Section 3.3의 커스텀 검색박스 + 필터 칩 UI로 교체
+
+```ts
+// props 없음 — 스토어 직접 구독
+export function CallListPanel() {
+  const { activeCalls, selectedCallId, selectCall } = useCtiStore();
+  // ...
+}
+```
+
+### 7.2 AgentStatusTag TONE 맵
+
+```ts
+// 기존 Tailwind 컬러 클래스 → 새 CSS 변수 기반 인라인 스타일로 교체
+const TONE: Record<AgentStatusCode, { dot: string; text: string; bg: string; border: string }> = {
+  AVAILABLE: {
+    dot:  'var(--status-talking)',   // #34d399
+    text: 'var(--status-talking)',
+    bg:   'var(--accent-dim)',
+    border:'var(--accent-border)',
+  },
+  TALKING: {
+    dot:  'var(--status-talking)',   // #34d399 — 통화 중은 생산적 상태, red 아님
+    text: 'var(--status-talking)',
+    bg:   'var(--accent-dim)',
+    border:'var(--accent-border)',
+  },
+  RINGING: {
+    dot:  'var(--status-ringing)',
+    text: 'var(--status-ringing)',
+    bg:   'rgba(210,153,34,0.10)',
+    border:'rgba(210,153,34,0.25)',
+  },
+  AFTER_CALL_WORK: {
+    dot:  '#8b949e',
+    text: '#8b949e',
+    bg:   'rgba(139,148,158,0.10)',
+    border:'rgba(139,148,158,0.20)',
+  },
+  BREAK: {
+    dot:  '#d29922',
+    text: '#d29922',
+    bg:   'rgba(210,153,34,0.08)',
+    border:'rgba(210,153,34,0.20)',
+  },
+  MEAL: {
+    dot:  '#d29922',
+    text: '#d29922',
+    bg:   'rgba(210,153,34,0.08)',
+    border:'rgba(210,153,34,0.20)',
+  },
+  TRAINING: {
+    dot:  '#8b949e',
+    text: '#8b949e',
+    bg:   'rgba(139,148,158,0.08)',
+    border:'rgba(139,148,158,0.18)',
+  },
+  MANUAL_PAUSED: {
+    dot:  '#8b949e',
+    text: '#8b949e',
+    bg:   'rgba(139,148,158,0.08)',
+    border:'rgba(139,148,158,0.18)',
+  },
+};
+```
 
 ---
 
@@ -246,12 +437,13 @@ Tailwind `tailwind.config.js`에 CSS 변수 참조 추가하여 `bg-bg-surface`,
 - 신규 기능 추가 없음
 - Admin 앱 (`apps/admin`) 미포함
 - 다크/라이트 토글 동작 — 현행 유지, 라이트 팔레트 재정의는 후속 작업
+- **알려진 임시 회귀**: CSS 변수 교체 후 라이트 모드 팔레트가 일시적으로 깨짐. 이는 의도된 트레이드오프이며 별도 후속 작업으로 처리 예정
 
 ---
 
 ## 10. 참고 목업
 
-`docs/superpowers/brainstorm/53772-1776690424/` 하위:
+`.superpowers/brainstorm/53772-1776690424/` 하위 (프로젝트 루트, `.gitignore` 적용):
 - `design-direction.html` — A/B/C 방향 비교
 - `accent-color.html` — 액센트 컬러 4종 비교
 - `sidebar-style.html` — 사이드바 A/B 비교
