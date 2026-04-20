@@ -45,3 +45,21 @@ export const TONE_CLASS: Record<StatusMeta['tone'], string> = {
 // 공통 카드 외곽 클래스. Antd Card 의 기본 테두리/그림자보다 더 현대적.
 export const PANEL_CLASS =
   'rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)]';
+
+export const CALL_STATUS_LABEL: Record<string, string> = {
+  QUEUED: '대기열',
+  RINGING_AGENT: '벨 울림',
+  TALKING: '통화 중',
+  AFTER_CALL_WORK: '후처리',
+  TRANSFERRING: '전환 중',
+  ENDED: '종료',
+};
+
+export const CALL_STATUS_COLOR: Record<string, string> = {
+  QUEUED: 'var(--status-queued)',
+  RINGING_AGENT: 'var(--status-ringing)',
+  TALKING: 'var(--status-talking)',
+  AFTER_CALL_WORK: 'var(--text-secondary)',
+  TRANSFERRING: 'var(--status-ringing)',
+  ENDED: 'var(--status-danger)',
+};

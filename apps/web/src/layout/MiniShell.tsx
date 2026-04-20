@@ -6,9 +6,9 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
 
-// "The Precision Curator" Mini 모드.
-// 440px 슬림 패널. 대리운전 관리 프로그램과 함께 띄우는 전제.
-// 구성: 헤더(로고+에이전트+상태) → 현재 콜 카드(그라디언트) → 컨트롤 버튼 → 메모/결과.
+// MiniShell — 420px dark-pro card (5-section redesign).
+// Sections: Header / Summary Grid / Active Call Card / Quick Controls / Notes.
+// All store wiring and handler names preserved from original.
 
 const RESULT_CODES = [
   { value: 'ORDER_COMPLETE', label: '주문 완료' },
@@ -86,7 +86,10 @@ export function MiniShell() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+      >
         <Spin />
       </div>
     );
@@ -94,336 +97,489 @@ export function MiniShell() {
 
   const duration = formatCallDuration(selectedCall?.answeredAt ?? selectedCall?.startedAt);
   const isActive = !!selectedCall;
-  const hasOpenConsult = !!selectedCall?.latestTransfer
-    && ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'].includes(selectedCall.latestTransfer.phase);
-  const summaryItems = [
-    {
-      label: '근무 상태',
-      value: agentSession?.statusCode === 'AVAILABLE' ? '대기' : agentSession?.statusCode ?? '-',
-    },
-    {
-      label: '현재 통화',
-      value: isActive ? (selectedCall?.sessionStatus ?? '연결') : '없음',
-    },
-    {
-      label: '큐',
-      value: selectedCall?.queueName ?? '직접 콜',
-    },
-  ];
+  const hasOpenConsult =
+    !!selectedCall?.latestTransfer &&
+    ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'].includes(
+      selectedCall.latestTransfer.phase,
+    );
+
+  const queuedCount = activeCalls.filter((c) => c.sessionStatus === 'QUEUED').length;
+  const STATUS_LABEL: Record<string, string> = {
+    AVAILABLE: '대기',
+    RINGING: '링 중',
+    TALKING: '통화 중',
+    AFTER_CALL_WORK: '후처리',
+    BREAK: '휴식',
+    MEAL: '식사',
+    TRAINING: '교육',
+    MANUAL_PAUSED: '일시정지',
+  };
+  const statusLabel = agentSession?.statusCode
+    ? (STATUS_LABEL[agentSession.statusCode] ?? agentSession.statusCode)
+    : '-';
+
+  const customerName = selectedCall?.customer?.customerName ?? '미식별 고객';
+  const customerInitial = customerName.charAt(0).toUpperCase();
+  const phone = selectedCall?.ani ?? '-';
+  const transferStateLabel = selectedCall?.latestTransfer
+    ? `${selectedCall.latestTransfer.phase} · ${selectedCall.latestTransfer.toExtension ?? '-'}`
+    : '-';
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-surface px-3 py-4 font-body text-on-background">
-      <div className="mini-shell-grid pointer-events-none absolute inset-0 opacity-50" />
-      <div className="pointer-events-none absolute inset-x-[-20%] top-[-15%] h-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[-10%] right-[-20%] h-64 w-64 rounded-full bg-tertiary/10 blur-3xl" />
-
-      <div className="relative mx-auto max-w-[460px]">
-        <div className="overflow-hidden rounded-[30px] border border-outline-variant/20 bg-surface-container-lowest/95 shadow-float backdrop-blur-xl">
-          <div className="border-b border-outline-variant/15 px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <span className="material-symbols-outlined text-[22px]">headset_mic</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="font-headline text-sm font-extrabold uppercase tracking-[0.28em] text-primary">
-                    KAster CTI
-                  </p>
-                  <p className="mt-1 truncate text-sm font-semibold text-on-surface">
-                    {agentSession?.agentName ?? '-'}
-                  </p>
-                  <p className="truncate text-[11px] text-on-surface-variant">
-                    내선 {agentSession?.extension ?? '-'} · 미니 운영 패널
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle compact />
-                <button
-                  onClick={() => setMode('full')}
-                  title="전체 모드로 전환"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-[18px]">open_in_full</span>
-                </button>
-                <button
-                  onClick={() => {
-                    void onLogout();
-                  }}
-                  title="로그아웃"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-error-container/50 text-error transition-all hover:bg-error-container active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-[18px]">logout</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between rounded-2xl bg-surface-container p-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-on-surface-variant">
-                  현재 상태
-                </p>
-                <p className="mt-1 text-xs text-outline">
-                  실시간 변경이 즉시 PBX 상태와 동기화됩니다.
-                </p>
-              </div>
-              <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
-            </div>
+    <div
+      className="mx-auto flex flex-col gap-3 p-3"
+      style={{
+        width: 420,
+        minHeight: '100vh',
+        background: 'var(--bg-surface)',
+        color: 'var(--text-primary)',
+      }}
+    >
+      {/* ── 1. Header ── */}
+      <header
+        className="flex items-center gap-3 rounded-lg p-3"
+        style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}
+      >
+        <div
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] text-xs font-extrabold text-white"
+          style={{
+            background: 'linear-gradient(135deg, var(--accent-strong), var(--accent))',
+            boxShadow: '0 0 10px var(--accent-glow)',
+          }}
+        >
+          K
+        </div>
+        <div className="min-w-0 flex-1">
+          <div
+            style={{
+              color: 'var(--accent)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            KASTER CTI
           </div>
-
-          <div className="space-y-4 px-4 py-4">
-            <section className="grid grid-cols-3 gap-2">
-              {summaryItems.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-surface-container p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">
-                    {item.label}
-                  </p>
-                  <p className="mt-2 text-sm font-bold text-on-surface">{item.value}</p>
-                </div>
-              ))}
-            </section>
-
-            {isActive ? (
-              <section
-                className="relative overflow-hidden rounded-[28px] p-5 text-white"
-                style={{ background: 'linear-gradient(145deg, var(--gradient-primary-from) 0%, var(--gradient-primary-to) 100%)' }}
-              >
-                <div className="pointer-events-none absolute -left-10 top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-                <div className="pointer-events-none absolute -right-8 bottom-0 h-32 w-32 rounded-full bg-black/10 blur-3xl" />
-                <div className="relative z-10">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md">
-                      <span className="material-symbols-outlined text-[26px]">person</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/80">
-                          현재 통화
-                        </span>
-                        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white/90">
-                          {selectedCall?.queueName ?? '직접 연결'}
-                        </span>
-                      </div>
-                      <h3 className="mt-3 truncate font-headline text-xl font-bold">
-                        {selectedCall!.customer?.customerName ?? '미식별 고객'}
-                      </h3>
-                      <p className="mt-1 truncate text-sm text-blue-100">
-                        {selectedCall!.ani ?? '-'} · DID {selectedCall!.dnis ?? '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/70">통화 시간</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="font-headline text-2xl font-bold">{duration}</span>
-                        <div className="flex h-4 items-end gap-0.5">
-                          <div className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed" style={{ animationDelay: '0s' }} />
-                          <div className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed" style={{ animationDelay: '0.15s' }} />
-                          <div className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed" style={{ animationDelay: '0.3s' }} />
-                          <div className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed" style={{ animationDelay: '0.45s' }} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/70">전환 상태</p>
-                      <p className="mt-2 text-sm font-bold text-white">
-                        {selectedCall?.latestTransfer
-                          ? `${selectedCall.latestTransfer.phase} · ${selectedCall.latestTransfer.toExtension ?? '-'}`
-                          : '진행 없음'}
-                      </p>
-                      {selectedCall?.customer?.grade ? (
-                        <p className="mt-2 text-[11px] text-white/75">고객 등급 {selectedCall.customer.grade}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            ) : (
-              <section className="relative overflow-hidden rounded-[28px] border border-dashed border-outline-variant/30 bg-surface-container p-6 text-center">
-                <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest text-outline shadow-sm">
-                  <span className="material-symbols-outlined text-[26px]">ring_volume</span>
-                </div>
-                <p className="mt-4 font-headline text-base font-bold text-on-surface">수신 대기 중</p>
-                <p className="mt-2 text-sm text-outline">
-                  새 콜이 배정되면 고객 정보와 빠른 제어 버튼이 여기에 바로 표시됩니다.
-                </p>
-              </section>
-            )}
-
-            <section className="rounded-[28px] bg-surface-container p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-on-surface-variant">
-                    빠른 제어
-                  </p>
-                  <p className="mt-1 text-xs text-outline">현재 통화에 필요한 기본 동작만 배치했습니다.</p>
-                </div>
-                {hasOpenConsult ? (
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                    상담 전환 진행 중
-                  </span>
-                ) : null}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <MiniCtrlButton
-                  icon={isActive && !selectedCall?.answeredAt ? 'phone_in_talk' : 'mic_off'}
-                  label={isActive && !selectedCall?.answeredAt ? '당겨받기' : selectedCall?.isMuted ? '음소거 해제' : '음소거'}
-                  disabled={!isActive}
-                  onClick={async () => {
-                    if (selectedCall && !selectedCall.answeredAt) {
-                      await pickup();
-                      message.success('당겨받기 요청');
-                      return;
-                    }
-                    await toggleMute();
-                    message.success(selectedCall?.isMuted ? '음소거 해제 요청' : '음소거 요청');
-                  }}
-                />
-                <MiniCtrlButton
-                  icon={selectedCall?.sessionStatus === 'HOLD' ? 'play_arrow' : 'pause'}
-                  label={selectedCall?.sessionStatus === 'HOLD' ? '보류 해제' : '보류'}
-                  disabled={!isActive || !agentSession?.callControlCapabilities?.holdEnabled}
-                  onClick={async () => {
-                    await toggleHold();
-                    message.success(selectedCall?.sessionStatus === 'HOLD' ? '보류 해제 요청' : '보류 요청');
-                  }}
-                />
-                <MiniCtrlButton
-                  icon="phone_forwarded"
-                  label="전환"
-                  disabled={!isActive}
-                  onClick={async () => {
-                    const target = form.getFieldValue('transferTarget');
-                    const transferMode = form.getFieldValue('transferMode') ?? 'blind';
-                    if (!target) {
-                      message.warning('아래 내선 입력 필요');
-                      return;
-                    }
-                    await transfer(target, transferMode);
-                    message.success(transferMode === 'attended' ? `상담 전환: ${target}` : `전환: ${target}`);
-                  }}
-                />
-                <MiniCtrlButton
-                  icon="call_end"
-                  label="종료"
-                  tone="danger"
-                  disabled={!isActive}
-                  onClick={async () => {
-                    await hangup();
-                    message.success('통화 종료 요청');
-                  }}
-                />
-              </div>
-
-              {hasOpenConsult ? (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <MiniCtrlButton
-                    icon="merge"
-                    label="상담 전환 완료"
-                    onClick={async () => {
-                      await completeAttendedTransfer();
-                      message.success('상담 전환 완료 요청');
-                    }}
-                  />
-                  <MiniCtrlButton
-                    icon="close"
-                    label="상담 전환 취소"
-                    tone="danger"
-                    onClick={async () => {
-                      await cancelAttendedTransfer();
-                      message.success('상담 전환 취소 요청');
-                    }}
-                  />
-                </div>
-              ) : null}
-            </section>
-
-            <section className="rounded-[28px] bg-surface-container p-4">
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={async (values) => {
-                  await saveMemo(values.memo, values.resultCode);
-                  message.success('저장 완료');
-                }}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-on-surface-variant">
-                      메모 및 후처리
-                    </p>
-                    <p className="mt-1 text-xs text-outline">전환 내선, 결과 코드, 상담 메모를 한 번에 저장합니다.</p>
-                  </div>
-                </div>
-
-                <div className="mb-3 grid grid-cols-2 gap-3">
-                  <Form.Item name="resultCode" label={<MiniLabel>결과</MiniLabel>} className="!mb-0">
-                    <Select options={RESULT_CODES} size="large" />
-                  </Form.Item>
-                  <Form.Item name="transferTarget" label={<MiniLabel>전환 내선</MiniLabel>} className="!mb-0">
-                    <Input placeholder="예: 1002" size="large" />
-                  </Form.Item>
-                </div>
-                <Form.Item name="transferMode" label={<MiniLabel>전환 방식</MiniLabel>} className="!mb-3">
-                  <Select
-                    size="large"
-                    options={[
-                      { value: 'blind', label: '블라인드 전환' },
-                      { value: 'attended', label: '상담 전환' },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item name="memo" label={<MiniLabel>메모</MiniLabel>} className="!mb-3">
-                  <Input.TextArea rows={4} placeholder="상담 메모" className="!resize-none" />
-                </Form.Item>
-                <button
-                  type="submit"
-                  className="btn-primary-gradient w-full rounded-2xl py-3 font-headline text-sm font-bold shadow shadow-primary/20"
-                >
-                  메모 저장
-                </button>
-              </Form>
-            </section>
+          <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>
+            {agentSession?.agentName ?? '-'}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+            내선 {agentSession?.extension ?? '-'} · 미니 패널
           </div>
         </div>
-      </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <ThemeToggle compact />
+          <button
+            type="button"
+            onClick={() => setMode('full')}
+            title="전체 모드"
+            className="flex h-7 w-7 items-center justify-center rounded"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              open_in_full
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void onLogout();
+            }}
+            title="로그아웃"
+            className="flex h-7 w-7 items-center justify-center rounded"
+            style={{ color: 'var(--status-danger)' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              logout
+            </span>
+          </button>
+        </div>
+        <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
+      </header>
+
+      {/* ── 2. Summary Grid (3-col) ── */}
+      <section className="grid grid-cols-3 gap-2">
+        {[
+          { label: '근무 상태', value: statusLabel },
+          { label: '활성 통화', value: activeCalls.length },
+          { label: '대기 큐', value: queuedCount },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-[9px] p-3 text-center"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>{item.label}</div>
+            <div
+              style={{
+                color: 'var(--text-primary)',
+                fontWeight: 700,
+                fontSize: 14,
+                marginTop: 2,
+              }}
+            >
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* ── 3. Active Call Card ── */}
+      {isActive ? (
+        <section
+          className="relative overflow-hidden rounded-lg p-4"
+          style={{
+            background: 'linear-gradient(135deg, var(--mini-card-from), var(--mini-card-to))',
+            border: '1px solid var(--accent-border)',
+          }}
+        >
+          {/* glow blobs */}
+          <div
+            className="pointer-events-none absolute -left-6 -top-6 h-24 w-24 rounded-full"
+            style={{ background: 'var(--accent-glow)', filter: 'blur(30px)' }}
+          />
+          <div
+            className="pointer-events-none absolute -right-6 -bottom-6 h-24 w-24 rounded-full"
+            style={{ background: 'var(--accent-glow)', filter: 'blur(30px)' }}
+          />
+
+          {/* caller row */}
+          <div className="relative flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+              style={{ background: 'var(--accent-dim)' }}
+            >
+              <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{customerInitial}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customerName}</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+                {phone}
+                {selectedCall?.dnis ? ` · DID ${selectedCall.dnis}` : ''}
+              </div>
+              {selectedCall?.queueName ? (
+                <div style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 600, marginTop: 2 }}>
+                  {selectedCall.queueName}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {/* duration + transfer state */}
+          <div className="relative mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>통화시간</div>
+              <div className="flex items-end gap-2">
+                <div
+                  style={{
+                    color: 'var(--accent)',
+                    fontWeight: 700,
+                    fontSize: 20,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {duration}
+                </div>
+                {selectedCall?.answeredAt ? (
+                  <div className="flex items-end gap-0.5">
+                    {[0, 0.15, 0.3, 0.45].map((delay, i) => (
+                      <div
+                        key={i}
+                        className="waveform-bar rounded-full"
+                        style={{
+                          width: 3,
+                          background: 'var(--accent)',
+                          animationDelay: `${delay}s`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>전환상태</div>
+              <div style={{ color: 'var(--text-primary)', fontSize: 13, marginTop: 4 }}>
+                {transferStateLabel}
+              </div>
+              {selectedCall?.customer?.grade ? (
+                <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginTop: 2 }}>
+                  고객 등급 {selectedCall.customer.grade}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : (
+        /* ── Empty state ── */
+        <section
+          className="rounded-lg p-6 text-center"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+        >
+          <div
+            className="mx-auto flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ background: 'var(--bg-raised)' }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 22, color: 'var(--text-secondary)' }}
+            >
+              ring_volume
+            </span>
+          </div>
+          <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, marginTop: 12 }}>
+            수신 대기 중
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
+            진행 중인 통화가 없습니다
+          </div>
+        </section>
+      )}
+
+      {/* ── 4. Quick Controls (2x2) ── */}
+      <section
+        className="rounded-lg p-3"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <div
+            style={{
+              color: 'var(--text-secondary)',
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+            }}
+          >
+            빠른 제어
+          </div>
+          {hasOpenConsult ? (
+            <span
+              style={{
+                background: 'var(--accent-dim)',
+                color: 'var(--accent)',
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 20,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              상담 전환 진행 중
+            </span>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {/* Pickup / Mute (dual-role) */}
+          <QuickCtrlButton
+            icon={isActive && !selectedCall?.answeredAt ? 'phone_in_talk' : 'mic_off'}
+            label={
+              isActive && !selectedCall?.answeredAt
+                ? '당겨받기'
+                : selectedCall?.isMuted
+                  ? '음소거 해제'
+                  : '음소거'
+            }
+            disabled={!isActive}
+            onClick={async () => {
+              if (selectedCall && !selectedCall.answeredAt) {
+                await pickup();
+                message.success('당겨받기 요청');
+                return;
+              }
+              await toggleMute();
+              message.success(selectedCall?.isMuted ? '음소거 해제 요청' : '음소거 요청');
+            }}
+          />
+          {/* Hold */}
+          <QuickCtrlButton
+            icon={selectedCall?.sessionStatus === 'HOLD' ? 'play_arrow' : 'pause'}
+            label={selectedCall?.sessionStatus === 'HOLD' ? '보류 해제' : '보류'}
+            disabled={!isActive || !agentSession?.callControlCapabilities?.holdEnabled}
+            onClick={async () => {
+              await toggleHold();
+              message.success(
+                selectedCall?.sessionStatus === 'HOLD' ? '보류 해제 요청' : '보류 요청',
+              );
+            }}
+          />
+          {/* Transfer */}
+          <QuickCtrlButton
+            icon="phone_forwarded"
+            label="전환"
+            disabled={!isActive}
+            onClick={async () => {
+              const target = form.getFieldValue('transferTarget') as string;
+              const transferMode =
+                (form.getFieldValue('transferMode') as 'blind' | 'attended') ?? 'blind';
+              if (!target) {
+                message.warning('아래 내선 입력 필요');
+                return;
+              }
+              await transfer(target, transferMode);
+              message.success(
+                transferMode === 'attended' ? `상담 전환: ${target}` : `전환: ${target}`,
+              );
+            }}
+          />
+          {/* Hangup */}
+          <QuickCtrlButton
+            icon="call_end"
+            label="종료"
+            danger
+            disabled={!isActive}
+            onClick={async () => {
+              await hangup();
+              message.success('통화 종료 요청');
+            }}
+          />
+        </div>
+
+        {/* Attended-transfer completion controls */}
+        {hasOpenConsult ? (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <QuickCtrlButton
+              icon="merge"
+              label="상담 전환 완료"
+              onClick={async () => {
+                await completeAttendedTransfer();
+                message.success('상담 전환 완료 요청');
+              }}
+            />
+            <QuickCtrlButton
+              icon="close"
+              label="상담 전환 취소"
+              danger
+              onClick={async () => {
+                await cancelAttendedTransfer();
+                message.success('상담 전환 취소 요청');
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {/* ── 5. Notes Section ── */}
+      <section
+        className="rounded-lg p-3"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+      >
+        <div
+          style={{
+            color: 'var(--text-secondary)',
+            fontSize: 10,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            marginBottom: 10,
+          }}
+        >
+          메모 및 후처리
+        </div>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={async (values) => {
+            await saveMemo(values.memo, values.resultCode);
+            message.success('저장 완료');
+          }}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <Form.Item name="resultCode" label={<MiniLabel>결과</MiniLabel>} className="!mb-2">
+              <Select options={RESULT_CODES} size="small" />
+            </Form.Item>
+            <Form.Item name="transferTarget" label={<MiniLabel>전환 내선</MiniLabel>} className="!mb-2">
+              <Input placeholder="예: 1002" size="small" />
+            </Form.Item>
+          </div>
+          <Form.Item name="transferMode" label={<MiniLabel>전환 방식</MiniLabel>} className="!mb-2">
+            <Select
+              size="small"
+              options={[
+                { value: 'blind', label: '블라인드 전환' },
+                { value: 'attended', label: '상담 전환' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="memo" label={<MiniLabel>메모</MiniLabel>} className="!mb-2">
+            <Input.TextArea rows={4} placeholder="상담 메모" className="!resize-none" />
+          </Form.Item>
+          <button
+            type="submit"
+            className="btn-primary-gradient w-full rounded-md py-2 text-sm font-semibold"
+          >
+            메모 저장
+          </button>
+        </Form>
+      </section>
     </div>
   );
 }
 
-function MiniCtrlButton({
+// ── Sub-components ──
+
+function QuickCtrlButton({
   icon,
   label,
   onClick,
   disabled,
-  tone = 'neutral',
+  danger = false,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  tone?: 'neutral' | 'danger';
+  danger?: boolean;
 }) {
-  const base =
-    'flex min-h-[88px] flex-col items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40';
-  const toneClass =
-    tone === 'danger'
-      ? 'border-error/10 bg-error text-white hover:opacity-90 shadow-lg shadow-error/20'
-      : 'border-outline-variant/20 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low shadow-panel';
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${toneClass}`}>
-      <span className="material-symbols-outlined text-[20px]">{icon}</span>
-      <span className="text-[11px] font-bold uppercase tracking-[0.16em]">{label}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-center justify-center rounded-md py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+      style={{
+        minHeight: 70,
+        background: danger ? 'rgba(248,81,73,0.08)' : 'var(--bg-raised)',
+        border: `1px solid ${danger ? 'rgba(248,81,73,0.3)' : 'var(--border-subtle)'}`,
+        color: danger ? 'var(--status-danger)' : 'var(--text-primary)',
+      }}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
+        {icon}
+      </span>
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          marginTop: 4,
+        }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
 
 function MiniLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'var(--text-secondary)',
+      }}
+    >
       {children}
     </span>
   );

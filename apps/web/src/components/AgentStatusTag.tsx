@@ -23,17 +23,19 @@ const LABEL: Record<AgentStatusCode, string> = {
   MANUAL_PAUSED: '일시중지',
 };
 
-// 디자인 시스템의 색 매핑. dot + text color + bg tint.
-const TONE: Record<AgentStatusCode, { dot: string; text: string; bg: string; pulse?: string }> = {
-  AVAILABLE: { dot: 'bg-tertiary', text: 'text-tertiary', bg: 'bg-tertiary/10', pulse: 'pulse-available' },
-  RINGING: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-  TALKING: { dot: 'bg-primary', text: 'text-primary', bg: 'bg-primary/10' },
-  AFTER_CALL_WORK: { dot: 'bg-secondary', text: 'text-secondary', bg: 'bg-surface-container-low' },
-  BREAK: { dot: 'bg-error', text: 'text-error', bg: 'bg-error-container/30', pulse: 'pulse-busy' },
-  MEAL: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-  TRAINING: { dot: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50' },
-  MANUAL_PAUSED: { dot: 'bg-outline', text: 'text-on-surface-variant', bg: 'bg-surface-container' },
+// 디자인 시스템의 색 매핑. CSS 변수 기반 inline style.
+const TONE: Record<AgentStatusCode, { dot: string; text: string; bg: string; border: string }> = {
+  AVAILABLE:       { dot: 'var(--status-talking)', text: 'var(--status-talking)', bg: 'var(--accent-dim)', border: 'var(--accent-border)' },
+  TALKING:         { dot: 'var(--status-talking)', text: 'var(--status-talking)', bg: 'rgba(52,211,153,0.20)', border: 'rgba(52,211,153,0.45)' },
+  RINGING:         { dot: 'var(--status-ringing)', text: 'var(--status-ringing)', bg: 'rgba(210,153,34,0.10)', border: 'rgba(210,153,34,0.25)' },
+  AFTER_CALL_WORK: { dot: '#8b949e', text: '#8b949e', bg: 'rgba(139,148,158,0.10)', border: 'rgba(139,148,158,0.20)' },
+  BREAK:           { dot: '#d29922', text: '#d29922', bg: 'rgba(210,153,34,0.08)', border: 'rgba(210,153,34,0.20)' },
+  MEAL:            { dot: '#d29922', text: '#d29922', bg: 'rgba(210,153,34,0.08)', border: 'rgba(210,153,34,0.20)' },
+  TRAINING:        { dot: '#8b949e', text: '#8b949e', bg: 'rgba(139,148,158,0.08)', border: 'rgba(139,148,158,0.18)' },
+  MANUAL_PAUSED:   { dot: '#8b949e', text: '#8b949e', bg: 'rgba(139,148,158,0.08)', border: 'rgba(139,148,158,0.18)' },
 };
+
+const ANIMATED: Set<AgentStatusCode> = new Set(['AVAILABLE', 'TALKING', 'RINGING']);
 
 interface Props {
   status?: AgentStatusCode;
@@ -41,7 +43,7 @@ interface Props {
 }
 
 export function AgentStatusTag({ status, onChange }: Props) {
-  const current = status ?? 'MANUAL_PAUSED';
+  const current: AgentStatusCode = status ?? 'MANUAL_PAUSED';
   const tone = TONE[current];
   const label = LABEL[current];
 
@@ -59,14 +61,22 @@ export function AgentStatusTag({ status, onChange }: Props) {
   const body = (
     <button
       type="button"
-      className={`inline-flex items-center gap-2 rounded-full border border-outline-variant/20 px-3 py-1.5 ${tone.bg} ${
-        onChange ? 'cursor-pointer transition-transform hover:scale-105 active:scale-95' : 'cursor-default'
+      aria-label="상태 변경"
+      className={`flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors${
+        onChange ? ' cursor-pointer hover:scale-105 active:scale-95' : ' cursor-default'
       }`}
+      style={{
+        background: tone.bg,
+        color: tone.text,
+        border: `1px solid ${tone.border}`,
+      }}
     >
-      <span className={`relative h-2 w-2 rounded-full ${tone.dot} ${tone.pulse ?? ''}`} />
-      <span className={`font-label text-[11px] font-bold uppercase tracking-wider ${tone.text}`}>
-        {label}
-      </span>
+      <span
+        aria-hidden
+        className="inline-block h-1.5 w-1.5 rounded-full"
+        style={{ background: tone.dot, animation: ANIMATED.has(current) ? 'pulse 2s infinite' : undefined }}
+      />
+      {label}
       {onChange && (
         <span
           className="material-symbols-outlined text-[14px]"

@@ -19,37 +19,38 @@ interface TileProps {
 function KpiTile({ label, value, suffix, delta, accent, waveform }: TileProps) {
   return (
     <div
-      className={`rounded-lg p-6 ${
-        accent
-          ? 'border-l-4 border-primary bg-surface-container-lowest'
-          : 'bg-surface-container-lowest'
-      } shadow-panel`}
+      className="rounded-md p-3"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: accent
+          ? '1px solid var(--accent)'
+          : '1px solid var(--border-subtle)',
+        borderLeft: accent ? '3px solid var(--accent)' : undefined,
+      }}
     >
-      <p
-        className={`mb-2 text-[10px] font-bold uppercase tracking-widest ${
-          accent ? 'text-primary' : 'text-on-surface-variant'
-        }`}
+      <div
+        style={{
+          color: 'var(--text-secondary)',
+          fontSize: 10,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
       >
         {label}
-      </p>
-      <div className="flex items-baseline gap-2">
+      </div>
+      <div className="flex items-baseline gap-1" style={{ marginTop: 4 }}>
         <span
-          className={`font-headline text-3xl font-bold ${accent ? 'text-primary' : 'text-on-surface'}`}
+          style={{
+            color: accent ? 'var(--accent)' : 'var(--text-primary)',
+            fontWeight: 700,
+            fontSize: 18,
+          }}
         >
           {value}
         </span>
-        {suffix && <span className="text-xs font-medium text-outline">{suffix}</span>}
-        {delta && (
-          <span
-            className={`text-xs font-bold ${
-              delta.tone === 'ok'
-                ? 'text-tertiary'
-                : delta.tone === 'warn'
-                ? 'text-error'
-                : 'text-outline'
-            }`}
-          >
-            {delta.value}
+        {suffix && (
+          <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+            {suffix}
           </span>
         )}
         {waveform && (
@@ -69,6 +70,22 @@ function KpiTile({ label, value, suffix, delta, accent, waveform }: TileProps) {
           </div>
         )}
       </div>
+      {delta && (
+        <div
+          style={{
+            color:
+              delta.tone === 'ok'
+                ? 'var(--accent)'
+                : delta.tone === 'warn'
+                ? 'var(--status-danger)'
+                : 'var(--text-secondary)',
+            fontSize: 11,
+            marginTop: 2,
+          }}
+        >
+          {delta.value}
+        </div>
+      )}
     </div>
   );
 }
@@ -86,7 +103,7 @@ export function KpiPanel() {
       : 0;
 
   return (
-    <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
+    <section className="flex flex-col gap-2">
       <KpiTile label="오늘 응대 건수" value={agentSession?.todayAnswered ?? 0} />
       <KpiTile label="평균 통화 시간" value={formatSeconds(avgTalk)} suffix="분" />
       <KpiTile
