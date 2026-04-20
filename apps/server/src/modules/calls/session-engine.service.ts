@@ -54,6 +54,29 @@ export class SessionEngineService {
     private readonly transferDetector: TransferDetectorService,
   ) {}
 
+  private async resolvePrimaryAgentId(candidate: string | null | undefined, tenantId: string) {
+    const normalized = candidate?.trim();
+    if (!normalized) return undefined;
+
+    const extensionCandidate = normalized
+      .replace(/^PJSIP\//i, '')
+      .split('-')[0]
+      .trim();
+
+    const agent = await this.prisma.agents.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { agentId: normalized },
+          { extension: extensionCandidate },
+        ],
+      },
+      select: { agentId: true },
+    });
+
+    return agent?.agentId;
+  }
+
   async processNormalizedEvent(event: Record<string, any>) {
     const linkedid = event.linkedid || event.Linkedid;
     if (!linkedid) return;
@@ -100,6 +123,17 @@ export class SessionEngineService {
     }
 
     switch (event.eventName) {
+      case 'Newchannel':
+        await this.upsertSession(
+          linkedid,
+          {
+            sessionStatus: 'NEW',
+            ani: event.ani,
+            dnis: event.dnis,
+          },
+          event.tenantId,
+        );
+        break;
       case 'QueueCallerJoin':
         await this.upsertSession(
           linkedid,
@@ -116,7 +150,11 @@ export class SessionEngineService {
       case 'AgentCalled':
         await this.upsertSession(
           linkedid,
-          { sessionStatus: 'RINGING_AGENT', ringingAt: new Date() },
+          {
+            sessionStatus: 'RINGING_AGENT',
+            ringingAt: new Date(),
+            primaryAgentId: await this.resolvePrimaryAgentId(event.agentId, event.tenantId),
+          },
           event.tenantId,
         );
         break;
@@ -127,7 +165,7 @@ export class SessionEngineService {
           {
             sessionStatus: 'TALKING',
             answeredAt: new Date(),
-            primaryAgentId: event.agentId,
+            primaryAgentId: await this.resolvePrimaryAgentId(event.agentId, event.tenantId),
           },
           event.tenantId,
         );
@@ -177,28 +215,45 @@ export class SessionEngineService {
     tenantId: string,
   ) {
     await this.prisma.$transaction(async (tx) => {
-      const found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+      let found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
 
       if (!found) {
-        const created = await tx.callSessions.create({
-          data: {
-            tenantId,
-            linkedid,
-            direction: 'inbound',
-            sessionStatus: patch.sessionStatus || 'NEW',
-            ani: patch.ani,
-            aniNormalized: patch.ani,
-            dnis: patch.dnis,
-            queueName: patch.queueName,
-            startedAt: new Date(),
-            queuedAt: patch.queuedAt,
-            ringingAt: patch.ringingAt,
-            answeredAt: patch.answeredAt,
-            primaryAgentId: patch.primaryAgentId,
-          },
-        });
+        try {
+          const created = await tx.callSessions.create({
+            data: {
+              tenantId,
+              linkedid,
+              direction: 'inbound',
+              sessionStatus: patch.sessionStatus || 'NEW',
+              ani: patch.ani,
+              aniNormalized: patch.ani,
+              dnis: patch.dnis,
+              queueName: patch.queueName,
+              startedAt: new Date(),
+              queuedAt: patch.queuedAt,
+              ringingAt: patch.ringingAt,
+              answeredAt: patch.answeredAt,
+              primaryAgentId: patch.primaryAgentId,
+            },
+          });
 
-        await this.enqueueOutbox(tx, tenantId, 'call.created', created);
+          await this.enqueueOutbox(tx, tenantId, 'call.created', created);
+          return;
+        } catch (err) {
+          if (
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002'
+          ) {
+            this.logger.debug(`session create raced for linkedid=${linkedid}; retrying as update`);
+            found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      if (!found) {
+        this.logger.warn(`session row missing after P2002 retry linkedid=${linkedid}`);
         return;
       }
 

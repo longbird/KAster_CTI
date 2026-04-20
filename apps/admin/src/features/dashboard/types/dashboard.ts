@@ -36,7 +36,7 @@ export interface ActiveCallItem {
   direction: 'inbound' | 'outbound';
   waitingSec: number;
   talkingSec: number;
-  status: 'QUEUED' | 'RINGING_AGENT' | 'TALKING' | 'TRANSFERRING';
+  status: 'NEW' | 'QUEUED' | 'RINGING_AGENT' | 'TALKING' | 'HOLD' | 'TRANSFERRING' | 'AFTER_CALL_WORK';
 }
 
 export interface AlertItem {
