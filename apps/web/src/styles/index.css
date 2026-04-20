@@ -51,8 +51,30 @@
   --color-on-secondary-fixed-variant: 62 71 85;
   --color-on-tertiary-fixed: 0 32 29;
   --color-on-secondary-container: 89 99 114;
-  --gradient-primary-from: #003fb1;
-  --gradient-primary-to: #1a56db;
+  --gradient-primary-from: #047857;
+  --gradient-primary-to: #059669;
+
+  /* 신규 별칭 (라이트 모드) */
+  --bg-base:       #ffffff;
+  --bg-surface:    #f8f9fa;
+  --bg-elevated:   #ffffff;
+  --bg-raised:     #eef0f2;
+  --border-subtle: #dde0e6;
+  --border-dim:    #c3c5d7;
+  --text-primary:  #1a1d20;
+  --text-secondary:#5d6166;
+  --text-muted:    #8b949e;
+  --accent:        #059669;
+  --accent-strong: #047857;
+  --accent-dim:    rgba(5,150,105,0.08);
+  --accent-border: rgba(5,150,105,0.25);
+  --accent-glow:   rgba(5,150,105,0.20);
+  --status-talking:#059669;
+  --status-ringing:#b45309;
+  --status-queued: #6b7280;
+  --status-danger: #dc2626;
+  --mini-card-from:#e8f5ef;
+  --mini-card-to:  #f0f9f4;
 
   color: rgb(var(--color-on-background));
   background: rgb(var(--color-background));
@@ -60,6 +82,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
 }
 
 [data-theme='dark'] {

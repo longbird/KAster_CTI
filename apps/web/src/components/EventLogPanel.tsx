@@ -38,60 +38,97 @@ export function EventLogPanel() {
   const events = useCtiStore((s) => s.eventLog);
 
   return (
-    <div className="rounded-lg bg-surface-container-low p-1">
-      <div className="rounded-lg bg-surface-container-lowest p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h4 className="font-headline text-base font-bold text-on-surface">실시간 이벤트</h4>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
-            실시간
-          </span>
-        </div>
-
-        {events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-container">
-              <span className="material-symbols-outlined text-3xl text-outline">
-                history_toggle_off
-              </span>
-            </div>
-            <h5 className="font-headline text-base font-semibold text-on-surface">
-              최근 이벤트 없음
-            </h5>
-            <p className="mt-2 max-w-xs text-sm text-outline">
-              신규 수신, 통화 전환, 큐 변경 내역이 자동으로 여기에 표시됩니다.
-            </p>
-          </div>
-        ) : (
-          <ul className="max-h-72 space-y-2 overflow-y-auto">
-            {events.map((item) => {
-              const meta = TYPE_META[item.type];
-              return (
-                <li
-                  key={item.id}
-                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-surface-container-high/50"
-                >
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${meta.tone}`}
-                  >
-                    <span className="material-symbols-outlined text-base">{meta.icon}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-                        {meta.label}
-                      </span>
-                      <span className="text-[11px] text-outline">
-                        {dayjs(item.timestamp).format('HH:mm:ss')}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-sm text-on-surface">{item.message}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+    <div
+      className="min-w-0 overflow-hidden rounded-lg p-3"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+      }}
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <h4 style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>
+          실시간 이벤트
+        </h4>
+        <span
+          style={{
+            color: 'var(--accent)',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}
+        >
+          실시간
+        </span>
       </div>
+
+      {events.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div
+            className="mb-2 flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--bg-raised)' }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 20, color: 'var(--text-secondary)' }}
+            >
+              history_toggle_off
+            </span>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+            최근 이벤트 없음
+          </p>
+        </div>
+      ) : (
+        <ul className="max-h-72 space-y-1 overflow-y-auto overflow-x-hidden pr-1">
+          {events.map((item) => {
+            const meta = TYPE_META[item.type];
+            return (
+              <li
+                key={item.id}
+                className="flex items-start gap-2 rounded p-2"
+                style={{ background: 'var(--bg-surface)' }}
+              >
+                <div
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${meta.tone}`}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    {meta.icon}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="truncate"
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span
+                      className="shrink-0"
+                      style={{ color: 'var(--text-muted)', fontSize: 10 }}
+                    >
+                      {dayjs(item.timestamp).format('HH:mm:ss')}
+                    </span>
+                  </div>
+                  <p
+                    className="mt-0.5 truncate"
+                    style={{ color: 'var(--text-primary)', fontSize: 12 }}
+                  >
+                    {item.message}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

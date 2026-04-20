@@ -147,7 +147,7 @@ export function FullShell() {
         <TopAppBar />
         <div className="flex flex-1 overflow-hidden pt-[46px]">
           <CallListPanel />
-          <main className="flex-1 overflow-y-auto p-5">
+          <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-5">
             {fullSection === 'overview' && (
               <>
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
