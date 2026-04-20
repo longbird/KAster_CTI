@@ -112,12 +112,17 @@
 - 전환 진행 중: 상태 뱃지 아래 `TransferPhase` 작은 뱃지
 - `canOperate` 권한 있으면 우측 하단 아이콘 (강제종료 등) 표시
 
+**React key 규칙:** 카드는 항상 `key={callId}` 사용. 칼럼 간 이동 시 remount 가 아닌 re-parent 로 동작 (부드러운 전이).
+
+**칼럼 최소 높이:** 한 칼럼만 가득 차서 다른 칼럼이 zero-height 로 쪼그라드는 것을 막기 위해 `min-height: 240px` 고정 (대시보드 미니판은 120px).
+
 ## 데이터 / 갱신
 
 - **대시보드:** `useDashboardData(branchId)` 5초 폴링 (기존 유지)
 - **라이브콜:** `GET /calls/active` 3초 폴링 (기존 유지)
 - **경과시간 계산:** `useNow(1000)` 훅 신설 — `Date.now()` 를 1초마다 `useState` 에 반영. `(now - queuedAt) / 1000` 로 즉시 계산. 폴링과 독립적으로 매초 부드럽게 진행
 - **위치:** `apps/admin/src/shared/hooks/useNow.ts`
+- **탭 비활성 시 일시정지:** `document.visibilityState === 'hidden'` 이면 tick 중단. 슈퍼바이저가 다른 탭 보는 동안 불필요한 리렌더 방지
 
 ## 에러 / 빈 상태
 
@@ -130,6 +135,20 @@
 - `usePermissionStore` 기존 로직 그대로 — quick-action 표시 조건: `liveCallsPermission.canOperate ?? dashboardPermission.canOperate`
 - 지점 필터 `BranchFilterSelect` 를 **라이브콜에도** 신규 적용 (현재 없음)
 
+## 상태 매핑 단일화
+
+`ActiveCallItem.status` (대시보드 enum) 과 `CallRow.sessionStatus` (라이브콜 string) 를 **하나의 유틸**로 흡수.
+
+**위치:** `apps/admin/src/shared/lib/callStatusMap.ts`
+
+```ts
+export type KanbanColumn = 'queued' | 'ringing' | 'talking' | 'acw';
+export function toKanbanColumn(status: string | null | undefined): KanbanColumn;
+export const KANBAN_COLUMN_META: Record<KanbanColumn, { label: string; color: string }>;
+```
+
+두 페이지와 `CallCard` 모두 이 유틸만 import. 상단 요약 스트립 건수도 같은 `groupBy` 결과에서 derive (별도 reducer 금지).
+
 ## 파일 변경
 
 ### 신규
@@ -137,6 +156,7 @@
 - `apps/admin/src/shared/components/CallCard.tsx`
 - `apps/admin/src/shared/components/CallKanbanColumn.tsx`
 - `apps/admin/src/shared/hooks/useNow.ts`
+- `apps/admin/src/shared/lib/callStatusMap.ts`
 
 ### 수정
 - `apps/admin/src/features/dashboard/components/AdminDashboardPage.tsx` (전면 재작성 — Row/Col → CSS Grid)
@@ -146,7 +166,7 @@
 - `apps/admin/src/features/dashboard/components/AlertsPanel.tsx` (compact list 형식)
 - `apps/admin/src/features/dashboard/components/TrafficChartCard.tsx` (스파크바 축소 모드)
 - `apps/admin/src/features/live-calls/LiveCallsPage.tsx` (전면 재작성)
-- `apps/admin/src/styles.css` 또는 `src/features/dashboard/dashboard.css` — `.dashboard-compact` 및 `.call-card` 스코프 CSS
+- `apps/admin/src/styles.css` — `.dashboard-compact`, `.call-card`, `.call-kanban-column` 스코프 CSS 추가 (기존 파일 유지, 별도 CSS 파일 신설 안 함)
 
 ### 삭제
 - `apps/admin/src/features/dashboard/components/ActiveCallsTable.tsx` (ActiveCallsKanban 으로 대체)
