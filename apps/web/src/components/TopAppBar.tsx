@@ -1,14 +1,22 @@
 import { LogoutOutlined } from '@ant-design/icons';
 import { logout } from '../api';
 import { useCtiStore } from '../store/useCtiStore';
+import { useUiStore, type FullWorkspaceSection } from '../store/useUiStore';
 import { AgentStatusTag } from './AgentStatusTag';
 import { ThemeToggle } from './ThemeToggle';
 
-// "The Precision Curator" 디자인 시스템의 TopAppBar.
-// 로고 + 브랜드 + 에이전트 식별자 + 상태 + 로그아웃.
+const SECTION_LABEL: Record<FullWorkspaceSection, string> = {
+  overview: '개요',
+  call: '콜 센터',
+  queues: '큐 현황',
+  history: '이력',
+};
+
 export function TopAppBar() {
   const agentSession = useCtiStore((s) => s.agentSession);
   const changeStatus = useCtiStore((s) => s.changeStatus);
+  const fullSection = useUiStore((s) => s.fullSection);
+  const setMode = useUiStore((s) => s.setMode);
 
   const onLogout = async () => {
     if (!window.confirm('현재 세션을 종료하시겠습니까?')) return;
@@ -17,39 +25,54 @@ export function TopAppBar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between bg-surface-container-lowest px-4 shadow-panel md:px-8">
-      <div className="flex items-center gap-2 md:gap-6">
-        <span className="font-headline text-lg font-extrabold uppercase tracking-widest text-primary">
-          KAster CTI
+    <header
+      className="fixed top-0 right-0 z-30 flex h-[46px] items-center justify-between px-4"
+      style={{
+        left: 56,
+        background: 'var(--bg-base)',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>
+          {SECTION_LABEL[fullSection]}
         </span>
-        <div className="h-6 w-px bg-outline-variant/30" />
-        <div className="hidden items-center gap-3 md:flex">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary-fixed">
-            <span className="material-symbols-outlined text-base text-primary">person</span>
-          </div>
-          <div>
-            <p className="font-headline text-sm font-bold leading-none text-on-surface">
-              {agentSession?.agentName ?? '-'}
-            </p>
-            <p className="mt-0.5 text-[10px] font-medium tracking-wide text-on-surface-variant">
-              내선 {agentSession?.extension ?? '-'}
-            </p>
-          </div>
-        </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4">
-        <ThemeToggle compact />
+      <div className="flex items-center gap-3">
         <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
-        <div className="h-6 w-px bg-outline-variant/30" />
+        <div className="hidden md:flex flex-col items-end leading-tight">
+          <span style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 600 }}>
+            {agentSession?.agentName ?? '-'}
+          </span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>
+            내선 {agentSession?.extension ?? '-'}
+          </span>
+        </div>
+
         <button
-          onClick={() => {
-            void onLogout();
+          type="button"
+          onClick={() => setMode('mini')}
+          className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
+          style={{
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-subtle)',
           }}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-error transition-all hover:bg-error-container/20 active:scale-95"
+          title="미니 모드"
+        >
+          미니
+        </button>
+
+        <ThemeToggle compact />
+
+        <button
+          onClick={() => { void onLogout(); }}
+          className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
+          style={{ color: 'var(--status-danger)' }}
+          title="로그아웃"
         >
           <LogoutOutlined />
-          <span className="hidden md:inline">로그아웃</span>
         </button>
       </div>
     </header>
