@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useUiStore, type FullWorkspaceSection } from '../store/useUiStore';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -19,6 +20,7 @@ export function SideNav() {
   const setFullSection = useUiStore((s) => s.setFullSection);
   const agent = useAuthStore((s) => s.agent);
   const initial = agent?.agentName?.[0] ?? 'A';
+  const [hoveredKey, setHoveredKey] = useState<FullWorkspaceSection | null>(null);
 
   return (
     <aside
@@ -50,15 +52,15 @@ export function SideNav() {
               title={item.label}
               className="relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors"
               style={{
-                background: isActive ? 'var(--accent-dim)' : 'transparent',
+                background: isActive
+                  ? 'var(--accent-dim)'
+                  : hoveredKey === item.key
+                    ? 'var(--bg-elevated)'
+                    : 'transparent',
                 color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
               }}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'var(--bg-elevated)';
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
-              }}
+              onMouseEnter={() => setHoveredKey(item.key)}
+              onMouseLeave={() => setHoveredKey(null)}
             >
               {isActive && (
                 <span
