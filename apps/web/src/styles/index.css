@@ -63,55 +63,90 @@
 }
 
 [data-theme='dark'] {
-  --color-tertiary-fixed: 100 218 204;
-  --color-surface-container-low: 18 24 33;
-  --color-on-surface-variant: 174 184 201;
-  --color-surface-dim: 16 21 28;
-  --color-on-secondary: 14 26 43;
-  --color-secondary-container: 36 52 74;
-  --color-on-tertiary-container: 177 245 235;
-  --color-secondary-fixed: 53 66 84;
-  --color-error: 255 120 120;
-  --color-surface-tint: 122 162 255;
-  --color-inverse-surface: 235 240 248;
-  --color-surface-variant: 29 37 48;
-  --color-primary-fixed-dim: 122 162 255;
-  --color-on-error: 51 0 0;
-  --color-on-tertiary: 11 45 40;
-  --color-surface-container-high: 26 33 44;
-  --color-on-error-container: 255 218 214;
-  --color-surface-container: 21 27 36;
-  --color-surface-bright: 27 34 44;
-  --color-on-primary-fixed: 11 30 78;
-  --color-primary-fixed: 188 206 255;
-  --color-on-primary: 12 30 74;
-  --color-on-tertiary-fixed-variant: 24 103 95;
-  --color-background: 11 16 23;
-  --color-tertiary: 115 229 216;
-  --color-surface-container-lowest: 15 20 28;
-  --color-primary: 122 162 255;
-  --color-outline-variant: 49 59 74;
-  --color-on-primary-fixed-variant: 34 75 175;
-  --color-secondary-fixed-dim: 84 99 121;
-  --color-on-secondary-fixed: 229 238 255;
-  --color-error-container: 93 26 27;
-  --color-on-primary-container: 223 231 255;
-  --color-on-background: 237 242 255;
-  --color-inverse-primary: 31 69 166;
-  --color-primary-container: 53 92 191;
-  --color-tertiary-container: 26 103 95;
-  --color-tertiary-fixed-dim: 74 188 176;
-  --color-surface-container-highest: 35 43 55;
-  --color-on-surface: 237 242 255;
-  --color-surface: 15 20 28;
-  --color-inverse-on-surface: 34 41 50;
-  --color-outline: 118 130 151;
-  --color-secondary: 181 193 212;
-  --color-on-secondary-fixed-variant: 196 208 228;
-  --color-on-tertiary-fixed: 0 34 31;
-  --color-on-secondary-container: 221 231 248;
-  --gradient-primary-from: #25489b;
-  --gradient-primary-to: #5d82ff;
+  /* 배경 계층 */
+  --color-background:                  13 17 23;
+  --color-surface:                     13 17 23;
+  --color-surface-container-lowest:    1 4 9;
+  --color-surface-container-low:       17 23 32;
+  --color-surface-container:           22 27 34;
+  --color-surface-container-high:      33 38 45;
+  --color-surface-container-highest:   48 54 61;
+  --color-surface-variant:             22 27 34;
+  --color-surface-dim:                 13 17 23;
+  --color-surface-bright:              33 38 45;
+  --color-surface-tint:                52 211 153;
+  --color-inverse-surface:             230 237 243;
+  --color-inverse-on-surface:          22 27 34;
+
+  /* 텍스트 */
+  --color-on-background:               230 237 243;
+  --color-on-surface:                  230 237 243;
+  --color-on-surface-variant:          139 148 158;
+  --color-outline:                     72 79 88;
+  --color-outline-variant:             33 38 45;
+
+  /* Primary (에메랄드) */
+  --color-primary:                     52 211 153;
+  --color-on-primary:                  1 4 9;
+  --color-primary-container:           8 40 25;
+  --color-on-primary-container:        52 211 153;
+  --color-primary-fixed:               52 211 153;
+  --color-primary-fixed-dim:           5 150 105;
+  --color-on-primary-fixed:            1 4 9;
+  --color-on-primary-fixed-variant:    5 150 105;
+  --color-inverse-primary:             5 150 105;
+
+  /* Error (레드) */
+  --color-error:                       248 81 73;
+  --color-on-error:                    1 4 9;
+  --color-error-container:             46 10 8;
+  --color-on-error-container:          248 81 73;
+
+  /* Tertiary (앰버) */
+  --color-tertiary:                    210 153 34;
+  --color-on-tertiary:                 1 4 9;
+  --color-tertiary-container:          42 30 6;
+  --color-on-tertiary-container:       210 153 34;
+  --color-tertiary-fixed:              251 191 36;
+  --color-tertiary-fixed-dim:          210 153 34;
+  --color-on-tertiary-fixed:           1 4 9;
+  --color-on-tertiary-fixed-variant:   42 30 6;
+
+  /* Secondary (뉴트럴 그레이) */
+  --color-secondary:                   139 148 158;
+  --color-on-secondary:                1 4 9;
+  --color-secondary-container:         22 27 34;
+  --color-on-secondary-container:      230 237 243;
+  --color-secondary-fixed:             33 38 45;
+  --color-secondary-fixed-dim:         48 54 61;
+  --color-on-secondary-fixed:          230 237 243;
+  --color-on-secondary-fixed-variant:  139 148 158;
+
+  --gradient-primary-from: #059669;
+  --gradient-primary-to:   #34d399;
+
+  /* 신규 별칭 (신규 컴포넌트 style={} 전용 — hex) */
+  --bg-base:       #010409;
+  --bg-surface:    #0d1117;
+  --bg-elevated:   #161b22;
+  --bg-raised:     #21262d;
+  --border-subtle: #21262d;
+  --border-dim:    #30363d;
+  --text-primary:  #e6edf3;
+  --text-secondary:#8b949e;
+  --text-muted:    #484f58;
+  --accent:        #34d399;
+  --accent-strong: #059669;
+  --accent-dim:    rgba(52,211,153,0.12);
+  --accent-border: rgba(52,211,153,0.25);
+  --accent-glow:   rgba(52,211,153,0.35);
+  --status-talking:#34d399;
+  --status-ringing:#d29922;
+  --status-queued: #8b949e;
+  --status-danger: #f85149;
+  --mini-card-from:#052e1a;
+  --mini-card-to:  #041a0f;
+
   color-scheme: dark;
 }
 
@@ -203,13 +238,13 @@ body {
   animation: waveform 1.2s ease-in-out infinite;
 }
 @keyframes waveform {
-  0%,
-  100% {
-    height: 4px;
-  }
-  50% {
-    height: 16px;
-  }
+  0%, 100% { height: 3px; }
+  50%       { height: 12px; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
 }
 
 /* 프라이머리 그라디언트 — CTA 버튼 기본 */
