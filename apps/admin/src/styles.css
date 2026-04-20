@@ -187,3 +187,368 @@ body {
     padding: 16px !important;
   }
 }
+
+.prompt-modal .ant-modal-content {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 24%),
+    linear-gradient(180deg, #fcfdff 0%, #ffffff 100%);
+}
+
+.prompt-modal .ant-modal-body {
+  display: grid;
+  gap: 16px;
+  padding-top: 20px;
+}
+
+.prompt-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prompt-modal__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.prompt-modal__panel {
+  padding: 18px;
+  border: 1px solid #e7edf6;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.prompt-modal__upload-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.prompt-modal__panel-head,
+.prompt-modal__panel-row,
+.prompt-modal__upload-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.prompt-modal__upload-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.prompt-modal__section-label {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prompt-modal__hint {
+  margin-top: -4px;
+}
+
+.prompt-modal__footer-note {
+  padding: 0 2px;
+}
+
+.branch-edit-modal .ant-modal-content {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.1), transparent 24%),
+    linear-gradient(180deg, #fcfffd 0%, #ffffff 100%);
+}
+
+.branch-edit-modal__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.branch-edit-modal__hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #166534;
+  font-size: 18px;
+}
+
+.branch-edit-modal__panel {
+  height: 100%;
+  border: 1px solid #e6f4ea;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+}
+
+.branch-edit-modal__panel .ant-card-head {
+  min-height: 52px;
+}
+
+.branch-edit-modal__form .ant-form-item {
+  margin-bottom: 12px;
+}
+
+.branch-edit-modal__form .ant-form-item-extra {
+  font-size: 12px;
+}
+
+.branch-edit-modal__form .ant-select-selector,
+.branch-edit-modal__form .ant-input,
+.branch-edit-modal__form .ant-input-number,
+.branch-edit-modal__form .ant-input-affix-wrapper {
+  min-height: 36px;
+}
+
+.branch-edit-modal__compact-item .ant-form-item-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
+}
+
+.branch-edit-modal__compact-item .ant-form-item-label {
+  padding: 7px 0 0;
+}
+
+.branch-edit-modal__compact-item .ant-form-item-label > label {
+  height: auto;
+  min-height: 22px;
+}
+
+.branch-edit-modal__compact-item .ant-form-item-control {
+  min-width: 0;
+}
+
+.branch-edit-modal__compact-item .ant-form-item-extra,
+.branch-edit-modal__compact-item .ant-form-item-explain {
+  margin-top: 4px;
+}
+
+.branch-edit-modal__step {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.branch-edit-modal__step .anticon {
+  margin-top: 4px;
+  color: #15803d;
+}
+
+@media (max-width: 767px) {
+  .prompt-modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prompt-modal__header,
+  .prompt-modal__panel-head,
+  .prompt-modal__panel-row,
+  .prompt-modal__upload-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .branch-edit-modal__hero {
+    flex-direction: column;
+  }
+
+  .branch-edit-modal__form .ant-form-item {
+    margin-bottom: 10px;
+  }
+
+  .branch-edit-modal__compact-item .ant-form-item-row {
+    grid-template-columns: 1fr;
+    row-gap: 6px;
+  }
+
+  .branch-edit-modal__compact-item .ant-form-item-label {
+    padding-top: 0;
+  }
+}
+
+/* ============= Call Card ============= */
+.call-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: box-shadow 120ms;
+}
+.call-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.call-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.call-card__ani {
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+.call-card__elapsed {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #595959;
+}
+.call-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+.call-card__did, .call-card__sub {
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.call-card--mini {
+  padding: 6px 8px;
+}
+.call-card--mini .call-card__ani { font-size: 12px; }
+.call-card--mini .call-card__elapsed { font-size: 11px; }
+
+/* ============= Kanban Column ============= */
+.call-kanban-column {
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  min-height: 240px;
+  overflow: hidden;
+}
+.call-kanban-column--mini { min-height: 120px; }
+.call-kanban-column__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-top: 3px solid #d9d9d9;
+  background: #fff;
+  font-weight: 600;
+  font-size: 12px;
+}
+.call-kanban-column__label { color: #262626; }
+.call-kanban-column__count {
+  background: #f0f0f0;
+  border-radius: 10px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: #595959;
+}
+.call-kanban-column__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.call-kanban-column__empty {
+  display: block;
+  text-align: center;
+  padding: 16px 0;
+  color: #bfbfbf;
+  font-size: 11px;
+}
+
+/* ============= Dashboard Compact Grid ============= */
+.dashboard-compact {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-areas:
+    "header header"
+    "kpi    alerts"
+    "calls  calls"
+    "bottom bottom";
+  gap: 10px;
+  height: calc(100vh - 120px);
+  min-height: 720px;
+}
+.dashboard-compact__header { grid-area: header; }
+.dashboard-compact__kpi    { grid-area: kpi; }
+.dashboard-compact__alerts { grid-area: alerts; }
+.dashboard-compact__calls  { grid-area: calls; min-height: 0; }
+.dashboard-compact__bottom {
+  grid-area: bottom;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.dashboard-compact .ant-card-head { min-height: 34px; padding: 0 12px; }
+.dashboard-compact .ant-card-head-title { font-size: 13px; padding: 6px 0; }
+.dashboard-compact .ant-card-body { padding: 10px 12px; }
+.dashboard-compact .ant-table-small .ant-table-thead > tr > th,
+.dashboard-compact .ant-table-small .ant-table-tbody > tr > td {
+  padding: 4px 8px;
+  font-size: 11.5px;
+}
+.dashboard-compact__kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.dashboard-compact__kpi-cell {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-left: 3px solid #1677ff;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+.dashboard-compact__kpi-cell .label { font-size: 11px; color: #8c8c8c; }
+.dashboard-compact__kpi-cell .value { font-size: 18px; font-weight: 700; color: #141414; }
+.dashboard-compact__kpi-cell .delta { font-size: 11px; color: #52c41a; }
+
+/* ============= Active Calls Kanban (dashboard) ============= */
+.active-calls-kanban {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ============= Live Calls Page ============= */
+.live-calls-page__summary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 14px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.live-calls-page__summary-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.live-calls-page__summary-item .value {
+  font-weight: 700;
+  font-size: 15px;
+}
+.live-calls-page__kanban {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+  min-height: calc(100vh - 240px);
+}
