@@ -9,6 +9,7 @@
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
+    "prisma:sync": "node scripts/prisma-sync.js",
     "openapi:export": "ts-node scripts/export-openapi.ts",
     "test": "jest"
   },

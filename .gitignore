@@ -5,7 +5,14 @@ coverage/
 *.log
 *.wav
 *.mp3
+*.tsbuildinfo
+*.stackdump
 .DS_Store
+
+# Local design scratch/output
+.superpowers/
+.agents/
+apps/admin/dev_output*.txt
 
 # ChatGPT share 원본 HTML 캐시 (재수집 가능, 레포 크기 관리 위해 제외)
 docs/chatgpt-archive/html/

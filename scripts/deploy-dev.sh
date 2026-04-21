@@ -5,6 +5,7 @@
 #   ./scripts/deploy-dev.sh sync               # 소스만 빠르게 동기화 (rebuild 없음)
 #   ./scripts/deploy-dev.sh sync-safe admin    # 동기화 + 서비스 재시작 + 원격 build 검증
 #   ./scripts/deploy-dev.sh verify admin       # 원격 컨테이너 내부 build 검증
+#   ./scripts/deploy-dev.sh release server     # 원격 Prisma sync + build + 재시작
 #   ./scripts/deploy-dev.sh up                 # 최초 설치 + compose up
 #   ./scripts/deploy-dev.sh restart            # 컨테이너 재시작
 #   ./scripts/deploy-dev.sh down               # 컨테이너 종료
@@ -44,10 +45,15 @@ sync_files() {
     --exclude 'dist' \
     --exclude '.git' \
     --exclude '.DS_Store' \
+    --exclude '.superpowers' \
+    --exclude '.agents' \
     --exclude 'docs/chatgpt-archive/html' \
     --exclude 'download' \
+    --exclude '*.stackdump' \
+    --exclude '*.tsbuildinfo' \
     --exclude '*.log' \
     --exclude '.env' \
+    --exclude 'apps/admin/dev_output*.txt' \
     ./ "${REMOTE}:${REMOTE_DIR}/"
 }
 
@@ -57,7 +63,7 @@ verify_service() {
   case "$service" in
     server)
       echo ">>> verify server build"
-      run_remote "docker exec kaster-server sh -lc 'cd /app && npm run build'"
+      run_remote "docker exec kaster-server sh -lc 'cd /app && npm run prisma:sync && npm run build'"
       ;;
     web)
       echo ">>> verify web build"
@@ -97,6 +103,14 @@ sync_safe() {
   verify_service "$service"
 }
 
+release_service() {
+  local service="${1:-server}"
+  sync_files
+  verify_service "$service"
+  echo ">>> restart ${service}"
+  restart_service "$service"
+}
+
 case "$cmd" in
   sync)
     sync_files
@@ -106,6 +120,9 @@ case "$cmd" in
     ;;
   verify)
     verify_service "${2:-all}"
+    ;;
+  release)
+    release_service "${2:-server}"
     ;;
   up)
     sync_files
@@ -130,7 +147,7 @@ case "$cmd" in
     ;;
   *)
     echo "unknown command: $cmd"
-    echo "usage: $0 {sync|sync-safe|verify|up|restart|down|logs|ps|ssh}"
+    echo "usage: $0 {sync|sync-safe|verify|release|up|restart|down|logs|ps|ssh}"
     exit 1
     ;;
 esac
