@@ -1,0 +1,252 @@
+<style>
+  .mock {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 10px;
+    color: #cbd5e1;
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+  }
+  .mock .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .mock .kpi {
+    background: #1e293b;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border-left: 3px solid #10b981;
+  }
+  .mock .kpi .label { font-size: 8px; color: #94a3b8; }
+  .mock .kpi .value { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+  .mock .kpi .delta { font-size: 8px; color: #10b981; }
+  .mock .block {
+    background: #1e293b;
+    border-radius: 4px;
+    padding: 8px;
+  }
+  .mock .block h4 { margin: 0 0 6px 0; font-size: 10px; color: #e2e8f0; }
+  .mock .row { display: flex; justify-content: space-between; font-size: 8.5px; padding: 2px 0; border-bottom: 1px solid #334155; }
+  .mock .row:last-child { border: 0; }
+  .mock .badge { padding: 1px 5px; border-radius: 3px; font-size: 7.5px; font-weight: 600; }
+  .mock .b-talk { background: #065f46; color: #6ee7b7; }
+  .mock .b-wait { background: #713f12; color: #fde68a; }
+  .mock .b-ring { background: #1e3a8a; color: #93c5fd; }
+  .mock .b-ok { background: #064e3b; color: #6ee7b7; }
+  .mock .b-alert { background: #7f1d1d; color: #fecaca; }
+  .mock .spark { display: flex; gap: 1px; align-items: flex-end; height: 30px; }
+  .mock .spark span { flex: 1; background: #3b82f6; border-radius: 1px 1px 0 0; }
+  .mock .sla-bar { height: 3px; background: #334155; border-radius: 2px; overflow: hidden; }
+  .mock .sla-fill { height: 100%; background: #10b981; }
+</style>
+
+<h2>대시보드 레이아웃 3가지 — 우선순위: KPI → 활성콜 → Queue → 팀 → 경보 → 추이</h2>
+<p class="subtitle">모두 1920×1080 기준, 스크롤 없이 한눈에 볼 수 있는 밀도 높은 배치입니다</p>
+
+<div class="cards">
+
+  <!-- ============= OPTION A ============= -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #0b1220; padding: 10px;">
+      <div class="mock" style="height: 460px; display: flex; flex-direction: column; gap: 8px;">
+        <!-- top: KPI strip -->
+        <div class="kpi-strip">
+          <div class="kpi"><div class="label">총 인입</div><div class="value">1,248</div><div class="delta">+12%</div></div>
+          <div class="kpi"><div class="label">응답</div><div class="value">1,089</div><div class="delta">87%</div></div>
+          <div class="kpi"><div class="label">포기</div><div class="value">159</div><div class="delta">-3%</div></div>
+          <div class="kpi"><div class="label">평균 대기</div><div class="value">12s</div><div class="delta">-2s</div></div>
+          <div class="kpi"><div class="label">SLA</div><div class="value">92%</div><div class="delta">+1%</div></div>
+          <div class="kpi"><div class="label">가용 상담원</div><div class="value">23/38</div><div class="delta">60%</div></div>
+        </div>
+        <!-- middle: hero active calls + right side stack -->
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px; flex: 1; min-height: 0;">
+          <div class="block">
+            <h4>🔴 실시간 활성 콜 (12)</h4>
+            <div class="row"><span>010-1234-5678</span><span>김상담</span><span class="badge b-talk">통화 3:24</span></div>
+            <div class="row"><span>010-9876-5432</span><span>박상담</span><span class="badge b-talk">통화 1:10</span></div>
+            <div class="row"><span>010-5555-1111</span><span>대기열</span><span class="badge b-wait">대기 0:45</span></div>
+            <div class="row"><span>010-4444-2222</span><span>이상담</span><span class="badge b-ring">벨울림</span></div>
+            <div class="row"><span>010-3333-7777</span><span>정상담</span><span class="badge b-talk">통화 5:51</span></div>
+            <div class="row"><span>010-8888-0000</span><span>최상담</span><span class="badge b-talk">통화 2:30</span></div>
+            <div class="row"><span>010-2222-4444</span><span>대기열</span><span class="badge b-wait">대기 1:12</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div class="block" style="flex: 1;">
+              <h4>Queue 요약</h4>
+              <div class="row"><span>주문</span><span>대기3 / 통화8</span><div class="sla-bar" style="width:30px"><div class="sla-fill" style="width:92%"></div></div></div>
+              <div class="row"><span>A/S</span><span>대기1 / 통화4</span><div class="sla-bar" style="width:30px"><div class="sla-fill" style="width:88%;background:#f59e0b"></div></div></div>
+              <div class="row"><span>문의</span><span>대기0 / 통화2</span><div class="sla-bar" style="width:30px"><div class="sla-fill" style="width:100%"></div></div></div>
+            </div>
+            <div class="block" style="flex: 1;">
+              <h4>팀별 현황</h4>
+              <div class="row"><span>1팀</span><span>가용5 통화8 휴식2</span></div>
+              <div class="row"><span>2팀</span><span>가용3 통화6 후처리1</span></div>
+              <div class="row"><span>3팀</span><span>가용4 통화5 휴식1</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- bottom: alerts + traffic horizontally -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 70px;">
+          <div class="block">
+            <h4>⚠ 경보 (2)</h4>
+            <div class="row"><span class="badge b-alert">CRIT</span><span>AMI 재연결</span><span>2m</span></div>
+            <div class="row"><span class="badge b-wait">WARN</span><span>SLA &lt; 80%</span><span>5m</span></div>
+          </div>
+          <div class="block">
+            <h4>시간대별 유입</h4>
+            <div class="spark">
+              <span style="height:30%"></span><span style="height:45%"></span><span style="height:60%"></span>
+              <span style="height:80%"></span><span style="height:90%"></span><span style="height:70%"></span>
+              <span style="height:55%"></span><span style="height:65%"></span><span style="height:40%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Hero 활성콜 + 사이드 패널</h3>
+      <p>상단 KPI 스트립 → 좌측 큰 활성콜 목록(중심) + 우측 Queue/팀 스택 → 하단 경보+추이 슬림바. <b>활성콜을 영웅으로</b> 보여주고 보조 정보를 주변에 배치.</p>
+    </div>
+  </div>
+
+  <!-- ============= OPTION B ============= -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #0b1220; padding: 10px;">
+      <div class="mock" style="height: 460px; display: flex; flex-direction: column; gap: 8px;">
+        <!-- top: KPI strip -->
+        <div class="kpi-strip">
+          <div class="kpi"><div class="label">총 인입</div><div class="value">1,248</div></div>
+          <div class="kpi"><div class="label">응답</div><div class="value">1,089</div></div>
+          <div class="kpi"><div class="label">포기</div><div class="value">159</div></div>
+          <div class="kpi"><div class="label">평균 대기</div><div class="value">12s</div></div>
+          <div class="kpi"><div class="label">SLA</div><div class="value">92%</div></div>
+          <div class="kpi"><div class="label">가용</div><div class="value">23/38</div></div>
+        </div>
+        <!-- 3 equal columns -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; flex: 1; min-height: 0;">
+          <div class="block">
+            <h4>🔴 활성 콜 (12)</h4>
+            <div class="row"><span>010-1234</span><span class="badge b-talk">통화</span></div>
+            <div class="row"><span>010-9876</span><span class="badge b-talk">통화</span></div>
+            <div class="row"><span>010-5555</span><span class="badge b-wait">대기</span></div>
+            <div class="row"><span>010-4444</span><span class="badge b-ring">벨</span></div>
+            <div class="row"><span>010-3333</span><span class="badge b-talk">통화</span></div>
+            <div class="row"><span>010-8888</span><span class="badge b-talk">통화</span></div>
+            <div class="row"><span>010-2222</span><span class="badge b-wait">대기</span></div>
+          </div>
+          <div class="block">
+            <h4>Queue 요약</h4>
+            <div class="row"><span>주문</span><span>3/8</span><span>SLA 92%</span></div>
+            <div class="row"><span>A/S</span><span>1/4</span><span>SLA 88%</span></div>
+            <div class="row"><span>문의</span><span>0/2</span><span>SLA 100%</span></div>
+            <h4 style="margin-top:10px">팀별 현황</h4>
+            <div class="row"><span>1팀</span><span>5/8/2</span></div>
+            <div class="row"><span>2팀</span><span>3/6/1</span></div>
+            <div class="row"><span>3팀</span><span>4/5/1</span></div>
+          </div>
+          <div class="block">
+            <h4>⚠ 경보</h4>
+            <div class="row"><span class="badge b-alert">CRIT</span><span>AMI 재연결</span></div>
+            <div class="row"><span class="badge b-wait">WARN</span><span>SLA &lt; 80%</span></div>
+            <h4 style="margin-top:10px">시간대별 유입</h4>
+            <div class="spark">
+              <span style="height:30%"></span><span style="height:45%"></span><span style="height:60%"></span>
+              <span style="height:80%"></span><span style="height:90%"></span><span style="height:70%"></span>
+              <span style="height:55%"></span><span style="height:65%"></span><span style="height:40%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 3열 균등 그리드</h3>
+      <p>상단 KPI → 3개의 동일한 열 (활성콜 / Queue+팀 / 경보+추이). 모든 정보에 동등한 면적. 구조가 <b>단순·대칭적</b>이지만 활성콜의 시각적 비중이 낮음.</p>
+    </div>
+  </div>
+
+  <!-- ============= OPTION C ============= -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #0b1220; padding: 10px;">
+      <div class="mock" style="height: 460px; display: flex; flex-direction: column; gap: 8px;">
+        <!-- top row: KPI (3 cols) + Alerts (1 col) -->
+        <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 8px;">
+          <div class="kpi-strip" style="grid-template-columns: repeat(6, 1fr); margin: 0;">
+            <div class="kpi"><div class="label">인입</div><div class="value">1,248</div></div>
+            <div class="kpi"><div class="label">응답</div><div class="value">1,089</div></div>
+            <div class="kpi"><div class="label">포기</div><div class="value">159</div></div>
+            <div class="kpi"><div class="label">대기</div><div class="value">12s</div></div>
+            <div class="kpi"><div class="label">SLA</div><div class="value">92%</div></div>
+            <div class="kpi"><div class="label">가용</div><div class="value">23/38</div></div>
+          </div>
+          <div class="block">
+            <h4>⚠ 경보 (2)</h4>
+            <div class="row" style="font-size:7.5px"><span class="badge b-alert">C</span><span>AMI 재연결</span></div>
+            <div class="row" style="font-size:7.5px"><span class="badge b-wait">W</span><span>SLA &lt; 80%</span></div>
+          </div>
+        </div>
+        <!-- middle: activeCalls full width -->
+        <div class="block" style="flex: 2; min-height: 0;">
+          <h4>🔴 실시간 활성 콜 (12) — 상태별 그룹</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px;">
+            <div>
+              <div class="label" style="font-size:8px;color:#fde68a;margin-bottom:4px;">대기 (3)</div>
+              <div class="row"><span>010-5555</span><span>0:45</span></div>
+              <div class="row"><span>010-2222</span><span>1:12</span></div>
+              <div class="row"><span>010-7777</span><span>0:22</span></div>
+            </div>
+            <div>
+              <div class="label" style="font-size:8px;color:#93c5fd;margin-bottom:4px;">벨울림 (2)</div>
+              <div class="row"><span>010-4444</span><span>0:08</span></div>
+              <div class="row"><span>010-6666</span><span>0:03</span></div>
+            </div>
+            <div>
+              <div class="label" style="font-size:8px;color:#6ee7b7;margin-bottom:4px;">통화중 (6)</div>
+              <div class="row"><span>010-1234</span><span>3:24</span></div>
+              <div class="row"><span>010-9876</span><span>1:10</span></div>
+              <div class="row"><span>010-3333</span><span>5:51</span></div>
+              <div class="row"><span>010-8888</span><span>2:30</span></div>
+            </div>
+            <div>
+              <div class="label" style="font-size:8px;color:#c4b5fd;margin-bottom:4px;">후처리 (1)</div>
+              <div class="row"><span>010-0000</span><span>0:15</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- bottom: queue + team + spark horizontally -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; height: 95px;">
+          <div class="block">
+            <h4>Queue 요약</h4>
+            <div class="row"><span>주문</span><span>3/8</span><span class="badge b-ok">92%</span></div>
+            <div class="row"><span>A/S</span><span>1/4</span><span class="badge b-wait">88%</span></div>
+            <div class="row"><span>문의</span><span>0/2</span><span class="badge b-ok">100%</span></div>
+          </div>
+          <div class="block">
+            <h4>팀별 현황</h4>
+            <div class="row"><span>1팀</span><span>가5 통8 휴2</span></div>
+            <div class="row"><span>2팀</span><span>가3 통6 후1</span></div>
+            <div class="row"><span>3팀</span><span>가4 통5 휴1</span></div>
+          </div>
+          <div class="block">
+            <h4>시간대별 유입</h4>
+            <div class="spark" style="height:50px">
+              <span style="height:30%"></span><span style="height:45%"></span><span style="height:60%"></span>
+              <span style="height:80%"></span><span style="height:90%"></span><span style="height:70%"></span>
+              <span style="height:55%"></span><span style="height:65%"></span><span style="height:40%"></span>
+              <span style="height:50%"></span><span style="height:60%"></span><span style="height:35%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 활성콜 영웅 + 상태 그룹핑 (추천)</h3>
+      <p>상단 KPI+경보 (병행 배치로 공간 절약) → 중앙에 <b>상태별로 나뉜 활성콜</b> (대기/벨/통화/후처리 4칼럼 — 라이브콜 칸반 축소판) → 하단에 Queue/팀/추이 슬림 3열. 활성콜이 "현재 무슨 일이 일어나고 있는지"를 즉시 보여줌.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top: 16px">위 3가지 중 하나를 고르시거나, 터미널에서 "A의 상단 + C의 중앙" 처럼 조합도 가능합니다. 제 추천은 <b>C</b> — 라이브콜 페이지의 칸반과 일관된 패턴이고 우선순위도 그대로 반영됩니다.</p>

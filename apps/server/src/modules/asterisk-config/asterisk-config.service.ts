@@ -1,5 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
 import { ParsedAmiFrame } from '../ami/ami.parser';
@@ -16,9 +19,219 @@ import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
 
 const FORWARDING_CONDITION_TYPES = new Set(['ALWAYS', 'TIME_RANGE']);
+const FORWARDING_TYPES = new Set(['EXTENSION', 'QUEUE', 'EXTERNAL_NUMBER']);
+const FORWARDING_TRIGGER_MODES = new Set(['IMMEDIATE', 'AFTER_QUEUE_WAIT', 'SMART_NO_READY']);
 const BLOCKLIST_MATCH_TYPES = new Set(['EXACT', 'PREFIX']);
 const WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const WEEKDAY_SET = new Set(WEEKDAY_ORDER);
+const PROMPT_AUDIO_EXTENSIONS = new Set(['.wav', '.mp3', '.gsm', '.ulaw', '.alaw']);
+
+interface ParsedWavAudio {
+  formatTag: number;
+  data: Buffer;
+}
+
+const MU_LAW_BIAS = 0x84;
+const PCM_CLIP = 32635;
+const SEG_END = [0x1f, 0x3f, 0x7f, 0xff, 0x1ff, 0x3ff, 0x7ff, 0xfff];
+
+export interface NormalizedForwardingSchedule {
+  conditionType: 'ALWAYS' | 'TIME_RANGE';
+  timeStart: string | null;
+  timeEnd: string | null;
+  daysOfWeek: string[];
+}
+
+interface NormalizedForwardingRule {
+  didId: string;
+  forwardType: string;
+  targetValue: string;
+  forwardTriggerMode: 'IMMEDIATE' | 'AFTER_QUEUE_WAIT' | 'SMART_NO_READY';
+  queueWaitSeconds: number | null;
+  stickyCallbackWindowMinutes: number | null;
+  conditionType: string;
+  timeStart: string | null;
+  timeEnd: string | null;
+  daysOfWeek: string | null;
+  scheduleJson: string | null;
+  description: string | null;
+  enabled: boolean;
+}
+
+type ForwardingRuleBase = {
+  forwardTriggerMode?: string | null;
+  queueWaitSeconds?: number | null;
+  stickyCallbackWindowMinutes?: number | null;
+  daysOfWeek: string | null;
+  timeStart: string | null;
+  timeEnd: string | null;
+  conditionType: string;
+  scheduleJson?: string | null;
+};
+
+export type ForwardingRuleView<T extends ForwardingRuleBase = ForwardingRuleBase> = Omit<
+  T,
+  'daysOfWeek' | 'timeStart' | 'timeEnd' | 'conditionType'
+> & {
+  conditionType: 'ALWAYS' | 'TIME_RANGE';
+  timeStart: string | null;
+  timeEnd: string | null;
+  daysOfWeek: string[];
+  schedules: NormalizedForwardingSchedule[];
+};
+
+interface UploadedPromptAudioFile {
+  originalname: string;
+  buffer: Buffer;
+  size: number;
+}
+
+function parseWavAudio(buffer: Buffer): ParsedWavAudio | null {
+  if (buffer.length < 44) {
+    return null;
+  }
+
+  if (buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
+    return null;
+  }
+
+  let formatTag: number | null = null;
+  let data: Buffer | null = null;
+  let offset = 12;
+
+  while (offset + 8 <= buffer.length) {
+    const chunkId = buffer.toString('ascii', offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const chunkStart = offset + 8;
+    const chunkEnd = chunkStart + chunkSize;
+
+    if (chunkEnd > buffer.length) {
+      break;
+    }
+
+    if (chunkId === 'fmt ' && chunkSize >= 2) {
+      formatTag = buffer.readUInt16LE(chunkStart);
+    } else if (chunkId === 'data') {
+      data = buffer.subarray(chunkStart, chunkEnd);
+    }
+
+    offset = chunkEnd + (chunkSize % 2);
+  }
+
+  if (formatTag === null || !data) {
+    return null;
+  }
+
+  return { formatTag, data };
+}
+
+function searchSegment(value: number): number {
+  for (let index = 0; index < SEG_END.length; index += 1) {
+    if (value <= SEG_END[index]) {
+      return index;
+    }
+  }
+  return SEG_END.length;
+}
+
+function muLawByteToLinearSample(value: number): number {
+  const uVal = (~value) & 0xff;
+  let sample = ((uVal & 0x0f) << 3) + MU_LAW_BIAS;
+  sample <<= (uVal & 0x70) >> 4;
+  return (uVal & 0x80) ? (MU_LAW_BIAS - sample) : (sample - MU_LAW_BIAS);
+}
+
+function aLawByteToLinearSample(value: number): number {
+  const aVal = (value ^ 0x55) & 0xff;
+  let sample = (aVal & 0x0f) << 4;
+  const segment = (aVal & 0x70) >> 4;
+
+  switch (segment) {
+    case 0:
+      sample += 8;
+      break;
+    case 1:
+      sample += 0x108;
+      break;
+    default:
+      sample += 0x108;
+      sample <<= segment - 1;
+      break;
+  }
+
+  return (aVal & 0x80) ? sample : -sample;
+}
+
+function linearSampleToMuLaw(sample: number): number {
+  let pcm = sample;
+  let mask = 0xff;
+
+  if (pcm < 0) {
+    pcm = -pcm;
+    mask = 0x7f;
+  }
+
+  if (pcm > PCM_CLIP) {
+    pcm = PCM_CLIP;
+  }
+
+  pcm += MU_LAW_BIAS;
+  const segment = searchSegment(pcm >> 7);
+  if (segment >= 8) {
+    return 0x7f ^ mask;
+  }
+
+  const mantissa = (pcm >> (segment + 3)) & 0x0f;
+  return ((segment << 4) | mantissa) ^ mask;
+}
+
+function linearSampleToALaw(sample: number): number {
+  let pcm = sample;
+  let mask = 0xd5;
+
+  if (pcm < 0) {
+    pcm = -pcm - 1;
+    mask = 0x55;
+  }
+
+  if (pcm > PCM_CLIP) {
+    pcm = PCM_CLIP;
+  }
+
+  if (pcm >= 256) {
+    const segment = searchSegment(pcm >> 4);
+    if (segment >= 8) {
+      return 0x7f ^ mask;
+    }
+    const mantissa = (pcm >> (segment + 3)) & 0x0f;
+    return (((segment << 4) | mantissa) ^ mask) & 0xff;
+  }
+
+  return ((pcm >> 4) ^ mask) & 0xff;
+}
+
+function convertLawPayload(
+  payload: Buffer,
+  from: 'ulaw' | 'alaw',
+  to: 'ulaw' | 'alaw',
+): Buffer {
+  if (from === to) {
+    return Buffer.from(payload);
+  }
+
+  const output = Buffer.allocUnsafe(payload.length);
+
+  for (let index = 0; index < payload.length; index += 1) {
+    const linear = from === 'ulaw'
+      ? muLawByteToLinearSample(payload[index])
+      : aLawByteToLinearSample(payload[index]);
+    output[index] = to === 'ulaw'
+      ? linearSampleToMuLaw(linear)
+      : linearSampleToALaw(linear);
+  }
+
+  return output;
+}
 
 @Injectable()
 export class AsteriskConfigService {
@@ -26,6 +239,7 @@ export class AsteriskConfigService {
     private readonly prisma: PrismaService,
     private readonly reload: AsteriskReloadService,
     private readonly ami: AmiConnectionService,
+    private readonly config: ConfigService,
   ) {}
 
   // ─── Trunks ────────────────────────────────────────────────────────────────
@@ -454,7 +668,7 @@ export class AsteriskConfigService {
 
   // ─── Forwarding Rules ──────────────────────────────────────────────────────
 
-  getForwardingRules(tenantId: string) {
+  getForwardingRules(tenantId: string): Promise<ForwardingRuleView[]> {
     return this.prisma.asteriskForwardingRules.findMany({
       where: { tenantId },
       include: {
@@ -470,7 +684,10 @@ export class AsteriskConfigService {
     }).then((rules) => rules.map((rule) => this.mapForwardingRule(rule)));
   }
 
-  async createForwardingRule(tenantId: string, dto: CreateForwardingRuleDto) {
+  async createForwardingRule(
+    tenantId: string,
+    dto: CreateForwardingRuleDto,
+  ): Promise<ForwardingRuleView> {
     const normalized = this.normalizeForwardingRuleInput(dto);
     await this.validateForwardingRule(tenantId, normalized);
     const rule = await this.prisma.asteriskForwardingRules.create({
@@ -479,10 +696,14 @@ export class AsteriskConfigService {
         didId: normalized.didId,
         forwardType: normalized.forwardType,
         targetValue: normalized.targetValue,
+        forwardTriggerMode: normalized.forwardTriggerMode,
+        queueWaitSeconds: normalized.queueWaitSeconds,
+        stickyCallbackWindowMinutes: normalized.stickyCallbackWindowMinutes,
         conditionType: normalized.conditionType,
         timeStart: normalized.timeStart,
         timeEnd: normalized.timeEnd,
         daysOfWeek: normalized.daysOfWeek,
+        scheduleJson: normalized.scheduleJson,
         description: normalized.description,
         enabled: normalized.enabled,
       },
@@ -500,7 +721,11 @@ export class AsteriskConfigService {
     return this.mapForwardingRule(rule);
   }
 
-  async updateForwardingRule(tenantId: string, id: string, dto: UpdateForwardingRuleDto) {
+  async updateForwardingRule(
+    tenantId: string,
+    id: string,
+    dto: UpdateForwardingRuleDto,
+  ): Promise<ForwardingRuleView> {
     await this.assertForwardingRuleBelongs(tenantId, id);
     const normalized = this.normalizeForwardingRuleInput(dto);
     await this.validateForwardingRule(tenantId, normalized, id);
@@ -510,10 +735,14 @@ export class AsteriskConfigService {
         didId: normalized.didId,
         forwardType: normalized.forwardType,
         targetValue: normalized.targetValue,
+        forwardTriggerMode: normalized.forwardTriggerMode,
+        queueWaitSeconds: normalized.queueWaitSeconds,
+        stickyCallbackWindowMinutes: normalized.stickyCallbackWindowMinutes,
         conditionType: normalized.conditionType,
         timeStart: normalized.timeStart,
         timeEnd: normalized.timeEnd,
         daysOfWeek: normalized.daysOfWeek,
+        scheduleJson: normalized.scheduleJson,
         description: normalized.description,
         enabled: normalized.enabled,
       },
@@ -539,20 +768,12 @@ export class AsteriskConfigService {
 
   private async validateForwardingRule(
     tenantId: string,
-    dto: {
-      didId: string;
-      forwardType: string;
-      targetValue: string;
-      conditionType: string;
-      timeStart: string | null;
-      timeEnd: string | null;
-      daysOfWeek: string | null;
-    },
+    dto: NormalizedForwardingRule,
     currentRuleId?: string,
   ) {
     const did = await this.prisma.asteriskDid.findFirst({
       where: { tenantId, id: dto.didId },
-      select: { id: true },
+      select: { id: true, directQueue: true, ivrMenuId: true },
     });
     if (!did) throw new BadRequestException(`DID "${dto.didId}" not found`);
 
@@ -574,56 +795,77 @@ export class AsteriskConfigService {
         select: { queueId: true },
       });
       if (!queue) throw new BadRequestException(`Queue "${dto.targetValue}" not found`);
-      return;
-    }
-
-    if (dto.forwardType === 'EXTENSION') {
+    } else if (dto.forwardType === 'EXTENSION') {
       const agent = await this.prisma.agents.findFirst({
         where: { tenantId, extension: dto.targetValue, isActive: true },
         select: { agentId: true },
       });
       if (!agent) throw new BadRequestException(`Extension "${dto.targetValue}" not found`);
-      return;
+    } else if (dto.forwardType === 'EXTERNAL_NUMBER') {
+      if (!/^\d{8,16}$/.test(dto.targetValue)) {
+        throw new BadRequestException('External forwarding number must contain 8 to 16 digits');
+      }
+    } else {
+      throw new BadRequestException(`Unsupported forwardType "${dto.forwardType}"`);
     }
 
-    throw new BadRequestException(`Unsupported forwardType "${dto.forwardType}"`);
+    if (!FORWARDING_TRIGGER_MODES.has(dto.forwardTriggerMode)) {
+      throw new BadRequestException(`Unsupported forwardTriggerMode "${dto.forwardTriggerMode}"`);
+    }
+
+    if (dto.forwardTriggerMode === 'AFTER_QUEUE_WAIT' || dto.forwardTriggerMode === 'SMART_NO_READY') {
+      if (!did.directQueue) {
+        throw new BadRequestException('Queue-based forwarding conditions require the DID to use a direct queue');
+      }
+      if (dto.forwardType === 'QUEUE' && dto.targetValue === did.directQueue) {
+        throw new BadRequestException('Queue-based forwarding cannot target the same queue as the DID default queue');
+      }
+    }
+
+    if (dto.forwardTriggerMode === 'AFTER_QUEUE_WAIT' && !dto.queueWaitSeconds) {
+      throw new BadRequestException('queueWaitSeconds is required for AFTER_QUEUE_WAIT');
+    }
   }
 
   private normalizeForwardingRuleInput(dto: CreateForwardingRuleDto | UpdateForwardingRuleDto) {
-    const conditionType = dto.conditionType ?? 'ALWAYS';
-    if (!FORWARDING_CONDITION_TYPES.has(conditionType)) {
-      throw new BadRequestException(`Unsupported conditionType "${conditionType}"`);
+    if (!FORWARDING_TYPES.has(dto.forwardType)) {
+      throw new BadRequestException(`Unsupported forwardType "${dto.forwardType}"`);
     }
 
-    const normalizedDays = this.normalizeWeekdays(dto.daysOfWeek);
-    const normalized = {
-      didId: dto.didId,
-      forwardType: dto.forwardType,
-      targetValue: dto.targetValue.trim(),
-      conditionType,
-      timeStart: dto.timeStart?.trim() ?? null,
-      timeEnd: dto.timeEnd?.trim() ?? null,
-      daysOfWeek: normalizedDays.length > 0 ? normalizedDays.join(',') : null,
-      description: dto.description?.trim() || null,
-      enabled: dto.enabled ?? true,
-    };
+    const forwardTriggerMode =
+      dto.forwardTriggerMode === 'AFTER_QUEUE_WAIT' || dto.forwardTriggerMode === 'SMART_NO_READY'
+        ? dto.forwardTriggerMode
+        : 'IMMEDIATE';
 
-    if (conditionType === 'TIME_RANGE') {
-      if (!normalized.timeStart || !normalized.timeEnd || !normalized.daysOfWeek) {
-        throw new BadRequestException('timeStart, timeEnd, and daysOfWeek are required for TIME_RANGE');
-      }
-      if (normalized.timeStart >= normalized.timeEnd) {
-        throw new BadRequestException('timeStart must be earlier than timeEnd');
-      }
-      return normalized;
-    }
+    const targetValue =
+      dto.forwardType === 'EXTERNAL_NUMBER'
+        ? dto.targetValue.replace(/\D/g, '')
+        : dto.targetValue.trim();
+
+    const schedules = this.normalizeForwardingSchedules(dto);
+    const primarySchedule = schedules.length === 1 ? schedules[0] : null;
 
     return {
-      ...normalized,
-      timeStart: null,
-      timeEnd: null,
-      daysOfWeek: null,
-    };
+      didId: dto.didId,
+      forwardType: dto.forwardType,
+      targetValue,
+      forwardTriggerMode,
+      queueWaitSeconds:
+        forwardTriggerMode === 'AFTER_QUEUE_WAIT'
+          ? dto.queueWaitSeconds ?? null
+          : null,
+      stickyCallbackWindowMinutes: dto.stickyCallbackWindowMinutes ?? null,
+      conditionType: primarySchedule?.conditionType ?? 'TIME_RANGE',
+      timeStart: primarySchedule?.conditionType === 'TIME_RANGE' ? primarySchedule.timeStart : null,
+      timeEnd: primarySchedule?.conditionType === 'TIME_RANGE' ? primarySchedule.timeEnd : null,
+      daysOfWeek:
+        primarySchedule?.conditionType === 'TIME_RANGE'
+          ? primarySchedule.daysOfWeek.join(',')
+          : null,
+      scheduleJson: JSON.stringify(schedules),
+      description: dto.description?.trim() || null,
+      enabled: dto.enabled ?? true,
+    } satisfies NormalizedForwardingRule;
   }
 
   private normalizeWeekdays(daysOfWeek?: string[]) {
@@ -635,10 +877,141 @@ export class AsteriskConfigService {
     return WEEKDAY_ORDER.filter((day) => deduped.includes(day));
   }
 
-  private mapForwardingRule<T extends { daysOfWeek: string | null }>(rule: T) {
+  private normalizeForwardingSchedules(
+    dto: CreateForwardingRuleDto | UpdateForwardingRuleDto,
+  ): NormalizedForwardingSchedule[] {
+    const schedules =
+      dto.schedules && dto.schedules.length > 0
+        ? dto.schedules
+        : [
+            {
+              conditionType: dto.conditionType ?? 'ALWAYS',
+              timeStart: dto.timeStart,
+              timeEnd: dto.timeEnd,
+              daysOfWeek: dto.daysOfWeek ?? [],
+            },
+          ];
+
+    const normalized = schedules.map((schedule) => {
+      const conditionType = schedule.conditionType ?? 'ALWAYS';
+      if (!FORWARDING_CONDITION_TYPES.has(conditionType)) {
+        throw new BadRequestException(`Unsupported conditionType "${conditionType}"`);
+      }
+
+      if (conditionType === 'ALWAYS') {
+        return {
+          conditionType: 'ALWAYS' as const,
+          timeStart: null,
+          timeEnd: null,
+          daysOfWeek: [],
+        };
+      }
+
+      const timeStart = schedule.timeStart?.trim() ?? null;
+      const timeEnd = schedule.timeEnd?.trim() ?? null;
+      const daysOfWeek = this.normalizeWeekdays(schedule.daysOfWeek);
+
+      if (!timeStart || !timeEnd || daysOfWeek.length === 0) {
+        throw new BadRequestException('timeStart, timeEnd, and daysOfWeek are required for TIME_RANGE');
+      }
+      if (timeStart >= timeEnd) {
+        throw new BadRequestException('timeStart must be earlier than timeEnd');
+      }
+
+      return {
+        conditionType: 'TIME_RANGE' as const,
+        timeStart,
+        timeEnd,
+        daysOfWeek,
+      };
+    });
+
+    if (normalized.some((item) => item.conditionType === 'ALWAYS') && normalized.length > 1) {
+      throw new BadRequestException('ALWAYS condition cannot be combined with other schedules');
+    }
+
+    return normalized;
+  }
+
+  private parseForwardingSchedules(rule: {
+    conditionType: string;
+    timeStart: string | null;
+    timeEnd: string | null;
+    daysOfWeek: string | null;
+    scheduleJson?: string | null;
+  }): NormalizedForwardingSchedule[] {
+    if (rule.scheduleJson) {
+      try {
+        const parsed = JSON.parse(rule.scheduleJson) as Array<{
+          conditionType: string;
+          timeStart?: string | null;
+          timeEnd?: string | null;
+          daysOfWeek?: string[];
+        }>;
+
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => {
+              if (item.conditionType === 'ALWAYS') {
+                return {
+                  conditionType: 'ALWAYS' as const,
+                  timeStart: null,
+                  timeEnd: null,
+                  daysOfWeek: [],
+                };
+              }
+              const days = this.normalizeWeekdays(item.daysOfWeek);
+              return {
+                conditionType: 'TIME_RANGE' as const,
+                timeStart: item.timeStart ?? null,
+                timeEnd: item.timeEnd ?? null,
+                daysOfWeek: days,
+              };
+            })
+            .filter((item) => item.conditionType === 'ALWAYS' || (item.timeStart && item.timeEnd && item.daysOfWeek.length > 0));
+        }
+      } catch {
+        // fall through to legacy fields
+      }
+    }
+
+    if (rule.conditionType === 'TIME_RANGE' && rule.timeStart && rule.timeEnd && rule.daysOfWeek) {
+      return [
+        {
+          conditionType: 'TIME_RANGE',
+          timeStart: rule.timeStart,
+          timeEnd: rule.timeEnd,
+          daysOfWeek: rule.daysOfWeek.split(',').filter(Boolean),
+        },
+      ];
+    }
+
+    return [
+      {
+        conditionType: 'ALWAYS',
+        timeStart: null,
+        timeEnd: null,
+        daysOfWeek: [],
+      },
+    ];
+  }
+
+  private mapForwardingRule<T extends ForwardingRuleBase>(rule: T): ForwardingRuleView<T> {
+    const schedules = this.parseForwardingSchedules(rule);
+    const primary = schedules[0];
     return {
       ...rule,
-      daysOfWeek: rule.daysOfWeek ? rule.daysOfWeek.split(',').filter(Boolean) : [],
+      forwardTriggerMode:
+        rule.forwardTriggerMode === 'AFTER_QUEUE_WAIT' || rule.forwardTriggerMode === 'SMART_NO_READY'
+          ? rule.forwardTriggerMode
+          : 'IMMEDIATE',
+      queueWaitSeconds: rule.queueWaitSeconds ?? null,
+      stickyCallbackWindowMinutes: rule.stickyCallbackWindowMinutes ?? null,
+      conditionType: primary?.conditionType ?? 'ALWAYS',
+      timeStart: primary?.conditionType === 'TIME_RANGE' ? primary.timeStart : null,
+      timeEnd: primary?.conditionType === 'TIME_RANGE' ? primary.timeEnd : null,
+      daysOfWeek: primary?.conditionType === 'TIME_RANGE' ? primary.daysOfWeek : [],
+      schedules,
     };
   }
 
@@ -660,11 +1033,11 @@ export class AsteriskConfigService {
     return this.prisma.asteriskPrompt.create({
       data: {
         tenantId,
-        promptKey: dto.promptKey,
-        displayName: dto.displayName,
-        fileName: dto.fileName,
-        category: dto.category ?? 'ivr',
-        description: dto.description,
+        promptKey: dto.promptKey.trim(),
+        displayName: dto.displayName.trim(),
+        fileName: dto.fileName.trim(),
+        category: dto.category?.trim() || 'ivr',
+        description: dto.description?.trim() || null,
         isActive: dto.isActive ?? true,
       },
     });
@@ -682,11 +1055,11 @@ export class AsteriskConfigService {
         await tx.asteriskPrompt.update({
           where: { id },
           data: {
-            promptKey: dto.promptKey,
-            displayName: dto.displayName,
-            fileName: dto.fileName,
-            category: dto.category ?? 'ivr',
-            description: dto.description,
+            promptKey: dto.promptKey.trim(),
+            displayName: dto.displayName.trim(),
+            fileName: dto.fileName.trim(),
+            category: dto.category?.trim() || 'ivr',
+            description: dto.description?.trim() || null,
             isActive: dto.isActive ?? true,
           },
         });
@@ -706,13 +1079,117 @@ export class AsteriskConfigService {
     return this.prisma.asteriskPrompt.update({
       where: { id },
       data: {
-        displayName: dto.displayName,
-        fileName: dto.fileName,
-        category: dto.category ?? 'ivr',
-        description: dto.description,
+        displayName: dto.displayName.trim(),
+        fileName: dto.fileName.trim(),
+        category: dto.category?.trim() || 'ivr',
+        description: dto.description?.trim() || null,
         isActive: dto.isActive ?? true,
       },
     });
+  }
+
+  async uploadPromptAudio(tenantId: string, file?: UploadedPromptAudioFile) {
+    if (!file) {
+      throw new BadRequestException('업로드할 음성 파일이 없습니다.');
+    }
+
+    const originalExt = path.extname(file.originalname || '').toLowerCase();
+    if (!PROMPT_AUDIO_EXTENSIONS.has(originalExt)) {
+      throw new BadRequestException('wav, mp3, gsm, ulaw, alaw 파일만 업로드할 수 있습니다.');
+    }
+
+    const soundsDir = this.resolvePromptSoundsDir();
+    if (!fs.existsSync(soundsDir)) {
+      throw new InternalServerErrorException(`Asterisk sounds directory "${soundsDir}" does not exist.`);
+    }
+
+    const rawBaseName = path.basename(file.originalname, originalExt);
+    const safeBaseName = rawBaseName
+      .normalize('NFKD')
+      .replace(/[^A-Za-z0-9_-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
+
+    if (!safeBaseName) {
+      throw new BadRequestException('파일명에서 사용할 수 있는 영문/숫자 이름이 없습니다.');
+    }
+
+    const storedFileName = `${safeBaseName}${originalExt}`;
+    for (const targetDir of this.resolvePromptTargetDirs(soundsDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      const targetPath = path.join(targetDir, storedFileName);
+      fs.writeFileSync(targetPath, file.buffer);
+      this.writePromptPlaybackArtifacts(targetDir, safeBaseName, originalExt, file.buffer);
+    }
+
+    return {
+      fileName: storedFileName,
+      promptKey: `custom/${safeBaseName}`,
+      bytes: file.size,
+    };
+  }
+
+  private resolvePromptSoundsDir() {
+    const configured = this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom');
+    if (!path.isAbsolute(configured)) {
+      throw new InternalServerErrorException(`ASTERISK_SOUNDS_DIR must be an absolute path, got "${configured}"`);
+    }
+    return configured;
+  }
+
+  private resolvePromptTargetDirs(soundsDir: string) {
+    const rootSoundsDir = path.dirname(soundsDir);
+    const customDirName = path.basename(soundsDir);
+    const languageCustomDir = path.join(rootSoundsDir, 'en', customDirName);
+    return [...new Set([soundsDir, languageCustomDir])];
+  }
+
+  private writePromptPlaybackArtifacts(
+    soundsDir: string,
+    safeBaseName: string,
+    originalExt: string,
+    buffer: Buffer,
+  ) {
+    const ulawPath = path.join(soundsDir, `${safeBaseName}.ulaw`);
+    const alawPath = path.join(soundsDir, `${safeBaseName}.alaw`);
+
+    if (originalExt !== '.ulaw' && fs.existsSync(ulawPath)) {
+      fs.rmSync(ulawPath);
+    }
+    if (originalExt !== '.alaw' && fs.existsSync(alawPath)) {
+      fs.rmSync(alawPath);
+    }
+
+    if (originalExt === '.ulaw') {
+      fs.writeFileSync(alawPath, convertLawPayload(buffer, 'ulaw', 'alaw'));
+      return;
+    }
+
+    if (originalExt === '.alaw') {
+      fs.writeFileSync(ulawPath, convertLawPayload(buffer, 'alaw', 'ulaw'));
+      return;
+    }
+
+    if (originalExt !== '.wav') {
+      return;
+    }
+
+    const parsed = parseWavAudio(buffer);
+    if (!parsed) {
+      return;
+    }
+
+    if (parsed.formatTag === 7) {
+      fs.writeFileSync(ulawPath, parsed.data);
+      fs.writeFileSync(alawPath, convertLawPayload(parsed.data, 'ulaw', 'alaw'));
+      return;
+    }
+
+    if (parsed.formatTag === 6) {
+      fs.writeFileSync(alawPath, parsed.data);
+      fs.writeFileSync(ulawPath, convertLawPayload(parsed.data, 'alaw', 'ulaw'));
+    }
   }
 
   async deletePrompt(tenantId: string, id: string) {

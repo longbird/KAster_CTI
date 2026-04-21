@@ -22,11 +22,11 @@ export function AppLayout() {
   const allowedPaths = usePermissionStore((s) => s.allowedPaths);
   const loaded = usePermissionStore((s) => s.loaded);
   const loading = usePermissionStore((s) => s.loading);
-  const loadForRole = usePermissionStore((s) => s.loadForRole);
+  const loadForAgent = usePermissionStore((s) => s.loadForAgent);
 
   useEffect(() => {
-    void loadForRole(agent?.role);
-  }, [agent?.role, loadForRole]);
+    void loadForAgent(agent);
+  }, [agent, loadForAgent]);
 
   const screens = Grid.useBreakpoint();
   const isMobile = screens.md === false;

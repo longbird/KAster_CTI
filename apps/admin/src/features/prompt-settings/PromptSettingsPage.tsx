@@ -68,7 +68,7 @@ export function PromptSettingsPage() {
             멘트 관리
           </Typography.Title>
           <Typography.Text type="secondary">
-            PBX Playback에서 사용하는 프롬프트 메타데이터를 관리합니다. 실제 음성 파일 배포는 운영 절차로 따로 관리합니다.
+            PBX Playback에서 사용하는 멘트 정보와 음성 파일을 관리합니다.
           </Typography.Text>
         </div>
         {promptPermission?.canCreate !== false ? (
@@ -141,7 +141,7 @@ export function PromptSettingsPage() {
         <Space>
           <SoundOutlined />
           <Typography.Text type="secondary">
-            IVR 메뉴에서 사용하는 멘트는 여기 등록된 활성 프롬프트만 선택할 수 있습니다.
+            활성 멘트만 IVR 메뉴에서 선택할 수 있습니다.
           </Typography.Text>
         </Space>
       </div>

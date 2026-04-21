@@ -57,6 +57,16 @@ const STATUS_COLOR: Record<string, string> = {
   TALKING: 'green',
   AFTER_CALL_WORK: 'purple',
   TRANSFERRING: 'cyan',
+  ENDED: 'default',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  QUEUED: '대기열',
+  RINGING_AGENT: '벨 울림',
+  TALKING: '통화 중',
+  AFTER_CALL_WORK: '후처리',
+  TRANSFERRING: '전환 중',
+  ENDED: '종료',
 };
 
 const TRANSFER_PHASE_COLOR: Record<string, string> = {
@@ -68,6 +78,26 @@ const TRANSFER_PHASE_COLOR: Record<string, string> = {
   FAILED: 'red',
   EXPIRED: 'orange',
 };
+
+const TRANSFER_PHASE_LABEL: Record<string, string> = {
+  REQUESTED: '요청됨',
+  CONSULT_RINGING: '협의 호출',
+  CONSULT_TALKING: '협의 통화',
+  REBRIDGING: '재연결 중',
+  COMPLETED: '완료',
+  FAILED: '실패',
+  EXPIRED: '만료',
+};
+
+function getStatusLabel(value?: string | null) {
+  if (!value) return '-';
+  return STATUS_LABEL[value] ?? '알 수 없음';
+}
+
+function getTransferPhaseLabel(value?: string | null) {
+  if (!value) return '-';
+  return TRANSFER_PHASE_LABEL[value] ?? '알 수 없음';
+}
 
 function fmtDateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-';
@@ -155,12 +185,12 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
             <Descriptions.Item label="큐">{detail.queueName ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="상담원">{detail.agentName || detail.primaryAgentId || '-'}</Descriptions.Item>
             <Descriptions.Item label="상태">
-              <Tag color={STATUS_COLOR[detail.sessionStatus] ?? 'default'}>{detail.sessionStatus}</Tag>
+              <Tag color={STATUS_COLOR[detail.sessionStatus] ?? 'default'}>{getStatusLabel(detail.sessionStatus)}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="전환 상태">
               {detail.transferCandidates?.[0] ? (
                 <Tag color={TRANSFER_PHASE_COLOR[detail.transferCandidates[0].phase] ?? 'default'}>
-                  {detail.transferCandidates[0].phase}
+                  {getTransferPhaseLabel(detail.transferCandidates[0].phase)}
                 </Tag>
               ) : (
                 '-'
@@ -188,7 +218,7 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
                         <Typography.Text>
                           {item.fromExtension ?? '-'} → {item.toExtension ?? '-'}
                         </Typography.Text>
-                        <Tag color={TRANSFER_PHASE_COLOR[item.phase] ?? 'default'}>{item.phase}</Tag>
+                        <Tag color={TRANSFER_PHASE_COLOR[item.phase] ?? 'default'}>{getTransferPhaseLabel(item.phase)}</Tag>
                       </div>
                       <Typography.Text type="secondary">
                         요청 {fmtDateTime(item.requestedAt)}
@@ -221,7 +251,7 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
                           {item.transferType} / {item.fromExtension ?? '-'} → {item.toExtension ?? '-'}
                         </Typography.Text>
                         <Tag color={TRANSFER_PHASE_COLOR[item.transferResult ?? 'REQUESTED'] ?? 'default'}>
-                          {item.transferResult ?? 'REQUESTED'}
+                          {getTransferPhaseLabel(item.transferResult ?? 'REQUESTED')}
                         </Tag>
                       </div>
                       <Typography.Text type="secondary">

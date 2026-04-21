@@ -39,6 +39,7 @@ model tenants {
   branchQueues        branchQueues[]
   branchDids          branchDids[]
   rolePermissions     rolePermissions[]
+  agentMenuPermissions agentMenuPermissions[]
   tenantSystemSettings tenantSystemSettings[]
   forwardingRules     asteriskForwardingRules[]
   asteriskPrompts     AsteriskPrompt[]
@@ -79,6 +80,7 @@ model agents {
   transfersFrom      callTransfers[] @relation("transfer_from")
   transfersTo        callTransfers[] @relation("transfer_to")
   refreshTokens      refreshTokens[]
+  menuPermissions    agentMenuPermissions[]
 
   @@unique([tenantId, loginId])
   @@unique([tenantId, agentCode])
@@ -447,6 +449,7 @@ model branches {
   branchCode    String   @db.VarChar(32)
   branchName    String   @db.VarChar(128)
   description   String?
+  settingsProfile Json?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @default(now()) @db.Timestamptz(6)
@@ -526,6 +529,28 @@ model rolePermissions {
   @@index([tenantId, roleCode])
 }
 
+model agentMenuPermissions {
+  agentMenuPermissionId String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  agentId               String   @db.Uuid
+  menuKey               String   @db.VarChar(128)
+  canAccess             Boolean  @default(true)
+  canView               Boolean  @default(true)
+  canCreate             Boolean  @default(false)
+  canUpdate             Boolean  @default(false)
+  canDelete             Boolean  @default(false)
+  canOperate            Boolean  @default(false)
+  canExport             Boolean  @default(false)
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant                tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  agent                 agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([tenantId, agentId, menuKey])
+  @@index([tenantId, agentId])
+}
+
 model tenantSystemSettings {
   tenantSystemSettingId  String   @id @default(uuid()) @db.Uuid
   tenantId               String   @db.Uuid
@@ -589,10 +614,14 @@ model asteriskForwardingRules {
   didId          String      @unique @db.Uuid
   forwardType    String      @db.VarChar(16)
   targetValue    String      @db.VarChar(64)
+  forwardTriggerMode String  @default("IMMEDIATE") @db.VarChar(32)
+  queueWaitSeconds Int?
+  stickyCallbackWindowMinutes Int?
   conditionType  String      @default("ALWAYS") @db.VarChar(16)
   timeStart      String?     @db.VarChar(5)
   timeEnd        String?     @db.VarChar(5)
   daysOfWeek     String?     @db.VarChar(32)
+  scheduleJson   String?     @db.Text
   description    String?     @db.VarChar(255)
   enabled        Boolean     @default(true)
   createdAt      DateTime    @default(now()) @db.Timestamptz(6)

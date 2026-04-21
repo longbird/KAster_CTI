@@ -60,6 +60,20 @@ export const createPrompt = (dto: Omit<AsteriskPrompt, 'id'>) =>
   axios.post<{ data: AsteriskPrompt }>(`${base}/prompts`, dto, { headers: headers() }).then(r => r.data.data);
 export const updatePrompt = (id: string, dto: Omit<AsteriskPrompt, 'id'>) =>
   axios.put<{ data: AsteriskPrompt }>(`${base}/prompts/${id}`, dto, { headers: headers() }).then(r => r.data.data);
+export const uploadPromptAudio = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return axios.post<{ data: { fileName: string; promptKey: string; bytes: number } }>(
+    `${base}/prompts/upload`,
+    formData,
+    {
+      headers: {
+        ...headers(),
+        'Content-Type': 'multipart/form-data',
+      },
+    },
+  ).then(r => r.data.data);
+};
 export const deletePrompt = (id: string) =>
   axios.delete(`${base}/prompts/${id}`, { headers: headers() });
 

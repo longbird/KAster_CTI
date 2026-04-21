@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KASTER CTI — Full + Mini 목업</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:#050a10;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  color:#e6edf3; font-size:13px;
+  min-height:100vh;
+  padding:32px 24px 48px;
+  display:flex; flex-direction:column; align-items:center;
+}
+h1 { color:#e6edf3; font-size:18px; font-weight:700; margin-bottom:4px; }
+.meta { color:#8b949e; font-size:12px; margin-bottom:32px; }
+
+.row { display:flex; gap:40px; align-items:flex-start; justify-content:center; width:100%; }
+.col { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.col-label { color:#8b949e; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; }
+
+/* ────────────── FULL SHELL ────────────── */
+.app-shell {
+  width:860px; height:600px;
+  background:#0d1117;
+  border-radius:12px;
+  border:1px solid #21262d;
+  box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 0 1px #21262d;
+  display:flex; overflow:hidden;
+}
+.sidebar {
+  width:54px; background:#010409;
+  border-right:1px solid #21262d;
+  display:flex; flex-direction:column; align-items:center;
+  padding:14px 0 12px; flex-shrink:0;
+}
+.sidebar-logo {
+  width:30px;height:30px;
+  background:linear-gradient(135deg,#059669,#34d399);
+  border-radius:8px; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:11px;
+  box-shadow:0 4px 12px rgba(52,211,153,.35);
+  margin-bottom:18px;
+}
+.sidebar-nav { display:flex;flex-direction:column;gap:4px;width:100%;padding:0 7px; }
+.ni { width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8b949e;margin:0 auto;position:relative; }
+.ni.act { background:rgba(52,211,153,.12);color:#34d399; }
+.ni.act::before { content:'';position:absolute;left:-7px;top:50%;transform:translateY(-50%);width:3px;height:18px;background:#34d399;border-radius:0 3px 3px 0; }
+.sb-bot { margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 7px; }
+.avatar { width:30px;height:30px;background:#21262d;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#34d399;font-size:10px;font-weight:700;border:1.5px solid #34d39933; }
+.main { flex:1;display:flex;flex-direction:column;overflow:hidden; }
+.topbar { height:46px;background:#010409;border-bottom:1px solid #21262d;display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0; }
+.topbar-title { color:#e6edf3;font-weight:600;font-size:13px;flex:1; }
+.status-pill { display:flex;align-items:center;gap:5px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:20px;padding:4px 9px 4px 7px;cursor:pointer; }
+.sdot { width:6px;height:6px;background:#34d399;border-radius:50%;box-shadow:0 0 6px #34d399;animation:pulse 2s infinite; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.slabel { color:#34d399;font-size:11px;font-weight:600; }
+.ainfo { color:#8b949e;font-size:11px; }
+.content { flex:1;display:flex;overflow:hidden; }
+
+/* call list */
+.cl-panel { width:220px;flex-shrink:0;border-right:1px solid #21262d;display:flex;flex-direction:column;background:#0d1117; }
+.ph { padding:10px 12px 8px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between; }
+.pt { color:#8b949e;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em; }
+.cbadge { background:rgba(52,211,153,.15);color:#34d399;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700; }
+.sbox { margin:8px 8px 0;background:#161b22;border:1px solid #21262d;border-radius:6px;padding:6px 9px;display:flex;align-items:center;gap:6px;color:#484f58;font-size:10px; }
+.frow { margin:6px 8px;display:flex;gap:5px; }
+.fchip { background:#161b22;border:1px solid #21262d;border-radius:4px;padding:3px 7px;color:#8b949e;font-size:9px;cursor:pointer; }
+.fchip.act { border-color:#34d39944;color:#34d399;background:rgba(52,211,153,.08); }
+.clist { flex:1;overflow-y:auto;padding:4px 8px 8px;display:flex;flex-direction:column;gap:5px; }
+.cc { background:#161b22;border:1px solid #21262d;border-radius:7px;padding:9px 10px;cursor:pointer; }
+.cc.sel { border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.05); }
+.cc-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:3px; }
+.st-t { color:#34d399;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
+.st-r { color:#d29922;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
+.st-q { color:#8b949e;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
+.cnum { color:#e6edf3;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums; }
+.cmeta { color:#8b949e;font-size:9px;margin-top:2px;display:flex;justify-content:space-between; }
+.ctimer { color:#34d399;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums; }
+
+/* work panel */
+.wp { flex:1;display:flex;flex-direction:column;overflow:hidden;background:#0d1117; }
+.wh { padding:12px 16px 10px;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:10px; }
+.wt { color:#8b949e;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;flex:1; }
+.wbadge { background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25);border-radius:4px;padding:2px 7px;font-size:9px;font-weight:600; }
+.wb { flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px; }
+.hero { background:linear-gradient(135deg,#0d2818,#0a1f14);border:1px solid rgba(52,211,153,.2);border-radius:9px;padding:14px 16px;display:flex;align-items:center;gap:14px; }
+.cav { width:44px;height:44px;background:rgba(52,211,153,.1);border:1.5px solid rgba(52,211,153,.25);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#34d399;font-size:20px;flex-shrink:0; }
+.cinfo { flex:1; }
+.cname { color:#e6edf3;font-size:13px;font-weight:700;margin-bottom:1px; }
+.csub { color:#8b949e;font-size:10px; }
+.ctimer-hero { color:#34d399;font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.03em;text-align:right;line-height:1;text-shadow:0 0 20px rgba(52,211,153,.4); }
+.ctlabel { color:#8b949e;font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;text-align:right;margin-top:2px; }
+.ctrls { display:flex;gap:7px;align-items:center; }
+.cbtn { width:36px;height:36px;border-radius:7px;background:#161b22;border:1px solid #30363d;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8b949e; }
+.cbtn-p { height:36px;padding:0 13px;border-radius:7px;background:#059669;border:none;color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px; }
+.cbtn-d { height:36px;padding:0 13px;border-radius:7px;background:#21262d;border:1px solid #da363344;color:#f85149;font-size:11px;font-weight:600;cursor:pointer;margin-left:auto;display:flex;align-items:center;gap:5px; }
+.divider { border:none;border-top:1px solid #21262d; }
+.tabs { display:flex;gap:0;border-bottom:1px solid #21262d;margin:0 -16px;padding:0 16px; }
+.tab { padding:8px 12px;font-size:11px;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500; }
+.tab.act { color:#34d399;border-bottom-color:#34d399; }
+.fgrp { display:flex;flex-direction:column;gap:4px; }
+.flabel { color:#8b949e;font-size:9px;font-weight:600;letter-spacing:.04em; }
+.finput { background:#161b22;border:1px solid #30363d;border-radius:6px;padding:7px 10px;color:#e6edf3;font-size:11px;width:100%; }
+.frow2 { display:flex;gap:8px; }
+.ftextarea { background:#161b22;border:1px solid #30363d;border-radius:6px;padding:7px 10px;color:#e6edf3;font-size:11px;width:100%;resize:none;height:60px; }
+.savebtn { margin-left:auto;display:flex;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer; }
+
+/* kpi strip */
+.kpi-p { width:170px;flex-shrink:0;border-left:1px solid #21262d;display:flex;flex-direction:column;background:#0d1117; }
+.kpi-list { padding:8px;display:flex;flex-direction:column;gap:6px; }
+.kpi-item { background:#161b22;border-radius:6px;padding:8px 10px;border:1px solid #21262d; }
+.kv { color:#e6edf3;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums; }
+.kl { color:#8b949e;font-size:9px;margin-top:1px; }
+.kdu { color:#34d399;font-size:9px;font-weight:600; }
+.kdd { color:#f85149;font-size:9px;font-weight:600; }
+.kdw { color:#d29922;font-size:9px;font-weight:600; }
+
+/* ────────────── MINI SHELL ────────────── */
+.mini-shell {
+  width:400px;
+  background:#0d1117;
+  border-radius:20px;
+  border:1px solid #21262d;
+  box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 0 1px #21262d;
+  overflow:hidden;
+}
+.mini-header {
+  background:#010409;
+  border-bottom:1px solid #21262d;
+  padding:14px 16px;
+}
+.mini-logo-row { display:flex;align-items:center;gap:10px; }
+.mini-logo { width:36px;height:36px;background:linear-gradient(135deg,#059669,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(52,211,153,.35); }
+.mini-brand { color:#34d399;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em; }
+.mini-agent { color:#e6edf3;font-size:13px;font-weight:700;margin-top:1px; }
+.mini-sub { color:#8b949e;font-size:10px;margin-top:1px; }
+.mini-header-btns { margin-left:auto;display:flex;align-items:center;gap:6px; }
+.mini-icon-btn { width:32px;height:32px;background:#161b22;border:1px solid #21262d;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8b949e;font-size:13px; }
+.mini-status-row { margin-top:12px;background:#161b22;border:1px solid #21262d;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between; }
+.mini-status-info .st-label { color:#8b949e;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
+.mini-status-info p { color:#8b949e;font-size:10px;margin-top:3px; }
+.mini-status-pill { display:flex;align-items:center;gap:6px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:20px;padding:6px 12px;cursor:pointer; }
+.mini-body { padding:12px 14px;display:flex;flex-direction:column;gap:10px; }
+
+/* summary grid */
+.mini-summary { display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px; }
+.mini-stat { background:#161b22;border:1px solid #21262d;border-radius:9px;padding:8px 10px; }
+.msl { color:#8b949e;font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
+.msv { color:#e6edf3;font-size:12px;font-weight:700;margin-top:4px; }
+
+/* active call card (gradient) */
+.mini-call-card {
+  background:linear-gradient(145deg,#052e1a 0%,#041a0f 100%);
+  border:1px solid rgba(52,211,153,.25);
+  border-radius:14px;padding:14px;
+  position:relative;overflow:hidden;
+}
+.mini-call-card::before { content:'';position:absolute;left:-20px;top:10px;width:80px;height:80px;background:rgba(52,211,153,.08);border-radius:50%;filter:blur(20px); }
+.mini-call-card::after { content:'';position:absolute;right:-15px;bottom:-10px;width:100px;height:100px;background:rgba(0,0,0,.15);border-radius:50%;filter:blur(25px); }
+.mc-top { display:flex;align-items:flex-start;gap:10px;position:relative;z-index:1; }
+.mc-ava { width:44px;height:44px;background:rgba(52,211,153,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#34d399;font-size:20px;flex-shrink:0;border:1.5px solid rgba(52,211,153,.2); }
+.mc-info { flex:1; }
+.mc-tags { display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px; }
+.mc-tag { background:rgba(52,211,153,.15);color:#34d399;border-radius:20px;padding:3px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
+.mc-name { color:#fff;font-size:16px;font-weight:800;margin-bottom:2px; }
+.mc-num { color:rgba(255,255,255,.6);font-size:11px; }
+.mc-stats { display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;position:relative;z-index:1; }
+.mc-stat { background:rgba(255,255,255,.08);border-radius:8px;padding:8px 10px;backdrop-filter:blur(4px); }
+.mc-st-label { color:rgba(255,255,255,.55);font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
+.mc-st-val { display:flex;align-items:center;gap:6px;margin-top:4px; }
+.mc-timer { color:#fff;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums; }
+.wv { display:flex;align-items:flex-end;gap:2px;height:14px; }
+.wb1 { width:3px;background:#34d399;border-radius:2px;animation:wv .8s ease-in-out infinite; }
+@keyframes wv{0%,100%{height:4px}50%{height:12px}}
+.mc-st-val2 { color:#fff;font-size:12px;font-weight:700;margin-top:4px; }
+
+/* mini controls */
+.mini-ctrl-section { background:#161b22;border:1px solid #21262d;border-radius:12px;padding:11px 12px; }
+.mini-ctrl-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+.mcs-title { color:#8b949e;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
+.mcs-sub { color:#8b949e;font-size:9px;margin-top:2px; }
+.mini-ctrl-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
+.mcb {
+  min-height:70px;border-radius:10px;border:1px solid #30363d;background:#0d1117;
+  padding:10px 11px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;cursor:pointer;
+}
+.mcb.danger { border-color:rgba(218,54,51,.3);background:rgba(218,54,51,.12);color:#f85149; }
+.mcb-icon { font-size:16px;color:#8b949e; }
+.mcb.danger .mcb-icon { color:#f85149; }
+.mcb-label { color:#e6edf3;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em; }
+.mcb.danger .mcb-label { color:#f85149; }
+
+/* mini memo */
+.mini-memo { background:#161b22;border:1px solid #21262d;border-radius:12px;padding:11px 12px; }
+.mini-memo-header { margin-bottom:10px; }
+.mfrow { display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px; }
+.mfinput { background:#0d1117;border:1px solid #30363d;border-radius:7px;padding:7px 9px;color:#e6edf3;font-size:11px;width:100%; }
+.mftextarea { background:#0d1117;border:1px solid #30363d;border-radius:7px;padding:7px 9px;color:#e6edf3;font-size:11px;width:100%;resize:none;height:56px;margin-bottom:7px; }
+.mini-save-btn { width:100%;background:linear-gradient(135deg,#059669,#34d399);border:none;border-radius:9px;padding:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em; }
+
+/* mode switch badge */
+.mode-sw { background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:3px 8px;font-size:9px;font-weight:600;color:#34d399;cursor:pointer; }
+</style>
+</head>
+<body>
+
+<h1>KASTER CTI — Full &amp; Mini 모드 리디자인</h1>
+<p class="meta">다크 프로 · 에메랄드 (#34d399) · 아이콘 전용 사이드바</p>
+
+<div class="row">
+
+  <!-- ── FULL MODE ── -->
+  <div class="col">
+    <div class="col-label">Full 모드 (전체 화면)</div>
+    <div class="app-shell">
+
+      <div class="sidebar">
+        <div class="sidebar-logo">K</div>
+        <div class="sidebar-nav">
+          <div class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+          <div class="ni act"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.05 1.18 2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.1 7.82a16 16 0 006.08 6.08l1.18-1.18a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z"/></svg></div>
+          <div class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+          <div class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        </div>
+        <div class="sb-bot">
+          <div style="width:28px;height:28px;background:#161b22;border-radius:6px;border:1px solid #21262d;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:12px;">☀</div>
+          <div class="avatar">홍</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="topbar">
+          <span class="topbar-title">콜 센터</span>
+          <div class="status-pill">
+            <div class="sdot"></div>
+            <span class="slabel">대기 중</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" style="margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <span class="ainfo">홍길동 · 내선 1001</span>
+          <span class="mode-sw">미니 모드</span>
+        </div>
+
+        <div class="content">
+          <div class="cl-panel">
+            <div class="ph"><span class="pt">활성 통화</span><span class="cbadge">2</span></div>
+            <div class="sbox"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> 검색</div>
+            <div class="frow"><div class="fchip act">전체</div><div class="fchip">통화 중</div><div class="fchip">대기열</div></div>
+            <div class="clist">
+              <div class="cc sel">
+                <div class="cc-top"><span class="st-t">● 통화 중</span><span class="ctimer">05:09</span></div>
+                <div class="cnum">010-3462-3453</div>
+                <div class="cmeta"><span>sales</span><span>홍길동</span></div>
+              </div>
+              <div class="cc">
+                <div class="cc-top"><span class="st-r">◎ 벨 울림</span><span style="color:#8b949e;font-size:9px;">00:12</span></div>
+                <div class="cnum">미식별 고객</div>
+                <div class="cmeta"><span>support</span><span>—</span></div>
+              </div>
+              <div class="cc">
+                <div class="cc-top"><span class="st-q">◷ 대기열</span><span style="color:#8b949e;font-size:9px;">01:34</span></div>
+                <div class="cnum">010-9821-4400</div>
+                <div class="cmeta"><span>sales</span><span>—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="wp">
+            <div class="wh"><span class="wt">통화 작업면</span><span class="wbadge">● 통화 중</span></div>
+            <div class="wb">
+              <div class="hero">
+                <div class="cav">👤</div>
+                <div class="cinfo">
+                  <div class="cname">미식별 고객</div>
+                  <div class="csub">010-3462-3453 · sales 큐</div>
+                </div>
+                <div><div class="ctimer-hero">05:09</div><div class="ctlabel">통화시간</div></div>
+              </div>
+              <div class="ctrls">
+                <button class="cbtn-p"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07"/></svg>당겨받기</button>
+                <div class="cbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/><path d="M17 16.95A7 7 0 015 12v-2"/></svg></div>
+                <div class="cbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>
+                <div class="cbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/></svg></div>
+                <button class="cbtn-d"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7"/></svg>종료</button>
+              </div>
+              <hr class="divider">
+              <div>
+                <div class="tabs">
+                  <div class="tab act">메모 / 후처리</div>
+                  <div class="tab">제어</div>
+                  <div class="tab">상담 가이드</div>
+                </div>
+                <div style="padding-top:12px;display:flex;flex-direction:column;gap:8px;">
+                  <div class="frow2">
+                    <div class="fgrp" style="flex:1"><div class="flabel">처리 결과</div><select class="finput"><option>주문 완료</option></select></div>
+                    <div class="fgrp" style="flex:1"><div class="flabel">전환 내선</div><input class="finput" placeholder="예: 5501"></div>
+                  </div>
+                  <div class="fgrp"><div class="flabel">상담 메모</div><textarea class="ftextarea" placeholder="통화 내용을 입력하세요..."></textarea></div>
+                  <div style="display:flex;justify-content:flex-end;"><button class="savebtn">저장</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-p">
+            <div class="ph"><span class="pt">업무 현황</span></div>
+            <div class="kpi-list">
+              <div class="kpi-item"><div class="kv">24</div><div class="kl">오늘 응답</div><div class="kdu">▲ 3</div></div>
+              <div class="kpi-item"><div class="kv">2</div><div class="kl">포기 콜</div><div class="kdd">▼ 1</div></div>
+              <div class="kpi-item"><div class="kv" style="font-size:15px;">03:42</div><div class="kl">평균 통화시간</div></div>
+              <div class="kpi-item"><div class="kv">7</div><div class="kl">대기열</div><div class="kdw">▲ 2 급증</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MINI MODE ── -->
+  <div class="col">
+    <div class="col-label">Mini 모드 (440px 슬림)</div>
+    <div class="mini-shell">
+
+      <div class="mini-header">
+        <div class="mini-logo-row">
+          <div class="mini-logo">K</div>
+          <div>
+            <div class="mini-brand">Kaster CTI</div>
+            <div class="mini-agent">홍길동</div>
+            <div class="mini-sub">내선 1001 · 미니 운영 패널</div>
+          </div>
+          <div class="mini-header-btns">
+            <div class="mini-icon-btn">☀</div>
+            <div class="mini-icon-btn" style="font-size:11px;">⛶</div>
+            <div class="mini-icon-btn" style="color:#f85149;border-color:#da363333;">⏏</div>
+          </div>
+        </div>
+        <div class="mini-status-row">
+          <div class="mini-status-info">
+            <div class="st-label">현재 상태</div>
+            <p>실시간 PBX 동기화</p>
+          </div>
+          <div class="mini-status-pill">
+            <div class="sdot"></div>
+            <span class="slabel">대기 중</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" style="margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-body">
+
+        <div class="mini-summary">
+          <div class="mini-stat"><div class="msl">근무 상태</div><div class="msv">대기</div></div>
+          <div class="mini-stat"><div class="msl">현재 통화</div><div class="msv" style="color:#34d399;">통화 중</div></div>
+          <div class="mini-stat"><div class="msl">큐</div><div class="msv">sales</div></div>
+        </div>
+
+        <div class="mini-call-card">
+          <div class="mc-top">
+            <div class="mc-ava">👤</div>
+            <div class="mc-info">
+              <div class="mc-tags">
+                <span class="mc-tag">현재 통화</span>
+                <span class="mc-tag">sales</span>
+              </div>
+              <div class="mc-name">미식별 고객</div>
+              <div class="mc-num">010-3462-3453 · DID 0502-000-1234</div>
+            </div>
+          </div>
+          <div class="mc-stats">
+            <div class="mc-stat">
+              <div class="mc-st-label">통화 시간</div>
+              <div class="mc-st-val">
+                <span class="mc-timer">05:09</span>
+                <div class="wv">
+                  <div class="wb1" style="animation-delay:0s"></div>
+                  <div class="wb1" style="animation-delay:.15s"></div>
+                  <div class="wb1" style="animation-delay:.3s"></div>
+                  <div class="wb1" style="animation-delay:.45s"></div>
+                </div>
+              </div>
+            </div>
+            <div class="mc-stat">
+              <div class="mc-st-label">전환 상태</div>
+              <div class="mc-st-val2">진행 없음</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-ctrl-section">
+          <div class="mini-ctrl-header">
+            <div>
+              <div class="mcs-title">빠른 제어</div>
+              <div class="mcs-sub">현재 통화 기본 동작</div>
+            </div>
+          </div>
+          <div class="mini-ctrl-grid">
+            <div class="mcb">
+              <div class="mcb-icon">🎤</div>
+              <div class="mcb-label">음소거</div>
+            </div>
+            <div class="mcb">
+              <div class="mcb-icon">⏸</div>
+              <div class="mcb-label">보류</div>
+            </div>
+            <div class="mcb">
+              <div class="mcb-icon">↗</div>
+              <div class="mcb-label">전환</div>
+            </div>
+            <div class="mcb danger">
+              <div class="mcb-icon">📵</div>
+              <div class="mcb-label">종료</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-memo">
+          <div class="mini-memo-header">
+            <div class="mcs-title">메모 및 후처리</div>
+            <div class="mcs-sub" style="margin-top:2px;">전환 내선, 결과 코드, 메모 저장</div>
+          </div>
+          <div class="mfrow">
+            <div class="fgrp"><div class="flabel">결과</div><select class="mfinput"><option>주문 완료</option></select></div>
+            <div class="fgrp"><div class="flabel">전환 내선</div><input class="mfinput" placeholder="예: 1002"></div>
+          </div>
+          <div class="fgrp"><div class="flabel">메모</div></div>
+          <textarea class="mftextarea" placeholder="상담 메모"></textarea>
+          <button class="mini-save-btn">메모 저장</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="margin-top:28px;color:#8b949e;font-size:12px;text-align:center;max-width:800px;line-height:1.7;">
+  <strong style="color:#e6edf3;">Full 모드</strong>: 3패널(콜목록 · 작업면 · KPI) + 아이콘 전용 사이드바 · 탑바 상태 배지<br>
+  <strong style="color:#e6edf3;">Mini 모드</strong>: 400px 슬림 패널 · 그라디언트 통화 카드 · 파형 애니메이션 · 에메랄드 저장 버튼<br>
+  <strong style="color:#34d399;">승인하시면 구현 계획을 작성합니다.</strong> 수정이 필요하면 말씀해주세요.
+</p>
+
+</body>
+</html>

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { USE_MOCK } from '../config';
 import { apiClient } from '../shared/lib/apiClient';
 import { ADMIN_MENU_CONFIG, allLeafMenuKeys, menuKeyToPath } from '../shared/permissions/menuConfig';
+import type { AgentInfo } from './useAuthStore';
 
 interface RolePermissionEntry {
   menuKey: string;
@@ -13,21 +14,12 @@ interface RolePermissionEntry {
   canExport: boolean;
 }
 
-interface RoleMatrixRow {
-  roleCode: string;
-  permissions: RolePermissionEntry[];
-}
-
-interface PermissionPayload {
-  matrix: RoleMatrixRow[];
-}
-
 interface PermissionState {
   allowedPaths: string[];
   permissionsByMenu: Record<string, RolePermissionEntry>;
   loaded: boolean;
   loading: boolean;
-  loadForRole: (role: string | null | undefined) => Promise<void>;
+  loadForAgent: (agent: AgentInfo | null | undefined) => Promise<void>;
   clear: () => void;
 }
 
@@ -52,7 +44,8 @@ export const usePermissionStore = create<PermissionState>((set) => ({
       loaded: USE_MOCK,
       loading: false,
     }),
-  loadForRole: async (role) => {
+  loadForAgent: async (agent) => {
+    const role = agent?.role;
     if (USE_MOCK) {
       set({ allowedPaths: defaultAllowedPaths(role), permissionsByMenu: {}, loaded: true, loading: false });
       return;
@@ -65,14 +58,15 @@ export const usePermissionStore = create<PermissionState>((set) => ({
 
     set({ loading: true });
     try {
-      const res = await apiClient.get('/admin/settings/permissions');
-      const data = (res.data?.data ?? {}) as PermissionPayload;
-      const row = data.matrix?.find((item) => item.roleCode === role);
-      const allowedMenuKeys = row?.permissions
+      const res = await apiClient.get('/admin/settings/permissions/current');
+      const data = (res.data?.data ?? {}) as {
+        permissions?: RolePermissionEntry[];
+      };
+      const allowedMenuKeys = data.permissions
         ?.filter((item) => item.canView)
         .map((item) => item.menuKey) ?? [];
       const permissionsByMenu = Object.fromEntries(
-        (row?.permissions ?? []).map((item) => [item.menuKey, item]),
+        (data.permissions ?? []).map((item) => [item.menuKey, item]),
       );
       set({
         allowedPaths: allowedMenuKeys.map(menuKeyToPath),

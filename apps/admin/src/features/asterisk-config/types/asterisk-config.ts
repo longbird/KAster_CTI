@@ -95,12 +95,21 @@ export interface AgentSipRow {
 export interface AsteriskForwardingRule {
   id: string;
   didId: string;
-  forwardType: 'EXTENSION' | 'QUEUE';
+  forwardType: 'EXTENSION' | 'QUEUE' | 'EXTERNAL_NUMBER';
   targetValue: string;
+  forwardTriggerMode: 'IMMEDIATE' | 'AFTER_QUEUE_WAIT' | 'SMART_NO_READY';
+  queueWaitSeconds: number | null;
+  stickyCallbackWindowMinutes: number | null;
   conditionType: 'ALWAYS' | 'TIME_RANGE';
   timeStart: string | null;
   timeEnd: string | null;
   daysOfWeek: string[];
+  schedules: Array<{
+    conditionType: 'ALWAYS' | 'TIME_RANGE';
+    timeStart: string | null;
+    timeEnd: string | null;
+    daysOfWeek: string[];
+  }>;
   description: string | null;
   enabled: boolean;
   did: {

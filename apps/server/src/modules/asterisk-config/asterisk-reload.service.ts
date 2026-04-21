@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,19 +8,157 @@ import { AmiConnectionService } from '../ami/ami-connection.service';
 import { buildPickupGroupName, normalizeAgentRuntimeProfile } from './renderers/agent-settings';
 import { renderAgentDialplan } from './renderers/agent-dialplan.renderer';
 import { renderDialplan } from './renderers/dialplan.renderer';
+import { renderMusiconholdConf } from './renderers/musiconhold.renderer';
 import { renderPjsip } from './renderers/pjsip.renderer';
 import { renderQueuesConf } from './renderers/queues.renderer';
 
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean))];
+}
+
+function extractBranchPromptIds(settingsProfile: unknown): string[] {
+  if (!settingsProfile || typeof settingsProfile !== 'object' || Array.isArray(settingsProfile)) {
+    return [];
+  }
+
+  const source = settingsProfile as Record<string, unknown>;
+  const prompts = source.prompts && typeof source.prompts === 'object' && !Array.isArray(source.prompts)
+    ? source.prompts as Record<string, unknown>
+    : null;
+
+  if (!prompts || prompts.enabled !== true) {
+    return [];
+  }
+
+  return normalizeStringArray(prompts.ids);
+}
+
+function extractBranchPromptQueueDelaySeconds(settingsProfile: unknown): number {
+  if (!settingsProfile || typeof settingsProfile !== 'object' || Array.isArray(settingsProfile)) {
+    return 0;
+  }
+
+  const source = settingsProfile as Record<string, unknown>;
+  const prompts = source.prompts && typeof source.prompts === 'object' && !Array.isArray(source.prompts)
+    ? source.prompts as Record<string, unknown>
+    : null;
+
+  if (!prompts || prompts.enabled !== true) {
+    return 0;
+  }
+
+  if (typeof prompts.queueJoinDelaySeconds !== 'number' || !Number.isFinite(prompts.queueJoinDelaySeconds)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(300, Math.trunc(prompts.queueJoinDelaySeconds)));
+}
+
+function extractBranchPromptWaitForCompletion(settingsProfile: unknown): boolean {
+  if (!settingsProfile || typeof settingsProfile !== 'object' || Array.isArray(settingsProfile)) {
+    return false;
+  }
+
+  const source = settingsProfile as Record<string, unknown>;
+  const prompts = source.prompts && typeof source.prompts === 'object' && !Array.isArray(source.prompts)
+    ? source.prompts as Record<string, unknown>
+    : null;
+
+  if (!prompts || prompts.enabled !== true) {
+    return false;
+  }
+
+  return prompts.waitForPlaybackCompletionBeforeQueue === true;
+}
+
+function resolveDidPromptKeys(
+  branchMappings: Array<{
+    branch?: { isActive: boolean; settingsProfile: unknown } | null;
+  }>,
+  promptKeyById: Map<string, string>,
+): string[] {
+  for (const mapping of branchMappings) {
+    if (!mapping.branch?.isActive) {
+      continue;
+    }
+
+    const promptKeys = extractBranchPromptIds(mapping.branch.settingsProfile)
+      .map((promptId) => promptKeyById.get(promptId))
+      .filter((promptKey): promptKey is string => Boolean(promptKey));
+
+    if (promptKeys.length > 0) {
+      return [...new Set(promptKeys)];
+    }
+  }
+
+  return [];
+}
+
+function resolveDidPromptQueueDelaySeconds(
+  branchMappings: Array<{
+    branch?: { isActive: boolean; settingsProfile: unknown } | null;
+  }>,
+): number {
+  for (const mapping of branchMappings) {
+    if (!mapping.branch?.isActive) {
+      continue;
+    }
+
+    return extractBranchPromptQueueDelaySeconds(mapping.branch.settingsProfile);
+  }
+
+  return 0;
+}
+
+function resolveDidPromptWaitForCompletion(
+  branchMappings: Array<{
+    branch?: { isActive: boolean; settingsProfile: unknown } | null;
+  }>,
+): boolean {
+  for (const mapping of branchMappings) {
+    if (!mapping.branch?.isActive) {
+      continue;
+    }
+
+    return extractBranchPromptWaitForCompletion(mapping.branch.settingsProfile);
+  }
+
+  return false;
+}
+
+function buildPromptMohClassName(promptKey: string): string {
+  const normalized = promptKey
+    .replace(/^custom\//, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return `branch-prompt-${normalized || 'default'}`;
+}
+
 @Injectable()
-export class AsteriskReloadService implements OnModuleDestroy {
+export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(AsteriskReloadService.name);
   private readonly debounceTimers = new Map<string, NodeJS.Timeout>();
+  private readonly bootstrapDelayMs = 15000;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly ami: AmiConnectionService,
   ) {}
+
+  onApplicationBootstrap() {
+    setTimeout(() => {
+      void this.syncAllTenantsOnStartup().catch((error) => {
+        this.logger.error(
+          `Initial Asterisk config sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+    }, this.bootstrapDelayMs);
+  }
 
   onModuleDestroy() {
     for (const timer of this.debounceTimers.values()) clearTimeout(timer);
@@ -52,8 +190,14 @@ export class AsteriskReloadService implements OnModuleDestroy {
       this.logger.warn(`Skipping AMI reload because Asterisk conf directory is not available for tenant ${tenantId}`);
       return;
     }
+    if (!this.ami.isConnected()) {
+      this.logger.warn(`AMI is not connected yet. Re-scheduling Asterisk reload for tenant ${tenantId}`);
+      this.scheduleReload(tenantId);
+      return;
+    }
     this.logger.debug(`Sending AMI reload commands for tenant ${tenantId}`);
     this.ami.sendAction({ Action: 'Command', Command: 'module reload res_pjsip' });
+    this.ami.sendAction({ Action: 'Command', Command: 'moh reload' });
     this.ami.sendAction({ Action: 'Command', Command: 'dialplan reload' });
     this.ami.sendAction({ Action: 'Command', Command: 'queue reload all' });
     this.logger.log(`Asterisk reload triggered for tenant ${tenantId}`);
@@ -61,9 +205,13 @@ export class AsteriskReloadService implements OnModuleDestroy {
 
   async writeConfFiles(tenantId: string): Promise<boolean> {
     const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
+    const soundsDir = this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom');
 
     if (!path.isAbsolute(confDir)) {
       throw new Error(`ASTERISK_CONF_DIR must be an absolute path, got: "${confDir}"`);
+    }
+    if (!path.isAbsolute(soundsDir)) {
+      throw new Error(`ASTERISK_SOUNDS_DIR must be an absolute path, got: "${soundsDir}"`);
     }
 
     if (!fs.existsSync(confDir)) {
@@ -90,6 +238,7 @@ export class AsteriskReloadService implements OnModuleDestroy {
 
     const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
+    const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
@@ -128,12 +277,19 @@ export class AsteriskReloadService implements OnModuleDestroy {
           })),
       })),
     );
+    const musiconholdContent = renderMusiconholdConf(promptMohClasses.map((item) => ({
+      className: item.className,
+      directory: item.directory,
+    })));
+
+    this.syncPromptMohAssets(promptMohClasses, soundsDir);
 
     fs.writeFileSync(path.join(confDir, 'pjsip.conf'), pjsipContent, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_inbound.conf'), extensionsInbound, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_queue.conf'), extensionsQueue, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_agent.conf'), extensionsAgent, 'utf8');
     fs.writeFileSync(path.join(confDir, 'queues.conf'), queuesContent, 'utf8');
+    fs.writeFileSync(path.join(confDir, 'musiconhold.conf'), musiconholdContent, 'utf8');
     return true;
   }
 
@@ -161,6 +317,7 @@ export class AsteriskReloadService implements OnModuleDestroy {
 
     const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
+    const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
@@ -199,23 +356,112 @@ export class AsteriskReloadService implements OnModuleDestroy {
           })),
       })),
     );
+    const musiconhold = renderMusiconholdConf(promptMohClasses.map((item) => ({
+      className: item.className,
+      directory: item.directory,
+    })));
 
     const maskedPjsip = pjsip.replace(/^(password=).+$/gm, '$1***');
 
-    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue, extensionsAgent, queues };
+    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue, extensionsAgent, queues: `${queues}\n\n${musiconhold}` };
+  }
+
+  private buildPromptMohClasses(
+    dids: Array<{
+      branchPromptKeys?: string[] | null;
+      branchPromptWaitForCompletion?: boolean | null;
+    }>,
+    soundsDir: string,
+  ) {
+    const seen = new Set<string>();
+    const baseDir = path.join(soundsDir, '__moh');
+    const classes: Array<{ className: string; directory: string; promptBaseName: string }> = [];
+
+    for (const did of dids) {
+      if (did.branchPromptWaitForCompletion) {
+        continue;
+      }
+
+      const promptKey = did.branchPromptKeys?.[0]?.trim();
+      if (!promptKey?.startsWith('custom/')) {
+        continue;
+      }
+
+      const promptBaseName = promptKey.slice('custom/'.length);
+      const className = buildPromptMohClassName(promptKey);
+      if (seen.has(className)) {
+        continue;
+      }
+
+      seen.add(className);
+      classes.push({
+        className,
+        directory: path.join(baseDir, className),
+        promptBaseName,
+      });
+    }
+
+    return classes;
+  }
+
+  private syncPromptMohAssets(
+    classes: Array<{ className: string; directory: string; promptBaseName: string }>,
+    soundsDir: string,
+  ) {
+    const managedBaseDir = path.join(soundsDir, '__moh');
+    fs.mkdirSync(managedBaseDir, { recursive: true });
+
+    for (const item of classes) {
+      fs.mkdirSync(item.directory, { recursive: true });
+
+      for (const existing of fs.readdirSync(item.directory)) {
+        fs.rmSync(path.join(item.directory, existing), { force: true });
+      }
+
+      const candidates = fs.readdirSync(soundsDir)
+        .filter((fileName) => fileName.startsWith(`${item.promptBaseName}.`))
+        .map((fileName) => path.join(soundsDir, fileName));
+
+      for (const sourcePath of candidates) {
+        fs.copyFileSync(sourcePath, path.join(item.directory, path.basename(sourcePath)));
+      }
+
+      // Add a short silence tail so prompt-loop MOH does not restart with no gap.
+      fs.writeFileSync(path.join(item.directory, 'zz_gap.alaw'), Buffer.alloc(8000, 0xd5));
+      fs.writeFileSync(path.join(item.directory, 'zz_gap.ulaw'), Buffer.alloc(8000, 0xff));
+    }
   }
 
   private async fetchTenantData(tenantId: string) {
-    const [trunks, agents, dids, ivrMenus, forwardingRules, blocklistEntries, settings] = await Promise.all([
+    const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, prompts, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
       this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
-      this.prisma.asteriskDid.findMany({ where: { tenantId } }),
+      this.prisma.asteriskDid.findMany({
+        where: { tenantId },
+        include: {
+          branchMappings: {
+            orderBy: { createdAt: 'asc' },
+            include: {
+              branch: {
+                select: {
+                  isActive: true,
+                  settingsProfile: true,
+                },
+              },
+            },
+          },
+        },
+      }),
       this.prisma.asteriskIvrMenu.findMany({
         where: { tenantId },
         include: { entries: true },
       }),
       this.prisma.asteriskForwardingRules.findMany({ where: { tenantId, enabled: true } }),
       this.prisma.asteriskBlocklistEntry.findMany({ where: { tenantId, isActive: true } }),
+      this.prisma.asteriskPrompt.findMany({
+        where: { tenantId, isActive: true },
+        select: { id: true, promptKey: true },
+      }),
       this.prisma.tenantSystemSettings.findUnique({
         where: { tenantId },
         select: {
@@ -237,6 +483,14 @@ export class AsteriskReloadService implements OnModuleDestroy {
         }
       | null;
     const defaultSipPassword = settings?.defaultSipPassword ?? null;
+    const promptKeyById = new Map(prompts.map((prompt) => [prompt.id, prompt.promptKey]));
+    const dids = didRows.map(({ branchMappings, ...did }) => ({
+      ...did,
+      branchPromptKeys: resolveDidPromptKeys(branchMappings, promptKeyById),
+      branchPromptQueueDelaySeconds: resolveDidPromptQueueDelaySeconds(branchMappings),
+      branchPromptWaitForCompletion: resolveDidPromptWaitForCompletion(branchMappings),
+    }));
+
     return {
       trunks,
       sipRegisterPort: typedSettings?.sipRegisterPort ?? 36070,
@@ -279,5 +533,17 @@ export class AsteriskReloadService implements OnModuleDestroy {
       },
       orderBy: { queueName: 'asc' },
     });
+  }
+
+  private async syncAllTenantsOnStartup(): Promise<void> {
+    const tenantIds = await this.prisma.tenants.findMany({
+      select: { tenantId: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    for (const tenant of tenantIds) {
+      this.logger.log(`Boot sync: scheduling Asterisk config refresh for tenant ${tenant.tenantId}`);
+      this.scheduleReload(tenant.tenantId);
+    }
   }
 }

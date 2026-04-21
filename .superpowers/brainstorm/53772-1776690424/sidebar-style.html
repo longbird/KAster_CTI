@@ -1,0 +1,143 @@
+<h2>사이드바 스타일</h2>
+<p class="subtitle">에메랄드 다크 테마 기준 — 두 레이아웃의 실제 비교입니다</p>
+
+<div class="split" style="gap:24px;">
+
+  <!-- Option A: Icon-only narrow -->
+  <div class="mockup" data-choice="a" onclick="toggleSelect(this)" style="cursor:pointer;border:2px solid transparent;border-radius:10px;transition:border-color .15s;" onmouseover="this.style.borderColor='#34d399'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='transparent'">
+    <div class="mockup-header">A — 아이콘 전용 (52px)</div>
+    <div class="mockup-body" style="padding:0;overflow:hidden;background:#0d1117;">
+      <div style="display:flex;height:320px;font-family:'Inter',sans-serif;font-size:11px;">
+        <!-- Icon sidebar -->
+        <div style="width:52px;background:#161b22;border-right:1px solid #21262d;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;">
+          <div style="width:30px;height:30px;background:linear-gradient(135deg,#059669,#34d399);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:10px;margin-bottom:8px;">K</div>
+          <div style="width:36px;height:36px;background:#10b98118;border-radius:7px;display:flex;align-items:center;justify-content:center;position:relative;" title="콜 센터">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.05 1.18 2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.1 7.82a16 16 0 006.08 6.08l1.18-1.18a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z"/></svg>
+            <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:#34d399;border-radius:2px 0 0 2px;"></div>
+          </div>
+          <div style="width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;" title="큐 현황">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </div>
+          <div style="width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;" title="이력">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div style="margin-top:auto;width:30px;height:30px;background:#21262d;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px;font-weight:700;">홍</div>
+        </div>
+        <!-- Content area — more space -->
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="background:#161b22;border-bottom:1px solid #21262d;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#e6edf3;font-weight:600;">콜 센터</span>
+            <span style="background:#10b98118;color:#34d399;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:600;">● 대기</span>
+          </div>
+          <div style="flex:1;display:flex;padding:10px;gap:8px;">
+            <div style="width:155px;display:flex;flex-direction:column;gap:6px;">
+              <div style="color:#8b949e;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;">활성 통화 2건</div>
+              <div style="background:#21262d;border:1px solid #34d39944;border-radius:7px;padding:8px;">
+                <div style="color:#34d399;font-size:9px;font-weight:600;margin-bottom:2px;">● 통화 중</div>
+                <div style="color:#e6edf3;font-size:10px;font-weight:600;">010-3462-3453</div>
+                <div style="color:#8b949e;font-size:9px;">sales · 05:09</div>
+              </div>
+              <div style="background:#21262d;border:1px solid #30363d;border-radius:7px;padding:8px;">
+                <div style="color:#d29922;font-size:9px;font-weight:600;margin-bottom:2px;">◎ 벨 울림</div>
+                <div style="color:#e6edf3;font-size:10px;font-weight:600;">미식별</div>
+                <div style="color:#8b949e;font-size:9px;">support · 00:12</div>
+              </div>
+            </div>
+            <div style="flex:1;background:#161b22;border-radius:7px;border:1px solid #21262d;padding:10px;">
+              <div style="color:#34d399;font-size:24px;font-weight:700;margin-bottom:6px;font-variant-numeric:tabular-nums;">05:09</div>
+              <div style="color:#e6edf3;font-size:12px;font-weight:600;margin-bottom:8px;">미식별 고객</div>
+              <div style="display:flex;gap:5px;">
+                <div style="flex:1;background:#059669;color:#fff;border-radius:5px;padding:6px;text-align:center;font-size:10px;font-weight:600;">당겨받기</div>
+                <div style="background:#21262d;border:1px solid #30363d;border-radius:5px;padding:6px 8px;font-size:12px;">🔇</div>
+                <div style="background:#da3633;border-radius:5px;padding:6px 10px;color:#fff;font-size:10px;font-weight:600;">종료</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px 14px 12px;background:#1a1a2e;border-radius:0 0 8px 8px;">
+      <strong style="color:#e2e8f0;font-size:12px;">아이콘 전용</strong>
+      <p style="color:#94a3b8;font-size:11px;margin:4px 0 0;">콘텐츠 공간 최대화. 호버 툴팁으로 메뉴명 확인. 숙련 사용자에게 이상적.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Wide with labels -->
+  <div class="mockup" data-choice="b" onclick="toggleSelect(this)" style="cursor:pointer;border:2px solid transparent;border-radius:10px;transition:border-color .15s;" onmouseover="this.style.borderColor='#34d399'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='transparent'">
+    <div class="mockup-header">B — 레이블 포함 (180px)</div>
+    <div class="mockup-body" style="padding:0;overflow:hidden;background:#0d1117;">
+      <div style="display:flex;height:320px;font-family:'Inter',sans-serif;font-size:11px;">
+        <!-- Wide sidebar -->
+        <div style="width:150px;background:#161b22;border-right:1px solid #21262d;display:flex;flex-direction:column;">
+          <div style="padding:12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #21262d;">
+            <div style="width:26px;height:26px;background:linear-gradient(135deg,#059669,#34d399);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:9px;flex-shrink:0;">K</div>
+            <span style="color:#e6edf3;font-weight:700;font-size:11px;letter-spacing:-.01em;">KASTER CTI</span>
+          </div>
+          <div style="padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:2px;">
+            <div style="padding:7px 9px;background:#10b98118;border-radius:6px;display:flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81"/></svg>
+              <span style="color:#34d399;font-weight:600;font-size:10px;">콜 센터</span>
+            </div>
+            <div style="padding:7px 9px;border-radius:6px;display:flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              <span style="color:#8b949e;font-size:10px;">큐 현황</span>
+            </div>
+            <div style="padding:7px 9px;border-radius:6px;display:flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span style="color:#8b949e;font-size:10px;">이력</span>
+            </div>
+            <div style="padding:7px 9px;border-radius:6px;display:flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span style="color:#8b949e;font-size:10px;">개요</span>
+            </div>
+          </div>
+          <div style="padding:10px;border-top:1px solid #21262d;display:flex;align-items:center;gap:8px;">
+            <div style="width:26px;height:26px;background:#21262d;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#34d399;font-size:10px;font-weight:700;flex-shrink:0;">홍</div>
+            <div>
+              <div style="color:#e6edf3;font-size:10px;font-weight:600;">홍길동</div>
+              <div style="color:#34d399;font-size:9px;font-weight:600;">● 대기</div>
+            </div>
+          </div>
+        </div>
+        <!-- Content area — slightly narrower -->
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="background:#161b22;border-bottom:1px solid #21262d;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#e6edf3;font-weight:600;">콜 센터</span>
+            <span style="color:#8b949e;font-size:10px;">내선 1001</span>
+          </div>
+          <div style="flex:1;display:flex;padding:8px;gap:7px;">
+            <div style="width:130px;display:flex;flex-direction:column;gap:5px;">
+              <div style="color:#8b949e;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;">활성 통화 2건</div>
+              <div style="background:#21262d;border:1px solid #34d39944;border-radius:7px;padding:7px;">
+                <div style="color:#34d399;font-size:9px;font-weight:600;margin-bottom:2px;">● 통화 중</div>
+                <div style="color:#e6edf3;font-size:10px;font-weight:600;">010-3462-3453</div>
+                <div style="color:#8b949e;font-size:9px;">sales · 05:09</div>
+              </div>
+              <div style="background:#21262d;border:1px solid #30363d;border-radius:7px;padding:7px;">
+                <div style="color:#d29922;font-size:9px;font-weight:600;margin-bottom:2px;">◎ 벨 울림</div>
+                <div style="color:#e6edf3;font-size:10px;font-weight:600;">미식별</div>
+                <div style="color:#8b949e;font-size:9px;">support · 00:12</div>
+              </div>
+            </div>
+            <div style="flex:1;background:#161b22;border-radius:7px;border:1px solid #21262d;padding:9px;">
+              <div style="color:#34d399;font-size:22px;font-weight:700;margin-bottom:5px;font-variant-numeric:tabular-nums;">05:09</div>
+              <div style="color:#e6edf3;font-size:11px;font-weight:600;margin-bottom:7px;">미식별 고객</div>
+              <div style="display:flex;gap:4px;">
+                <div style="flex:1;background:#059669;color:#fff;border-radius:5px;padding:5px;text-align:center;font-size:9px;font-weight:600;">당겨받기</div>
+                <div style="background:#21262d;border:1px solid #30363d;border-radius:5px;padding:5px 7px;font-size:11px;">🔇</div>
+                <div style="background:#da3633;border-radius:5px;padding:5px 8px;color:#fff;font-size:9px;font-weight:600;">종료</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px 14px 12px;background:#1a1a2e;border-radius:0 0 8px 8px;">
+      <strong style="color:#e2e8f0;font-size:12px;">레이블 포함</strong>
+      <p style="color:#94a3b8;font-size:11px;margin:4px 0 0;">메뉴명이 항상 보여 직관적. 신규 상담원도 쉽게 적응. 현재 구조 유지.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="text-align:center;margin-top:16px;">추천: <strong>B (레이블 포함)</strong> — 콜센터 상담원은 화면을 자주 바꾸지 않아 아이콘만으로는 혼란 발생 가능</p>

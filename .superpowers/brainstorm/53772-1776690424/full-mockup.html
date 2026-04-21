@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KASTER CTI — 상담원 포털 리디자인</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #070d14;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e6edf3;
+    font-size: 13px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 48px;
+  }
+  h1 { color: #e6edf3; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .meta { color: #8b949e; font-size: 12px; margin-bottom: 28px; }
+
+  /* ── APP SHELL ── */
+  .app-shell {
+    width: 100%;
+    max-width: 1100px;
+    height: 640px;
+    background: #0d1117;
+    border-radius: 12px;
+    border: 1px solid #21262d;
+    box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 0 0 1px #21262d;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 56px;
+    background: #010409;
+    border-right: 1px solid #21262d;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0 12px;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #059669 0%, #34d399 100%);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 12px;
+    letter-spacing: -.02em;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(52,211,153,.35);
+  }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0 8px; }
+  .nav-item {
+    width: 40px; height: 40px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative;
+    color: #8b949e; transition: all .15s;
+    margin: 0 auto;
+  }
+  .nav-item.active {
+    background: rgba(52,211,153,.12);
+    color: #34d399;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 20px;
+    background: #34d399; border-radius: 0 3px 3px 0;
+  }
+  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 8px; }
+  .avatar {
+    width: 32px; height: 32px;
+    background: #21262d; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #34d399; font-size: 11px; font-weight: 700;
+    border: 1.5px solid #34d39933;
+    cursor: pointer;
+  }
+
+  /* ── MAIN AREA ── */
+  .main {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    height: 48px; background: #010409;
+    border-bottom: 1px solid #21262d;
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 12px; flex-shrink: 0;
+  }
+  .topbar-title { color: #e6edf3; font-weight: 600; font-size: 13px; flex: 1; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.25);
+    border-radius: 20px; padding: 4px 10px 4px 8px;
+    cursor: pointer;
+  }
+  .status-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; box-shadow: 0 0 6px #34d399; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .status-label { color: #34d399; font-size: 11px; font-weight: 600; }
+  .agent-info { color: #8b949e; font-size: 11px; }
+  .theme-btn { width: 28px; height: 28px; background: #21262d; border-radius: 6px; border: 1px solid #30363d; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #8b949e; font-size: 13px; }
+
+  /* ── CONTENT ── */
+  .content { flex: 1; display: flex; overflow: hidden; padding: 0; }
+
+  /* ── CALL LIST PANEL ── */
+  .call-list-panel {
+    width: 240px; flex-shrink: 0;
+    border-right: 1px solid #21262d;
+    display: flex; flex-direction: column;
+    background: #0d1117;
+  }
+  .panel-header {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #21262d;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { color: #8b949e; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+  .count-badge {
+    background: rgba(52,211,153,.15); color: #34d399;
+    border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 700;
+  }
+  .search-box {
+    margin: 10px 10px 0;
+    background: #161b22; border: 1px solid #21262d;
+    border-radius: 7px; padding: 7px 10px;
+    display: flex; align-items: center; gap: 7px;
+    color: #484f58; font-size: 11px;
+  }
+  .filter-row {
+    margin: 8px 10px;
+    display: flex; gap: 6px;
+  }
+  .filter-chip {
+    background: #161b22; border: 1px solid #21262d;
+    border-radius: 5px; padding: 4px 8px;
+    color: #8b949e; font-size: 10px; cursor: pointer;
+  }
+  .filter-chip.active { border-color: #34d39944; color: #34d399; background: rgba(52,211,153,.08); }
+  .call-list { flex: 1; overflow-y: auto; padding: 4px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .call-card {
+    background: #161b22; border: 1px solid #21262d;
+    border-radius: 8px; padding: 10px 11px;
+    cursor: pointer; transition: all .15s;
+  }
+  .call-card.active { border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.05); }
+  .call-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .call-status-talking { color: #34d399; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .call-status-ringing { color: #d29922; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .call-status-queued { color: #8b949e; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .call-number { color: #e6edf3; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .call-meta { color: #8b949e; font-size: 10px; margin-top: 3px; display: flex; justify-content: space-between; }
+  .call-timer-sm { color: #34d399; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ── WORK PANEL ── */
+  .work-panel {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    background: #0d1117;
+  }
+  .work-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid #21262d;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .work-title { color: #8b949e; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; flex: 1; }
+  .work-badge {
+    background: rgba(52,211,153,.12); color: #34d399;
+    border: 1px solid rgba(52,211,153,.25);
+    border-radius: 5px; padding: 3px 8px; font-size: 10px; font-weight: 600;
+  }
+  .work-body { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* Hero call card */
+  .hero-card {
+    background: linear-gradient(135deg, #0d2818 0%, #0a1f14 100%);
+    border: 1px solid rgba(52,211,153,.2);
+    border-radius: 10px; padding: 16px 18px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .customer-avatar {
+    width: 48px; height: 48px;
+    background: rgba(52,211,153,.1);
+    border: 1.5px solid rgba(52,211,153,.25);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #34d399; font-size: 22px; flex-shrink: 0;
+  }
+  .customer-info { flex: 1; }
+  .customer-name { color: #e6edf3; font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .customer-sub { color: #8b949e; font-size: 11px; }
+  .call-timer-hero {
+    color: #34d399; font-size: 32px; font-weight: 800;
+    font-variant-numeric: tabular-nums; letter-spacing: .03em;
+    text-align: right; line-height: 1;
+    text-shadow: 0 0 20px rgba(52,211,153,.4);
+  }
+  .call-timer-label { color: #8b949e; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; text-align: right; margin-top: 3px; }
+
+  /* Controls */
+  .controls-row {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .ctrl-btn {
+    width: 38px; height: 38px; border-radius: 8px;
+    background: #161b22; border: 1px solid #30363d;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #8b949e; font-size: 15px;
+    transition: all .15s;
+  }
+  .ctrl-btn:hover { border-color: #8b949e44; }
+  .ctrl-btn-primary {
+    height: 38px; padding: 0 16px; border-radius: 8px;
+    background: #059669; border: none;
+    color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .ctrl-btn-danger {
+    height: 38px; padding: 0 16px; border-radius: 8px;
+    background: #21262d; border: 1px solid #da363344;
+    color: #f85149; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    margin-left: auto;
+  }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #21262d; }
+
+  /* Tab bar */
+  .tab-bar { display: flex; gap: 0; border-bottom: 1px solid #21262d; margin: 0 -18px; padding: 0 18px; }
+  .tab {
+    padding: 9px 14px; font-size: 12px; color: #8b949e;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; font-weight: 500;
+  }
+  .tab.active { color: #34d399; border-bottom-color: #34d399; }
+
+  /* Form area */
+  .form-row { display: flex; gap: 10px; }
+  .form-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .form-label { color: #8b949e; font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+  .form-select, .form-input {
+    background: #161b22; border: 1px solid #30363d;
+    border-radius: 7px; padding: 8px 11px;
+    color: #e6edf3; font-size: 12px; width: 100%;
+    appearance: none;
+  }
+  .form-select:focus, .form-input:focus { outline: none; border-color: rgba(52,211,153,.4); }
+  .form-textarea {
+    background: #161b22; border: 1px solid #30363d;
+    border-radius: 7px; padding: 8px 11px;
+    color: #e6edf3; font-size: 12px; width: 100%;
+    resize: none; height: 70px;
+  }
+  .save-btn {
+    margin-left: auto; display: flex;
+    background: rgba(52,211,153,.15); border: 1px solid rgba(52,211,153,.3);
+    color: #34d399; border-radius: 7px;
+    padding: 7px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+
+  /* Right panel KPI strip */
+  .kpi-panel {
+    width: 200px; flex-shrink: 0;
+    border-left: 1px solid #21262d;
+    display: flex; flex-direction: column;
+    background: #0d1117;
+  }
+  .kpi-header { padding: 12px 14px 10px; border-bottom: 1px solid #21262d; }
+  .kpi-list { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .kpi-item {
+    background: #161b22; border-radius: 7px; padding: 10px 11px;
+    border: 1px solid #21262d;
+  }
+  .kpi-value { color: #e6edf3; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi-label { color: #8b949e; font-size: 10px; margin-top: 1px; }
+  .kpi-delta-up { color: #34d399; font-size: 10px; font-weight: 600; }
+  .kpi-delta-down { color: #f85149; font-size: 10px; font-weight: 600; }
+
+  /* SVG icons inline */
+  svg { flex-shrink: 0; }
+
+  /* Caption */
+  .caption { margin-top: 24px; color: #8b949e; font-size: 12px; text-align: center; max-width: 700px; line-height: 1.6; }
+  .caption strong { color: #e6edf3; }
+</style>
+</head>
+<body>
+
+<h1>KASTER CTI — 상담원 포털 리디자인 목업</h1>
+<p class="meta">다크 프로 · 에메랄드 액센트 · 아이콘 전용 사이드바</p>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">K</div>
+    <div class="sidebar-nav">
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </div>
+      <div class="nav-item active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.05 1.18 2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.1 7.82a16 16 0 006.08 6.08l1.18-1.18a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="theme-btn" style="width:32px;height:32px;">☀</div>
+      <div class="avatar">홍</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <span class="topbar-title">콜 센터</span>
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span class="status-label">대기 중</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" style="margin-left:2px;"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <span class="agent-info">홍길동 · 내선 1001</span>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- CALL LIST -->
+      <div class="call-list-panel">
+        <div class="panel-header">
+          <span class="panel-title">활성 통화</span>
+          <span class="count-badge">2</span>
+        </div>
+        <div class="search-box">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          고객명, ANI, DID, 큐 검색
+        </div>
+        <div class="filter-row">
+          <div class="filter-chip active">전체</div>
+          <div class="filter-chip">통화 중</div>
+          <div class="filter-chip">대기열</div>
+        </div>
+        <div class="call-list">
+          <!-- Card 1: Talking (selected) -->
+          <div class="call-card active">
+            <div class="call-card-top">
+              <span class="call-status-talking">● 통화 중</span>
+              <span class="call-timer-sm">05:09</span>
+            </div>
+            <div class="call-number">010-3462-3453</div>
+            <div class="call-meta">
+              <span>sales</span>
+              <span>홍길동</span>
+            </div>
+          </div>
+          <!-- Card 2: Ringing -->
+          <div class="call-card">
+            <div class="call-card-top">
+              <span class="call-status-ringing">◎ 벨 울림</span>
+              <span style="color:#8b949e;font-size:10px;font-variant-numeric:tabular-nums;">00:12</span>
+            </div>
+            <div class="call-number">미식별 고객</div>
+            <div class="call-meta">
+              <span>support</span>
+              <span>—</span>
+            </div>
+          </div>
+          <!-- Card 3: Queued -->
+          <div class="call-card">
+            <div class="call-card-top">
+              <span class="call-status-queued">◷ 대기열</span>
+              <span style="color:#8b949e;font-size:10px;font-variant-numeric:tabular-nums;">01:34</span>
+            </div>
+            <div class="call-number">010-9821-4400</div>
+            <div class="call-meta">
+              <span>sales</span>
+              <span>—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WORK PANEL -->
+      <div class="work-panel">
+        <div class="work-header">
+          <span class="work-title">통화 작업면</span>
+          <span class="work-badge">● 통화 중</span>
+        </div>
+        <div class="work-body">
+
+          <!-- Hero call card -->
+          <div class="hero-card">
+            <div class="customer-avatar">👤</div>
+            <div class="customer-info">
+              <div class="customer-name">미식별 고객</div>
+              <div class="customer-sub">010-3462-3453 · sales 큐</div>
+            </div>
+            <div>
+              <div class="call-timer-hero">05:09</div>
+              <div class="call-timer-label">통화시간</div>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="controls-row">
+            <button class="ctrl-btn-primary">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07"/></svg>
+              당겨받기
+            </button>
+            <div class="ctrl-btn" title="음소거">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/><path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </div>
+            <div class="ctrl-btn" title="보류">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </div>
+            <div class="ctrl-btn" title="전환">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+            </div>
+            <button class="ctrl-btn-danger">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-3.33-2.67"/></svg>
+              종료
+            </button>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Tab bar + form -->
+          <div>
+            <div class="tab-bar">
+              <div class="tab active">메모 / 후처리</div>
+              <div class="tab">제어</div>
+              <div class="tab">상담 가이드</div>
+            </div>
+            <div style="padding-top:14px;display:flex;flex-direction:column;gap:10px;">
+              <div class="form-row">
+                <div class="form-group">
+                  <div class="form-label">처리 결과</div>
+                  <select class="form-select"><option>주문 완료</option></select>
+                </div>
+                <div class="form-group">
+                  <div class="form-label">전환 내선</div>
+                  <input class="form-input" placeholder="예: 5501" />
+                </div>
+              </div>
+              <div class="form-group">
+                <div class="form-label">상담 메모</div>
+                <textarea class="form-textarea" placeholder="통화 내용을 입력하세요..."></textarea>
+              </div>
+              <div style="display:flex;justify-content:flex-end;">
+                <button class="save-btn">저장</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- KPI STRIP -->
+      <div class="kpi-panel">
+        <div class="kpi-header">
+          <span class="panel-title">업무 현황</span>
+        </div>
+        <div class="kpi-list">
+          <div class="kpi-item">
+            <div class="kpi-value">24</div>
+            <div class="kpi-label">오늘 응답</div>
+            <div class="kpi-delta-up">▲ 3 어제 대비</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-value">2</div>
+            <div class="kpi-label">포기 콜</div>
+            <div class="kpi-delta-down">▼ 1</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-value" style="font-size:16px;">03:42</div>
+            <div class="kpi-label">평균 통화시간</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-value">7</div>
+            <div class="kpi-label">대기열</div>
+            <div class="kpi-delta-down" style="color:#d29922;">▲ 2 급증</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p class="caption">
+  <strong>다크 프로 · 에메랄드 · 아이콘 전용 사이드바</strong><br>
+  기존 컴포넌트(FullShell, SideNav, ControlPanel 등) 재활용 · CSS 변수 전면 교체 · Tailwind 클래스 유지<br>
+  이 목업이 마음에 드시면 승인해주세요. 수정이 필요하면 말씀해주세요.
+</p>
+
+</body>
+</html>

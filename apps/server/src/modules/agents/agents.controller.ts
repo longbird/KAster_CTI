@@ -43,6 +43,7 @@ export class AgentsController {
         user.role,
         ['settings/agents', 'agents'],
         'view',
+        user.sub,
       );
     }
     return this.agentsService.listForTenant(user.tenantId);
@@ -56,6 +57,7 @@ export class AgentsController {
         user.role,
         ['settings/agents', 'agents'],
         'view',
+        user.sub,
       );
     }
     return this.agentsService.getDetail(user.tenantId, agentId);
@@ -73,6 +75,7 @@ export class AgentsController {
         user.role,
         ['settings/agents', 'agents'],
         'view',
+        user.sub,
       );
     }
     return this.agentsService.getHistory(
@@ -86,7 +89,7 @@ export class AgentsController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async create(@CurrentUser() user: any, @Body() dto: CreateAgentDto) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'create');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'create', user.sub);
     return this.agentsService.create(user.tenantId, dto);
   }
 
@@ -94,7 +97,7 @@ export class AgentsController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async deactivate(@CurrentUser() user: any, @Param('agentId') agentId: string) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'delete');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'delete', user.sub);
     return this.agentsService.deactivate(user.tenantId, agentId);
   }
 
@@ -102,7 +105,7 @@ export class AgentsController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async resetPassword(@CurrentUser() user: any, @Param('agentId') agentId: string) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'operate');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'operate', user.sub);
     return this.agentsService.resetPassword(user.tenantId, agentId);
   }
 
@@ -114,7 +117,7 @@ export class AgentsController {
     @Param('agentId') agentId: string,
     @Body() dto: UpdateAgentDto,
   ) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'update');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/agents', 'update', user.sub);
     return this.agentsService.update(user.tenantId, agentId, dto);
   }
 

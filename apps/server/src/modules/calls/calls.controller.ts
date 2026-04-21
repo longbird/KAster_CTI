@@ -3,13 +3,13 @@ import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swa
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
+import { CallsService } from './calls.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
 import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
-import { CallsService } from './calls.service';
 
 @ApiTags('calls')
 @ApiBearerAuth()
@@ -31,6 +31,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'view',
+        req.user.sub,
       );
     }
     return this.callsService.getActiveCalls(req.user.tenantId, branchId);
@@ -46,6 +47,7 @@ export class CallsController {
         req.user.role,
         'reports/calls',
         'view',
+        req.user.sub,
       );
     }
     return this.callsService.listHistory(req.user.tenantId, q);
@@ -66,6 +68,7 @@ export class CallsController {
         req.user.role,
         'reports/recordings',
         'view',
+        req.user.sub,
       );
     }
     return this.callsService.listRecordings(req.user.tenantId, { from, to, branchId });
@@ -81,6 +84,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls', 'reports/calls', 'reports/missed', 'reports/recordings'],
         'view',
+        req.user.sub,
       );
     }
     return this.callsService.getCallDetail(req.user.tenantId, callId);
@@ -96,7 +100,13 @@ export class CallsController {
   originate(@Req() req: any, @Body() dto: OriginateDto) {
     if (req.user.role === 'supervisor' || req.user.role === 'admin') {
       return this.menuPermissionService
-        .assertAnyMenuAction(req.user.tenantId, req.user.role, ['dashboard', 'live-calls'], 'operate')
+        .assertAnyMenuAction(
+          req.user.tenantId,
+          req.user.role,
+          ['dashboard', 'live-calls'],
+          'operate',
+          req.user.sub,
+        )
         .then(() => this.callsService.originate(req.user.tenantId, dto));
     }
     return this.callsService.originate(req.user.tenantId, dto);
@@ -132,6 +142,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.transfer(req.user.tenantId, callId, dto);
@@ -151,6 +162,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.cancelAttendedTransfer(req.user.tenantId, callId);
@@ -170,6 +182,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.completeAttendedTransfer(req.user.tenantId, callId);
@@ -203,6 +216,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.mute(req.user.tenantId, callId, dto);
@@ -222,6 +236,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.hold(req.user.tenantId, callId, 'hold');
@@ -241,6 +256,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.hold(req.user.tenantId, callId, 'resume');
@@ -256,6 +272,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.saveMemo(req.user.tenantId, callId, dto);
@@ -274,6 +291,7 @@ export class CallsController {
         req.user.role,
         ['dashboard', 'live-calls'],
         'operate',
+        req.user.sub,
       );
     }
     return this.callsService.hangup(req.user.tenantId, callId);

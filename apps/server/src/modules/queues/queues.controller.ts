@@ -38,6 +38,7 @@ export class QueuesController {
         user.role,
         ['dashboard', 'queues'],
         'view',
+        user.sub,
       );
     }
     return this.queuesService.getSummary(user.tenantId);
@@ -47,7 +48,7 @@ export class QueuesController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async list(@CurrentUser() user: any) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'view');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'view', user.sub);
     return this.queuesService.listSettings(user.tenantId);
   }
 
@@ -55,9 +56,9 @@ export class QueuesController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async create(@CurrentUser() user: any, @Body() dto: CreateQueueDto) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'create');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'create', user.sub);
     if (dto.members !== undefined) {
-      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate');
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate', user.sub);
     }
     return this.queuesService.create(user.tenantId, dto);
   }
@@ -79,10 +80,10 @@ export class QueuesController {
       dto.autopause !== undefined;
 
     if (queueFieldsRequested) {
-      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'update');
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'update', user.sub);
     }
     if (dto.members !== undefined) {
-      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate');
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate', user.sub);
     }
     return this.queuesService.update(user.tenantId, queueId, dto);
   }
@@ -91,7 +92,7 @@ export class QueuesController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async deactivate(@CurrentUser() user: any, @Param('queueId') queueId: string) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'delete');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'delete', user.sub);
     return this.queuesService.deactivate(user.tenantId, queueId);
   }
 
@@ -99,7 +100,7 @@ export class QueuesController {
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
   async listMembers(@CurrentUser() user: any, @Param('queueId') queueId: string) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'view');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'view', user.sub);
     return this.queuesService.listMembers(user.tenantId, queueId);
   }
 
@@ -111,7 +112,7 @@ export class QueuesController {
     @Param('queueId') queueId: string,
     @Body() dto: SetQueueMembersDto,
   ) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'operate', user.sub);
     return this.queuesService.setMembers(user.tenantId, queueId, dto.members ?? []);
   }
 }

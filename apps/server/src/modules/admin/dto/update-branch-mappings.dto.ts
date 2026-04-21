@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class UpdateBranchMappingsDto {
   @ApiProperty({ required: false, type: [String] })
@@ -19,4 +19,9 @@ export class UpdateBranchMappingsDto {
   @IsArray()
   @IsString({ each: true })
   didIds?: string[];
+
+  @ApiProperty({ required: false, type: 'object' })
+  @IsOptional()
+  @IsObject()
+  settingsProfile?: Record<string, unknown>;
 }

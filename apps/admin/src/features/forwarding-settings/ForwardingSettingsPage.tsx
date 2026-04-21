@@ -26,6 +26,22 @@ interface QueueOption {
   isActive: boolean;
 }
 
+const WEEKDAY_LABELS: Record<string, string> = {
+  mon: '월',
+  tue: '화',
+  wed: '수',
+  thu: '목',
+  fri: '금',
+  sat: '토',
+  sun: '일',
+};
+
+const FORWARD_TYPE_LABELS: Record<AsteriskForwardingRule['forwardType'], string> = {
+  EXTERNAL_NUMBER: '외부번호',
+  EXTENSION: '내선',
+  QUEUE: '호 분배룰',
+};
+
 export function ForwardingSettingsPage() {
   const forwardingPermission = usePermissionStore((state) => state.permissionsByMenu['settings/forwarding']);
   const [rows, setRows] = useState<AsteriskForwardingRule[] | null>(null);
@@ -61,6 +77,7 @@ export function ForwardingSettingsPage() {
     () => dids.map((did) => ({
       value: did.id,
       label: did.description ? `${did.did} (${did.description})` : did.did,
+      directQueue: did.directQueue,
     })),
     [dids],
   );
@@ -72,13 +89,21 @@ export function ForwardingSettingsPage() {
     })),
     [agents],
   );
+  const extensionLabelMap = useMemo(
+    () => Object.fromEntries(extensionOptions.map((item) => [item.value, item.label])),
+    [extensionOptions],
+  );
 
   const queueOptions = useMemo(
     () => queues.map((queue) => ({
       value: queue.queueName,
-      label: `${queue.queueDisplayName ?? queue.queueName} (${queue.queueName})`,
+      label: queue.queueDisplayName ?? queue.queueName,
     })),
     [queues],
+  );
+  const queueLabelMap = useMemo(
+    () => Object.fromEntries(queueOptions.map((item) => [item.value, item.label])),
+    [queueOptions],
   );
 
   const remove = async (id: string) => {
@@ -92,10 +117,17 @@ export function ForwardingSettingsPage() {
   };
 
   const save = async (values: ForwardingRuleFormValue) => {
+    const conditionType: 'ALWAYS' | 'TIME_RANGE' =
+      values.schedules.some((item) => item.conditionType === 'TIME_RANGE') ? 'TIME_RANGE' : 'ALWAYS';
     const payload = {
       ...values,
-      timeStart: values.timeStart ?? null,
-      timeEnd: values.timeEnd ?? null,
+      conditionType,
+      forwardTriggerMode: values.forwardTriggerMode,
+      queueWaitSeconds: values.forwardTriggerMode === 'AFTER_QUEUE_WAIT' ? values.queueWaitSeconds : null,
+      stickyCallbackWindowMinutes: values.stickyCallbackWindowMinutes,
+      timeStart: values.schedules[0]?.conditionType === 'TIME_RANGE' ? values.schedules[0].timeStart : null,
+      timeEnd: values.schedules[0]?.conditionType === 'TIME_RANGE' ? values.schedules[0].timeEnd : null,
+      daysOfWeek: values.schedules[0]?.conditionType === 'TIME_RANGE' ? values.schedules[0].daysOfWeek : [],
       description: values.description?.trim() ? values.description : null,
     };
 
@@ -154,42 +186,73 @@ export function ForwardingSettingsPage() {
           {
             title: '전환 방식',
             dataIndex: 'forwardType',
-            width: 110,
+            width: 120,
             render: (value: string) => (
-              <Tag color={value === 'QUEUE' ? 'blue' : 'green'}>
-                {value === 'QUEUE' ? '큐' : '내선'}
+              <Tag color={value === 'QUEUE' ? 'blue' : value === 'EXTENSION' ? 'green' : 'orange'}>
+                {FORWARD_TYPE_LABELS[value as AsteriskForwardingRule['forwardType']]}
               </Tag>
             ),
           },
           {
             title: '전환 대상',
-            dataIndex: 'targetValue',
-            width: 180,
+            width: 220,
+            render: (_: unknown, row) => {
+              const label =
+                row.forwardType === 'QUEUE'
+                  ? queueLabelMap[row.targetValue] ?? row.targetValue
+                  : row.forwardType === 'EXTENSION'
+                    ? extensionLabelMap[row.targetValue] ?? row.targetValue
+                    : row.targetValue;
+              return <Typography.Text>{label}</Typography.Text>;
+            },
+          },
+          {
+            title: '착신 조건',
+            width: 220,
+            render: (_: unknown, row) => {
+              if (row.forwardTriggerMode === 'AFTER_QUEUE_WAIT') {
+                return (
+                  <Space direction="vertical" size={0}>
+                    <Typography.Text>대기 후 착신</Typography.Text>
+                    <Typography.Text type="secondary">{row.queueWaitSeconds ?? '-'}초 후 전환</Typography.Text>
+                  </Space>
+                );
+              }
+              if (row.forwardTriggerMode === 'SMART_NO_READY') {
+                return <Tag color="purple">대기 상담원 없을 때 착신</Tag>;
+              }
+              return <Tag color="green">즉시 착신</Tag>;
+            },
           },
           {
             title: '적용 조건',
-            width: 220,
+            width: 260,
             render: (_: unknown, row) => {
-              if (row.conditionType === 'TIME_RANGE') {
-                const weekdayLabels: Record<string, string> = {
-                  mon: '월',
-                  tue: '화',
-                  wed: '수',
-                  thu: '목',
-                  fri: '금',
-                  sat: '토',
-                  sun: '일',
-                };
-                const days = row.daysOfWeek.map((day) => weekdayLabels[day] ?? day).join(', ');
-                return `${days} ${row.timeStart}-${row.timeEnd}`;
+              const schedules = row.schedules?.filter((item) => item.conditionType === 'TIME_RANGE') ?? [];
+              if (schedules.length > 0) {
+                return (
+                  <Space direction="vertical" size={0}>
+                    {schedules.map((schedule, index) => (
+                      <Typography.Text key={`${row.id}-schedule-${index}`}>
+                        {schedule.daysOfWeek.map((day) => WEEKDAY_LABELS[day] ?? day).join(', ')} {schedule.timeStart}-{schedule.timeEnd}
+                      </Typography.Text>
+                    ))}
+                  </Space>
+                );
               }
-              return '항상';
+              return <Tag color="green">항상 적용</Tag>;
             },
           },
           {
             title: '설명',
-            dataIndex: 'description',
-            render: (value?: string | null) => value || '-',
+            render: (_: unknown, row) => {
+              const notes = [];
+              if (row.description) notes.push(row.description);
+              if (row.stickyCallbackWindowMinutes) {
+                notes.push(`동일 고객 ${row.stickyCallbackWindowMinutes}분 내 재착신 즉시 연결`);
+              }
+              return notes.length > 0 ? notes.join(' / ') : '-';
+            },
           },
           {
             title: '상태',

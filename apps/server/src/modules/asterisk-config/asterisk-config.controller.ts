@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,6 +16,12 @@ import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
 import { UpdateSipPasswordDto } from './dto/update-sip-password.dto';
 
+interface UploadedPromptAudioFile {
+  originalname: string;
+  buffer: Buffer;
+  size: number;
+}
+
 @ApiTags('asterisk-config')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,27 +35,39 @@ export class AsteriskConfigController {
   ) {}
 
   private async assertAsteriskAccess(user: any) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', 'view');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', 'view', user.sub);
   }
 
   private async assertPromptAccess(user: any) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', 'view');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', 'view', user.sub);
   }
 
   private async assertBlocklistAccess(user: any) {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'blocklist', 'view');
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'blocklist', 'view', user.sub);
   }
 
   private async assertAsteriskAction(user: any, action: 'create' | 'update' | 'delete' | 'operate') {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', action);
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', action, user.sub);
   }
 
   private async assertPromptAction(user: any, action: 'create' | 'update' | 'delete') {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', action);
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', action, user.sub);
+  }
+
+  private async assertPromptWriteAccess(user: any) {
+    await this.menuPermissionService.assertAnyMenuAction(
+      user.tenantId,
+      user.role,
+      ['settings/prompts'],
+      'create',
+      user.sub,
+    ).catch(async () => {
+      await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', 'update', user.sub);
+    });
   }
 
   private async assertBlocklistAction(user: any, action: 'create' | 'update' | 'delete') {
-    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'blocklist', action);
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'blocklist', action, user.sub);
   }
 
   // Trunks
@@ -88,6 +107,12 @@ export class AsteriskConfigController {
   // Prompts
   @Get('prompts') async getPrompts(@CurrentUser() u: any) { await this.assertPromptAccess(u); return this.svc.getPrompts(u.tenantId); }
   @Post('prompts') async createPrompt(@CurrentUser() u: any, @Body() dto: CreatePromptDto) { await this.assertPromptAction(u, 'create'); return this.svc.createPrompt(u.tenantId, dto); }
+  @Post('prompts/upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  async uploadPromptAudio(@CurrentUser() u: any, @UploadedFile() file?: UploadedPromptAudioFile) {
+    await this.assertPromptWriteAccess(u);
+    return this.svc.uploadPromptAudio(u.tenantId, file);
+  }
   @Put('prompts/:id') async updatePrompt(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdatePromptDto) { await this.assertPromptAction(u, 'update'); return this.svc.updatePrompt(u.tenantId, id, dto); }
   @Delete('prompts/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deletePrompt(@CurrentUser() u: any, @Param('id') id: string) { await this.assertPromptAction(u, 'delete'); return this.svc.deletePrompt(u.tenantId, id); }
 

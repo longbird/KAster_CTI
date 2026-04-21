@@ -44,11 +44,11 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
     icon: <SettingOutlined />,
     label: '운영 설정',
     children: [
+      { key: '/settings/branches', label: '지사 관리' },
       { key: '/settings/agents', label: '상담원 설정' },
       { key: '/settings/queues', label: '호 분배룰 설정' },
       { key: '/settings/forwarding', label: '착신전환 설정' },
       { key: '/settings/prompts', label: '멘트 관리' },
-      { key: '/settings/branches', label: '지사 관리' },
       { key: '/settings/permissions', label: '권한 관리' },
     ],
   },
