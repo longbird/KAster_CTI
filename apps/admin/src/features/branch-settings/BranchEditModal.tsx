@@ -1,10 +1,18 @@
-import { ApartmentOutlined } from '@ant-design/icons';
+import {
+  ApartmentOutlined,
+  AudioOutlined,
+  IdcardOutlined,
+  OrderedListOutlined,
+  ShareAltOutlined,
+  SoundOutlined,
+  StopOutlined,
+  SwapOutlined,
+} from '@ant-design/icons';
 import {
   Alert,
   Button,
   Card,
   Col,
-  Collapse,
   Form,
   Input,
   InputNumber,
@@ -186,9 +194,16 @@ const WEEKDAY_OPTIONS: Array<{ value: WeekdayCode; label: string }> = [
 
 const TIME_TEXT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-function featureStatusTag(enabled: boolean) {
-  return <Tag color={enabled ? 'green' : 'default'}>{enabled ? '사용' : '미사용'}</Tag>;
-}
+const SECTIONS = [
+  { key: 'basic', label: '기본 정보', icon: <ApartmentOutlined /> },
+  { key: 'routing', label: '호 분배룰', icon: <ShareAltOutlined /> },
+  { key: 'forwarding', label: '착신전환', icon: <SwapOutlined /> },
+  { key: 'prompts', label: '멘트', icon: <SoundOutlined /> },
+  { key: 'ars', label: 'ARS', icon: <OrderedListOutlined /> },
+  { key: 'recording', label: '녹취', icon: <AudioOutlined /> },
+  { key: 'blocklist', label: '080 수신거부', icon: <StopOutlined /> },
+  { key: 'cid', label: 'CID / SMDR', icon: <IdcardOutlined /> },
+] as const;
 
 function buildDefaultRoutingRule(queueId: string, conditionType: RoutingConditionType = 'ALWAYS'): RoutingRuleFormValue {
   return {
@@ -289,6 +304,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
   const [mappingData, setMappingData] = useState<MappingResponse | null>(null);
   const navigate = useNavigate();
   const isEdit = !!branch?.branchId;
+  const [activeSection, setActiveSection] = useState<string>('basic');
+
+  useEffect(() => {
+    if (open) setActiveSection('basic');
+  }, [open]);
 
   const routingEnabled = Form.useWatch('routingEnabled', form) ?? true;
   const selectedQueueIds = Form.useWatch('queueIds', form) ?? [];
@@ -300,6 +320,26 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
   const recordingEnabled = Form.useWatch('recordingEnabled', form) ?? true;
   const blocklist080Enabled = Form.useWatch('blocklist080Enabled', form) ?? false;
   const cidSmdrEnabled = Form.useWatch('cidSmdrEnabled', form) ?? false;
+
+  const enabledByKey: Record<string, boolean | undefined> = {
+    basic: undefined,
+    routing: routingEnabled,
+    forwarding: forwardingEnabled,
+    prompts: promptsEnabled,
+    ars: arsEnabled,
+    recording: recordingEnabled,
+    blocklist: blocklist080Enabled,
+    cid: cidSmdrEnabled,
+  };
+  const enabledCount = [
+    routingEnabled,
+    forwardingEnabled,
+    promptsEnabled,
+    arsEnabled,
+    recordingEnabled,
+    blocklist080Enabled,
+    cidSmdrEnabled,
+  ].filter(Boolean).length;
 
   useEffect(() => {
     if (!open) return;
@@ -599,26 +639,57 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
             </div>
             <div>
               <Typography.Title level={4} style={{ margin: 0 }}>
-                지사 등록과 운영 설정을 한 화면에서 처리합니다.
+                {isEdit ? '지사 설정 수정' : '신규 지사 등록'}
               </Typography.Title>
               <Typography.Text type="secondary">
-                DID 연결을 포함한 지사 기본값과 실제 사용할 운영 기능을 한 번에 저장합니다.
+                좌측 메뉴에서 항목을 선택해 설정하세요. DID 연결과 운영 기능을 한 번에 저장합니다.
               </Typography.Text>
             </div>
           </Space>
-          <Tag color={isEdit ? 'blue' : 'green'}>{isEdit ? '지사 설정 수정' : '신규 지사 등록'}</Tag>
+          <Tag color={isEdit ? 'blue' : 'green'}>{isEdit ? '수정' : '신규'}</Tag>
         </div>
 
-        <Alert
-          type="info"
-          showIcon
-          message="지사별로 사용할 DID, 호 분배룰, 착신전환, 멘트, ARS, 녹취, 080, CID/SMDR를 여기서 함께 결정합니다."
-        />
-
         <Form form={form} layout="vertical" disabled={loading} className="branch-edit-modal__form">
-          <Row gutter={16} align="stretch">
-            <Col xs={24} lg={16}>
-              <Card className="branch-edit-modal__panel" title="지사 기본 정보">
+          <div className="branch-edit-modal__layout">
+            <aside className="branch-edit-modal__nav">
+              {SECTIONS.map((section) => {
+                const isActive = activeSection === section.key;
+                const featureOn = enabledByKey[section.key];
+                return (
+                  <button
+                    type="button"
+                    key={section.key}
+                    onClick={() => setActiveSection(section.key)}
+                    className={`branch-edit-modal__nav-item${isActive ? ' is-active' : ''}`}
+                  >
+                    <span className="branch-edit-modal__nav-icon">{section.icon}</span>
+                    <span className="branch-edit-modal__nav-label">{section.label}</span>
+                    {featureOn !== undefined ? (
+                      <span
+                        className={`branch-edit-modal__nav-dot${featureOn ? ' is-on' : ' is-off'}`}
+                        aria-label={featureOn ? '사용' : '미사용'}
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
+              <div className="branch-edit-modal__nav-footer">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  사용 중 {enabledCount} / 7
+                </Typography.Text>
+              </div>
+            </aside>
+
+            <div className="branch-edit-modal__content">
+              <div className={`branch-edit-modal__section${activeSection === 'basic' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>지사 기본 정보</Typography.Title>
+                    <Typography.Text type="secondary">
+                      지사 식별 정보와 연결할 DID, 대표번호를 설정합니다.
+                    </Typography.Text>
+                  </div>
+                </div>
                 <Row gutter={12}>
                   <Col xs={24} md={12}>
                     <Form.Item
@@ -685,57 +756,22 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                 <Form.Item className="branch-edit-modal__compact-item" label="활성 여부" name="isActive" valuePropName="checked">
                   <Switch checkedChildren="활성" unCheckedChildren="비활성" />
                 </Form.Item>
-              </Card>
-            </Col>
-            <Col xs={24} lg={8}>
-              <Card className="branch-edit-modal__panel" title="현재 운영 상태">
-                <Space wrap size={[8, 8]}>
-                  {featureStatusTag(routingEnabled)}
-                  <Typography.Text>호 분배룰</Typography.Text>
-                  {featureStatusTag(forwardingEnabled)}
-                  <Typography.Text>착신전환</Typography.Text>
-                  {featureStatusTag(promptsEnabled)}
-                  <Typography.Text>기본 멘트</Typography.Text>
-                  {featureStatusTag(arsEnabled)}
-                  <Typography.Text>ARS</Typography.Text>
-                  {featureStatusTag(recordingEnabled)}
-                  <Typography.Text>녹취</Typography.Text>
-                  {featureStatusTag(blocklist080Enabled)}
-                  <Typography.Text>080</Typography.Text>
-                  {featureStatusTag(cidSmdrEnabled)}
-                  <Typography.Text>CID/SMDR</Typography.Text>
-                </Space>
-                <div style={{ marginTop: 12 }}>
-                  <Typography.Text type="secondary">
-                    세부 항목 생성과 수정은 각 관리 메뉴에서 처리하고, 지사에서는 사용할 대상만 선택합니다.
-                  </Typography.Text>
-                </div>
-              </Card>
-            </Col>
-          </Row>
+              </div>
 
-          <Collapse
-            style={{ marginTop: 16 }}
-            defaultActiveKey={['routing', 'forwarding', 'prompts', 'ars']}
-            items={[
-              {
-                key: 'routing',
-                label: (
-                  <Space>
-                    <Typography.Text strong>호 분배룰 설정</Typography.Text>
+              <div className={`branch-edit-modal__section${activeSection === 'routing' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>호 분배룰 설정</Typography.Title>
+                    <Typography.Text type="secondary">
+                      여러 개의 호 분배룰을 쓰는 경우 각 룰의 작동 조건을 함께 설정합니다.
+                    </Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('routingEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/settings/queues')}>호 분배룰 관리</Button>
                   </Space>
-                ),
-                extra: sectionSwitch('routingEnabled'),
-                children: (
-                    <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                      <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                        <Typography.Text type="secondary">
-                          여러 개의 호 분배룰을 쓰는 경우 각 룰의 작동 조건을 함께 설정합니다.
-                        </Typography.Text>
-                        <Button type="link" size="small" onClick={() => moveTo('/settings/queues')}>
-                          호 분배룰 관리
-                      </Button>
-                    </Space>
+                </div>
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
                     <Form.Item
                       className="branch-edit-modal__compact-item"
                       label="사용할 호 분배룰"
@@ -829,215 +865,177 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                       </Space>
                     ) : null}
                   </Space>
-                ),
-              },
-              {
-                key: 'forwarding',
-                label: (
-                  <Space>
-                    <Typography.Text strong>착신전환 설정</Typography.Text>
-                  </Space>
-                ),
-                extra: sectionSwitch('forwardingEnabled'),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                      <Typography.Text type="secondary">
-                        세부 규칙은 착신전환 설정 메뉴에서 만들고 여기서 사용할 규칙만 고릅니다.
-                      </Typography.Text>
-                      <Button type="link" size="small" onClick={() => moveTo('/settings/forwarding')}>
-                        착신전환 규칙 관리
-                      </Button>
-                    </Space>
-                    <Form.Item className="branch-edit-modal__compact-item" label="적용할 착신전환 규칙" name="forwardingRuleIds">
-                      <Select
-                        mode="multiple"
-                        allowClear
-                        showSearch
-                        maxTagCount="responsive"
-                        disabled={!forwardingEnabled}
-                        placeholder="사용할 착신전환 규칙을 선택하세요"
-                        options={forwardingOptions}
-                      />
-                    </Form.Item>
-                  </Space>
-                ),
-              },
-              {
-                key: 'prompts',
-                label: (
-                  <Space>
-                    <Typography.Text strong>멘트 사용 설정</Typography.Text>
-                  </Space>
-                ),
-                extra: sectionSwitch('promptsEnabled'),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                      <Typography.Text type="secondary">
-                        고객 안내를 위해 기본 멘트는 필수입니다.
-                      </Typography.Text>
-                      <Button type="link" size="small" onClick={() => moveTo('/settings/prompts')}>
-                        멘트 관리
-                      </Button>
-                    </Space>
-                    <Row gutter={12}>
-                      <Col xs={24} lg={18}>
-                        <Form.Item
-                          className="branch-edit-modal__compact-item"
-                          label="기본 멘트"
-                          name="defaultPromptId"
-                          rules={[{ required: true, message: '기본 멘트를 선택하세요.' }]}
-                          extra="기본값 0초는 멘트 시작과 동시에 큐 진입입니다."
-                        >
-                          <Select
-                            allowClear
-                            showSearch
-                            disabled={!promptsEnabled}
-                            placeholder="지사 기본 멘트를 선택하세요"
-                            options={promptOptions}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} lg={6}>
-                        <Form.Item
-                          className="branch-edit-modal__compact-item"
-                          label="지연(초)"
-                          name="promptQueueJoinDelaySeconds"
-                          extra="지정 초 후 큐 진입"
-                        >
-                          <InputNumber min={0} max={300} precision={0} style={{ width: '100%' }} disabled={!promptsEnabled} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Form.Item
-                      className="branch-edit-modal__compact-item"
-                      label="멘트 완료까지 대기"
-                      name="waitForPromptCompletionBeforeQueue"
-                      valuePropName="checked"
-                      extra="사용 시 멘트가 끝난 뒤에만 큐에 진입합니다. 끄면 멘트 시작과 동시에 또는 지정 초 후 큐에 진입합니다."
-                    >
-                      <Switch checkedChildren="완료 후" unCheckedChildren="병행 진입" disabled={!promptsEnabled} />
-                    </Form.Item>
-                  </Space>
-                ),
-              },
-              {
-                key: 'ars',
-                label: (
-                  <Space>
-                    <Typography.Text strong>ARS 기능 설정</Typography.Text>
-                  </Space>
-                ),
-                extra: sectionSwitch('arsEnabled'),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                      <Typography.Text type="secondary">
-                        지사에서 사용하는 IVR 메뉴만 선택합니다.
-                      </Typography.Text>
-                      <Button type="link" size="small" onClick={() => moveTo('/asterisk')}>
-                        IVR 메뉴 관리
-                      </Button>
-                    </Space>
-                    <Form.Item className="branch-edit-modal__compact-item" label="사용할 ARS 메뉴" name="ivrMenuIds">
-                      <Select
-                        mode="multiple"
-                        allowClear
-                        showSearch
-                        maxTagCount="responsive"
-                        disabled={!arsEnabled}
-                        placeholder="사용할 IVR 메뉴를 선택하세요"
-                        options={ivrMenuOptions}
-                      />
-                    </Form.Item>
-                  </Space>
-                ),
-              },
-              {
-                key: 'recording',
-                label: (
-                  <Space>
-                    <Typography.Text strong>녹취 설정</Typography.Text>
-                  </Space>
-                ),
-                extra: sectionSwitch('recordingEnabled'),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                      <Typography.Text type="secondary">
-                        녹취 저장 정책과 기본 동작은 시스템 설정에서 관리합니다.
-                      </Typography.Text>
-                      <Button type="link" size="small" onClick={() => moveTo('/system')}>
-                        시스템 설정
-                      </Button>
-                    </Space>
-                  </Space>
-                ),
-              },
-              {
-                key: 'blocklist',
-                label: (
-                  <Space>
-                    <Typography.Text strong>080 수신거부 설정</Typography.Text>
-                  </Space>
-                ),
-                extra: sectionSwitch('blocklist080Enabled'),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                      <Typography.Text type="secondary">
-                        차단 번호 자체는 080 수신거부 메뉴에서 관리합니다.
-                      </Typography.Text>
-                      <Button type="link" size="small" onClick={() => moveTo('/blocklist')}>
-                        080 수신거부 관리
-                      </Button>
-                    </Space>
+              </div>
+
+              <div className={`branch-edit-modal__section${activeSection === 'forwarding' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>착신전환 설정</Typography.Title>
                     <Typography.Text type="secondary">
-                      지사에서 080 수신거부 기능을 사용할지 여부만 여기서 결정합니다.
+                      세부 규칙은 착신전환 설정 메뉴에서 만들고 여기서 사용할 규칙만 고릅니다.
                     </Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('forwardingEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/settings/forwarding')}>착신전환 규칙 관리</Button>
                   </Space>
-                ),
-              },
-              {
-                key: 'cid',
-                label: (
-                  <Space>
-                    <Typography.Text strong>CID / SMDR 설정</Typography.Text>
+                </div>
+                <Form.Item className="branch-edit-modal__compact-item" label="적용할 착신전환 규칙" name="forwardingRuleIds">
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    disabled={!forwardingEnabled}
+                    placeholder="사용할 착신전환 규칙을 선택하세요"
+                    options={forwardingOptions}
+                  />
+                </Form.Item>
+              </div>
+
+              <div className={`branch-edit-modal__section${activeSection === 'prompts' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>멘트 사용 설정</Typography.Title>
+                    <Typography.Text type="secondary">고객 안내를 위해 기본 멘트는 필수입니다.</Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('promptsEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/settings/prompts')}>멘트 관리</Button>
                   </Space>
-                ),
-                extra: sectionSwitch('cidSmdrEnabled'),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                      <Typography.Text type="secondary">
-                        CID와 SMDR 외부 알림은 같은 조건으로 함께 동작합니다.
-                      </Typography.Text>
-                      <Button type="link" size="small" onClick={() => moveTo('/system')}>
-                        시스템 설정
-                      </Button>
-                    </Space>
+                </div>
+                <Row gutter={12}>
+                  <Col xs={24} lg={18}>
                     <Form.Item
                       className="branch-edit-modal__compact-item"
-                      label="지사 기본 발신번호"
-                      name="defaultOutboundCallerId"
-                      extra="허용 발신번호는 시스템 설정에서 관리하고, 지사에서는 사용할 기본 CID만 선택합니다."
+                      label="기본 멘트"
+                      name="defaultPromptId"
+                      rules={[{ required: true, message: '기본 멘트를 선택하세요.' }]}
+                      extra="기본값 0초는 멘트 시작과 동시에 큐 진입입니다."
                     >
                       <Select
                         allowClear
-                        disabled={!cidSmdrEnabled}
-                        placeholder="지사 기본 발신번호를 선택하세요"
-                        options={callerIdOptions}
+                        showSearch
+                        disabled={!promptsEnabled}
+                        placeholder="지사 기본 멘트를 선택하세요"
+                        options={promptOptions}
                       />
                     </Form.Item>
-                    <Typography.Text type="secondary">
-                      SMDR 외부 알림 상세 규격은 후속 시스템 연동 확장 대상이며, 현재는 지사별 사용 여부를 우선 보관합니다.
-                    </Typography.Text>
+                  </Col>
+                  <Col xs={24} lg={6}>
+                    <Form.Item
+                      className="branch-edit-modal__compact-item"
+                      label="지연(초)"
+                      name="promptQueueJoinDelaySeconds"
+                      extra="지정 초 후 큐 진입"
+                    >
+                      <InputNumber min={0} max={300} precision={0} style={{ width: '100%' }} disabled={!promptsEnabled} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item
+                  className="branch-edit-modal__compact-item"
+                  label="멘트 완료까지 대기"
+                  name="waitForPromptCompletionBeforeQueue"
+                  valuePropName="checked"
+                  extra="사용 시 멘트가 끝난 뒤에만 큐에 진입합니다. 끄면 멘트 시작과 동시에 또는 지정 초 후 큐에 진입합니다."
+                >
+                  <Switch checkedChildren="완료 후" unCheckedChildren="병행 진입" disabled={!promptsEnabled} />
+                </Form.Item>
+              </div>
+
+              <div className={`branch-edit-modal__section${activeSection === 'ars' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>ARS 기능 설정</Typography.Title>
+                    <Typography.Text type="secondary">지사에서 사용하는 IVR 메뉴만 선택합니다.</Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('arsEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/asterisk')}>IVR 메뉴 관리</Button>
                   </Space>
-                ),
-              },
-            ]}
-          />
+                </div>
+                <Form.Item className="branch-edit-modal__compact-item" label="사용할 ARS 메뉴" name="ivrMenuIds">
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    disabled={!arsEnabled}
+                    placeholder="사용할 IVR 메뉴를 선택하세요"
+                    options={ivrMenuOptions}
+                  />
+                </Form.Item>
+              </div>
+
+              <div className={`branch-edit-modal__section${activeSection === 'recording' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>녹취 설정</Typography.Title>
+                    <Typography.Text type="secondary">
+                      녹취 저장 정책과 기본 동작은 시스템 설정에서 관리합니다.
+                    </Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('recordingEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/system')}>시스템 설정</Button>
+                  </Space>
+                </div>
+                <Typography.Text type="secondary">
+                  지사 단위에서는 녹취 사용 여부만 결정합니다. 저장 경로, 보관 기간 등은 시스템 설정에서 관리하세요.
+                </Typography.Text>
+              </div>
+
+              <div className={`branch-edit-modal__section${activeSection === 'blocklist' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>080 수신거부 설정</Typography.Title>
+                    <Typography.Text type="secondary">
+                      차단 번호 자체는 080 수신거부 메뉴에서 관리합니다.
+                    </Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('blocklist080Enabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/blocklist')}>080 수신거부 관리</Button>
+                  </Space>
+                </div>
+                <Typography.Text type="secondary">
+                  지사에서 080 수신거부 기능을 사용할지 여부만 여기서 결정합니다.
+                </Typography.Text>
+              </div>
+
+              <div className={`branch-edit-modal__section${activeSection === 'cid' ? ' is-active' : ''}`}>
+                <div className="branch-edit-modal__section-head">
+                  <div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>CID / SMDR 설정</Typography.Title>
+                    <Typography.Text type="secondary">
+                      CID와 SMDR 외부 알림은 같은 조건으로 함께 동작합니다.
+                    </Typography.Text>
+                  </div>
+                  <Space size={8}>
+                    {sectionSwitch('cidSmdrEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/system')}>시스템 설정</Button>
+                  </Space>
+                </div>
+                <Form.Item
+                  className="branch-edit-modal__compact-item"
+                  label="지사 기본 발신번호"
+                  name="defaultOutboundCallerId"
+                  extra="허용 발신번호는 시스템 설정에서 관리하고, 지사에서는 사용할 기본 CID만 선택합니다."
+                >
+                  <Select
+                    allowClear
+                    disabled={!cidSmdrEnabled}
+                    placeholder="지사 기본 발신번호를 선택하세요"
+                    options={callerIdOptions}
+                  />
+                </Form.Item>
+                <Typography.Text type="secondary">
+                  SMDR 외부 알림 상세 규격은 후속 시스템 연동 확장 대상이며, 현재는 지사별 사용 여부를 우선 보관합니다.
+                </Typography.Text>
+              </div>
+            </div>
+          </div>
         </Form>
       </Space>
     </Modal>

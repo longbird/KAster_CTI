@@ -14,16 +14,39 @@ interface MissedRow {
   didNumber?: string | null;
   representativeNumber?: string | null;
   queueName: string;
+  queueDisplayName?: string | null;
   startedAt: string;
   waitSeconds: number;
   primaryAgent: { agentName: string } | null;
+}
+
+function getDisplayDid(row: MissedRow) {
+  return row.didNumber ?? null;
+}
+
+function getRepresentativeDidLines(row: MissedRow) {
+  const representative = row.representativeNumber?.trim() || null;
+  const did = getDisplayDid(row)?.trim() || null;
+
+  if (representative && did && representative !== did) {
+    return { primary: representative, secondary: did };
+  }
+
+  return {
+    primary: representative ?? did ?? '-',
+    secondary: representative && did && representative === did ? null : did,
+  };
+}
+
+function getQueueLabel(row: MissedRow) {
+  return row.queueDisplayName?.trim() || row.queueName || '-';
 }
 
 export function MissedCallsPage() {
   const reportPermission = usePermissionStore((state) => state.permissionsByMenu['reports/missed']);
   const [rows, setRows]       = useState<MissedRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs()]);
+  const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
 
   const load = async () => {
@@ -52,9 +75,9 @@ export function MissedCallsPage() {
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
         row.ani,
-        row.representativeNumber ?? '-',
-        row.didNumber ?? row.dnis,
-        row.queueName,
+        row.representativeNumber ?? row.didNumber ?? '-',
+        row.didNumber ?? '-',
+        getQueueLabel(row),
         row.primaryAgent?.agentName ?? '-',
         row.waitSeconds,
         '미연결',
@@ -67,9 +90,11 @@ export function MissedCallsPage() {
       <Typography.Title level={4} style={{ marginTop: 0 }}>미연결 콜 조회</Typography.Title>
       <Space style={{ marginBottom: 16 }} wrap>
         <DatePicker.RangePicker
-          showTime
           value={range}
-          onChange={(v) => v && setRange(v as [Dayjs, Dayjs])}
+          onChange={(value) => {
+            if (!value?.[0] || !value?.[1]) return;
+            setRange([value[0].startOf('day'), value[1].endOf('day')]);
+          }}
         />
         <BranchFilterSelect value={branchId} onChange={setBranchId} />
         <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
@@ -98,14 +123,23 @@ export function MissedCallsPage() {
           {
             title: '대표번호 / DID',
             width: 180,
-            render: (_: unknown, row: MissedRow) => (
-              <Space direction="vertical" size={0}>
-                <Typography.Text strong>{row.representativeNumber ?? '-'}</Typography.Text>
-                <Typography.Text type="secondary">{row.didNumber ?? row.dnis ?? '-'}</Typography.Text>
-              </Space>
-            ),
+            render: (_: unknown, row: MissedRow) => {
+              const lines = getRepresentativeDidLines(row);
+              return (
+                <Space direction="vertical" size={0}>
+                  <Typography.Text strong>{lines.primary}</Typography.Text>
+                  {lines.secondary ? (
+                    <Typography.Text type="secondary">{lines.secondary}</Typography.Text>
+                  ) : null}
+                </Space>
+              );
+            },
           },
-          { title: '큐', dataIndex: 'queueName', width: 140 },
+          {
+            title: '분배룰',
+            width: 140,
+            render: (_: unknown, row: MissedRow) => getQueueLabel(row),
+          },
           {
             title: '최종 상담원',
             render: (_: unknown, r: MissedRow) => r.primaryAgent?.agentName ?? '-',

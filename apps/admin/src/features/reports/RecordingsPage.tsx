@@ -21,15 +21,38 @@ interface RecRow {
     didNumber?: string | null;
     representativeNumber?: string | null;
     queueName: string;
+    queueDisplayName?: string | null;
     primaryAgent: { agentName: string } | null;
   } | null;
+}
+
+function getDisplayDid(row: RecRow) {
+  return row.session?.didNumber ?? null;
+}
+
+function getRepresentativeDidLines(row: RecRow) {
+  const representative = row.session?.representativeNumber?.trim() || null;
+  const did = getDisplayDid(row)?.trim() || null;
+
+  if (representative && did && representative !== did) {
+    return { primary: representative, secondary: did };
+  }
+
+  return {
+    primary: representative ?? did ?? '-',
+    secondary: representative && did && representative === did ? null : did,
+  };
+}
+
+function getQueueLabel(row: RecRow) {
+  return row.session?.queueDisplayName?.trim() || row.session?.queueName || '-';
 }
 
 export function RecordingsPage() {
   const reportPermission = usePermissionStore((state) => state.permissionsByMenu['reports/recordings']);
   const [rows, setRows]       = useState<RecRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs()]);
+  const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
 
   const load = async () => {
@@ -57,9 +80,9 @@ export function RecordingsPage() {
       rows.map((row) => [
         row.recordingStartedAt ? dayjs(row.recordingStartedAt).format('YYYY-MM-DD HH:mm:ss') : '-',
         row.session?.ani ?? '-',
-        row.session?.representativeNumber ?? '-',
-        row.session?.didNumber ?? row.session?.dnis ?? '-',
-        row.session?.queueName ?? '-',
+        row.session?.representativeNumber ?? row.session?.didNumber ?? '-',
+        row.session?.didNumber ?? '-',
+        getQueueLabel(row),
         row.session?.primaryAgent?.agentName ?? '-',
         row.fileName,
         row.fileFormat.toUpperCase(),
@@ -73,9 +96,11 @@ export function RecordingsPage() {
       <Typography.Title level={4} style={{ marginTop: 0 }}>녹취 목록</Typography.Title>
       <Space style={{ marginBottom: 16 }} wrap>
         <DatePicker.RangePicker
-          showTime
           value={range}
-          onChange={(v) => v && setRange(v as [Dayjs, Dayjs])}
+          onChange={(value) => {
+            if (!value?.[0] || !value?.[1]) return;
+            setRange([value[0].startOf('day'), value[1].endOf('day')]);
+          }}
         />
         <BranchFilterSelect value={branchId} onChange={setBranchId} />
         <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
@@ -107,18 +132,23 @@ export function RecordingsPage() {
           },
           {
             title: '대표번호 / DID',
-            render: (_: unknown, r: RecRow) => (
-              <Space direction="vertical" size={0}>
-                <Typography.Text strong>{r.session?.representativeNumber ?? '-'}</Typography.Text>
-                <Typography.Text type="secondary">{r.session?.didNumber ?? r.session?.dnis ?? '-'}</Typography.Text>
-              </Space>
-            ),
+            render: (_: unknown, r: RecRow) => {
+              const lines = getRepresentativeDidLines(r);
+              return (
+                <Space direction="vertical" size={0}>
+                  <Typography.Text strong>{lines.primary}</Typography.Text>
+                  {lines.secondary ? (
+                    <Typography.Text type="secondary">{lines.secondary}</Typography.Text>
+                  ) : null}
+                </Space>
+              );
+            },
             width: 180,
           },
           {
-            title: '큐',
-            render: (_: unknown, r: RecRow) => r.session?.queueName ?? '-',
-            width: 120,
+            title: '분배룰',
+            render: (_: unknown, r: RecRow) => getQueueLabel(r),
+            width: 140,
           },
           {
             title: '상담원',

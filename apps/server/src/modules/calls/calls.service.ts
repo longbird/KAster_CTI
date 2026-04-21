@@ -209,6 +209,101 @@ export class CallsService {
     );
   }
 
+  private normalizeDidCandidate(value: string | null | undefined) {
+    const trimmed = value?.trim();
+    if (!trimmed) return null;
+    const digitCount = trimmed.replace(/\D/g, '').length;
+    return digitCount >= 4 ? trimmed : null;
+  }
+
+  private async getResolvedDidMap(
+    tenantId: string,
+    rows: Array<{ linkedid: string; didNumber?: string | null; dnis?: string | null }>,
+  ) {
+    const resolved = new Map<string, string | null>();
+    const missingLinkedids: string[] = [];
+
+    for (const row of rows) {
+      const direct = this.normalizeDidCandidate(row.didNumber) ?? this.normalizeDidCandidate(row.dnis);
+      if (direct) {
+        resolved.set(row.linkedid, direct);
+      } else if (row.linkedid) {
+        missingLinkedids.push(row.linkedid);
+      }
+    }
+
+    const uniqueMissingLinkedids = [...new Set(missingLinkedids)];
+    if (uniqueMissingLinkedids.length === 0) {
+      return resolved;
+    }
+
+    const events = await this.prisma.rawAmiEvents.findMany({
+      where: {
+        tenantId,
+        linkedid: { in: uniqueMissingLinkedids },
+        eventName: { in: ['Newchannel', 'Newexten', 'VarSet'] },
+      },
+      orderBy: [{ linkedid: 'asc' }, { eventTime: 'asc' }],
+      select: {
+        linkedid: true,
+        payload: true,
+      },
+    });
+
+    for (const event of events) {
+      if (resolved.has(event.linkedid ?? '')) {
+        continue;
+      }
+
+      const payload = event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)
+        ? event.payload as Record<string, unknown>
+        : {};
+      const raw = payload.raw && typeof payload.raw === 'object' && !Array.isArray(payload.raw)
+        ? payload.raw as Record<string, unknown>
+        : {};
+
+      const topLevelDnis = typeof payload.dnis === 'string' ? payload.dnis : null;
+      const rawExten = typeof raw.Exten === 'string' ? raw.Exten : null;
+      const rawVariable = typeof raw.Variable === 'string' ? raw.Variable : null;
+      const rawValue = typeof raw.Value === 'string' ? raw.Value : null;
+
+      const candidate =
+        (rawVariable === '__ENTRY_DID' ? this.normalizeDidCandidate(rawValue) : null) ??
+        this.normalizeDidCandidate(topLevelDnis) ??
+        this.normalizeDidCandidate(rawExten);
+
+      if (candidate && event.linkedid) {
+        resolved.set(event.linkedid, candidate);
+      }
+    }
+
+    return resolved;
+  }
+
+  private async getQueueDisplayNameMap(tenantId: string, queueNames: Array<string | null | undefined>) {
+    const normalized = [...new Set(
+      queueNames
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value)),
+    )];
+    if (normalized.length === 0) {
+      return new Map<string, string>();
+    }
+
+    const queues = await this.prisma.queues.findMany({
+      where: {
+        tenantId,
+        queueName: { in: normalized },
+      },
+      select: {
+        queueName: true,
+        queueDisplayName: true,
+      },
+    });
+
+    return new Map(queues.map((queue) => [queue.queueName, queue.queueDisplayName]));
+  }
+
   async getActiveCalls(tenantId: string, branchId?: string) {
     const branchScope = await this.getBranchScope(tenantId, branchId);
     const rows = await this.prisma.callSessions.findMany({
@@ -879,15 +974,29 @@ export class CallsService {
     });
     const linkedids = [...new Set(rows.map((row) => row.linkedid).filter(Boolean))];
     const latestTransferCandidateMap = await this.getLatestTransferCandidateMap(tenantId, linkedids);
+    const resolvedDidMap = await this.getResolvedDidMap(
+      tenantId,
+      rows.map((row) => ({
+        linkedid: row.linkedid,
+        didNumber: row.didNumber,
+        dnis: row.dnis,
+      })),
+    );
     const didMetaMap = await this.getDidMetaMap(
       tenantId,
-      rows.map((row) => row.didNumber ?? row.dnis),
+      rows.map((row) => resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? row.dnis),
+    );
+    const queueDisplayNameMap = await this.getQueueDisplayNameMap(
+      tenantId,
+      rows.map((row) => row.queueName),
     );
     const data = rows.map((row) => ({
       ...row,
+      didNumber: resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? null,
+      queueDisplayName: queueDisplayNameMap.get(row.queueName ?? '') ?? row.queueName ?? null,
       latestTransfer: latestTransferCandidateMap.get(row.linkedid) ?? null,
       representativeNumber:
-        didMetaMap.get(row.didNumber ?? row.dnis ?? '')?.representativeNumber ?? null,
+        didMetaMap.get(resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? row.dnis ?? '')?.representativeNumber ?? null,
     }));
     return { success: true, data, error: null };
   }
@@ -918,23 +1027,52 @@ export class CallsService {
         durationSeconds: true, recordingStartedAt: true,
         session: {
           select: {
-            ani: true, dnis: true, didNumber: true, queueName: true,
+            linkedid: true, ani: true, dnis: true, didNumber: true, queueName: true,
             primaryAgent: { select: { agentName: true } },
           },
         },
       },
     });
+    const recordingSessions = rows
+      .map((row) => row.session)
+      .filter(Boolean) as Array<{
+        linkedid: string;
+        ani: string;
+        dnis: string | null;
+        didNumber: string | null;
+        queueName: string;
+        primaryAgent: { agentName: string } | null;
+      }>;
+    const resolvedDidMap = await this.getResolvedDidMap(
+      tenantId,
+      recordingSessions.map((session) => ({
+        linkedid: session.linkedid,
+        didNumber: session.didNumber,
+        dnis: session.dnis,
+      })),
+    );
     const didMetaMap = await this.getDidMetaMap(
       tenantId,
-      rows.map((row) => row.session?.didNumber ?? row.session?.dnis),
+      rows.map((row) => {
+        const linkedid = row.session?.linkedid ?? '';
+        return resolvedDidMap.get(linkedid) ?? row.session?.didNumber ?? row.session?.dnis;
+      }),
+    );
+    const queueDisplayNameMap = await this.getQueueDisplayNameMap(
+      tenantId,
+      rows.map((row) => row.session?.queueName),
     );
     const data = rows.map((row) => ({
       ...row,
       session: row.session
         ? {
             ...row.session,
+            didNumber: resolvedDidMap.get(row.session.linkedid) ?? row.session.didNumber ?? null,
+            queueDisplayName: queueDisplayNameMap.get(row.session.queueName ?? '') ?? row.session.queueName ?? null,
             representativeNumber:
-              didMetaMap.get(row.session.didNumber ?? row.session.dnis ?? '')?.representativeNumber ?? null,
+              didMetaMap.get(
+                resolvedDidMap.get(row.session.linkedid) ?? row.session.didNumber ?? row.session.dnis ?? '',
+              )?.representativeNumber ?? null,
           }
         : null,
     }));

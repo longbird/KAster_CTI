@@ -28,8 +28,8 @@ export function AmiLogsPage() {
   const [rows, setRows] = useState<AmiLogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().subtract(6, 'hour'),
-    dayjs(),
+    dayjs().startOf('day'),
+    dayjs().endOf('day'),
   ]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   const [eventName, setEventName] = useState('');
@@ -91,9 +91,11 @@ export function AmiLogsPage() {
       </Typography.Title>
       <Space style={{ marginBottom: 16 }} wrap>
         <DatePicker.RangePicker
-          showTime
           value={range}
-          onChange={(value) => value && setRange(value as [Dayjs, Dayjs])}
+          onChange={(value) => {
+            if (!value?.[0] || !value?.[1]) return;
+            setRange([value[0].startOf('day'), value[1].endOf('day')]);
+          }}
         />
         <BranchFilterSelect value={branchId} onChange={setBranchId} />
         <Input
@@ -162,17 +164,6 @@ export function AmiLogsPage() {
             dataIndex: 'uniqueid',
             width: 220,
             ellipsis: true,
-          },
-          {
-            title: 'Payload 미리보기',
-            render: (_: unknown, row: AmiLogRow) => {
-              const preview = JSON.stringify(row.payload ?? {});
-              return (
-                <Typography.Text ellipsis style={{ maxWidth: 420 }}>
-                  {preview}
-                </Typography.Text>
-              );
-            },
           },
         ]}
       />
