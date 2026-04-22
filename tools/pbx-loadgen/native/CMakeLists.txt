@@ -29,7 +29,7 @@ if(PBX_LOADGEN_BUILD_CLI)
   find_package(PJSIP REQUIRED)
 
   add_executable(pbx-loadgen src/main.cpp)
-  target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp)
+  target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp src/tone_generator.cpp)
   target_link_libraries(
     pbx-loadgen
     PRIVATE
@@ -43,10 +43,8 @@ endif()
 
 if(BUILD_TESTING)
   enable_testing()
-  if(PBX_LOADGEN_BUILD_CLI)
-    add_subdirectory(tests)
-  endif()
   include("${catch2_SOURCE_DIR}/extras/Catch.cmake")
+  add_subdirectory(tests)
 
   add_executable(pbx_loadgen_call_types_tests tests/call_types_test.cpp)
   target_link_libraries(pbx_loadgen_call_types_tests PRIVATE Catch2::Catch2WithMain)
