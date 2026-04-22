@@ -23,6 +23,7 @@ import type {
   AgentDirectoryItem,
   AgentSession,
   CallHistoryItem,
+  CommandAck,
   CtiEvent,
   EventLogItem,
   QueueSummary,
@@ -84,6 +85,13 @@ function pushLog(
     message,
   };
   return [entry, ...state.eventLog].slice(0, 50);
+}
+
+function enrichCommandMessage(message: string, ack?: Partial<CommandAck> | null): string {
+  const correlationId = typeof ack?.correlationId === 'string' ? ack.correlationId.trim() : '';
+  const requestedAt = typeof ack?.requestedAt === 'string' ? ack.requestedAt.trim() : '';
+  const meta = [correlationId ? `[${correlationId}]` : '', requestedAt].filter(Boolean).join(' ');
+  return meta ? `${message} ${meta}` : message;
 }
 
 export const useCtiStore = create<CtiState>((set, get) => ({
@@ -165,9 +173,12 @@ export const useCtiStore = create<CtiState>((set, get) => ({
     const callId = get().selectedCallId;
     if (!callId) return;
 
-    await pickupCall(callId);
+    const ack = await pickupCall(callId);
     const agent = get().agentSession;
-    const msg = `당겨받기 요청이 접수되었습니다. 내선: ${agent?.extension ?? '-'}`;
+    const msg = enrichCommandMessage(
+      `당겨받기 요청이 접수되었습니다. 내선: ${agent?.extension ?? '-'}`,
+      ack.data,
+    );
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId
@@ -184,10 +195,13 @@ export const useCtiStore = create<CtiState>((set, get) => ({
 
     const current = get().activeCalls.find((call) => call.callId === callId);
     const nextState = current?.isMuted ? 'off' : 'on';
-    await muteCall(callId, nextState);
-    const msg = nextState === 'on'
-      ? '통화 음소거 요청이 처리되었습니다.'
-      : '통화 음소거 해제 요청이 처리되었습니다.';
+    const ack = await muteCall(callId, nextState);
+    const msg = enrichCommandMessage(
+      nextState === 'on'
+        ? '통화 음소거 요청이 처리되었습니다.'
+        : '통화 음소거 해제 요청이 처리되었습니다.',
+      ack.data,
+    );
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId ? { ...call, isMuted: nextState === 'on' } : call,
@@ -207,10 +221,13 @@ export const useCtiStore = create<CtiState>((set, get) => ({
 
     const current = get().activeCalls.find((call) => call.callId === callId);
     const action = current?.sessionStatus === 'HOLD' ? 'resume' : 'hold';
-    await holdCall(callId, action);
-    const msg = action === 'hold'
-      ? '보류 요청이 접수되었습니다. 실제 상태는 PBX 이벤트를 기다립니다.'
-      : '보류 해제 요청이 접수되었습니다. 실제 상태는 PBX 이벤트를 기다립니다.';
+    const ack = await holdCall(callId, action);
+    const msg = enrichCommandMessage(
+      action === 'hold'
+        ? '보류 요청이 접수되었습니다. 실제 상태는 PBX 이벤트를 기다립니다.'
+        : '보류 해제 요청이 접수되었습니다. 실제 상태는 PBX 이벤트를 기다립니다.',
+      ack.data,
+    );
     set((state) => ({
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),
@@ -220,10 +237,13 @@ export const useCtiStore = create<CtiState>((set, get) => ({
     const callId = get().selectedCallId;
     if (!callId) return;
 
-    await transferCall(callId, target, mode);
-    const msg = mode === 'attended'
-      ? `상담 전환 요청이 접수되었습니다. 대상: ${target}`
-      : `호 전환 요청이 접수되었습니다. 대상: ${target}`;
+    const ack = await transferCall(callId, target, mode);
+    const msg = enrichCommandMessage(
+      mode === 'attended'
+        ? `상담 전환 요청이 접수되었습니다. 대상: ${target}`
+        : `호 전환 요청이 접수되었습니다. 대상: ${target}`,
+      ack.data,
+    );
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId
@@ -250,16 +270,22 @@ export const useCtiStore = create<CtiState>((set, get) => ({
     const normalized = phoneNumber.trim();
     if (!normalized) return;
 
-    await originateExternalCall(normalized, callerId);
-    const msg = `외부 발신 요청이 접수되었습니다. 대상: ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`;
+    const ack = await originateExternalCall(normalized, callerId);
+    const msg = enrichCommandMessage(
+      `외부 발신 요청이 접수되었습니다. 대상: ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`,
+      ack.data,
+    );
     set((state) => ({
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),
     }));
   },
   originateInternal: async (target) => {
-    await originateInternalCall(target.agentId, target.extension);
-    const msg = `내선 통화 요청이 접수되었습니다. 대상: ${target.agentName} (${target.extension})`;
+    const ack = await originateInternalCall(target.agentId, target.extension);
+    const msg = enrichCommandMessage(
+      `내선 통화 요청이 접수되었습니다. 대상: ${target.agentName} (${target.extension})`,
+      ack.data,
+    );
     set((state) => ({
       notifications: [msg, ...state.notifications].slice(0, 5),
       eventLog: pushLog(state, 'info', msg),
@@ -269,8 +295,11 @@ export const useCtiStore = create<CtiState>((set, get) => ({
     const callId = get().selectedCallId;
     if (!callId) return;
 
-    await cancelAttendedTransferCall(callId);
-    const msg = '상담 전환 취소 요청이 처리되었습니다.';
+    const ack = await cancelAttendedTransferCall(callId);
+    const msg = enrichCommandMessage(
+      '상담 전환 취소 요청이 처리되었습니다.',
+      ack.data,
+    );
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId
@@ -289,8 +318,11 @@ export const useCtiStore = create<CtiState>((set, get) => ({
     const callId = get().selectedCallId;
     if (!callId) return;
 
-    await completeAttendedTransferCall(callId);
-    const msg = '상담 전환 완료 요청이 처리되었습니다.';
+    const ack = await completeAttendedTransferCall(callId);
+    const msg = enrichCommandMessage(
+      '상담 전환 완료 요청이 처리되었습니다.',
+      ack.data,
+    );
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId
@@ -314,8 +346,11 @@ export const useCtiStore = create<CtiState>((set, get) => ({
     const callId = get().selectedCallId;
     if (!callId) return;
 
-    await hangupCall(callId);
-    const msg = '통화 종료 요청이 처리되었습니다.';
+    const ack = await hangupCall(callId);
+    const msg = enrichCommandMessage(
+      '통화 종료 요청이 처리되었습니다.',
+      ack.data,
+    );
     set((state) => ({
       activeCalls: state.activeCalls.map((call) =>
         call.callId === callId ? { ...call, sessionStatus: 'ENDED' } : call,

@@ -8,12 +8,14 @@ import { CallsService } from '../calls/calls.service';
 import { EventBusService } from '../events/event-bus.service';
 import { QueuesService } from '../queues/queues.service';
 import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
+import { RedisService } from '../redis/redis.service';
 import { LoginDto } from './login.dto';
 
 // share 69de045b: access 는 짧게, refresh 는 길게. refresh token 은 평문 저장 금지
 // — SHA-256 해시만 DB 에 저장하고 원본은 클라이언트가 보관.
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_DAYS = 14;
+const HANDOFF_TOKEN_TTL_SECONDS = 60;
 const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
 
 function sha256(input: string): string {
@@ -34,6 +36,7 @@ export class AuthService {
     private readonly callsService: CallsService,
     private readonly eventBus: EventBusService,
     private readonly queuesService: QueuesService,
+    private readonly redis: RedisService,
   ) {}
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
@@ -88,8 +91,10 @@ export class AuthService {
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
     );
 
-    const accessToken = this.signAccessToken(agent);
     const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, meta);
+    const accessToken = this.signAccessToken(agent, {
+      sessionId: sha256(refreshToken),
+    });
 
     return {
       success: true,
@@ -140,7 +145,9 @@ export class AuthService {
       agent.tenantId,
       { userAgent: row.userAgent ?? undefined, ipAddress: row.ipAddress ?? undefined },
     );
-    const newAccessToken = this.signAccessToken(agent);
+    const newAccessToken = this.signAccessToken(agent, {
+      sessionId: sha256(newRefreshToken),
+    });
 
     return {
       success: true,
@@ -209,18 +216,132 @@ export class AuthService {
     };
   }
 
+  async createDesktopHandoff(
+    user: { sub: string; tenantId: string; role: string; extension: string; sid?: string },
+    dto?: { deviceName?: string },
+  ) {
+    if (!user.sid) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const activeSession = await this.prisma.refreshTokens.findUnique({
+      where: {
+        tokenHash: user.sid,
+      },
+      select: {
+        refreshTokenId: true,
+        agentId: true,
+        tenantId: true,
+        revokedAt: true,
+        expiresAt: true,
+      },
+    });
+    if (
+      !activeSession
+      || activeSession.agentId !== user.sub
+      || activeSession.tenantId !== user.tenantId
+      || activeSession.revokedAt
+      || activeSession.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const handoffToken = randomBytes(24).toString('hex');
+    const payload = JSON.stringify({
+      agentId: user.sub,
+      tenantId: user.tenantId,
+      role: user.role,
+      extension: user.extension,
+      deviceName: dto?.deviceName ?? null,
+    });
+
+    await this.redis.getClient().set(
+      this.handoffKey(handoffToken),
+      payload,
+      'EX',
+      HANDOFF_TOKEN_TTL_SECONDS,
+    );
+
+    return {
+      success: true,
+      data: {
+        handoffToken,
+        expiresIn: HANDOFF_TOKEN_TTL_SECONDS,
+      },
+      error: null,
+    };
+  }
+
+  async exchangeDesktopHandoff(handoffToken: string) {
+    if (!handoffToken) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const raw = await this.consumeHandoffToken(handoffToken);
+    if (!raw) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    let payload: { agentId: string; tenantId: string };
+    try {
+      payload = JSON.parse(raw) as {
+        agentId: string;
+        tenantId: string;
+      };
+    } catch {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    if (!payload?.agentId || !payload?.tenantId) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const agent = await this.prisma.agents.findUnique({
+      where: { agentId: payload.agentId },
+    });
+    if (!agent || !agent.isActive || agent.tenantId !== payload.tenantId) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, {
+      userAgent: 'desktop-handoff',
+      ipAddress: 'handoff',
+    });
+    const accessToken = this.signAccessToken(agent, {
+      sessionId: sha256(refreshToken),
+    });
+
+    return {
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer',
+        expiresIn: 900,
+        agent: {
+          agentId: agent.agentId,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          role: agent.role,
+        },
+      },
+      error: null,
+    };
+  }
+
   private signAccessToken(agent: {
     agentId: string;
     role: string;
     extension: string;
     tenantId: string;
-  }): string {
+  }, options?: { sessionId?: string }): string {
     return jwt.sign(
       {
         sub: agent.agentId,
         role: agent.role,
         extension: agent.extension,
         tenantId: agent.tenantId,
+        ...(options?.sessionId ? { sid: options.sessionId } : {}),
       },
       this.config.get<string>('JWT_SECRET', 'change_me'),
       { expiresIn: ACCESS_TOKEN_TTL },
@@ -246,5 +367,34 @@ export class AuthService {
       },
     });
     return value;
+  }
+
+  private handoffKey(token: string) {
+    return `kaster:auth:handoff:${sha256(token)}`;
+  }
+
+  private async consumeHandoffToken(handoffToken: string): Promise<string | null> {
+    const key = this.handoffKey(handoffToken);
+    const client = this.redis.getClient() as {
+      getdel?: (key: string) => Promise<string | null>;
+      call?: (command: string, key: string) => Promise<string | null>;
+      get: (key: string) => Promise<string | null>;
+      del: (key: string) => Promise<number>;
+    };
+
+    if (typeof client.getdel === 'function') {
+      return client.getdel(key);
+    }
+
+    if (typeof client.call === 'function') {
+      return client.call('GETDEL', key);
+    }
+
+    const raw = await client.get(key);
+    if (!raw) {
+      return null;
+    }
+    const deleted = await client.del(key);
+    return deleted === 1 ? raw : null;
   }
 }

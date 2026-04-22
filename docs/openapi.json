@@ -1,0 +1,3909 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_health",
+        "summary": "운영형 상태 모니터링",
+        "description": "DB/Redis/AMI + Call/Agent/Queue 요약 상태를 반환합니다.",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "멀티테넌트: 특정 tenant 기준으로 콜/에이전트/큐 집계",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness",
+        "summary": "Readiness probe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "operationId": "HealthController_liveness",
+        "summary": "Liveness probe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/calls/active": {
+      "get": {
+        "operationId": "CallsController_getActiveCalls",
+        "summary": "활성 콜 목록",
+        "description": "sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션 (최근 100건). agentName·waitSeconds 포함.",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/history": {
+      "get": {
+        "operationId": "CallsController_listHistory",
+        "summary": "통화내역 조회 (CDR)",
+        "description": "날짜/상담원/상태 필터, 최근 500건",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ENDED",
+                "QUEUED",
+                "TALKING",
+                "AFTER_CALL_WORK",
+                "RINGING_AGENT"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "mode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "missed",
+                "all"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/recordings/list": {
+      "get": {
+        "operationId": "CallsController_listRecordings",
+        "summary": "녹취 목록 조회",
+        "description": "날짜 필터, 최근 200건",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}": {
+      "get": {
+        "operationId": "CallsController_getCallDetail",
+        "summary": "콜 상세",
+        "description": "콜 세션 + callLegs + callMemos + callTransfers + callRecordings + queueEvents",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/originate": {
+      "post": {
+        "operationId": "CallsController_originate",
+        "summary": "Click-to-Call 발신 요청",
+        "description": "AMI Action:Originate 를 상담원 내선으로 전송. 실제 성공 판정은 후속 DialBegin/DialEnd/BridgeEnter/Newstate 이벤트로 SessionEngine 이 담당하며, 이 응답은 즉시 accepted:true 를 반환한다 (conv 40). Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OriginateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/originate/internal": {
+      "post": {
+        "operationId": "CallsController_originateInternal",
+        "summary": "상담원 간 내선 Click-to-Call 요청",
+        "description": "현재 로그인한 상담원 내선을 먼저 울린 뒤, 응답하면 targetExtension 으로 내선 연결을 시도한다. 상대 상담원이 응답하면 통화가 성립한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InternalOriginateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/transfer": {
+      "post": {
+        "operationId": "CallsController_transfer",
+        "summary": "호 전환 (blind / attended)",
+        "description": "legType=agent && !endedAt 인 상담원 leg 의 channelName 을 찾아 AMI Action:Redirect 로 transfer-target context 로 점프 (infra/asterisk/extensions_transfer.conf). BlindTransfer/AttendedTransfer AMI 이벤트 수신 시 TransferDetectorService 가 COMPLETED 로 확정. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/transfer/attended/cancel": {
+      "post": {
+        "operationId": "CallsController_cancelAttendedTransfer",
+        "summary": "상담 전환 취소",
+        "description": "열린 attended transfer candidate 를 FAILED/CANCELED 로 닫고, AMI CancelAtxfer 로 취소를 요청한다. 실제 취소 동작은 Asterisk features.conf 의 atxferabort 설정에 의존한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/transfer/attended/complete": {
+      "post": {
+        "operationId": "CallsController_completeAttendedTransfer",
+        "summary": "상담 전환 완료",
+        "description": "Asterisk features.conf 의 atxfercomplete 기능 코드를 AMI PlayDTMF 로 제어 채널에 주입한다. 실제 완료 판정은 후속 AttendedTransfer 이벤트 수신 시 TransferDetectorService 가 COMPLETED 로 확정한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/pickup": {
+      "post": {
+        "operationId": "CallsController_pickup",
+        "summary": "대기 콜 당겨받기 요청",
+        "description": "큐 대기 중 고객 leg 를 현재 로그인한 상담원 내선으로 Redirect 한다. 실제 연결 성공 판정은 후속 Dial/Bridge 이벤트로 SessionEngine 이 담당하며, 이 응답은 즉시 accepted:true 를 반환한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/mute": {
+      "post": {
+        "operationId": "CallsController_mute",
+        "summary": "통화 음소거/해제 요청",
+        "description": "상담원 leg 에 AMI MuteAudio 를 전송한다. 현재 구조에서는 후속 mute 상태 이벤트를 별도로 동기화하지 않으므로, UI는 요청 성공 기준으로 상태를 갱신한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MuteCallDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/hold": {
+      "post": {
+        "operationId": "CallsController_hold",
+        "summary": "통화 hold 요청",
+        "description": "표준 AMI hold 액션이 없으므로, 운영자가 검증한 feature code 가 설정된 경우에만 AMI PlayDTMF 로 hold 요청을 전달한다. 실제 상태는 후속 Hold/Unhold 이벤트를 신뢰한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/resume": {
+      "post": {
+        "operationId": "CallsController_resume",
+        "summary": "통화 resume 요청",
+        "description": "표준 AMI resume 액션이 없으므로, 운영자가 검증한 feature code 가 설정된 경우에만 AMI PlayDTMF 로 resume 요청을 전달한다. 실제 상태는 후속 Hold/Unhold 이벤트를 신뢰한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/memo": {
+      "post": {
+        "operationId": "CallsController_memo",
+        "summary": "상담 메모 / 후처리 코드 저장",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMemoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/hangup": {
+      "post": {
+        "operationId": "CallsController_hangup",
+        "summary": "통화 종료 요청",
+        "description": "상담원 leg 에 AMI Action:Hangup 을 쏜다. 세션 상태는 후속 Hangup 이벤트로 SessionEngine 이 ENDED 로 마감. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/queues/summary": {
+      "get": {
+        "operationId": "QueuesController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/queues": {
+      "get": {
+        "operationId": "QueuesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "QueuesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQueueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/queues/{queueId}": {
+      "patch": {
+        "operationId": "QueuesController_update",
+        "parameters": [
+          {
+            "name": "queueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQueueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "QueuesController_deactivate",
+        "parameters": [
+          {
+            "name": "queueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/queues/{queueId}/members": {
+      "get": {
+        "operationId": "QueuesController_listMembers",
+        "parameters": [
+          {
+            "name": "queueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "QueuesController_setMembers",
+        "parameters": [
+          {
+            "name": "queueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetQueueMembersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "queues"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/trunks": {
+      "get": {
+        "operationId": "AsteriskConfigController_getTrunks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createTrunk",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrunkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/trunks/bulk": {
+      "post": {
+        "operationId": "AsteriskConfigController_createTrunksBulk",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBulkTrunksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/trunks/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateTrunk",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTrunkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteTrunk",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/dids": {
+      "get": {
+        "operationId": "AsteriskConfigController_getDids",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createDid",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDidDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/dids/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateDid",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDidDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteDid",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/ivr-menus": {
+      "get": {
+        "operationId": "AsteriskConfigController_getIvrMenus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createIvrMenu",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIvrMenuDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/ivr-menus/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateIvrMenu",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIvrMenuDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteIvrMenu",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/agents-sip": {
+      "get": {
+        "operationId": "AsteriskConfigController_getAgentSip",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/agents-sip/{agentId}/password": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateAgentSipPassword",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSipPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/agents-sip/sync": {
+      "post": {
+        "operationId": "AsteriskConfigController_syncAgentSip",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/forwarding-rules": {
+      "get": {
+        "operationId": "AsteriskConfigController_getForwardingRules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createForwardingRule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateForwardingRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/forwarding-rules/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateForwardingRule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateForwardingRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteForwardingRule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/prompts": {
+      "get": {
+        "operationId": "AsteriskConfigController_getPrompts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createPrompt",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/prompts/upload": {
+      "post": {
+        "operationId": "AsteriskConfigController_uploadPromptAudio",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/prompts/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updatePrompt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deletePrompt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/blocklist": {
+      "get": {
+        "operationId": "AsteriskConfigController_getBlocklistEntries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createBlocklistEntry",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBlocklistEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/blocklist/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateBlocklistEntry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBlocklistEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteBlocklistEntry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/reload": {
+      "post": {
+        "operationId": "AsteriskConfigController_manualReload",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/preview": {
+      "get": {
+        "operationId": "AsteriskConfigController_preview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "summary": "상담원 로그인",
+        "description": "기본적으로 loginId + extension + password 검증 (bcrypt). supervisor/admin 은 extension 없이도 로그인 가능. 성공 시 access(15m) + refresh(14d) 토큰 쌍 반환.",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "summary": "Refresh token 으로 새 access 발급",
+        "description": "refresh 는 요청마다 회전 (이전 것은 revoke 후 새로 발급). 재사용 공격 방지.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "summary": "로그아웃",
+        "description": "refresh token 의 revokedAt 을 현재 시각으로 설정. 토큰 없어도 멱등 성공.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "operationId": "AuthController_logoutAll",
+        "summary": "현재 에이전트의 모든 세션 종료",
+        "description": "비밀번호 변경/계정 탈취 의심 시 사용.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/session": {
+      "get": {
+        "operationId": "AuthController_me",
+        "summary": "현재 로그인 세션 조회",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/handoff": {
+      "post": {
+        "operationId": "AuthController_createDesktopHandoff",
+        "summary": "Desktop handoff token 생성",
+        "description": "현재 로그인한 웹 세션이 60초짜리 1회용 handoff token 을 발급해 Windows 런타임이 교환할 수 있게 한다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHandoffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/handoff/exchange": {
+      "post": {
+        "operationId": "AuthController_exchangeDesktopHandoff",
+        "summary": "Desktop handoff token 교환",
+        "description": "1회용 handoff token 을 access/refresh token 으로 교환한다. 성공하면 같은 token 은 재사용할 수 없다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeHandoffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "operationId": "AgentsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AgentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agentId}": {
+      "get": {
+        "operationId": "AgentsController_detail",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AgentsController_deactivate",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "AgentsController_update",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agentId}/history": {
+      "get": {
+        "operationId": "AgentsController_history",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agentId}/reset-password": {
+      "post": {
+        "operationId": "AgentsController_resetPassword",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agentId}/status": {
+      "post": {
+        "operationId": "AgentsController_changeStatus",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAgentStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agents"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers/search": {
+      "get": {
+        "operationId": "CustomersController_search",
+        "parameters": [
+          {
+            "name": "phone",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers/{customerId}": {
+      "get": {
+        "operationId": "CustomersController_getOne",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard": {
+      "get": {
+        "operationId": "AdminController_dashboard",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/reports/ami-logs": {
+      "get": {
+        "operationId": "AdminController_listAmiLogs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/announcements": {
+      "get": {
+        "operationId": "AdminController_listAnnouncements",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_createAnnouncement",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnouncementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/announcements/{announcementId}": {
+      "post": {
+        "operationId": "AdminController_updateAnnouncement",
+        "parameters": [
+          {
+            "name": "announcementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAnnouncementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AdminController_deleteAnnouncement",
+        "parameters": [
+          {
+            "name": "announcementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/branches": {
+      "get": {
+        "operationId": "AdminController_listBranches",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_createBranch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/permissions/current": {
+      "get": {
+        "operationId": "AdminController_getCurrentPermissionProfile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/permissions": {
+      "post": {
+        "operationId": "AdminController_updateRolePermissions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRolePermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "AdminController_listRolePermissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/permissions/accounts/{agentId}": {
+      "get": {
+        "operationId": "AdminController_getAgentPermissionProfile",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_updateAgentPermissions",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentPermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/system": {
+      "get": {
+        "operationId": "AdminController_getSystemSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_updateSystemSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/branches/{branchId}": {
+      "post": {
+        "operationId": "AdminController_updateBranch",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AdminController_deleteBranch",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/branches/{branchId}/mappings": {
+      "get": {
+        "operationId": "AdminController_getBranchMappings",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_updateBranchMappings",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBranchMappingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agent-updates/session": {
+      "post": {
+        "operationId": "AgentUpdatesController_createSession",
+        "summary": "업데이트 세션 발급",
+        "description": "일반 CTI access token 을 updateSessionToken 으로 교환한다. updateSessionToken 은 manifest 와 download-init 호출에만 사용한다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUpdateSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agent-updates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agent-updates/manifest": {
+      "get": {
+        "operationId": "AgentUpdatesController_getManifest",
+        "summary": "승인된 데스크톱 앱 manifest 조회",
+        "description": "콜센터 서버에 승인된 최신 에이전트 데스크톱 버전과 강제 업데이트 정책을 반환한다. Authorization 헤더에는 updateSessionToken 을 보낸다.",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currentVersion",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agent-updates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agent-updates/download-init": {
+      "post": {
+        "operationId": "AgentUpdatesController_downloadInit",
+        "summary": "업데이트 다운로드 토큰 발급",
+        "description": "updateSessionToken 으로 tenant 범위의 승인된 artifact 를 확인한 뒤, artifactId 에 묶인 1회성 downloadToken 을 발급한다.",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DownloadInitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agent-updates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agent-updates/artifacts/{artifactId}": {
+      "get": {
+        "operationId": "AgentUpdatesController_downloadArtifact",
+        "summary": "업데이트 설치 파일 다운로드",
+        "description": "Authorization 헤더의 downloadToken 이 가리키는 artifact 와 요청 artifactId 가 일치할 때만 파일을 내려준다.",
+        "parameters": [
+          {
+            "name": "artifactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agent-updates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agent-updates/report": {
+      "post": {
+        "operationId": "AgentUpdatesController_report",
+        "summary": "업데이트 결과 보고",
+        "description": "다운로드/설치/롤백 상태와 임의 metadata 를 감사 로그로 누적한다. 이 엔드포인트는 일반 CTI access token 을 사용한다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "agent-updates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "KAster CTI API",
+    "description": "Asterisk CTI middleware API",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "InfraChecksDto": {
+        "type": "object",
+        "properties": {
+          "db": {
+            "type": "string",
+            "example": "up"
+          },
+          "redis": {
+            "type": "string",
+            "example": "up"
+          },
+          "ami": {
+            "type": "string",
+            "example": "connected"
+          }
+        },
+        "required": [
+          "db",
+          "redis",
+          "ami"
+        ]
+      },
+      "CallHealthDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "number",
+            "example": 23
+          },
+          "queued": {
+            "type": "number",
+            "example": 6
+          },
+          "ringing": {
+            "type": "number",
+            "example": 3
+          },
+          "talking": {
+            "type": "number",
+            "example": 11
+          },
+          "hold": {
+            "type": "number",
+            "example": 1
+          },
+          "transferring": {
+            "type": "number",
+            "example": 2
+          },
+          "stuck": {
+            "type": "number",
+            "example": 1
+          },
+          "longestWaitingSeconds": {
+            "type": "number",
+            "example": 42
+          }
+        },
+        "required": [
+          "active",
+          "queued",
+          "ringing",
+          "talking",
+          "hold",
+          "transferring",
+          "stuck",
+          "longestWaitingSeconds"
+        ]
+      },
+      "AgentHealthDto": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "number",
+            "example": 12
+          },
+          "talking": {
+            "type": "number",
+            "example": 10
+          },
+          "ringing": {
+            "type": "number",
+            "example": 2
+          },
+          "paused": {
+            "type": "number",
+            "example": 5
+          },
+          "loggedIn": {
+            "type": "number",
+            "example": 29
+          }
+        },
+        "required": [
+          "available",
+          "talking",
+          "ringing",
+          "paused",
+          "loggedIn"
+        ]
+      },
+      "QueueHealthDto": {
+        "type": "object",
+        "properties": {
+          "waiting": {
+            "type": "number",
+            "example": 6
+          },
+          "ringing": {
+            "type": "number",
+            "example": 3
+          },
+          "talking": {
+            "type": "number",
+            "example": 11
+          },
+          "availableAgents": {
+            "type": "number",
+            "example": 10
+          },
+          "longestWaitSeconds": {
+            "type": "number",
+            "example": 42
+          }
+        },
+        "required": [
+          "waiting",
+          "ringing",
+          "talking",
+          "availableAgents",
+          "longestWaitSeconds"
+        ]
+      },
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2026-04-16T00:00:00.000Z"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "cti-app-1"
+          },
+          "leader": {
+            "type": "boolean",
+            "example": true
+          },
+          "checks": {
+            "$ref": "#/components/schemas/InfraChecksDto"
+          },
+          "call": {
+            "$ref": "#/components/schemas/CallHealthDto"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/AgentHealthDto"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueHealthDto"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp",
+          "instanceId",
+          "leader",
+          "checks",
+          "call",
+          "agent",
+          "queue"
+        ]
+      },
+      "ApiErrorDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "NOT_FOUND"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "ApiResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object"
+          },
+          "error": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiErrorDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "OriginateDto": {
+        "type": "object",
+        "properties": {
+          "agentExtension": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "callerId": {
+            "type": "string",
+            "description": "허용된 발신번호 목록에 포함된 번호만 사용 가능"
+          }
+        },
+        "required": [
+          "agentExtension",
+          "phoneNumber"
+        ]
+      },
+      "CommandAckDto": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "example": true
+          },
+          "requestedAt": {
+            "type": "string",
+            "example": "2026-04-22T12:00:00.000Z"
+          },
+          "correlationId": {
+            "type": "string",
+            "example": "corr-123"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "idem-123",
+            "nullable": true
+          }
+        },
+        "required": [
+          "accepted",
+          "requestedAt",
+          "correlationId"
+        ]
+      },
+      "CommandAckResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/CommandAckDto"
+          },
+          "error": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "success",
+          "data"
+        ]
+      },
+      "InternalOriginateDto": {
+        "type": "object",
+        "properties": {
+          "targetExtension": {
+            "type": "string"
+          },
+          "targetAgentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetExtension"
+        ]
+      },
+      "TransferDto": {
+        "type": "object",
+        "properties": {
+          "transferType": {
+            "type": "string",
+            "enum": [
+              "blind",
+              "attended",
+              "queue",
+              "external"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "fromExtension": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "transferType",
+          "target",
+          "fromExtension"
+        ]
+      },
+      "MuteCallDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ],
+            "default": "on"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "all"
+            ],
+            "default": "all"
+          }
+        }
+      },
+      "CreateMemoDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "memoType": {
+            "type": "string",
+            "default": "acw"
+          },
+          "resultCode": {
+            "type": "string"
+          },
+          "subResultCode": {
+            "type": "string"
+          },
+          "memoText": {
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "agentId",
+          "memoType"
+        ]
+      },
+      "CreateQueueDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateQueueDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SetQueueMembersDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateTrunkDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateBulkTrunksDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateTrunkDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateDidDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateDidDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateIvrMenuDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateIvrMenuDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateSipPasswordDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateForwardingRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateForwardingRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreatePromptDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdatePromptDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateBlocklistEntryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateBlocklistEntryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "loginId": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "extension": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loginId",
+          "password"
+        ]
+      },
+      "RefreshDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "CreateHandoffDto": {
+        "type": "object",
+        "properties": {
+          "deviceName": {
+            "type": "string",
+            "example": "front-desk-pc-01"
+          }
+        }
+      },
+      "ExchangeHandoffDto": {
+        "type": "object",
+        "properties": {
+          "handoffToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "handoffToken"
+        ]
+      },
+      "CreateAgentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateAgentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ChangeAgentStatusDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "string"
+          },
+          "reasonCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statusCode"
+        ]
+      },
+      "CreateAnnouncementDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "시스템 점검 안내"
+          },
+          "body": {
+            "type": "string",
+            "example": "금일 22:00부터 22:30까지 점검이 예정되어 있습니다."
+          },
+          "authorName": {
+            "type": "string",
+            "example": "관리자"
+          },
+          "pinned": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ]
+      },
+      "UpdateAnnouncementDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateBranchDto": {
+        "type": "object",
+        "properties": {
+          "branchCode": {
+            "type": "string",
+            "example": "seoul"
+          },
+          "branchName": {
+            "type": "string",
+            "example": "서울 본사"
+          },
+          "description": {
+            "type": "string",
+            "example": "대표 운영 지사"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "branchCode",
+          "branchName"
+        ]
+      },
+      "RolePermissionItemDto": {
+        "type": "object",
+        "properties": {
+          "roleCode": {
+            "type": "string",
+            "example": "supervisor"
+          },
+          "menuKey": {
+            "type": "string",
+            "example": "reports/logs"
+          },
+          "canView": {
+            "type": "boolean",
+            "example": true
+          },
+          "canCreate": {
+            "type": "boolean",
+            "example": true
+          },
+          "canUpdate": {
+            "type": "boolean",
+            "example": true
+          },
+          "canDelete": {
+            "type": "boolean",
+            "example": false
+          },
+          "canOperate": {
+            "type": "boolean",
+            "example": true
+          },
+          "canExport": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "roleCode",
+          "menuKey",
+          "canView",
+          "canCreate",
+          "canUpdate",
+          "canDelete",
+          "canOperate",
+          "canExport"
+        ]
+      },
+      "UpdateRolePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RolePermissionItemDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AgentPermissionItemDto": {
+        "type": "object",
+        "properties": {
+          "menuKey": {
+            "type": "string",
+            "example": "reports/logs"
+          },
+          "canView": {
+            "type": "boolean",
+            "example": true
+          },
+          "canCreate": {
+            "type": "boolean",
+            "example": false
+          },
+          "canUpdate": {
+            "type": "boolean",
+            "example": false
+          },
+          "canDelete": {
+            "type": "boolean",
+            "example": false
+          },
+          "canOperate": {
+            "type": "boolean",
+            "example": false
+          },
+          "canExport": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "menuKey",
+          "canView",
+          "canCreate",
+          "canUpdate",
+          "canDelete",
+          "canOperate",
+          "canExport"
+        ]
+      },
+      "UpdateAgentPermissionsDto": {
+        "type": "object",
+        "properties": {
+          "baseRoleCode": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "supervisor",
+              "admin"
+            ],
+            "example": "supervisor"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentPermissionItemDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "UpdateSystemSettingsDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateBranchDto": {
+        "type": "object",
+        "properties": {
+          "branchCode": {
+            "type": "string",
+            "example": "seoul"
+          },
+          "branchName": {
+            "type": "string",
+            "example": "서울 본사"
+          },
+          "description": {
+            "type": "string",
+            "example": "대표 운영 지사"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "UpdateBranchMappingsDto": {
+        "type": "object",
+        "properties": {
+          "agentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "queueIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "didIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "settingsProfile": {
+            "type": "object"
+          }
+        }
+      },
+      "CreateUpdateSessionDto": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "example": "pc-001"
+          },
+          "currentVersion": {
+            "type": "string",
+            "example": "1.3.2"
+          }
+        }
+      },
+      "DownloadInitDto": {
+        "type": "object",
+        "properties": {
+          "artifactId": {
+            "type": "string",
+            "example": "agent-win-x64-1.4.0"
+          },
+          "currentVersion": {
+            "type": "string",
+            "example": "1.3.2"
+          }
+        },
+        "required": [
+          "artifactId",
+          "currentVersion"
+        ]
+      },
+      "ReportUpdateDto": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  }
+}

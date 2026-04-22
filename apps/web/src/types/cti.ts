@@ -123,6 +123,13 @@ export interface ApiResponse<T> {
   error: string | null;
 }
 
+export interface CommandAck {
+  accepted: boolean;
+  requestedAt: string;
+  correlationId: string;
+  idempotencyKey?: string | null;
+}
+
 export interface EventLogItem {
   id: string;
   timestamp: string;

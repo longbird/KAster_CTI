@@ -1,8 +1,17 @@
 import dayjs from 'dayjs';
 import { initialActiveCalls, initialAgentDirectory, initialAgentSession, initialQueues, recentHistory } from '../mock/data';
-import type { ActiveCall, AgentDirectoryItem, AgentSession, ApiResponse, CallHistoryItem, QueueSummary } from '../types/cti';
+import type { ActiveCall, AgentDirectoryItem, AgentSession, ApiResponse, CallHistoryItem, CommandAck, QueueSummary } from '../types/cti';
 
 const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function mockCommandAck(): CommandAck {
+  return {
+    accepted: true,
+    requestedAt: dayjs().toISOString(),
+    correlationId: `mock-${Math.random().toString(36).slice(2, 10)}`,
+    idempotencyKey: null,
+  };
+}
 
 export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
   await wait();
@@ -43,65 +52,65 @@ export async function saveCallMemo(callId: string, memo: string, resultCode: str
   };
 }
 
-export async function transferCall(callId: string, target: string, _mode: 'blind' | 'attended' = 'blind'): Promise<ApiResponse<{ callId: string; target: string; requestedAt: string }>> {
+export async function transferCall(callId: string, target: string, _mode: 'blind' | 'attended' = 'blind'): Promise<ApiResponse<CommandAck & { callId: string; target: string }>> {
   await wait();
   return {
     success: true,
-    data: { callId, target, requestedAt: dayjs().toISOString() },
+    data: { ...mockCommandAck(), callId, target },
     error: null,
   };
 }
 
-export async function cancelAttendedTransferCall(callId: string): Promise<ApiResponse<{ callId: string; canceled: boolean; requestedAt: string }>> {
+export async function cancelAttendedTransferCall(callId: string): Promise<ApiResponse<CommandAck & { callId: string; canceled: boolean }>> {
   await wait();
   return {
     success: true,
-    data: { callId, canceled: true, requestedAt: dayjs().toISOString() },
+    data: { ...mockCommandAck(), callId, canceled: true },
     error: null,
   };
 }
 
-export async function completeAttendedTransferCall(callId: string): Promise<ApiResponse<{ callId: string; accepted: boolean; requestedAt: string }>> {
+export async function completeAttendedTransferCall(callId: string): Promise<ApiResponse<CommandAck & { callId: string }>> {
   await wait();
   return {
     success: true,
-    data: { callId, accepted: true, requestedAt: dayjs().toISOString() },
+    data: { ...mockCommandAck(), callId },
     error: null,
   };
 }
 
-export async function pickupCall(callId: string): Promise<ApiResponse<{ callId: string; accepted: boolean; extension: string; requestedAt: string }>> {
+export async function pickupCall(callId: string): Promise<ApiResponse<CommandAck & { callId: string; extension: string }>> {
   await wait();
   return {
     success: true,
-    data: { callId, accepted: true, extension: '1001', requestedAt: dayjs().toISOString() },
+    data: { ...mockCommandAck(), callId, extension: '1001' },
     error: null,
   };
 }
 
-export async function muteCall(callId: string, state: 'on' | 'off'): Promise<ApiResponse<{ callId: string; accepted: boolean; state: 'on' | 'off'; direction: string }>> {
+export async function muteCall(callId: string, state: 'on' | 'off'): Promise<ApiResponse<CommandAck & { callId: string; state: 'on' | 'off'; direction: string }>> {
   await wait();
   return {
     success: true,
-    data: { callId, accepted: true, state, direction: 'all' },
+    data: { ...mockCommandAck(), callId, state, direction: 'all' },
     error: null,
   };
 }
 
-export async function holdCall(callId: string, action: 'hold' | 'resume'): Promise<ApiResponse<{ callId: string; accepted: boolean; action: 'hold' | 'resume' }>> {
+export async function holdCall(callId: string, action: 'hold' | 'resume'): Promise<ApiResponse<CommandAck & { callId: string; action: 'hold' | 'resume' }>> {
   await wait();
   return {
     success: true,
-    data: { callId, accepted: true, action },
+    data: { ...mockCommandAck(), callId, action },
     error: null,
   };
 }
 
-export async function hangupCall(callId: string): Promise<ApiResponse<{ callId: string; endedAt: string }>> {
+export async function hangupCall(callId: string): Promise<ApiResponse<CommandAck & { callId: string; endedAt: string }>> {
   await wait();
   return {
     success: true,
-    data: { callId, endedAt: dayjs().toISOString() },
+    data: { ...mockCommandAck(), callId, endedAt: dayjs().toISOString() },
     error: null,
   };
 }
@@ -109,14 +118,13 @@ export async function hangupCall(callId: string): Promise<ApiResponse<{ callId: 
 export async function originateExternalCall(
   phoneNumber: string,
   callerId?: string,
-): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; phoneNumber: string; callerId?: string }>> {
+): Promise<ApiResponse<CommandAck & { channel: string; phoneNumber: string; callerId?: string }>> {
   await wait();
   return {
     success: true,
     data: {
-      accepted: true,
+      ...mockCommandAck(),
       channel: 'PJSIP/1001',
-      requestedAt: dayjs().toISOString(),
       phoneNumber,
       callerId,
     },
@@ -127,14 +135,13 @@ export async function originateExternalCall(
 export async function originateInternalCall(
   targetAgentId: string,
   targetExtension: string,
-): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; targetAgentId: string; targetExtension: string }>> {
+): Promise<ApiResponse<CommandAck & { channel: string; targetAgentId: string; targetExtension: string }>> {
   await wait();
   return {
     success: true,
     data: {
-      accepted: true,
+      ...mockCommandAck(),
       channel: 'PJSIP/1001',
-      requestedAt: dayjs().toISOString(),
       targetAgentId,
       targetExtension,
     },

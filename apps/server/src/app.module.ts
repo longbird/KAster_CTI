@@ -16,6 +16,7 @@ import { SessionRecoveryModule } from './modules/session-recovery/session-recove
 import { AdminModule } from './modules/admin/admin.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { AsteriskConfigModule } from './modules/asterisk-config/asterisk-config.module';
+import { AgentUpdatesModule } from './modules/agent-updates/agent-updates.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AsteriskConfigModule } from './modules/asterisk-config/asterisk-config.
     QueuesModule,
     AdminModule,
     AsteriskConfigModule,
+    AgentUpdatesModule,
     HealthModule,
   ],
   providers: [PrismaService],

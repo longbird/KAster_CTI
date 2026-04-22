@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
 import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -452,7 +453,8 @@ export class CallsService {
     };
   }
 
-  async originate(tenantId: string, dto: OriginateDto) {
+  async originate(tenantId: string, dto: OriginateDto, metaInput?: CommandMetaInput) {
+    const meta = normalizeCommandMeta(metaInput);
     const callerId = await this.resolveAllowedOutboundCallerId(tenantId, dto.callerId);
     const { channel } = this.asteriskManager.originate({
       agentExtension: dto.agentExtension,
@@ -460,11 +462,14 @@ export class CallsService {
       callerId,
     });
 
-    await this.eventBus.publish('ami.command.originate.requested', dto);
+    await this.eventBus.publish('ami.command.originate.requested', {
+      ...dto,
+      ...meta,
+    });
 
     return {
       success: true,
-      data: { accepted: true, channel, requestedAt: new Date().toISOString() },
+      data: buildAcceptedCommand({ channel }, meta),
       error: null,
     };
   }
@@ -472,7 +477,9 @@ export class CallsService {
   async originateInternal(
     tenantId: string,
     params: { agentId: string; agentExtension: string; targetExtension: string; targetAgentId?: string },
+    metaInput?: CommandMetaInput,
   ) {
+    const meta = normalizeCommandMeta(metaInput);
     const targetExtension = params.targetExtension.trim();
     if (!targetExtension) {
       throw new BadRequestException('대상 내선이 필요합니다.');
@@ -508,23 +515,23 @@ export class CallsService {
       requestedByExtension: params.agentExtension,
       targetAgentId: targetAgent.agentId,
       targetExtension: targetAgent.extension,
-      requestedAt: new Date().toISOString(),
+      ...meta,
     };
     await this.eventBus.publish('ami.command.originate.internal.requested', payload);
 
     return {
       success: true,
       data: {
-        accepted: true,
-        channel,
         targetAgent,
-        requestedAt: payload.requestedAt,
+        ...buildAcceptedCommand({ channel }, meta),
       },
       error: null,
     };
   }
 
-  async transfer(tenantId: string, callId: string, dto: TransferDto) {
+  async transfer(tenantId: string, callId: string, dto: TransferDto, metaInput?: CommandMetaInput) {
+    const meta = normalizeCommandMeta(metaInput);
+    const requestedAt = new Date(meta.requestedAt);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -543,7 +550,7 @@ export class CallsService {
         transferType: dto.transferType,
         fromExtension: dto.fromExtension,
         toExtension: dto.target,
-        requestedAt: new Date(),
+        requestedAt,
         transferResult: 'REQUESTED',
       },
     });
@@ -583,12 +590,17 @@ export class CallsService {
       );
     }
 
-    await this.eventBus.publish('ami.command.transfer.requested', { callId, ...dto });
+    await this.eventBus.publish('ami.command.transfer.requested', { callId, ...dto, ...meta });
 
-    return { success: true, data: { callId, transferred: true }, error: null };
+    return {
+      success: true,
+      data: buildAcceptedCommand({ callId, transferred: true }, meta),
+      error: null,
+    };
   }
 
-  async cancelAttendedTransfer(tenantId: string, callId: string) {
+  async cancelAttendedTransfer(tenantId: string, callId: string, metaInput?: CommandMetaInput) {
+    const meta = normalizeCommandMeta(metaInput);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -662,21 +674,21 @@ export class CallsService {
       callId,
       linkedid: call.linkedid,
       candidateId: candidate.candidateId,
-      requestedAt: now.toISOString(),
+      ...meta,
     });
 
     return {
       success: true,
-      data: {
+      data: buildAcceptedCommand({
         callId,
         canceled: true,
-        requestedAt: now.toISOString(),
-      },
+      }, meta),
       error: null,
     };
   }
 
-  async completeAttendedTransfer(tenantId: string, callId: string) {
+  async completeAttendedTransfer(tenantId: string, callId: string, metaInput?: CommandMetaInput) {
+    const meta = normalizeCommandMeta(metaInput);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -722,21 +734,25 @@ export class CallsService {
       callId,
       linkedid: call.linkedid,
       candidateId: candidate.candidateId,
-      requestedAt: now.toISOString(),
+      ...meta,
     });
 
     return {
       success: true,
-      data: {
+      data: buildAcceptedCommand({
         callId,
-        accepted: true,
-        requestedAt: now.toISOString(),
-      },
+      }, meta),
       error: null,
     };
   }
 
-  async pickup(tenantId: string, callId: string, params: { agentId: string; extension: string }) {
+  async pickup(
+    tenantId: string,
+    callId: string,
+    params: { agentId: string; extension: string },
+    metaInput?: CommandMetaInput,
+  ) {
+    const meta = normalizeCommandMeta(metaInput);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -774,21 +790,21 @@ export class CallsService {
       linkedid: call.linkedid,
       agentId: params.agentId,
       extension: params.extension,
+      ...meta,
     });
 
     return {
       success: true,
-      data: {
+      data: buildAcceptedCommand({
         callId,
-        accepted: true,
         extension: params.extension,
-        requestedAt: new Date().toISOString(),
-      },
+      }, meta),
       error: null,
     };
   }
 
-  async mute(tenantId: string, callId: string, dto: MuteCallDto) {
+  async mute(tenantId: string, callId: string, dto: MuteCallDto, metaInput?: CommandMetaInput) {
+    const meta = normalizeCommandMeta(metaInput);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
@@ -815,18 +831,17 @@ export class CallsService {
       channel: agentLeg.channelName,
       state,
       direction,
-      requestedAt: new Date().toISOString(),
+      ...meta,
     });
 
     return {
       success: true,
-      data: {
+      data: buildAcceptedCommand({
         callId,
-        accepted: true,
         state,
         direction,
         isMuted: state === 'on',
-      },
+      }, meta),
       error: null,
     };
   }
@@ -841,7 +856,13 @@ export class CallsService {
     };
   }
 
-  async hold(tenantId: string, callId: string, action: 'hold' | 'resume') {
+  async hold(
+    tenantId: string,
+    callId: string,
+    action: 'hold' | 'resume',
+    metaInput?: CommandMetaInput,
+  ) {
+    const meta = normalizeCommandMeta(metaInput);
     const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
     const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
     const featureCode = action === 'hold' ? holdCode : resumeCode;
@@ -870,16 +891,15 @@ export class CallsService {
       linkedid: call.linkedid,
       channel: agentLeg.channelName,
       action,
-      requestedAt: new Date().toISOString(),
+      ...meta,
     });
 
     return {
       success: true,
-      data: {
+      data: buildAcceptedCommand({
         callId,
-        accepted: true,
         action,
-      },
+      }, meta),
       error: null,
     };
   }
@@ -907,7 +927,8 @@ export class CallsService {
     return { success: true, data: memo, error: null };
   }
 
-  async hangup(tenantId: string, callId: string) {
+  async hangup(tenantId: string, callId: string, metaInput?: CommandMetaInput) {
+    const meta = normalizeCommandMeta(metaInput);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
@@ -926,9 +947,17 @@ export class CallsService {
       this.logger.warn(`hangup: no active agent leg for callId=${callId}, AMI action skipped`);
     }
 
-    await this.eventBus.publish('ami.command.hangup.requested', { callId });
+    await this.eventBus.publish('ami.command.hangup.requested', {
+      callId,
+      linkedid: call.linkedid,
+      ...meta,
+    });
 
-    return { success: true, data: { callId, accepted: true }, error: null };
+    return {
+      success: true,
+      data: buildAcceptedCommand({ callId }, meta),
+      error: null,
+    };
   }
 
   async listHistory(tenantId: string, q: ListCallsQueryDto) {

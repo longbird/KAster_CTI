@@ -7,11 +7,32 @@ import type {
   AgentStatusCode,
   ApiResponse,
   CallHistoryItem,
+  CommandAck,
   QueueSummary,
 } from '../types/cti';
 
 // 백엔드 응답을 프론트 타입으로 어댑트하는 얇은 레이어.
 // 백엔드 DTO 형태가 변하면 여기만 고치면 된다.
+
+function requireCommandAck(data: unknown): CommandAck {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid command ack response');
+  }
+
+  const ack = data as Partial<CommandAck>;
+  if (ack.accepted !== true || typeof ack.correlationId !== 'string' || typeof ack.requestedAt !== 'string') {
+    throw new Error('Invalid command ack response');
+  }
+
+  return {
+    accepted: true,
+    correlationId: ack.correlationId,
+    requestedAt: ack.requestedAt,
+    idempotencyKey: typeof ack.idempotencyKey === 'string' || ack.idempotencyKey === null
+      ? ack.idempotencyKey
+      : null,
+  };
+}
 
 export async function login(params: { loginId: string; password: string; extension: string }) {
   const res = await apiClient.post('/auth/login', params);
@@ -210,77 +231,143 @@ export async function transferCall(
   callId: string,
   target: string,
   mode: 'blind' | 'attended' = 'blind',
-): Promise<ApiResponse<{ callId: string; target: string; requestedAt: string }>> {
+): Promise<ApiResponse<CommandAck & { callId: string; target: string; transferType?: 'blind' | 'attended'; to?: string; toExtension?: string }>> {
   const extension = useAuthStore.getState().agent?.extension ?? '';
-  await apiClient.post(`/calls/${callId}/transfer`, {
+  const res = await apiClient.post(`/calls/${callId}/transfer`, {
     transferType: mode,
     target,
     fromExtension: extension,
   });
-  return { success: true, data: { callId, target, requestedAt: new Date().toISOString() }, error: null };
+  const data = res.data?.data;
+  const ack = requireCommandAck(data);
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...ack,
+      callId: (data as { callId?: string } | undefined)?.callId ?? callId,
+      target:
+        (data as { target?: string; to?: string; toExtension?: string } | undefined)?.target
+        ?? (data as { to?: string; toExtension?: string } | undefined)?.to
+        ?? (data as { toExtension?: string } | undefined)?.toExtension
+        ?? target,
+    },
+    error: null,
+  };
 }
 
 export async function cancelAttendedTransferCall(
   callId: string,
-): Promise<ApiResponse<{ callId: string; canceled: boolean; requestedAt: string }>> {
+): Promise<ApiResponse<CommandAck & { callId: string; canceled?: boolean }>> {
   const res = await apiClient.post(`/calls/${callId}/transfer/attended/cancel`);
-  return { success: true, data: res.data?.data, error: null };
+  const data = res.data?.data;
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...requireCommandAck(data),
+    },
+    error: null,
+  };
 }
 
 export async function completeAttendedTransferCall(
   callId: string,
-): Promise<ApiResponse<{ callId: string; accepted: boolean; requestedAt: string }>> {
+): Promise<ApiResponse<CommandAck & { callId: string }>> {
   const res = await apiClient.post(`/calls/${callId}/transfer/attended/complete`);
-  return { success: true, data: res.data?.data, error: null };
+  const data = res.data?.data;
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...requireCommandAck(data),
+    },
+    error: null,
+  };
 }
 
 export async function pickupCall(
   callId: string,
-): Promise<ApiResponse<{ callId: string; accepted: boolean; extension: string; requestedAt: string }>> {
+): Promise<ApiResponse<CommandAck & { callId: string; extension?: string }>> {
   const res = await apiClient.post(`/calls/${callId}/pickup`);
-  return { success: true, data: res.data?.data, error: null };
+  const data = res.data?.data;
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...requireCommandAck(data),
+    },
+    error: null,
+  };
 }
 
 export async function muteCall(
   callId: string,
   state: 'on' | 'off',
-): Promise<ApiResponse<{ callId: string; accepted: boolean; state: 'on' | 'off'; direction: string }>> {
+): Promise<ApiResponse<CommandAck & { callId: string; state: 'on' | 'off'; direction: string; isMuted?: boolean }>> {
   const res = await apiClient.post(`/calls/${callId}/mute`, {
     state,
     direction: 'all',
   });
-  return { success: true, data: res.data?.data, error: null };
+  const data = res.data?.data;
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...requireCommandAck(data),
+    },
+    error: null,
+  };
 }
 
 export async function holdCall(
   callId: string,
   action: 'hold' | 'resume',
-): Promise<ApiResponse<{ callId: string; accepted: boolean; action: 'hold' | 'resume' }>> {
+): Promise<ApiResponse<CommandAck & { callId: string; action: 'hold' | 'resume' }>> {
   const res = await apiClient.post(`/calls/${callId}/${action}`);
-  return { success: true, data: res.data?.data, error: null };
+  const data = res.data?.data;
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...requireCommandAck(data),
+    },
+    error: null,
+  };
 }
 
 export async function hangupCall(
   callId: string,
-): Promise<ApiResponse<{ callId: string; endedAt: string }>> {
-  await apiClient.post(`/calls/${callId}/hangup`);
-  return { success: true, data: { callId, endedAt: new Date().toISOString() }, error: null };
+): Promise<ApiResponse<CommandAck & { callId: string; endedAt?: string }>> {
+  const res = await apiClient.post(`/calls/${callId}/hangup`);
+  const data = res.data?.data;
+  return {
+    success: true,
+    data: {
+      ...(typeof data === 'object' && data ? data : {}),
+      ...requireCommandAck(data),
+    },
+    error: null,
+  };
 }
 
 export async function originateExternalCall(
   phoneNumber: string,
   callerId?: string,
-): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; phoneNumber: string; callerId?: string }>> {
+): Promise<ApiResponse<CommandAck & { channel: string; phoneNumber: string; callerId?: string }>> {
   const agentExtension = useAuthStore.getState().agent?.extension ?? '';
   const res = await apiClient.post('/calls/originate', {
     agentExtension,
     phoneNumber,
     callerId,
   });
+  const data = res.data?.data;
+  const ack = requireCommandAck(data);
   return {
     success: true,
     data: {
-      ...res.data?.data,
+      ...(typeof data === 'object' && data ? data : {}),
+      ...ack,
       phoneNumber,
       callerId,
     },
@@ -291,15 +378,18 @@ export async function originateExternalCall(
 export async function originateInternalCall(
   targetAgentId: string,
   targetExtension: string,
-): Promise<ApiResponse<{ accepted: boolean; channel: string; requestedAt: string; targetAgentId: string; targetExtension: string }>> {
+): Promise<ApiResponse<CommandAck & { channel: string; targetAgentId: string; targetExtension: string }>> {
   const res = await apiClient.post('/calls/originate/internal', {
     targetAgentId,
     targetExtension,
   });
+  const data = res.data?.data;
+  const ack = requireCommandAck(data);
   return {
     success: true,
     data: {
-      ...res.data?.data,
+      ...(typeof data === 'object' && data ? data : {}),
+      ...ack,
       targetAgentId,
       targetExtension,
     },

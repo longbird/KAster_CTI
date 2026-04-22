@@ -11,6 +11,7 @@ export interface JwtPayload {
   role: string;
   extension: string;
   tenantId: string;
+  sid?: string;
 }
 
 @Injectable()

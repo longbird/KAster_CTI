@@ -33,6 +33,8 @@ model tenants {
   eventOutbox          eventOutbox[]
   attendedTransferCandidates attendedTransferCandidates[]
   refreshTokens        refreshTokens[]
+  agentDesktopReleases agentDesktopReleases[]
+  agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
   announcements       announcements[]
   branches            branches[]
   branchAgents        branchAgents[]
@@ -80,6 +82,7 @@ model agents {
   transfersFrom      callTransfers[] @relation("transfer_from")
   transfersTo        callTransfers[] @relation("transfer_to")
   refreshTokens      refreshTokens[]
+  agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
   menuPermissions    agentMenuPermissions[]
 
   @@unique([tenantId, loginId])
@@ -426,6 +429,52 @@ model refreshTokens {
 
   @@index([agentId, revokedAt])
   @@index([expiresAt])
+}
+
+model agentDesktopReleases {
+  releaseId              String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @db.Uuid
+  channel                String   @default("stable") @db.VarChar(32)
+  version                String   @db.VarChar(32)
+  artifactId             String   @db.VarChar(128)
+  fileName               String   @db.VarChar(255)
+  filePath               String
+  fileSizeBytes          BigInt?
+  sha256                 String   @db.VarChar(64)
+  mandatory              Boolean  @default(false)
+  minimumRequiredVersion String?  @db.VarChar(32)
+  minimumServerVersion   String?  @db.VarChar(32)
+  maximumServerVersion   String?  @db.VarChar(32)
+  notes                  String?
+  isActive               Boolean  @default(true)
+  publishedAt            DateTime @db.Timestamptz(6)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant                 tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, artifactId])
+  @@index([tenantId, channel, isActive, publishedAt(sort: Desc)])
+}
+
+model agentDesktopUpdateAuditLogs {
+  auditLogId        String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @db.Uuid
+  agentId           String?  @db.Uuid
+  deviceId          String?  @db.VarChar(128)
+  clientIp          String?  @db.VarChar(64)
+  currentAppVersion String?  @db.VarChar(32)
+  targetVersion     String?  @db.VarChar(32)
+  artifactId        String?  @db.VarChar(128)
+  eventType         String   @db.VarChar(64)
+  metadata          Json?
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant            tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  agent             agents?  @relation(fields: [agentId], references: [agentId], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, agentId, createdAt(sort: Desc)])
 }
 
 model announcements {
