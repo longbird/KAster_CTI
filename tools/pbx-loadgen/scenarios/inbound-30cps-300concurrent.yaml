@@ -1,0 +1,26 @@
+target:
+  host: 192.168.0.10
+  port: 5060
+  transport: udp
+  requestUriTemplate: "sip:{did}@192.168.0.10:5060"
+load:
+  cps: 30
+  maxConcurrent: 300
+  totalCalls: 600
+  rampUpSeconds: 10
+  callStartJitterMs: 50
+callFlow:
+  callerIdPool: ["01011110001", "01011110002", "01011110003", "01011110004"]
+  didPool: ["1899"]
+  answerTimeoutMs: 12000
+  holdSecondsMin: 15
+  holdSecondsMax: 20
+  disconnectMode:
+    normalPercent: 100
+media:
+  beepIntervalMs: 800
+  txGain: 0.8
+reporting:
+  outputDir: "./reports"
+  consoleRefreshMs: 1000
+  saveFailureDetails: true
