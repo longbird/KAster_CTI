@@ -1,5 +1,21 @@
 #include <CLI/CLI.hpp>
+
 #include <iostream>
+#include <stdexcept>
+#include <string>
+
+#include "loadgen/scenario.hpp"
+
+namespace {
+
+int printValidatedScenario(const loadgen::Scenario& scenario) {
+  std::cout << "scenario ok: cps=" << scenario.load.cps
+            << " maxConcurrent=" << scenario.load.maxConcurrent
+            << " totalCalls=" << scenario.load.totalCalls << '\n';
+  return 0;
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
   CLI::App app{"PBX inbound load generator"};
@@ -18,24 +34,27 @@ int main(int argc, char** argv) {
 
   CLI11_PARSE(app, argc, argv);
 
-  if (*validate) {
-    std::cout << "validated " << file << '\n';
-    return 0;
-  }
+  try {
+    if (*validate) {
+      return printValidatedScenario(loadgen::loadScenarioFromFile(file));
+    }
 
-  if (*dryRun) {
-    std::cout << "dry-run " << file << '\n';
-    return 0;
-  }
+    if (*dryRun) {
+      return printValidatedScenario(loadgen::loadScenarioFromFile(file));
+    }
 
-  if (*run) {
-    std::cout << "run " << file << '\n';
-    return 0;
-  }
+    if (*run) {
+      std::cerr << "not implemented\n";
+      return 1;
+    }
 
-  if (*report) {
-    std::cout << "report " << file << '\n';
-    return 0;
+    if (*report) {
+      std::cerr << "not implemented\n";
+      return 1;
+    }
+  } catch (const std::exception& ex) {
+    std::cerr << ex.what() << '\n';
+    return 1;
   }
 
   return 0;
