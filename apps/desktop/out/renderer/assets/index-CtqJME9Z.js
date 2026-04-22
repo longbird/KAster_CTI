@@ -12512,10 +12512,11 @@ function PairingScreen({
 }) {
   const [serverUrl, setServerUrl] = reactExports.useState("");
   const [channel, setChannel] = reactExports.useState("stable");
+  const [handoffToken, setHandoffToken] = reactExports.useState("");
   return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "pairing-screen", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "Desktop Runtime" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "KAster Agent Desktop" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "lead", children: "콜센터 서버 정보를 먼저 저장합니다. 인증 handoff, 실시간 CTI, 업데이트 허브는 이후 계약 작업이 끝나면 이 셸 위에 연결됩니다." }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "lead", children: "콜센터 서버 URL과 웹에서 발급한 handoff token 으로 데스크톱 런타임을 연결합니다." }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "콜센터 서버 URL" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -12538,15 +12539,39 @@ function PairingScreen({
         }
       )
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: busy, onClick: () => onSubmit({ serverUrl, channel }), type: "button", children: busy ? "저장 중..." : "초기 셸 준비" })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Handoff Token" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          value: handoffToken,
+          onChange: (event) => setHandoffToken(event.target.value),
+          placeholder: "handoff token"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: busy, onClick: () => onSubmit({ serverUrl, channel, handoffToken }), type: "button", children: busy ? "연결 중..." : "데스크톱 연결" })
   ] }) });
 }
-function SoftphoneShell({ config }) {
+function SoftphoneShell({
+  config,
+  agentName,
+  extension,
+  agentStatus,
+  activeCall,
+  onMute,
+  onHangup,
+  onToggleHold
+}) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "softphone-shell", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hero-card panel", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "eyebrow", children: "Softphone Shell" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Runtime Skeleton Ready" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "lead", children: "현재 단계는 장치 제어와 서버 런타임 계약을 수용할 준비만 해 둔 상태입니다. 실제 통화 제어와 인증 위임은 별도 세션 작업 완료 후 연결합니다." })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: agentName }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "lead", children: [
+        "내선 ",
+        extension,
+        ". 현재 데스크톱 런타임은 서버 이벤트를 구독하고 기본 호 제어 명령을 전달합니다."
+      ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "status-grid", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "panel metric-card", children: [
@@ -12560,17 +12585,44 @@ function SoftphoneShell({ config }) {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "panel metric-card", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "metric-label", children: "Device ID" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: config.deviceId })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "panel metric-card", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "metric-label", children: "Agent Status" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: agentStatus ?? "UNKNOWN" })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel placeholder-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Call Runtime Placeholder" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "대기 상태" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "현재 통화" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: activeCall ? `${activeCall.ani} / ${activeCall.sessionStatus}` : "진행 중인 통화 없음" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "placeholder-actions", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: true, children: "수신" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: true, children: "종료" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: true, children: "음소거" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: true, children: "보류" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !activeCall, onClick: onHangup, children: "종료" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !activeCall, onClick: onMute, children: activeCall?.isMuted ? "음소거 해제" : "음소거" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !activeCall, onClick: onToggleHold, children: activeCall?.sessionStatus === "HOLD" ? "재개" : "보류" })
       ] })
+    ] })
+  ] });
+}
+function UpdateBanner({
+  message,
+  canApply,
+  busy,
+  readyFileName,
+  onPrepare,
+  onApply
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "update-banner", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "update-banner-copy", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: message }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: canApply ? "지금 적용 가능" : "통화 종료 후 적용" }),
+      readyFileName ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+        "다운로드 완료: ",
+        readyFileName
+      ] }) : null
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "update-banner-actions", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: busy, onClick: onPrepare, children: busy ? "준비 중..." : readyFileName ? "다시 준비" : "업데이트 준비" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !readyFileName || !canApply || busy, onClick: onApply, children: "설치 실행" })
     ] })
   ] });
 }
@@ -12613,16 +12665,86 @@ const createImpl = (createState) => {
   return useBoundStore;
 };
 const create = ((createState) => createState ? createImpl(createState) : createImpl);
+let detachRuntimeListener = null;
+function pushEvent(current, message) {
+  return [message, ...current].slice(0, 30);
+}
+function reduceEvent(event, currentCall, currentEvents, currentAgentStatus) {
+  switch (event.type) {
+    case "call.created":
+      return {
+        activeCall: event.payload,
+        agentStatus: currentAgentStatus,
+        events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`)
+      };
+    case "call.updated":
+      return {
+        activeCall: event.payload,
+        agentStatus: currentAgentStatus,
+        events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`)
+      };
+    case "call.ended":
+      return {
+        activeCall: currentCall?.callId === event.payload.callId ? null : currentCall,
+        agentStatus: currentAgentStatus,
+        events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`)
+      };
+    case "agent.status.changed":
+      return {
+        activeCall: currentCall,
+        agentStatus: event.payload.statusCode,
+        events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`)
+      };
+    case "queue.summary.updated":
+      return {
+        activeCall: currentCall,
+        agentStatus: currentAgentStatus,
+        events: pushEvent(currentEvents, `큐 요약 갱신 ${event.payload.length}건`)
+      };
+  }
+}
 const useDesktopStore = create((set) => ({
   bootstrapped: false,
   pairing: false,
+  agent: null,
+  agentStatus: null,
   config: null,
+  activeCall: null,
   events: [],
+  updateState: null,
   async initialize() {
-    const config = await window.desktopApi.getConfig();
-    if (!config) return;
+    const [config, session] = await Promise.all([
+      window.desktopApi.getConfig(),
+      window.desktopApi.getSession()
+    ]);
+    if (!config) {
+      return;
+    }
+    if (session) {
+      await window.desktopApi.connectRuntime();
+      detachRuntimeListener?.();
+      detachRuntimeListener = window.desktopApi.onEvent((event) => {
+        set((state) => reduceEvent(event, state.activeCall, state.events, state.agentStatus));
+      });
+      const update = await window.desktopApi.checkForUpdates();
+      if (update) {
+        set({
+          updateState: {
+            message: `새 버전 ${update.latestVersion} 이 준비되었습니다.`,
+            mandatory: update.mandatory,
+            preparing: false,
+            preparedFileName: null,
+            preparedFilePath: null,
+            verified: false,
+            applying: false
+          }
+        });
+      }
+    }
     set({
       bootstrapped: true,
+      agent: session?.agent ?? null,
+      agentStatus: session ? "AVAILABLE" : null,
       config,
       events: [`저장된 센터 설정을 불러왔습니다: ${config.serverUrl}`]
     });
@@ -12633,24 +12755,209 @@ const useDesktopStore = create((set) => ({
       serverUrl: params.serverUrl,
       channel: params.channel
     });
+    const session = await window.desktopApi.exchangeHandoff(params.handoffToken);
+    await window.desktopApi.connectRuntime();
+    detachRuntimeListener?.();
+    detachRuntimeListener = window.desktopApi.onEvent((event) => {
+      set((state) => reduceEvent(event, state.activeCall, state.events, state.agentStatus));
+    });
+    const update = await window.desktopApi.checkForUpdates();
     set({
       pairing: false,
       bootstrapped: true,
+      agent: session.agent,
+      agentStatus: "AVAILABLE",
       config,
-      events: [`센터 설정 저장 완료: ${config.serverUrl}`]
+      events: [`센터 설정 저장 완료: ${config.serverUrl}`],
+      updateState: update ? {
+        message: `새 버전 ${update.latestVersion} 이 준비되었습니다.`,
+        mandatory: update.mandatory,
+        preparing: false,
+        preparedFileName: null,
+        preparedFilePath: null,
+        verified: false,
+        applying: false
+      } : null
     });
+  },
+  async mute() {
+    const callId = useDesktopStore.getState().activeCall?.callId;
+    if (!callId) {
+      return;
+    }
+    const nextState = useDesktopStore.getState().activeCall?.isMuted ? "off" : "on";
+    const result = await window.desktopApi.mute(callId, nextState);
+    set((current) => ({
+      activeCall: current.activeCall ? {
+        ...current.activeCall,
+        isMuted: result.state === "on"
+      } : current.activeCall,
+      events: pushEvent(current.events, `음소거 ${result.state === "on" ? "적용" : "해제"} ${callId}`)
+    }));
+  },
+  async hangup() {
+    const callId = useDesktopStore.getState().activeCall?.callId;
+    if (!callId) {
+      return;
+    }
+    await window.desktopApi.hangup(callId);
+    set((current) => ({
+      activeCall: null,
+      events: pushEvent(current.events, `종료 요청 ${callId}`)
+    }));
+  },
+  async toggleHold() {
+    const currentCall = useDesktopStore.getState().activeCall;
+    if (!currentCall) {
+      return;
+    }
+    if (currentCall.sessionStatus === "HOLD") {
+      await window.desktopApi.resume(currentCall.callId);
+      set((current) => ({
+        activeCall: current.activeCall ? {
+          ...current.activeCall,
+          sessionStatus: "TALKING"
+        } : current.activeCall,
+        events: pushEvent(current.events, `보류 해제 요청 ${currentCall.callId}`)
+      }));
+      return;
+    }
+    await window.desktopApi.hold(currentCall.callId);
+    set((current) => ({
+      activeCall: current.activeCall ? {
+        ...current.activeCall,
+        sessionStatus: "HOLD"
+      } : current.activeCall,
+      events: pushEvent(current.events, `보류 요청 ${currentCall.callId}`)
+    }));
+  },
+  async checkForUpdates() {
+    const update = await window.desktopApi.checkForUpdates();
+    if (!update) {
+      return;
+    }
+    set({
+      updateState: {
+        message: `새 버전 ${update.latestVersion} 이 준비되었습니다.`,
+        mandatory: update.mandatory,
+        preparing: false,
+        preparedFileName: null,
+        preparedFilePath: null,
+        verified: false,
+        applying: false
+      }
+    });
+  },
+  async prepareUpdate() {
+    const currentUpdate = useDesktopStore.getState().updateState;
+    if (!currentUpdate) {
+      return;
+    }
+    set({
+      updateState: {
+        ...currentUpdate,
+        preparing: true
+      }
+    });
+    const prepared = await window.desktopApi.prepareUpdate();
+    if (!prepared) {
+      set({
+        updateState: {
+          ...currentUpdate,
+          preparing: false
+        }
+      });
+      return;
+    }
+    set((current) => ({
+      updateState: current.updateState ? {
+        ...current.updateState,
+        preparing: false,
+        preparedFileName: prepared.fileName,
+        preparedFilePath: prepared.filePath,
+        verified: prepared.verified,
+        applying: false,
+        message: prepared.verified ? `새 버전 ${prepared.version} 다운로드 준비가 완료되었습니다.` : `새 버전 ${prepared.version} 검증에 실패했습니다.`
+      } : current.updateState,
+      events: pushEvent(
+        current.events,
+        prepared.verified ? `업데이트 파일 준비 완료 ${prepared.fileName}` : `업데이트 검증 실패 ${prepared.fileName}`
+      )
+    }));
+  },
+  async applyPreparedUpdate() {
+    const currentUpdate = useDesktopStore.getState().updateState;
+    if (!currentUpdate?.preparedFilePath || !currentUpdate.verified) {
+      return;
+    }
+    set({
+      updateState: {
+        ...currentUpdate,
+        applying: true
+      }
+    });
+    const result = await window.desktopApi.applyPreparedUpdate();
+    set((current) => ({
+      updateState: current.updateState ? {
+        ...current.updateState,
+        applying: false,
+        message: result ? `설치 프로그램을 실행했습니다: ${current.updateState.preparedFileName ?? result.filePath}` : current.updateState.message
+      } : current.updateState,
+      events: result ? pushEvent(current.events, `설치 실행 ${result.filePath}`) : current.events
+    }));
   }
 }));
 function App() {
-  const { bootstrapped, pairing, config, events, initialize, pair } = useDesktopStore();
+  const {
+    bootstrapped,
+    pairing,
+    agent,
+    agentStatus,
+    config,
+    activeCall,
+    events,
+    updateState,
+    initialize,
+    pair,
+    mute,
+    hangup,
+    toggleHold,
+    prepareUpdate,
+    applyPreparedUpdate
+  } = useDesktopStore();
   reactExports.useEffect(() => {
     void initialize();
   }, [initialize]);
-  if (!bootstrapped || !config) {
+  if (!bootstrapped || !config || !agent) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(PairingScreen, { busy: pairing, onSubmit: pair });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "desktop-layout", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(SoftphoneShell, { config }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "desktop-main", children: [
+      updateState ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        UpdateBanner,
+        {
+          message: updateState.message,
+          canApply: !activeCall || activeCall.sessionStatus === "ENDED",
+          busy: Boolean(updateState.preparing || updateState.applying),
+          readyFileName: updateState.preparedFileName,
+          onPrepare: prepareUpdate,
+          onApply: applyPreparedUpdate
+        }
+      ) : null,
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        SoftphoneShell,
+        {
+          config,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          agentStatus,
+          activeCall,
+          onMute: mute,
+          onHangup: hangup,
+          onToggleHold: toggleHold
+        }
+      )
+    ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(EventTimeline, { events })
   ] });
 }

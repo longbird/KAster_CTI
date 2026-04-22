@@ -42,6 +42,11 @@ button {
   gap: 20px;
 }
 
+.desktop-main {
+  display: grid;
+  gap: 16px;
+}
+
 .pairing-screen {
   display: grid;
   place-items: center;
@@ -122,6 +127,48 @@ button {
 .placeholder-card,
 .event-timeline {
   padding: 24px;
+}
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid rgba(134, 208, 167, 0.25);
+  border-radius: 20px;
+  padding: 16px 20px;
+  background: rgba(18, 42, 34, 0.72);
+  color: #dbf3e4;
+}
+
+.update-banner-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.update-banner-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.update-banner span {
+  color: #b8d7c3;
+  font-size: 0.92rem;
+}
+
+.update-banner button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #86d0a7 0%, #4a9c88 100%);
+  color: #092018;
+  font-weight: 700;
+}
+
+.update-banner button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .status-grid {

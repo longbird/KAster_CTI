@@ -4,11 +4,12 @@ export function PairingScreen({
   onSubmit,
   busy,
 }: {
-  onSubmit: (params: { serverUrl: string; channel: string }) => void;
+  onSubmit: (params: { serverUrl: string; channel: string; handoffToken: string }) => void;
   busy: boolean;
 }) {
   const [serverUrl, setServerUrl] = useState('');
   const [channel, setChannel] = useState('stable');
+  const [handoffToken, setHandoffToken] = useState('');
 
   return (
     <section className="pairing-screen">
@@ -16,8 +17,7 @@ export function PairingScreen({
         <p className="eyebrow">Desktop Runtime</p>
         <h1>KAster Agent Desktop</h1>
         <p className="lead">
-          콜센터 서버 정보를 먼저 저장합니다. 인증 handoff, 실시간 CTI, 업데이트 허브는 이후 계약 작업이
-          끝나면 이 셸 위에 연결됩니다.
+          콜센터 서버 URL과 웹에서 발급한 handoff token 으로 데스크톱 런타임을 연결합니다.
         </p>
 
         <label className="field">
@@ -38,8 +38,17 @@ export function PairingScreen({
           />
         </label>
 
-        <button disabled={busy} onClick={() => onSubmit({ serverUrl, channel })} type="button">
-          {busy ? '저장 중...' : '초기 셸 준비'}
+        <label className="field">
+          <span>Handoff Token</span>
+          <input
+            value={handoffToken}
+            onChange={(event) => setHandoffToken(event.target.value)}
+            placeholder="handoff token"
+          />
+        </label>
+
+        <button disabled={busy} onClick={() => onSubmit({ serverUrl, channel, handoffToken })} type="button">
+          {busy ? '연결 중...' : '데스크톱 연결'}
         </button>
       </div>
     </section>
