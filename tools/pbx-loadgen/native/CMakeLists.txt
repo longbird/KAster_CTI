@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(CTest)
+option(PBX_LOADGEN_BUILD_CLI "Build the pbx-loadgen CLI target" ON)
 
 include(FetchContent)
 FetchContent_Declare(CLI11 GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git GIT_TAG 6c7b07a878ad834957b98d0f9ce1dbe0cb204fc9)
@@ -24,17 +25,31 @@ add_library(loadgen_scenario STATIC src/scenario.cpp)
 target_link_libraries(loadgen_scenario PUBLIC yaml-cpp)
 target_include_directories(loadgen_scenario PUBLIC include)
 
-add_executable(pbx-loadgen src/main.cpp)
-target_link_libraries(
-  pbx-loadgen
-  PRIVATE
-    CLI11::CLI11
-    loadgen_scenario
-    nlohmann_json::nlohmann_json
-)
-target_include_directories(pbx-loadgen PRIVATE include)
+if(PBX_LOADGEN_BUILD_CLI)
+  find_package(PJSIP REQUIRED)
+
+  add_executable(pbx-loadgen src/main.cpp)
+  target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp)
+  target_link_libraries(
+    pbx-loadgen
+    PRIVATE
+      CLI11::CLI11
+      loadgen_scenario
+      nlohmann_json::nlohmann_json
+      PJSIP::PJSIP
+  )
+  target_include_directories(pbx-loadgen PRIVATE include)
+endif()
 
 if(BUILD_TESTING)
   enable_testing()
-  add_subdirectory(tests)
+  if(PBX_LOADGEN_BUILD_CLI)
+    add_subdirectory(tests)
+  endif()
+  include("${catch2_SOURCE_DIR}/extras/Catch.cmake")
+
+  add_executable(pbx_loadgen_call_types_tests tests/call_types_test.cpp)
+  target_link_libraries(pbx_loadgen_call_types_tests PRIVATE Catch2::Catch2WithMain)
+  target_include_directories(pbx_loadgen_call_types_tests PRIVATE include)
+  catch_discover_tests(pbx_loadgen_call_types_tests)
 endif()
