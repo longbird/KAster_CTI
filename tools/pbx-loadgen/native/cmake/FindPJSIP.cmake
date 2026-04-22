@@ -1,0 +1,3 @@
+if(NOT DEFINED PJSIP_ROOT)
+  set(PJSIP_ROOT "$ENV{PJSIP_ROOT}")
+endif()
