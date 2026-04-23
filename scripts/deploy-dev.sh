@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 로컬 → 원격 증분 배포 + hot reload 도우미.
+# 로컬 → 원격 증분 배포 + 이미지 재빌드 도우미.
 #
 # 사용법:
-#   ./scripts/deploy-dev.sh sync               # 소스만 빠르게 동기화 (rebuild 없음)
-#   ./scripts/deploy-dev.sh sync-safe admin    # 동기화 + 서비스 재시작 + 원격 build 검증
-#   ./scripts/deploy-dev.sh verify admin       # 원격 컨테이너 내부 build 검증
-#   ./scripts/deploy-dev.sh release server     # 원격 Prisma sync + build + 재시작
-#   ./scripts/deploy-dev.sh up                 # 최초 설치 + compose up
+#   ./scripts/deploy-dev.sh sync               # 소스만 빠르게 동기화
+#   ./scripts/deploy-dev.sh sync-safe admin    # 동기화 + 이미지 재빌드/재기동
+#   ./scripts/deploy-dev.sh verify admin       # 원격 compose build 검증
+#   ./scripts/deploy-dev.sh release server     # 동기화 + 서비스 재빌드/재기동
+#   ./scripts/deploy-dev.sh up                 # 최초 설치 + compose build/up
 #   ./scripts/deploy-dev.sh restart            # 컨테이너 재시작
 #   ./scripts/deploy-dev.sh down               # 컨테이너 종료
 #   ./scripts/deploy-dev.sh logs               # server 로그 follow
@@ -16,8 +16,8 @@
 #
 # 편집 흐름:
 #   1. 로컬에서 코드 편집
-#   2. ./scripts/deploy-dev.sh sync   (1초 이내, 변경 파일만)
-#   3. Nest/Vite watcher 가 자동 감지 → 즉시 반영, rebuild 없음
+#   2. ./scripts/deploy-dev.sh release <service>
+#   3. 원격에서 이미지 재빌드 후 컨테이너 교체
 #
 # node_modules, dist, .git, .DS_Store 는 rsync 에서 제외됨.
 
@@ -61,17 +61,9 @@ verify_service() {
   local service="${1:-all}"
 
   case "$service" in
-    server)
-      echo ">>> verify server build"
-      run_remote "docker exec kaster-server sh -lc 'cd /app && npm run prisma:sync && npm run build'"
-      ;;
-    web)
-      echo ">>> verify web build"
-      run_remote "docker exec kaster-web sh -lc 'cd /app && npm run build'"
-      ;;
-    admin)
-      echo ">>> verify admin build"
-      run_remote "docker exec kaster-admin sh -lc 'cd /app && npm run build'"
+    server|web|admin)
+      echo ">>> verify ${service} image build"
+      run_compose "build ${service}"
       ;;
     all)
       verify_service server
@@ -98,17 +90,15 @@ restart_service() {
 sync_safe() {
   local service="${1:-admin}"
   sync_files
-  echo ">>> restart ${service}"
-  restart_service "$service"
-  verify_service "$service"
+  echo ">>> rebuild ${service}"
+  run_compose "up -d --build ${service}"
 }
 
 release_service() {
   local service="${1:-server}"
   sync_files
-  verify_service "$service"
-  echo ">>> restart ${service}"
-  restart_service "$service"
+  echo ">>> rebuild ${service}"
+  run_compose "up -d --build ${service}"
 }
 
 case "$cmd" in
@@ -127,8 +117,8 @@ case "$cmd" in
   up)
     sync_files
     echo ">>> ensure remote dir exists"
-    echo ">>> docker compose up -d"
-    run_compose "up -d"
+    echo ">>> docker compose up -d --build"
+    run_compose "up -d --build"
     ;;
   restart)
     run_compose "restart ${2:-}"

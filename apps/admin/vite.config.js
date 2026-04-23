@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-export default defineConfig({
-    plugins: [react()],
+import { createDevServerAccessGuard, resolveDevServerHost } from '../../tools/vite-dev-server-security.mjs';
+export default defineConfig(function () { return ({
+    plugins: [react(), createDevServerAccessGuard()],
     server: {
+        host: resolveDevServerHost(),
         port: 5173,
     },
-});
+}); });

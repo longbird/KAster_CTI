@@ -33,16 +33,39 @@ export class AgentsService {
       },
     });
 
-    const withStatus = await Promise.all(
-      agents.map(async (a) => {
-        const current = await this.prisma.agentStatusHistory.findFirst({
-          where: { agentId: a.agentId, endedAt: null },
-          orderBy: { startedAt: 'desc' },
-          select: { statusCode: true, reasonCode: true, startedAt: true },
-        });
-        return { ...a, currentStatus: current };
-      }),
-    );
+    const agentIds = agents.map((agent) => agent.agentId);
+    const currentStatuses = agentIds.length
+      ? await this.prisma.agentStatusHistory.findMany({
+          where: {
+            tenantId,
+            agentId: { in: agentIds },
+            endedAt: null,
+          },
+          orderBy: [
+            { agentId: 'asc' },
+            { startedAt: 'desc' },
+          ],
+          select: {
+            agentId: true,
+            statusCode: true,
+            reasonCode: true,
+            startedAt: true,
+          },
+        })
+      : [];
+
+    const currentStatusByAgentId = new Map<string, Omit<(typeof currentStatuses)[number], 'agentId'>>();
+    for (const row of currentStatuses) {
+      if (!currentStatusByAgentId.has(row.agentId)) {
+        const { agentId, ...current } = row;
+        currentStatusByAgentId.set(agentId, current);
+      }
+    }
+
+    const withStatus = agents.map((agent) => ({
+      ...agent,
+      currentStatus: currentStatusByAgentId.get(agent.agentId) ?? null,
+    }));
 
     return { success: true, data: withStatus, error: null };
   }

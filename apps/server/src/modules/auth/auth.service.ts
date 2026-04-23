@@ -245,7 +245,14 @@ export class AuthService {
   async getSession(user: any) {
     const agent = await this.prisma.agents.findUnique({
       where: { agentId: user.sub },
-      include: { defaultQueue: true },
+      select: {
+        agentId: true,
+        tenantId: true,
+        agentName: true,
+        extension: true,
+        role: true,
+        defaultQueue: true,
+      },
     });
     const outboundDialOptions = await this.callsService.getOutboundDialOptions(user.tenantId);
 
@@ -253,7 +260,6 @@ export class AuthService {
       success: true,
       data: {
         agent,
-        jwt: user,
         callControlCapabilities: this.callsService.getCallControlCapabilities(),
         outboundDialOptions,
         softphoneConfig: this.buildSoftphoneConfig(agent),

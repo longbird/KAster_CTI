@@ -1,15 +1,15 @@
-# 개발용 compose — bind mount + hot reload + zero rebuild.
+# 원격 운영 서버용 compose — 이미지 빌드 + 재기동 배포.
 #
 # 핵심 아이디어:
 #   - postgres/redis 는 공식 이미지 그대로 (build 없음)
-#   - server/web/admin 은 node:22-alpine 에 apps/<name> 을 bind mount 하고
-#     컨테이너 안에서 watch/HMR 모드 실행 → 로컬 파일 수정 시 즉시 반영
-#   - node_modules 는 named volume 으로 격리해서 host 의 선택적 node_modules
-#     와 충돌하지 않도록 함
-#   - 코드 수정 흐름: 로컬 편집 → rsync (변경 파일만) → 컨테이너 watcher 자동 감지
+#   - server/web/admin 은 모두 이미지로 빌드해 실행한다
+#   - web/admin 은 정적 빌드 + nginx 로 서비스한다
+#   - server 는 컨테이너 부팅 시 prisma migrate deploy 후 앱을 시작한다
+#   - 코드 수정 흐름:
+#     - 로컬 편집 → rsync → compose up -d --build <service>
 #
 # 최초 기동:
-#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml up -d --build
 # 로그:
 #   docker compose -f docker-compose.dev.yml logs -f server
 # 종료:
@@ -49,17 +49,18 @@ services:
       retries: 10
 
   server:
-    image: node:22
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile.prod
     container_name: kaster-server
     restart: unless-stopped
-    working_dir: /app
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://kaster:kaster@postgres:5432/kaster_cti?schema=public
       JWT_SECRET: dev_secret_change_me_in_prod
@@ -77,6 +78,7 @@ services:
       ASTERISK_CONF_DIR: /etc/asterisk
       ASTERISK_SOUNDS_DIR: /var/lib/asterisk/sounds/custom
       SEED_DEMO_PASSWORD: Password123!
+      AUTO_SEED_DEMO_DATA: "true"
       # CORS: web(5173)/admin(5174) + host 직접 접속 허용
       REST_CORS_ORIGIN: "http://localhost:5173,http://localhost:5174,http://49.247.46.86:5173,http://49.247.46.86:5174"
       WS_CORS_ORIGIN: "*"
@@ -88,83 +90,40 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./apps/server:/app:cached
       - /etc/asterisk:/etc/asterisk
       - /var/lib/asterisk/sounds/custom:/var/lib/asterisk/sounds/custom
-      - kaster_server_node_modules:/app/node_modules
     ports:
       - "3000:3000"
-    # 최초 기동 시: deps 설치 → prisma generate → migrate deploy → seed → watch 시작
-    # 이후 restart 시에는 deps/migration 이 이미 되어있어 빨리 넘어감.
-    # node:22 (full Debian bookworm) 는 OpenSSL 3 내장 — Prisma 엔진 호환 문제 없음.
-    # 개발용: migrate deploy 대신 db push 로 schema 직접 동기화.
-    # init/ops_followup 마이그레이션 SQL 이 schema.prisma 와 네이밍 불일치
-    # (snake_case vs camelCase) 라 dev 에서는 history 우회가 낫다. 운영 배포
-    # 시엔 migrate generate → migrate deploy 로 다시 정식화 필요.
-    command: >
-      sh -c "
-        if [ ! -d node_modules/@nestjs ]; then
-          echo '>>> first-time npm install';
-          npm install;
-        fi &&
-        npx prisma generate &&
-        npx prisma db push --accept-data-loss --skip-generate &&
-        (npx ts-node prisma/seed.ts || echo 'seed already applied') &&
-        npm run start:dev
-      "
 
   web:
-    image: node:22
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: http://49.247.46.86:3000/api/v1
+        VITE_WS_URL: http://49.247.46.86:3000
+        VITE_USE_MOCK: "false"
     container_name: kaster-web
     restart: unless-stopped
-    working_dir: /app
     depends_on:
       - server
-    environment:
-      VITE_API_BASE_URL: http://49.247.46.86:3000/api/v1
-      VITE_WS_URL: http://49.247.46.86:3000
-      VITE_USE_MOCK: "false"
-    volumes:
-      - ./apps/web:/app:cached
-      - kaster_web_node_modules:/app/node_modules
     ports:
-      - "5173:5173"
-    command: >
-      sh -c "
-        if [ ! -d node_modules/vite ]; then
-          echo '>>> first-time npm install';
-          npm install;
-        fi &&
-        npm run dev -- --host 0.0.0.0 --port 5173
-      "
+      - "5173:80"
 
   admin:
-    image: node:22
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: http://49.247.46.86:3000/api/v1
+        VITE_USE_MOCK: "false"
+        VITE_ACCESS_TOKEN_KEY: kaster.access_token
     container_name: kaster-admin
     restart: unless-stopped
-    working_dir: /app
     depends_on:
       - server
-    environment:
-      VITE_API_BASE_URL: http://49.247.46.86:3000/api/v1
-      VITE_USE_MOCK: "false"
-      VITE_ACCESS_TOKEN_KEY: kaster.access_token
-    volumes:
-      - ./apps/admin:/app:cached
-      - kaster_admin_node_modules:/app/node_modules
     ports:
-      - "5174:5173"
-    command: >
-      sh -c "
-        if [ ! -d node_modules/vite ]; then
-          echo '>>> first-time npm install';
-          npm install;
-        fi &&
-        npm run dev -- --host 0.0.0.0 --port 5173
-      "
+      - "5174:80"
 
 volumes:
   kaster_postgres_data:
-  kaster_server_node_modules:
-  kaster_web_node_modules:
-  kaster_admin_node_modules:

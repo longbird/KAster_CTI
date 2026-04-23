@@ -9,6 +9,7 @@ import { RedisService } from '../src/modules/redis/redis.service';
 
 describe('AuthService softphone config', () => {
   let service: AuthService;
+  let agentRecord: Record<string, unknown>;
   const redisStore = new Map<string, string>();
   const redisClient = {
     set: jest.fn(async (key: string, value: string) => {
@@ -43,14 +44,26 @@ describe('AuthService softphone config', () => {
   beforeEach(async () => {
     redisStore.clear();
     jest.clearAllMocks();
-    prisma.agents.findUnique.mockResolvedValue({
+    agentRecord = {
       agentId: 'agent-1',
+      tenantId: 'tenant-1',
+      loginId: 'agent1001',
+      loginPasswordHash: 'hashed-login-password',
       agentName: '상담원1',
       extension: '1001',
+      sipPassword: 'sip-secret-1001',
       role: 'agent',
-      tenantId: 'tenant-1',
       isActive: true,
       defaultQueue: null,
+    };
+    prisma.agents.findUnique.mockImplementation(async ({ select }: { select?: Record<string, boolean> }) => {
+      if (!select) {
+        return agentRecord;
+      }
+
+      return Object.fromEntries(
+        Object.entries(select).map(([key]) => [key, agentRecord[key]]),
+      );
     });
     prisma.refreshTokens.findUnique.mockResolvedValue({
       refreshTokenId: 'rt-1',
@@ -113,6 +126,17 @@ describe('AuthService softphone config', () => {
         },
       ],
     });
+    expect(session.data.agent).toEqual({
+      agentId: 'agent-1',
+      agentName: '상담원1',
+      extension: '1001',
+      role: 'agent',
+      tenantId: 'tenant-1',
+      defaultQueue: null,
+    });
+    expect(session.data.agent).not.toHaveProperty('loginPasswordHash');
+    expect(session.data.agent).not.toHaveProperty('sipPassword');
+    expect(session.data).not.toHaveProperty('jwt');
   });
 
   it('exchangeDesktopHandoff 는 softphone credential 없이 토큰과 agent 를 반환한다', async () => {
