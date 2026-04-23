@@ -25,6 +25,23 @@ add_library(loadgen_scenario STATIC src/scenario.cpp)
 target_link_libraries(loadgen_scenario PUBLIC yaml-cpp)
 target_include_directories(loadgen_scenario PUBLIC include)
 
+add_library(loadgen_orchestrator STATIC src/orchestrator.cpp)
+target_include_directories(loadgen_orchestrator PUBLIC include)
+
+add_library(loadgen_report_writer STATIC src/report_writer.cpp)
+target_link_libraries(loadgen_report_writer PUBLIC nlohmann_json::nlohmann_json)
+target_include_directories(loadgen_report_writer PUBLIC include)
+
+add_library(loadgen_command_logic STATIC src/command_logic.cpp)
+target_link_libraries(
+  loadgen_command_logic
+  PUBLIC
+    loadgen_orchestrator
+    loadgen_report_writer
+    loadgen_scenario
+)
+target_include_directories(loadgen_command_logic PUBLIC include)
+
 if(PBX_LOADGEN_BUILD_CLI)
   find_package(PJSIP REQUIRED)
 
@@ -34,7 +51,7 @@ if(PBX_LOADGEN_BUILD_CLI)
     pbx-loadgen
     PRIVATE
       CLI11::CLI11
-      loadgen_scenario
+      loadgen_command_logic
       nlohmann_json::nlohmann_json
       PJSIP::PJSIP
   )

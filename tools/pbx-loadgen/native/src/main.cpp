@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "loadgen/command_logic.hpp"
+#include "loadgen/report_writer.hpp"
 #include "loadgen/scenario.hpp"
 
 namespace {
@@ -40,17 +42,25 @@ int main(int argc, char** argv) {
     }
 
     if (*dryRun) {
-      return printValidatedScenario(loadgen::loadScenarioFromFile(file));
+      const auto scenario = loadgen::loadScenarioFromFile(file);
+      std::cout << loadgen::formatDryRunSummary(
+                       loadgen::buildPracticalSchedule(scenario))
+                << '\n';
+      return 0;
     }
 
     if (*run) {
-      std::cerr << "not implemented\n";
-      return 1;
+      const auto scenario = loadgen::loadScenarioFromFile(file);
+      std::cout << loadgen::formatRunArtifacts(
+                       loadgen::executePracticalRun(scenario).artifacts)
+                << '\n';
+      return 0;
     }
 
     if (*report) {
-      std::cerr << "not implemented\n";
-      return 1;
+      const auto summary = loadgen::readSummaryReport(file);
+      std::cout << loadgen::formatReportReplay(summary) << '\n';
+      return 0;
     }
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << '\n';
