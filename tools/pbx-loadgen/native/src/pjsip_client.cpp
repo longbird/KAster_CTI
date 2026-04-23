@@ -3,7 +3,9 @@
 
 namespace loadgen {
 
-void PjsipClient::start(const Scenario&) {}
+void PjsipClient::start(const Scenario& scenario) {
+  scenario_ = scenario;
+}
 
 void PjsipClient::stop() {}
 
@@ -16,7 +18,10 @@ void PjsipClient::makeOneCall(const std::string& callRunId,
   ringing.state = CallState::RINGING;
   onUpdate(ringing);
 
-  ToneGenerator tone(8000, 440.0, 120, 0.6);
+  const int beepIntervalMs = scenario_.has_value() ? scenario_->media.beepIntervalMs : 1000;
+  const double txGain = scenario_.has_value() ? scenario_->media.txGain : 0.6;
+
+  ToneGenerator tone(8000, 440.0, 120, beepIntervalMs, txGain);
   const auto frame = tone.nextFrame(160);
 
   CallResult active;

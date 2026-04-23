@@ -7,7 +7,9 @@
 - CMake 3.20 or newer
 - A C++17 toolchain
 - Network access for the first configure step so CMake can fetch CLI11, yaml-cpp, nlohmann/json, and Catch2
-- `PJSIP_ROOT` is required and must point to a local pjproject install for the current build flow
+- `PJSIP_ROOT` is required for CLI builds and must point to a local pjproject install
+- If the CLI is linked against pjproject shared libraries, those libraries must remain discoverable at package time or the package scripts will abort instead of emitting an incomplete dist
+- If you know a build is fully static, set `PBX_LOADGEN_ASSUME_STATIC_PJSIP=1` to allow packaging without discovered pjproject runtimes
 
 ## Build
 
@@ -63,7 +65,7 @@ macOS or Linux:
 bash tools/pbx-loadgen/scripts/package.sh
 ```
 
-The package scripts copy the built binary and the YAML scenarios into `tools/pbx-loadgen/dist/windows`, `tools/pbx-loadgen/dist/macos`, or `tools/pbx-loadgen/dist/linux` depending on platform.
+The package scripts copy the built binary, the YAML scenarios, and any discoverable pjproject shared libraries into `tools/pbx-loadgen/dist/windows`, `tools/pbx-loadgen/dist/macos`, or `tools/pbx-loadgen/dist/linux` depending on platform. If the binary is dynamically linked and those shared libraries cannot be found, packaging fails with a message telling you to expose the pjproject install via `PJSIP_ROOT` or place the runtime libraries next to the binary. Only use `PBX_LOADGEN_ASSUME_STATIC_PJSIP=1` when you have verified the CLI is fully statically linked against pjproject.
 
 ## Scenario Fields
 

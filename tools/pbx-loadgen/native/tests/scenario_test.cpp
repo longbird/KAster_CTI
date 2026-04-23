@@ -1,18 +1,19 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <cstdlib>
 #include <filesystem>
-#include <string_view>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#if defined(PBX_LOADGEN_HAS_CLI)
+#include <cstdlib>
 #ifdef _WIN32
 #include <process.h>
 #else
 #include <spawn.h>
 #include <sys/wait.h>
 extern char** environ;
+#endif
 #endif
 
 #include "loadgen/scenario.hpp"
@@ -29,6 +30,7 @@ std::filesystem::path missing_path() {
          "scenarios" / "missing-file-does-not-exist.yaml";
 }
 
+#if defined(PBX_LOADGEN_HAS_CLI)
 int run_cli(const std::vector<std::string>& arguments) {
   const auto exe = std::filesystem::path{PBX_LOADGEN_EXE_PATH};
 
@@ -75,6 +77,7 @@ int run_cli(const std::vector<std::string>& arguments) {
   return -1;
 #endif
 }
+#endif
 
 }  // namespace
 
@@ -142,10 +145,16 @@ TEST_CASE("scenario parser loads the smoke scenario file", "[scenario]") {
   REQUIRE(scenario.callFlow.holdSecondsMin == 3);
 }
 
+#if defined(PBX_LOADGEN_HAS_CLI)
 TEST_CASE("run command rejects a missing scenario file", "[scenario]") {
   REQUIRE(run_cli({"run", "-f", missing_path().string()}) != 0);
 }
 
 TEST_CASE("report command rejects a missing result file", "[scenario]") {
   REQUIRE(run_cli({"report", "-f", missing_path().string()}) != 0);
+}
+#endif
+
+TEST_CASE("scenario file loader rejects a missing file", "[scenario]") {
+  REQUIRE_THROWS(loadgen::loadScenarioFromFile(missing_path().string()));
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "loadgen/call_types.hpp"
@@ -18,6 +19,9 @@ class PjsipClient {
                    const std::string& callerId,
                    const std::string& did,
                    CallUpdateHandler onUpdate);
+
+ private:
+  std::optional<Scenario> scenario_;
 };
 
 }  // namespace loadgen

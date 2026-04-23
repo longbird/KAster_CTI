@@ -10,10 +10,12 @@
 namespace {
 
 loadgen::Scenario makeScenario(const std::string& outputDir,
-                               bool saveFailureDetails = true) {
+                               bool saveFailureDetails = true,
+                               int rampUpSeconds = 2,
+                               int callStartJitterMs = 0) {
   return loadgen::Scenario{
       {"127.0.0.1", 5060, "udp", "sip:{did}@127.0.0.1:5060"},
-      {2, 2, 4, 2, 10},
+      {2, 2, 4, rampUpSeconds, callStartJitterMs},
       {{"01011112222", "01011112223"}, {"1899"}, 8000, 1, 1, {100}},
       {800, 0.8},
       {outputDir, 500, saveFailureDetails},
@@ -22,28 +24,38 @@ loadgen::Scenario makeScenario(const std::string& outputDir,
 
 }  // namespace
 
-TEST_CASE("practical dry-run summary reflects ramp and jitter adjusted schedule", "[command]") {
+TEST_CASE("practical dry-run ramps calls gradually toward target cps", "[command]") {
   const auto scenario = makeScenario("./reports-test");
   const auto schedule = loadgen::buildPracticalSchedule(scenario);
   const auto summary = loadgen::formatDryRunSummary(schedule);
 
   REQUIRE(schedule.schedule.calls.size() == 4);
   REQUIRE(schedule.schedule.calls[0].index == 0);
-  REQUIRE(schedule.schedule.calls[0].startOffsetMs == 2000);
-  REQUIRE(schedule.schedule.calls[1].index == 3);
-  REQUIRE(schedule.schedule.calls[1].startOffsetMs == 2001);
-  REQUIRE(schedule.schedule.calls[2].index == 1);
-  REQUIRE(schedule.schedule.calls[2].startOffsetMs == 3000);
-  REQUIRE(schedule.schedule.calls[3].index == 2);
-  REQUIRE(schedule.schedule.calls[3].startOffsetMs == 3001);
-  REQUIRE(schedule.firstStartMs == 2000);
-  REQUIRE(schedule.lastStartMs == 3001);
-  REQUIRE(schedule.totalScheduleMs == 4001);
+  REQUIRE(schedule.schedule.calls[0].startOffsetMs == 1414);
+  REQUIRE(schedule.schedule.calls[1].index == 1);
+  REQUIRE(schedule.schedule.calls[1].startOffsetMs == 2000);
+  REQUIRE(schedule.schedule.calls[2].index == 2);
+  REQUIRE(schedule.schedule.calls[2].startOffsetMs == 2500);
+  REQUIRE(schedule.schedule.calls[3].index == 3);
+  REQUIRE(schedule.schedule.calls[3].startOffsetMs == 3000);
+  REQUIRE(schedule.firstStartMs == 1414);
+  REQUIRE(schedule.lastStartMs == 3000);
+  REQUIRE(schedule.totalScheduleMs == 4000);
   REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("peakConcurrent="));
   REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("simulatedCallMs=1000"));
-  REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("firstStartMs=2000"));
-  REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("lastStartMs=3001"));
-  REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("totalScheduleMs=4001"));
+  REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("firstStartMs=1414"));
+  REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("lastStartMs=3000"));
+  REQUIRE_THAT(summary, Catch::Matchers::ContainsSubstring("totalScheduleMs=4000"));
+}
+
+TEST_CASE("practical dry-run does not bunch every call at the ramp boundary", "[command]") {
+  const auto scenario = makeScenario("./reports-test-bunching", true, 2, 0);
+  const auto schedule = loadgen::buildPracticalSchedule(scenario);
+
+  REQUIRE(schedule.schedule.calls.front().startOffsetMs < 2000);
+  REQUIRE(schedule.schedule.calls[0].startOffsetMs < schedule.schedule.calls[1].startOffsetMs);
+  REQUIRE(schedule.schedule.calls[1].startOffsetMs < schedule.schedule.calls[2].startOffsetMs);
+  REQUIRE(schedule.schedule.calls[2].startOffsetMs < schedule.schedule.calls[3].startOffsetMs);
 }
 
 TEST_CASE("practical run writes json and optional csv artifacts", "[command]") {

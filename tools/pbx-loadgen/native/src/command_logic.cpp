@@ -1,5 +1,6 @@
 #include "loadgen/command_logic.hpp"
 
+#include <cmath>
 #include <algorithm>
 #include <limits>
 #include <queue>
@@ -19,6 +20,30 @@ int deterministicJitterMs(int index, int jitterMs) {
     return 0;
   }
   return (index * 37) % (jitterMs + 1);
+}
+
+int rampedStartOffsetMs(std::size_t callNumber,
+                        const Scenario& scenario) {
+  const int rampUpMs = std::max(0, scenario.load.rampUpSeconds * 1000);
+  if (rampUpMs <= 0) {
+    return 0;
+  }
+
+  const int targetCps = scenario.load.cps;
+  const long long callOrdinal = static_cast<long long>(callNumber) + 1;
+  const long long rampThresholdNumerator =
+      static_cast<long long>(targetCps) * rampUpMs;
+
+  // Linear ramp: the call rate increases from 0 CPS to the target CPS over
+  // the ramp window, then stays at the steady-state cadence.
+  if (callOrdinal * 2000LL <= rampThresholdNumerator) {
+    const double rampStartMs = std::sqrt(
+        (2000.0 * static_cast<double>(rampUpMs) * callOrdinal) / targetCps);
+    return static_cast<int>(rampStartMs);
+  }
+
+  return static_cast<int>(static_cast<long long>(rampUpMs) / 2 +
+                          (1000LL * callOrdinal) / targetCps);
 }
 
 std::vector<CallResultDetail> buildSimulatedDetails(
@@ -60,18 +85,15 @@ PracticalSchedule buildPracticalSchedule(const Scenario& scenario) {
   };
   effectiveSchedule.calls.reserve(baseSchedule.calls.size());
 
-  const int rampUpMs = std::max(0, scenario.load.rampUpSeconds * 1000);
   std::priority_queue<int, std::vector<int>, std::greater<int>> activeCallEndTimes;
   std::vector<ScheduledCall> candidateCalls;
   candidateCalls.reserve(baseSchedule.calls.size());
 
   for (std::size_t i = 0; i < baseSchedule.calls.size(); ++i) {
     const auto& baseCall = baseSchedule.calls[i];
-    const int rampDelayMs =
-        rampUpMs > 0 ? std::max(0, rampUpMs - baseCall.startOffsetMs) : 0;
     candidateCalls.push_back(ScheduledCall{
         baseCall.index,
-        baseCall.startOffsetMs + rampDelayMs +
+        rampedStartOffsetMs(i, scenario) +
             deterministicJitterMs(static_cast<int>(i),
                                   scenario.load.callStartJitterMs),
     });
