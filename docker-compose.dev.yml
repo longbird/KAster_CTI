@@ -80,6 +80,11 @@ services:
       # CORS: web(5173)/admin(5174) + host 직접 접속 허용
       REST_CORS_ORIGIN: "http://localhost:5173,http://localhost:5174,http://49.247.46.86:5173,http://49.247.46.86:5174"
       WS_CORS_ORIGIN: "*"
+      # Softphone 는 운영 환경 준비 전까지 명시적으로 비활성화한다.
+      SOFTPHONE_ENABLED: ${SOFTPHONE_ENABLED:-false}
+      SOFTPHONE_SIP_DOMAIN: ${SOFTPHONE_SIP_DOMAIN:-}
+      SOFTPHONE_WS_SERVER: ${SOFTPHONE_WS_SERVER:-}
+      SOFTPHONE_ICE_SERVERS_JSON: ${SOFTPHONE_ICE_SERVERS_JSON:-[]}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

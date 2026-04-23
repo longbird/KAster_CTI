@@ -2057,6 +2057,34 @@
         ]
       }
     },
+    "/api/v1/auth/desktop/session": {
+      "get": {
+        "operationId": "AuthController_desktopSession",
+        "summary": "Desktop 전용 세션 조회",
+        "description": "Windows softphone 런타임이 SIP credential 이 포함된 데스크톱 전용 세션 정보를 조회한다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/handoff": {
       "post": {
         "operationId": "AuthController_createDesktopHandoff",

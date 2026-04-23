@@ -16,6 +16,7 @@ The approved spec still contains two follow-up implementation tracks that are **
 
 - Electron desktop shell and auto-update client behavior
 - Operator-side release distribution tooling that copies packages from the operator environment into each call-center server
+- Operator-side production code-signing rollout. Current policy is `unsigned or test-signed for dev/internal QA`, then `internal CA signing required before formal production`.
 
 This plan only implements the **call-center server update hub** because it can ship and be tested entirely inside the current repository.
 
@@ -1153,5 +1154,6 @@ git commit -m "fix: polish agent update hub"
 
 - Electron desktop client update polling and safe-install behavior
 - Operator-to-center file distribution tooling
+- Internal CA based code-signing rollout on the operator build server before formal production
 - Version compatibility enforcement against the running CTI server version
 - Optional stronger download-token verification such as IP pinning or nonce replay telemetry

@@ -17,6 +17,23 @@ const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_DAYS = 14;
 const HANDOFF_TOKEN_TTL_SECONDS = 60;
 const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
+type HandoffPurpose = 'desktop' | 'web';
+
+export interface SoftphoneIceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+export interface SoftphoneConfigPayload {
+  enabled: boolean;
+  sipUri: string | null;
+  wsServer: string | null;
+  authorizationUsername: string | null;
+  authorizationPassword?: string | null;
+  displayName: string;
+  iceServers: SoftphoneIceServer[];
+}
 
 function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -28,8 +45,28 @@ function generateRefreshTokenValue(): string {
   return randomBytes(32).toString('hex');
 }
 
+interface HandoffSessionUser {
+  sub: string;
+  tenantId: string;
+  role: string;
+  extension: string;
+  sid?: string;
+}
+
+interface HandoffPayload {
+  purpose: HandoffPurpose;
+  agentId: string;
+  tenantId: string;
+  role: string;
+  extension: string;
+  deviceName?: string | null;
+  redirectPath?: string | null;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly handoffConsumeQueues = new Map<string, Promise<void>>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -109,6 +146,7 @@ export class AuthService {
           extension: agent.extension,
           role: agent.role,
         },
+        softphoneConfig: this.buildSoftphoneConfig(agent),
       },
       error: null,
     };
@@ -156,6 +194,13 @@ export class AuthService {
         refreshToken: newRefreshToken,
         tokenType: 'Bearer',
         expiresIn: 900,
+        agent: {
+          agentId: agent.agentId,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          role: agent.role,
+        },
+        softphoneConfig: this.buildSoftphoneConfig(agent),
       },
       error: null,
     };
@@ -211,43 +256,20 @@ export class AuthService {
         jwt: user,
         callControlCapabilities: this.callsService.getCallControlCapabilities(),
         outboundDialOptions,
+        softphoneConfig: this.buildSoftphoneConfig(agent),
       },
       error: null,
     };
   }
 
   async createDesktopHandoff(
-    user: { sub: string; tenantId: string; role: string; extension: string; sid?: string },
+    user: HandoffSessionUser,
     dto?: { deviceName?: string },
   ) {
-    if (!user.sid) {
-      throw new UnauthorizedException('Invalid or expired handoff token');
-    }
-
-    const activeSession = await this.prisma.refreshTokens.findUnique({
-      where: {
-        tokenHash: user.sid,
-      },
-      select: {
-        refreshTokenId: true,
-        agentId: true,
-        tenantId: true,
-        revokedAt: true,
-        expiresAt: true,
-      },
-    });
-    if (
-      !activeSession
-      || activeSession.agentId !== user.sub
-      || activeSession.tenantId !== user.tenantId
-      || activeSession.revokedAt
-      || activeSession.expiresAt.getTime() <= Date.now()
-    ) {
-      throw new UnauthorizedException('Invalid or expired handoff token');
-    }
-
+    await this.assertDesktopCapableSession(user);
     const handoffToken = randomBytes(24).toString('hex');
-    const payload = JSON.stringify({
+    await this.storeHandoffToken('desktop', handoffToken, {
+      purpose: 'desktop',
       agentId: user.sub,
       tenantId: user.tenantId,
       role: user.role,
@@ -255,12 +277,32 @@ export class AuthService {
       deviceName: dto?.deviceName ?? null,
     });
 
-    await this.redis.getClient().set(
-      this.handoffKey(handoffToken),
-      payload,
-      'EX',
-      HANDOFF_TOKEN_TTL_SECONDS,
-    );
+    return {
+      success: true,
+      data: {
+        handoffToken,
+        expiresIn: HANDOFF_TOKEN_TTL_SECONDS,
+      },
+      error: null,
+    };
+  }
+
+  async createWebHandoff(
+    user: HandoffSessionUser,
+    dto?: { redirectPath?: string },
+  ) {
+    await this.assertDesktopCapableSession(user);
+    const handoffToken = randomBytes(24).toString('hex');
+    await this.storeHandoffToken('web', handoffToken, {
+      purpose: 'web',
+      agentId: user.sub,
+      tenantId: user.tenantId,
+      role: user.role,
+      extension: user.extension,
+      // redirectPath is intentionally part of the web handoff payload so the
+      // browser entry flow can resume in the right place after exchange.
+      redirectPath: dto?.redirectPath?.trim() || '/desktop-handoff',
+    });
 
     return {
       success: true,
@@ -277,24 +319,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired handoff token');
     }
 
-    const raw = await this.consumeHandoffToken(handoffToken);
+    const raw = await this.consumeHandoffToken('desktop', handoffToken);
     if (!raw) {
       throw new UnauthorizedException('Invalid or expired handoff token');
     }
 
-    let payload: { agentId: string; tenantId: string };
-    try {
-      payload = JSON.parse(raw) as {
-        agentId: string;
-        tenantId: string;
-      };
-    } catch {
-      throw new UnauthorizedException('Invalid or expired handoff token');
-    }
-
-    if (!payload?.agentId || !payload?.tenantId) {
-      throw new UnauthorizedException('Invalid or expired handoff token');
-    }
+    const payload = this.parseHandoffPayload(raw, 'desktop');
 
     const agent = await this.prisma.agents.findUnique({
       where: { agentId: payload.agentId },
@@ -324,6 +354,86 @@ export class AuthService {
           extension: agent.extension,
           role: agent.role,
         },
+      },
+      error: null,
+    };
+  }
+
+  async exchangeWebHandoff(handoffToken: string) {
+    if (!handoffToken) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const raw = await this.consumeHandoffToken('web', handoffToken);
+    if (!raw) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const payload = this.parseHandoffPayload(raw, 'web');
+
+    const agent = await this.prisma.agents.findUnique({
+      where: { agentId: payload.agentId },
+    });
+    if (!agent || !agent.isActive || agent.tenantId !== payload.tenantId) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, {
+      userAgent: 'web-handoff',
+      ipAddress: 'handoff',
+    });
+    const accessToken = this.signAccessToken(agent, {
+      sessionId: sha256(refreshToken),
+    });
+
+    return {
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer',
+        expiresIn: 900,
+        agent: {
+          agentId: agent.agentId,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          role: agent.role,
+        },
+      },
+      error: null,
+    };
+  }
+
+  async getDesktopSession(user: any) {
+    const agent = await this.prisma.agents.findFirst({
+      where: {
+        agentId: user.sub,
+        tenantId: user.tenantId,
+        isActive: true,
+      },
+      select: {
+        agentId: true,
+        agentName: true,
+        extension: true,
+        role: true,
+        sipPassword: true,
+      },
+    });
+
+    if (!agent) {
+      throw new UnauthorizedException('Invalid desktop session');
+    }
+
+    return {
+      success: true,
+      data: {
+        agent: {
+          agentId: agent.agentId,
+          agentName: agent.agentName,
+          extension: agent.extension,
+          role: agent.role,
+        },
+        softphoneConfig: this.buildSoftphoneConfig(agent, { includeCredential: true }),
       },
       error: null,
     };
@@ -369,14 +479,130 @@ export class AuthService {
     return value;
   }
 
-  private handoffKey(token: string) {
-    return `kaster:auth:handoff:${sha256(token)}`;
+  private handoffKey(purpose: HandoffPurpose, token: string) {
+    return `kaster:auth:handoff:${purpose}:${sha256(token)}`;
   }
 
-  private async consumeHandoffToken(handoffToken: string): Promise<string | null> {
-    const key = this.handoffKey(handoffToken);
+  private async storeHandoffToken(
+    purpose: HandoffPurpose,
+    token: string,
+    payload: HandoffPayload,
+  ) {
+    await this.redis.getClient().set(
+      this.handoffKey(purpose, token),
+      JSON.stringify(payload),
+      'EX',
+      HANDOFF_TOKEN_TTL_SECONDS,
+    );
+  }
+
+  private buildSoftphoneConfig(
+    agent?: { extension?: string | null; agentName?: string | null; sipPassword?: string | null } | null,
+    options?: { includeCredential?: boolean },
+  ): SoftphoneConfigPayload {
+    const enabled = this.config.get<string>('SOFTPHONE_ENABLED', 'false') === 'true';
+    const sipDomain = this.config.get<string>('SOFTPHONE_SIP_DOMAIN', '').trim();
+    const wsServer = this.config.get<string>('SOFTPHONE_WS_SERVER', '').trim();
+    const extension = agent?.extension?.trim() ?? null;
+    const displayName = agent?.agentName?.trim() || 'Unknown Agent';
+
+    if (!enabled || !sipDomain || !wsServer || !extension) {
+      return {
+        enabled: false,
+        sipUri: null,
+        wsServer: null,
+        authorizationUsername: null,
+        authorizationPassword: options?.includeCredential ? null : undefined,
+        displayName,
+        iceServers: [],
+      };
+    }
+
+    return {
+      enabled: true,
+      sipUri: `sip:${extension}@${sipDomain}`,
+      wsServer,
+      authorizationUsername: extension,
+      authorizationPassword: options?.includeCredential ? agent?.sipPassword?.trim() ?? null : undefined,
+      displayName,
+      iceServers: this.parseIceServers(),
+    };
+  }
+
+  private parseIceServers(): SoftphoneIceServer[] {
+    const raw = this.config.get<string>('SOFTPHONE_ICE_SERVERS_JSON', '[]');
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed.filter((entry): entry is SoftphoneIceServer => {
+        if (!entry || typeof entry !== 'object' || !('urls' in entry)) {
+          return false;
+        }
+
+        const candidate = entry as Record<string, unknown>;
+        return typeof candidate.urls === 'string'
+          || (Array.isArray(candidate.urls) && candidate.urls.every((item) => typeof item === 'string'));
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  private parseHandoffPayload(raw: string, expectedPurpose: HandoffPurpose): HandoffPayload {
+    try {
+      const payload = JSON.parse(raw) as HandoffPayload;
+      if (
+        !payload
+        || payload.purpose !== expectedPurpose
+        || !payload.agentId
+        || !payload.tenantId
+        || !payload.role
+        || !payload.extension
+      ) {
+        throw new Error('invalid payload');
+      }
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+  }
+
+  private async assertDesktopCapableSession(user: HandoffSessionUser) {
+    if (!user.sid) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+
+    const activeSession = await this.prisma.refreshTokens.findUnique({
+      where: {
+        tokenHash: user.sid,
+      },
+      select: {
+        refreshTokenId: true,
+        agentId: true,
+        tenantId: true,
+        revokedAt: true,
+        expiresAt: true,
+      },
+    });
+    if (
+      !activeSession
+      || activeSession.agentId !== user.sub
+      || activeSession.tenantId !== user.tenantId
+      || activeSession.revokedAt
+      || activeSession.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new UnauthorizedException('Invalid or expired handoff token');
+    }
+  }
+
+  private async consumeHandoffToken(purpose: HandoffPurpose, handoffToken: string): Promise<string | null> {
+    const key = this.handoffKey(purpose, handoffToken);
     const client = this.redis.getClient() as {
       getdel?: (key: string) => Promise<string | null>;
+      eval?: (script: string, keyCount: number, ...args: string[]) => Promise<string | null>;
       call?: (command: string, key: string) => Promise<string | null>;
       get: (key: string) => Promise<string | null>;
       del: (key: string) => Promise<number>;
@@ -386,15 +612,49 @@ export class AuthService {
       return client.getdel(key);
     }
 
+    if (typeof client.eval === 'function') {
+      return client.eval(
+        "local value = redis.call('GET', KEYS[1]); if value then redis.call('DEL', KEYS[1]); end; return value;",
+        1,
+        key,
+      );
+    }
+
     if (typeof client.call === 'function') {
       return client.call('GETDEL', key);
     }
 
-    const raw = await client.get(key);
-    if (!raw) {
-      return null;
+    return this.consumeHandoffTokenWithLock(key, client);
+  }
+
+  private async consumeHandoffTokenWithLock(
+    key: string,
+    client: {
+      get: (key: string) => Promise<string | null>;
+      del: (key: string) => Promise<number>;
+    },
+  ): Promise<string | null> {
+    const previous = this.handoffConsumeQueues.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queueTail = previous.then(() => current);
+    this.handoffConsumeQueues.set(key, queueTail);
+
+    await previous;
+    try {
+      const raw = await client.get(key);
+      if (!raw) {
+        return null;
+      }
+      const deleted = await client.del(key);
+      return deleted === 1 ? raw : null;
+    } finally {
+      release();
+      if (this.handoffConsumeQueues.get(key) === queueTail) {
+        this.handoffConsumeQueues.delete(key);
+      }
     }
-    const deleted = await client.del(key);
-    return deleted === 1 ? raw : null;
   }
 }

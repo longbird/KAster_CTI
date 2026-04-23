@@ -211,6 +211,9 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       return;
     }
     this.logger.debug(`Sending AMI reload commands for tenant ${tenantId}`);
+    this.ami.sendAction({ Action: 'Command', Command: 'module load res_http_websocket.so' });
+    this.ami.sendAction({ Action: 'Command', Command: 'module load res_pjsip_transport_websocket.so' });
+    this.ami.sendAction({ Action: 'Command', Command: 'http reload' });
     this.ami.sendAction({ Action: 'Command', Command: 'module reload res_pjsip' });
     this.ami.sendAction({ Action: 'Command', Command: 'moh reload' });
     this.ami.sendAction({ Action: 'Command', Command: 'dialplan reload' });

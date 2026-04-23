@@ -2,19 +2,27 @@
   "name": "kaster-cti-desktop",
   "private": true,
   "version": "0.1.0",
+  "description": "KAster CTI desktop agent runtime for Windows call center operations",
+  "author": "KAster Operations",
   "type": "module",
-  "main": "dist-electron/main/index.js",
+  "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pack:dir": "electron-builder --config builder.config.ts --dir",
+    "dist:win": "electron-builder --config builder.config.ts --win nsis portable --x64",
+    "sign:internal": "powershell -ExecutionPolicy Bypass -File .\\scripts\\sign-internal.ps1",
+    "verify:signature": "powershell -ExecutionPolicy Bypass -File .\\scripts\\verify-signature.ps1",
+    "dist:win:signed": "npm run dist:win && npm run sign:internal && npm run verify:signature"
   },
   "dependencies": {
     "axios": "^1.15.2",
     "electron-log": "^5.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "sip.js": "^0.21.2",
     "socket.io-client": "^4.8.1",
     "zustand": "^5.0.8"
   },
@@ -26,6 +34,7 @@
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "electron-vite": "^3.1.0",
     "jsdom": "^25.0.1",
     "typescript": "^5.8.3",

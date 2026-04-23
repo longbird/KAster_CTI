@@ -1,6 +1,7 @@
 export function UpdateBanner({
   message,
   canApply,
+  statusText,
   busy,
   readyFileName,
   onPrepare,
@@ -8,6 +9,7 @@ export function UpdateBanner({
 }: {
   message: string;
   canApply: boolean;
+  statusText: string;
   busy: boolean;
   readyFileName?: string | null;
   onPrepare: () => void;
@@ -17,7 +19,7 @@ export function UpdateBanner({
     <div className="update-banner">
       <div className="update-banner-copy">
         <strong>{message}</strong>
-        <span>{canApply ? '지금 적용 가능' : '통화 종료 후 적용'}</span>
+        <span>{statusText}</span>
         {readyFileName ? <span>다운로드 완료: {readyFileName}</span> : null}
       </div>
       <div className="update-banner-actions">

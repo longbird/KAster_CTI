@@ -5,7 +5,9 @@ describe('renderPjsip', () => {
     const result = renderPjsip({ trunks: [], agents: [] });
     expect(result).toContain('[global]');
     expect(result).toContain('[transport-udp]');
+    expect(result).toContain('[transport-ws]');
     expect(result).toContain('bind=0.0.0.0:36070');
+    expect(result).toContain('bind=0.0.0.0:8088');
   });
 
   it('renders custom SIP register port from system settings', () => {
@@ -69,6 +71,8 @@ describe('renderPjsip', () => {
     expect(result).toContain('[1001]');
     expect(result).toContain('callerid=Agent1 <1001>');
     expect(result).toContain('context=agent-phone-1001');
+    expect(result).toContain('max_contacts=2');
+    expect(result).toContain('allow=opus,alaw,ulaw');
     expect(result).toContain('callerid_privacy=prohib');
     expect(result).toContain('named_call_group=queue-sales');
     expect(result).toContain('named_pickup_group=queue-sales,all-agents');

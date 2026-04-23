@@ -27,6 +27,8 @@ export interface PjsipInput {
 
 import { assertNoNewlines, toSlug } from './renderer-utils';
 
+const SIP_WS_PORT = 8088;
+
 function renderTrunk(trunk: TrunkInput): string {
   const slug = toSlug(trunk.name);
   if (!slug) throw new Error(`Trunk name "${trunk.name}" produces an empty slug`);
@@ -103,13 +105,13 @@ function renderAgent(agent: AgentInput): string {
     // Using the extension itself as the AOR name is the most compatible layout.
     `[${agent.extension}]`,
     `type=aor`,
-    `max_contacts=1`,
+    `max_contacts=2`,
     ``,
     `[${agent.extension}]`,
     `type=endpoint`,
     `context=${agent.context || `agent-phone-${agent.extension}`}`,
     `disallow=all`,
-    `allow=alaw,ulaw`,
+    `allow=opus,alaw,ulaw`,
     `auth=${agent.extension}-auth`,
     `aors=${agent.extension}`,
     `callerid=${agent.agentName} <${agent.extension}>`,
@@ -134,6 +136,11 @@ export function renderPjsip(input: PjsipInput): string {
     `type=transport`,
     `protocol=udp`,
     `bind=0.0.0.0:${sipRegisterPort}`,
+    ``,
+    `[transport-ws]`,
+    `type=transport`,
+    `protocol=ws`,
+    `bind=0.0.0.0:${SIP_WS_PORT}`,
   ].join('\n');
 
   const trunks = input.trunks

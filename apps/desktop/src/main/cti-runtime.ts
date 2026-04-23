@@ -32,7 +32,13 @@ export class CtiRuntime {
     });
   }
 
-  connect(listener: (event: CtiEvent) => void): void {
+  connect(handlers: {
+    onEvent: (event: CtiEvent) => void;
+    onConnectionState?: (payload: {
+      state: 'connected' | 'reconnecting' | 'disconnected' | 'error';
+      reason?: string;
+    }) => void;
+  }): void {
     this.disconnect();
 
     const socket = io(`${this.options.baseUrl}/ws`, {
@@ -42,11 +48,23 @@ export class CtiRuntime {
 
     EVENT_NAMES.forEach((eventName) => {
       socket.on(eventName, (payload: CtiEvent['payload']) => {
-        listener({
+        handlers.onEvent({
           type: eventName,
           payload,
         } as CtiEvent);
       });
+    });
+    socket.on('connect', () => {
+      handlers.onConnectionState?.({ state: 'connected' });
+    });
+    socket.on('reconnect_attempt', (attempt: number) => {
+      handlers.onConnectionState?.({ state: 'reconnecting', reason: `attempt:${attempt}` });
+    });
+    socket.on('disconnect', (reason: string) => {
+      handlers.onConnectionState?.({ state: 'disconnected', reason });
+    });
+    socket.on('connect_error', (error: Error) => {
+      handlers.onConnectionState?.({ state: 'error', reason: error.message });
     });
 
     this.socket = socket;
@@ -90,12 +108,65 @@ export class CtiRuntime {
     return response.data.data as CommandAck;
   }
 
+  async pickup(callId: string): Promise<CommandAck> {
+    return this.sendSimpleCommand(`/calls/${callId}/pickup`);
+  }
+
+  async originate(params: {
+    agentExtension: string;
+    phoneNumber: string;
+    callerId?: string;
+  }): Promise<CommandAck & { channel?: string }> {
+    const correlationId = randomUUID();
+    const response = await this.http.post(
+      '/calls/originate',
+      params,
+      {
+        headers: {
+          'x-correlation-id': correlationId,
+        },
+      },
+    );
+
+    return response.data.data as CommandAck & { channel?: string };
+  }
+
   async hold(callId: string): Promise<CommandAck> {
     return this.sendSimpleCommand(`/calls/${callId}/hold`);
   }
 
   async resume(callId: string): Promise<CommandAck> {
     return this.sendSimpleCommand(`/calls/${callId}/resume`);
+  }
+
+  async transfer(
+    callId: string,
+    params: {
+      target: string;
+      transferType: 'blind' | 'attended';
+      fromExtension: string;
+    },
+  ): Promise<CommandAck> {
+    const correlationId = randomUUID();
+    const response = await this.http.post(
+      `/calls/${callId}/transfer`,
+      params,
+      {
+        headers: {
+          'x-correlation-id': correlationId,
+        },
+      },
+    );
+
+    return response.data.data as CommandAck;
+  }
+
+  async cancelAttendedTransfer(callId: string): Promise<CommandAck> {
+    return this.sendSimpleCommand(`/calls/${callId}/transfer/attended/cancel`);
+  }
+
+  async completeAttendedTransfer(callId: string): Promise<CommandAck> {
+    return this.sendSimpleCommand(`/calls/${callId}/transfer/attended/complete`);
   }
 
   private async sendSimpleCommand(path: string): Promise<CommandAck> {

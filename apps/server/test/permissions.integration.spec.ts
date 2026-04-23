@@ -57,6 +57,7 @@ describe('Server permission integration', () => {
         'supervisor',
         ['dashboard', 'live-calls'],
         'view',
+        undefined,
       );
       expect(callsService.getActiveCalls).toHaveBeenCalledWith('tenant-1', 'branch-1');
     });
@@ -101,6 +102,7 @@ describe('Server permission integration', () => {
         'admin',
         'reports/recordings',
         'view',
+        undefined,
       );
       expect(callsService.listRecordings).toHaveBeenCalledWith('tenant-1', {
         from: '2026-04-01',
@@ -156,6 +158,7 @@ describe('Server permission integration', () => {
         'supervisor',
         ['settings/agents', 'agents'],
         'view',
+        undefined,
       );
       expect(agentsService.listForTenant).toHaveBeenCalledWith('tenant-1');
     });
@@ -185,6 +188,7 @@ describe('Server permission integration', () => {
         'supervisor',
         ['settings/agents', 'agents'],
         'view',
+        'supervisor-1',
       );
     });
 
@@ -202,6 +206,7 @@ describe('Server permission integration', () => {
         'admin',
         'settings/agents',
         'update',
+        undefined,
       );
       expect(agentsService.update).toHaveBeenCalledWith(
         'tenant-1',
@@ -252,6 +257,7 @@ describe('Server permission integration', () => {
         'supervisor',
         ['dashboard', 'queues'],
         'view',
+        undefined,
       );
       expect(queuesService.getSummary).toHaveBeenCalledWith('tenant-1');
     });
@@ -275,6 +281,7 @@ describe('Server permission integration', () => {
         'admin',
         'settings/queues',
         'view',
+        undefined,
       );
       expect(queuesService.listSettings).toHaveBeenCalledWith('tenant-1');
     });
@@ -293,6 +300,7 @@ describe('Server permission integration', () => {
         'admin',
         'settings/queues',
         'update',
+        undefined,
       );
       expect(queuesService.update).toHaveBeenCalledWith(
         'tenant-1',
@@ -343,6 +351,7 @@ describe('Server permission integration', () => {
         'admin',
         'blocklist',
         'view',
+        undefined,
       );
       expect(asteriskConfigService.getBlocklistEntries).toHaveBeenCalledWith('tenant-1');
     });
@@ -360,6 +369,7 @@ describe('Server permission integration', () => {
         'supervisor',
         'blocklist',
         'create',
+        undefined,
       );
       expect(asteriskConfigService.createBlocklistEntry).toHaveBeenCalledWith(
         'tenant-1',

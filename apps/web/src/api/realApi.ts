@@ -60,6 +60,35 @@ export async function logout() {
   useAuthStore.getState().clear();
 }
 
+export async function createDesktopHandoff(params?: { deviceName?: string }) {
+  const res = await apiClient.post('/auth/handoff', params ?? {});
+  const data = res.data?.data;
+  if (!data?.handoffToken) {
+    throw new Error('Invalid desktop handoff response');
+  }
+
+  return data as {
+    handoffToken: string;
+    expiresIn: number;
+  };
+}
+
+export async function exchangeWebHandoff(handoffToken: string) {
+  const res = await apiClient.post('/auth/web-handoff/exchange', { handoffToken });
+  const data = res.data?.data;
+  if (!data?.accessToken) {
+    throw new Error('Invalid web handoff response');
+  }
+
+  useAuthStore.getState().setTokens({
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    agent: data.agent,
+  });
+
+  return data;
+}
+
 export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
   const res = await apiClient.get('/me/session');
   const agent = res.data?.data?.agent;

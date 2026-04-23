@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api/authApi';
 import { USE_MOCK } from '../config';
+import brandImage from '../assets/kaster-admin-brand.webp';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionStore } from '../store/usePermissionStore';
 import {
@@ -69,12 +70,13 @@ export function AppLayout() {
         className={`app-sider${showOverlay ? ' sider-overlay' : ''}`}
         >
         <div className={`brand-block${collapsed ? ' brand-block--collapsed' : ''}`}>
-          {!collapsed && (
-            <>
+          <img src={brandImage} alt="KAster Admin" className="brand-mark" />
+          {!collapsed ? (
+            <div className="brand-copy">
               <div className="brand-title">CTI Admin</div>
               <div className="brand-subtitle">PBX 운영 대시보드</div>
-            </>
-          )}
+            </div>
+          ) : null}
         </div>
         <div className="app-sider-menu">
           <Menu

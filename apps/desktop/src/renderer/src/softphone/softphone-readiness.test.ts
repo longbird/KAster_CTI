@@ -1,0 +1,103 @@
+import { describe, expect, it } from 'vitest';
+import { evaluateSoftphoneReadiness } from './softphone-readiness';
+
+describe('evaluateSoftphoneReadiness', () => {
+  it('정상 구성에서는 준비 완료 체크를 반환한다', () => {
+    const readiness = evaluateSoftphoneReadiness({
+      runtimeConnection: 'connected',
+      softphone: {
+        registration: 'registered',
+        transport: 'connected',
+        config: {
+          enabled: true,
+          sipUri: 'sip:1001@pbx.example.com',
+          wsServer: 'wss://pbx.example.com:8089/ws',
+          authorizationUsername: '1001',
+          displayName: '상담원1',
+          iceServers: [],
+        },
+        lastError: null,
+        diagnostics: [],
+        session: null,
+        remoteAudioActive: false,
+      },
+    });
+
+    expect(readiness.overall).toBe('ready');
+    expect(readiness.items.map((item) => item.status)).toEqual(['ok', 'ok', 'ok', 'ok', 'ok']);
+  });
+
+  it('runtime 단절과 softphone 진단이 있으면 blocked 상태와 조치 문구를 반환한다', () => {
+    const readiness = evaluateSoftphoneReadiness({
+      runtimeConnection: 'disconnected',
+      softphone: {
+        registration: 'error',
+        transport: 'not-connected',
+        config: {
+          enabled: true,
+          sipUri: 'sip:1001@pbx.example.com',
+          wsServer: 'wss://pbx.example.com:8089/ws',
+          authorizationUsername: '1001',
+          displayName: '상담원1',
+          iceServers: [],
+        },
+        lastError: 'register failed',
+        diagnostics: [
+          {
+            code: 'REGISTER_FAILED',
+            message: 'SIP 등록 실패',
+            hint: 'PBX 계정과 WSS 응답을 확인하세요.',
+            source: 'registration',
+            severity: 'error',
+            occurredAt: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        session: null,
+        remoteAudioActive: false,
+      },
+    });
+
+    expect(readiness.overall).toBe('blocked');
+    expect(readiness.items[0]).toMatchObject({
+      key: 'runtime',
+      status: 'error',
+    });
+    expect(readiness.items[4]).toMatchObject({
+      key: 'diagnostics',
+      status: 'error',
+      hint: 'PBX 계정과 WSS 응답을 확인하세요.',
+    });
+  });
+
+  it('설정이 비활성화되면 config 관련 항목을 error 로 표시한다', () => {
+    const readiness = evaluateSoftphoneReadiness({
+      runtimeConnection: 'connected',
+      softphone: {
+        registration: 'disabled',
+        transport: 'not-configured',
+        config: {
+          enabled: false,
+          sipUri: null,
+          wsServer: null,
+          authorizationUsername: null,
+          displayName: '상담원1',
+          iceServers: [],
+        },
+        lastError: null,
+        diagnostics: [],
+        session: null,
+        remoteAudioActive: false,
+      },
+    });
+
+    expect(readiness.overall).toBe('blocked');
+    expect(readiness.items[1]).toMatchObject({
+      key: 'config',
+      status: 'error',
+    });
+    expect(readiness.items[2]).toMatchObject({
+      key: 'transport',
+      status: 'error',
+    });
+  });
+});

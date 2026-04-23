@@ -30,6 +30,13 @@ export interface ActiveCall {
   queuedAt?: string;
   answeredAt?: string;
   primaryAgentId?: string;
+  latestTransfer?: {
+    phase: string;
+    toExtension?: string;
+    requestedAt?: string;
+    completedAt?: string | null;
+    expiredAt?: string | null;
+  } | null;
   resultCode?: string;
   isMuted?: boolean;
 }
@@ -48,7 +55,14 @@ export type CtiEvent =
   | { type: 'call.updated'; payload: ActiveCall }
   | { type: 'call.ended'; payload: { callId: string; endedAt: string; talkSeconds: number } }
   | { type: 'agent.status.changed'; payload: { agentId: string; statusCode: AgentStatusCode } }
-  | { type: 'queue.summary.updated'; payload: QueueSummary[] };
+  | { type: 'queue.summary.updated'; payload: QueueSummary[] }
+  | {
+      type: 'runtime.connection.changed';
+      payload: {
+        state: 'connected' | 'reconnecting' | 'disconnected' | 'error';
+        reason?: string;
+      };
+    };
 
 export interface CommandAck {
   accepted: boolean;

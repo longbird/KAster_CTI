@@ -26,3 +26,5 @@ export const originateInternalCall = api.originateInternalCall;
 // 로그인/로그아웃은 real 쪽에만 구현. mock 모드에서는 no-op.
 export const login = (real as any).login ?? (async () => undefined);
 export const logout = (real as any).logout ?? (async () => undefined);
+export const createDesktopHandoff = (real as any).createDesktopHandoff ?? (async () => undefined);
+export const exchangeWebHandoff = (real as any).exchangeWebHandoff ?? (async () => undefined);

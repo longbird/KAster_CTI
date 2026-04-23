@@ -3,9 +3,11 @@ import { useState } from 'react';
 export function PairingScreen({
   onSubmit,
   busy,
+  onBack,
 }: {
   onSubmit: (params: { serverUrl: string; channel: string; handoffToken: string }) => void;
   busy: boolean;
+  onBack?: () => void;
 }) {
   const [serverUrl, setServerUrl] = useState('');
   const [channel, setChannel] = useState('stable');
@@ -17,7 +19,8 @@ export function PairingScreen({
         <p className="eyebrow">Desktop Runtime</p>
         <h1>KAster Agent Desktop</h1>
         <p className="lead">
-          콜센터 서버 URL과 웹에서 발급한 handoff token 으로 데스크톱 런타임을 연결합니다.
+          디버그 전용 화면입니다. 콜센터 서버 URL과 웹에서 발급한 handoff token 으로 데스크톱 런타임을
+          수동 연결합니다.
         </p>
 
         <label className="field">
@@ -47,9 +50,16 @@ export function PairingScreen({
           />
         </label>
 
-        <button disabled={busy} onClick={() => onSubmit({ serverUrl, channel, handoffToken })} type="button">
-          {busy ? '연결 중...' : '데스크톱 연결'}
-        </button>
+        <div className="placeholder-actions">
+          <button disabled={busy} onClick={() => onSubmit({ serverUrl, channel, handoffToken })} type="button">
+            {busy ? '연결 중...' : '데스크톱 연결'}
+          </button>
+          {onBack ? (
+            <button className="secondary-button" onClick={onBack} type="button">
+              로그인으로 돌아가기
+            </button>
+          ) : null}
+        </div>
       </div>
     </section>
   );

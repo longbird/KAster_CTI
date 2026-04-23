@@ -1,14 +1,36 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, Notification, Tray, nativeImage, shell } from 'electron';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { AttentionService } from './attention-service';
+import { AudioPreferencesStore } from './audio-preferences-store';
 import { DesktopAuthClient } from './auth-client';
+import { DesktopBridgeServer } from './desktop-bridge-server';
 import { DesktopConfigStore } from './config-store';
 import { CtiRuntime } from './cti-runtime';
+import { parseProtocolPayload, ProtocolConnectInbox } from './protocol-payload';
+import { RuntimeSupervisor } from './runtime-supervisor';
 import { TokenVault } from './token-vault';
+import { TrayService } from './tray-service';
 import { UpdateClient } from './update-client';
+import type { DesktopProtocolConnectPayload } from '../shared/ipc';
+import { normalizeCenterConfig } from '../shared/center-config';
 
 const configStore = new DesktopConfigStore(app.getPath('userData'));
+const audioPreferencesStore = new AudioPreferencesStore(app.getPath('userData'));
 const tokenVault = new TokenVault(app.getPath('userData'));
+const attentionService = new AttentionService({
+  getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
+  NotificationCtor: Notification as unknown as new (options: { title: string; body: string }) => {
+    show(): void;
+    on(event: 'click', listener: () => void): void;
+  },
+});
+const desktopBridgeServer = new DesktopBridgeServer();
+const protocolConnectInbox = new ProtocolConnectInbox();
 let runtime: CtiRuntime | null = null;
+let isQuitting = false;
+let trayService: TrayService | null = null;
+let runtimeSupervisor: RuntimeSupervisor | null = null;
 let preparedUpdate:
   | {
       version: string;
@@ -19,6 +41,93 @@ let preparedUpdate:
     }
   | null = null;
 
+const COMPACT_WINDOW_BOUNDS = {
+  width: 520,
+  height: 760,
+  minWidth: 440,
+  minHeight: 660,
+};
+
+const FULL_WINDOW_BOUNDS = {
+  width: 1360,
+  height: 860,
+  minWidth: 1100,
+  minHeight: 700,
+};
+
+function getPrimaryWindow() {
+  return BrowserWindow.getAllWindows()[0] ?? null;
+}
+
+function getProtocolArg(argv: string[]) {
+  return argv.find((value) => value.startsWith('kaster-agent://')) ?? null;
+}
+
+function resolveProtocolConnect(argv: string[]): DesktopProtocolConnectPayload | null {
+  const protocolArg = getProtocolArg(argv);
+  if (!protocolArg) {
+    return null;
+  }
+
+  try {
+    const payload = parseProtocolPayload(protocolArg);
+    return payload.type === 'connect' ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function enqueueProtocolConnect(payload: DesktopProtocolConnectPayload) {
+  desktopBridgeServer.markHandoffStatus(payload.handoffToken, {
+    state: 'pending',
+  });
+  protocolConnectInbox.enqueue(payload);
+}
+
+function flushProtocolConnectPayloads() {
+  const win = getPrimaryWindow();
+  if (!win) {
+    return;
+  }
+
+  protocolConnectInbox.attach((payload) => {
+    win.webContents.send('desktop:protocol-connect', payload);
+  });
+}
+
+function focusPrimaryWindow() {
+  const win = getPrimaryWindow();
+  if (!win) {
+    return;
+  }
+
+  if (win.isMinimized()) {
+    win.restore();
+  }
+
+  win.show();
+  win.focus();
+}
+
+function registerProtocolClient() {
+  if (process.defaultApp && process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('kaster-agent', process.execPath, [process.argv[1]]);
+    return;
+  }
+
+  app.setAsDefaultProtocolClient('kaster-agent');
+}
+
+function ensureDesktopBridgeServer() {
+  void desktopBridgeServer.start().catch(() => {
+    // Leave presence detection unavailable if the local port is already occupied.
+  });
+}
+
+function joinBaseUrlAndPath(baseUrl: string, path: string) {
+  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+}
+
 function toSessionSummary(session: Awaited<ReturnType<typeof tokenVault.load>>) {
   if (!session) {
     return null;
@@ -26,15 +135,20 @@ function toSessionSummary(session: Awaited<ReturnType<typeof tokenVault.load>>) 
 
   return {
     agent: session.agent,
+    softphoneConfig: session.softphoneConfig,
   };
 }
 
 function createWindow() {
+  ensureDesktopBridgeServer();
+  protocolConnectInbox.reset();
+  const trayIcon = createTrayIcon();
   const win = new BrowserWindow({
-    width: 1360,
-    height: 860,
-    minWidth: 1100,
-    minHeight: 700,
+    width: COMPACT_WINDOW_BOUNDS.width,
+    height: COMPACT_WINDOW_BOUNDS.height,
+    minWidth: COMPACT_WINDOW_BOUNDS.minWidth,
+    minHeight: COMPACT_WINDOW_BOUNDS.minHeight,
+    icon: trayIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
@@ -48,12 +162,207 @@ function createWindow() {
   } else {
     void win.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  trayService ??= new TrayService({
+    TrayCtor: Tray,
+    buildFromTemplate: (template) => Menu.buildFromTemplate(template),
+    icon: trayIcon,
+    onQuitRequested: () => {
+      isQuitting = true;
+      app.quit();
+    },
+  });
+  attachTrayBehavior(win);
 }
 
+function applyWindowMode(mode: 'compact' | 'full') {
+  const win = getPrimaryWindow();
+  if (!win) {
+    return;
+  }
+
+  const bounds = mode === 'full' ? FULL_WINDOW_BOUNDS : COMPACT_WINDOW_BOUNDS;
+  win.setMinimumSize(bounds.minWidth, bounds.minHeight);
+  win.setSize(bounds.width, bounds.height);
+  win.center();
+}
+
+function createTrayIcon() {
+  const packagedIconPath = join(process.resourcesPath, 'icon.png');
+  const devIconPath = join(app.getAppPath(), 'build', 'icon.png');
+  const resolvedIconPath = app.isPackaged ? packagedIconPath : devIconPath;
+  if (existsSync(resolvedIconPath)) {
+    const fileIcon = nativeImage.createFromPath(resolvedIconPath);
+    if (!fileIcon.isEmpty()) {
+      return fileIcon;
+    }
+  }
+
+  const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAA4ElEQVR4AWP4TwAw/P//PwMlgImB4T8DA8P//38Ghv9MDEwM/5kYGBj+M2BiYPrPwMDA8J+BgYHhPwMDA+N/BgYGhv8MDAwM/2dgYGD4z8DAwPCfgYGB4T8DAwPjfwYGBob/DAwMDP9nYGBg+M/AwMDwn4GBgeE/AwMD438GBgaG/wwMDAz/Z2BgYPjPwMDA8J+BgYHhPwMDA+N/BgYGhv8MDAwM/2dgYGD4z8DAwPCfgYGB4T8DAwPjfwYGBob/DAwMDP8ZGBj4P4QBEQAA//9EQBsy9A8nGAAAAABJRU5ErkJggg==';
+  return nativeImage.createFromDataURL(dataUrl);
+}
+
+function attachTrayBehavior(win: BrowserWindow) {
+  let allowClose = false;
+  win.on('close', (event) => {
+    if (isQuitting || allowClose) {
+      return;
+    }
+    event.preventDefault();
+    win.hide();
+  });
+
+  trayService?.attach({
+    on: (eventName, listener) => {
+      if (eventName === 'close') {
+        return;
+      }
+      win.on(eventName, listener as (event: Electron.Event) => void);
+    },
+    hide: () => win.hide(),
+    show: () => win.show(),
+    focus: () => win.focus(),
+    isVisible: () => win.isVisible(),
+    isMinimized: () => win.isMinimized(),
+    restore: () => win.restore(),
+  });
+
+  app.once('before-quit', () => {
+    isQuitting = true;
+    allowClose = true;
+  });
+}
+
+async function loginDesktopSession(input: {
+  serverUrl: string;
+  loginId: string;
+  password: string;
+  extension?: string;
+  channel?: string;
+  webBaseUrl?: string;
+  createWebHandoff?: boolean;
+  redirectPath?: string;
+}) {
+  const normalizedConfig = normalizeCenterConfig({
+    serverUrl: input.serverUrl,
+    channel: input.channel,
+  });
+
+  const authClient = new DesktopAuthClient(normalizedConfig.serverUrl);
+  const session = await authClient.loginWithCredentials({
+    loginId: input.loginId,
+    password: input.password,
+    extension: input.extension,
+  });
+
+  const result: {
+    session: ReturnType<typeof toSessionSummary>;
+    webHandoff?: {
+      handoffToken: string;
+      expiresIn: number;
+      redirectPath?: string;
+      url?: string;
+    };
+  } = {
+    session: toSessionSummary(session),
+  };
+
+  if (input.createWebHandoff) {
+    const webHandoff = await authClient.createWebHandoff(session.accessToken, {
+      redirectPath: input.redirectPath,
+    });
+    result.webHandoff = {
+      ...webHandoff,
+      ...(webHandoff.redirectPath
+        ? {
+            url: `${joinBaseUrlAndPath(input.webBaseUrl ?? config.serverUrl, webHandoff.redirectPath)}?token=${encodeURIComponent(webHandoff.handoffToken)}`,
+          }
+        : {}),
+    };
+  }
+
+  const config = await configStore.save(normalizedConfig);
+  await tokenVault.save(session);
+
+  return result;
+}
+
+async function connectDesktopProtocol(payload: DesktopProtocolConnectPayload) {
+  const normalizedConfig = normalizeCenterConfig({
+    serverUrl: payload.serverUrl,
+    channel: payload.channel,
+  });
+  const authClient = new DesktopAuthClient(normalizedConfig.serverUrl);
+  const session = await authClient.exchangeHandoff(payload.handoffToken);
+  await configStore.save(normalizedConfig);
+  await tokenVault.save(session);
+  desktopBridgeServer.markHandoffStatus(payload.handoffToken, {
+    state: 'connected',
+  });
+  return toSessionSummary(session);
+}
+
+const singleInstanceLock = app.requestSingleInstanceLock();
+if (!singleInstanceLock) {
+  app.quit();
+}
+
+app.on('second-instance', (_event, argv) => {
+  const payload = resolveProtocolConnect(argv);
+  if (!payload) {
+    focusPrimaryWindow();
+    return;
+  }
+
+  focusPrimaryWindow();
+  enqueueProtocolConnect(payload);
+});
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+
+  try {
+    const payload = parseProtocolPayload(url);
+    if (payload.type === 'connect') {
+      enqueueProtocolConnect(payload);
+      focusPrimaryWindow();
+    }
+  } catch {
+    // Ignore malformed custom protocol payloads.
+  }
+});
+
 app.whenReady().then(() => {
+  registerProtocolClient();
+  ensureDesktopBridgeServer();
+
+  const startupProtocolConnect = resolveProtocolConnect(process.argv);
+  if (startupProtocolConnect) {
+    enqueueProtocolConnect(startupProtocolConnect);
+  }
+
   ipcMain.handle('desktop:get-config', () => configStore.load());
+  ipcMain.handle('desktop:set-window-mode', (_event, mode: 'compact' | 'full') => {
+    applyWindowMode(mode);
+  });
   ipcMain.handle('desktop:save-config', (_event, input) => configStore.save(input));
+  ipcMain.handle('desktop:get-audio-preferences', () => audioPreferencesStore.load());
+  ipcMain.handle('desktop:save-audio-preferences', (_event, input) => audioPreferencesStore.save(input));
   ipcMain.handle('desktop:get-session', async () => toSessionSummary(await tokenVault.load()));
+  ipcMain.handle('desktop:get-desktop-session', async (_event, accessToken?: string) => {
+    const config = await configStore.load();
+    if (!config) {
+      throw new Error('Center config is missing.');
+    }
+
+    const session = accessToken ? { accessToken } : await tokenVault.load();
+    if (!session?.accessToken) {
+      throw new Error('Desktop access token is missing.');
+    }
+
+    const authClient = new DesktopAuthClient(config.serverUrl);
+    return authClient.getDesktopSession(session.accessToken);
+  });
   ipcMain.handle('desktop:exchange-handoff', async (_event, handoffToken: string) => {
     const config = await configStore.load();
     if (!config) {
@@ -65,6 +374,7 @@ app.whenReady().then(() => {
     await tokenVault.save(session);
     return toSessionSummary(session);
   });
+  ipcMain.handle('desktop:login', (_event, input) => loginDesktopSession(input));
   ipcMain.handle('desktop:refresh-session', async () => {
     const config = await configStore.load();
     if (!config) {
@@ -81,23 +391,48 @@ app.whenReady().then(() => {
     await tokenVault.save(session);
     return toSessionSummary(session);
   });
-  ipcMain.handle('desktop:connect-runtime', async () => {
-    const config = await configStore.load();
-    const session = await tokenVault.load();
-    if (!config || !session) {
-      throw new Error('Desktop runtime prerequisites are missing.');
-    }
-
-    runtime?.disconnect();
-    runtime = new CtiRuntime({
-      baseUrl: config.serverUrl,
-      accessToken: session.accessToken,
-    });
-    runtime.connect((event) => {
-      BrowserWindow.getAllWindows().forEach((win) => {
-        win.webContents.send('desktop:event', event);
+  ipcMain.handle('desktop:connect-with-protocol', (_event, payload: DesktopProtocolConnectPayload) => {
+    return connectDesktopProtocol(payload).catch((error) => {
+      desktopBridgeServer.markHandoffStatus(payload.handoffToken, {
+        state: 'failed',
+        reason: error instanceof Error ? error.message : 'connect failed',
       });
+      throw error;
     });
+  });
+  ipcMain.handle('desktop:protocol-connect-ready', () => {
+    protocolConnectInbox.markReady();
+    flushProtocolConnectPayloads();
+  });
+  ipcMain.handle('desktop:connect-runtime', async () => {
+    runtimeSupervisor ??= new RuntimeSupervisor({
+      loadConfig: () => configStore.load(),
+      loadSession: () => tokenVault.load(),
+      saveSession: (session) => tokenVault.save(session),
+      refreshSession: async (session) => {
+        const config = await configStore.load();
+        if (!config) {
+          throw new Error('Center config is missing.');
+        }
+        const authClient = new DesktopAuthClient(config.serverUrl);
+        return authClient.refreshSession(session.refreshToken);
+      },
+      createRuntime: (input) => {
+        runtime = new CtiRuntime(input);
+        return runtime;
+      },
+      broadcast: (event) => {
+        BrowserWindow.getAllWindows().forEach((win) => {
+          win.webContents.send('desktop:event', event);
+        });
+      },
+      scheduleRecovery: (task) => {
+        setTimeout(() => {
+          void task();
+        }, 2000);
+      },
+    });
+    await runtimeSupervisor.connect();
   });
   ipcMain.handle('desktop:mute', (_event, callId: string, state: 'on' | 'off') => {
     if (!runtime) {
@@ -110,6 +445,44 @@ app.whenReady().then(() => {
       throw new Error('Runtime is not connected.');
     }
     return runtime.hangup(callId);
+  });
+  ipcMain.handle('desktop:pickup', (_event, callId: string) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.pickup(callId);
+  });
+  ipcMain.handle('desktop:originate', (_event, params: {
+    agentExtension: string;
+    phoneNumber: string;
+    callerId?: string;
+  }) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.originate(params);
+  });
+  ipcMain.handle('desktop:transfer', (_event, callId: string, params: {
+    target: string;
+    transferType: 'blind' | 'attended';
+    fromExtension: string;
+  }) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.transfer(callId, params);
+  });
+  ipcMain.handle('desktop:cancel-attended-transfer', (_event, callId: string) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.cancelAttendedTransfer(callId);
+  });
+  ipcMain.handle('desktop:complete-attended-transfer', (_event, callId: string) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.completeAttendedTransfer(callId);
   });
   ipcMain.handle('desktop:hold', (_event, callId: string) => {
     if (!runtime) {
@@ -171,6 +544,15 @@ app.whenReady().then(() => {
       filePath: preparedUpdate.filePath,
     };
   });
+  ipcMain.handle('desktop:notify-incoming-call', (_event, input: { title: string; body: string }) => {
+    attentionService.notifyIncomingCall(input);
+  });
+  ipcMain.handle('desktop:focus-window', () => {
+    attentionService.focusWindow();
+  });
+  ipcMain.handle('desktop:open-external', (_event, url: string) => {
+    return shell.openExternal(url);
+  });
 
   createWindow();
 
@@ -182,8 +564,13 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  runtimeSupervisor?.disconnect();
   runtime?.disconnect();
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  void desktopBridgeServer.stop();
 });

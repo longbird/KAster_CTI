@@ -7,7 +7,9 @@ import { LoginDto } from './login.dto';
 import { RefreshDto } from './refresh.dto';
 import { AuthService } from './auth.service';
 import { CreateHandoffDto } from './dto/create-handoff.dto';
+import { CreateWebHandoffDto } from './dto/create-web-handoff.dto';
 import { ExchangeHandoffDto } from './dto/exchange-handoff.dto';
+import { ExchangeWebHandoffDto } from './dto/exchange-web-handoff.dto';
 
 @ApiTags('auth')
 @Controller()
@@ -65,6 +67,18 @@ export class AuthController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Get('auth/desktop/session')
+  @ApiOperation({
+    summary: 'Desktop 전용 세션 조회',
+    description: 'Windows softphone 런타임이 SIP credential 이 포함된 데스크톱 전용 세션 정보를 조회한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  desktopSession(@CurrentUser() user: any) {
+    return this.authService.getDesktopSession(user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post('auth/handoff')
   @ApiOperation({
     summary: 'Desktop handoff token 생성',
@@ -83,5 +97,27 @@ export class AuthController {
   @ApiOkResponse({ type: ApiResponseDto })
   exchangeDesktopHandoff(@Body() dto: ExchangeHandoffDto) {
     return this.authService.exchangeDesktopHandoff(dto.handoffToken);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('auth/web-handoff')
+  @ApiOperation({
+    summary: 'Web handoff token 생성',
+    description: '현재 로그인한 데스크톱-호환 세션이 60초짜리 1회용 web handoff token 을 발급한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  createWebHandoff(@CurrentUser() user: any, @Body() dto: CreateWebHandoffDto) {
+    return this.authService.createWebHandoff(user, dto);
+  }
+
+  @Post('auth/web-handoff/exchange')
+  @ApiOperation({
+    summary: 'Web handoff token 교환',
+    description: '1회용 web handoff token 을 access/refresh token 으로 교환한다. 성공하면 같은 token 은 재사용할 수 없다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  exchangeWebHandoff(@Body() dto: ExchangeWebHandoffDto) {
+    return this.authService.exchangeWebHandoff(dto.handoffToken);
   }
 }
