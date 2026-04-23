@@ -1,5 +1,60 @@
 import { assertNoNewlines, toSlug } from './renderer-utils';
 
+const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
+const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
+const OPT_OUT_HOOK_PATH = '/var/lib/asterisk/bin/kaster-opt-out-hook.sh';
+const OPT_OUT_MODE_SOURCE_TYPE: Record<OptOutMode, string> = {
+  IMMEDIATE_OPT_OUT: 'OPT_OUT_080_IMMEDIATE',
+  DTMF_MENU: 'OPT_OUT_080_DTMF',
+  SMART_OPT_OUT: 'OPT_OUT_080_SMART',
+};
+
+export type OptOutMode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
+export type OptOutDtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
+export type OptOutSmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
+export type OptOutActionType = OptOutDtmfActionType | OptOutSmartActionType;
+
+export interface OptOutDigitMappingInput {
+  digit: string;
+  actionType: OptOutActionType;
+  queueName?: string | null;
+  smsTemplateId?: string | null;
+}
+
+export interface OptOutDtmfMenuInput {
+  timeoutSeconds: number;
+  maxRetries: number;
+  invalidPromptKey?: string | null;
+  timeoutPromptKey?: string | null;
+  mappings: OptOutDigitMappingInput[];
+}
+
+export interface OptOutSmartFlowInput {
+  inputPromptKey?: string | null;
+  reentryPromptKey?: string | null;
+  sameNumberPromptKey?: string | null;
+  confirmPrefixPromptKey?: string | null;
+  confirmSuffixPromptKey?: string | null;
+  confirmMenuPromptKey?: string | null;
+  failurePromptKey?: string | null;
+  finalPromptKey?: string | null;
+  inputTimeoutSeconds: number;
+  maxRetries: number;
+  confirmationMappings: OptOutDigitMappingInput[];
+}
+
+export interface BranchOptOut080Input {
+  enabled: boolean;
+  tenantId: string;
+  branchId: string | null;
+  mode: OptOutMode;
+  basePromptKey?: string | null;
+  completionPromptKey?: string | null;
+  smsTemplateId?: string | null;
+  dtmfMenu?: OptOutDtmfMenuInput | null;
+  smartFlow?: OptOutSmartFlowInput | null;
+}
+
 export interface DidInput {
   id: string;
   did: string;
@@ -9,6 +64,7 @@ export interface DidInput {
   branchPromptKeys?: string[] | null;
   branchPromptQueueDelaySeconds?: number | null;
   branchPromptWaitForCompletion?: boolean | null;
+  branchOptOut080?: BranchOptOut080Input | null;
   enabled: boolean;
 }
 
@@ -72,9 +128,6 @@ export interface BlocklistEntryInput {
   isActive: boolean;
 }
 
-const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
-const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
-
 function renderBlocklistChecks(blocklistEntries: BlocklistEntryInput[]): string[] {
   return blocklistEntries
     .filter((entry) => entry.isActive)
@@ -129,6 +182,39 @@ function buildPromptMohClassName(promptKey: string): string {
     .replace(/^-|-$/g, '');
 
   return `branch-prompt-${normalized || 'default'}`;
+}
+
+function buildOptOutContextSuffix(did: DidInput): string {
+  const normalized = did.id
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return normalized || 'default';
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function normalizeOptionalArg(value: string | null | undefined): string {
+  return value && value.trim() ? value.trim() : '-';
+}
+
+function buildOptOutHookCommand(action: 'register' | 'unregister' | 'sms'): string {
+  const args = [
+    shellQuote(action),
+    shellQuote('${OPT_OUT_TENANT_ID}'),
+    shellQuote('${OPT_OUT_BRANCH_ID}'),
+    shellQuote('${ENTRY_DID}'),
+    shellQuote('${REQUESTER_PHONE}'),
+    shellQuote('${OPT_OUT_TARGET_PHONE}'),
+    shellQuote('${OPT_OUT_SOURCE_TYPE}'),
+    shellQuote('${OPT_OUT_SELECTED_SMS_TEMPLATE}'),
+  ];
+
+  return `${OPT_OUT_HOOK_PATH} ${args.join(' ')}`;
 }
 
 function renderPromptQueuePreludeLines(did: DidInput): string[] {
@@ -337,13 +423,85 @@ function renderForwardingRuleContext(did: DidInput, forwardingRule: ForwardingRu
   return lines;
 }
 
-function renderDidExtension(
+function renderOptOutVariableLines(did: DidInput): string[] {
+  const optOut = did.branchOptOut080;
+  if (!optOut?.enabled) {
+    return [];
+  }
+
+  const contextSuffix = buildOptOutContextSuffix(did);
+  const lines = [
+    ` same => n,Set(__OPT_OUT_CONTEXT_SUFFIX=${contextSuffix})`,
+    ` same => n,Set(__OPT_OUT_TENANT_ID=${normalizeOptionalArg(optOut.tenantId)})`,
+    ` same => n,Set(__OPT_OUT_BRANCH_ID=${normalizeOptionalArg(optOut.branchId)})`,
+    ` same => n,Set(__OPT_OUT_MODE=${optOut.mode})`,
+    ` same => n,Set(__OPT_OUT_SOURCE_TYPE=${OPT_OUT_MODE_SOURCE_TYPE[optOut.mode]})`,
+    ` same => n,Set(__OPT_OUT_SMS_TEMPLATE=${normalizeOptionalArg(optOut.smsTemplateId)})`,
+    ` same => n,Set(__OPT_OUT_BASE_PROMPT=${normalizeOptionalArg(optOut.basePromptKey ? toPlaybackTarget(optOut.basePromptKey) : null)})`,
+    ` same => n,Set(__OPT_OUT_COMPLETION_PROMPT=${normalizeOptionalArg(optOut.completionPromptKey ? toPlaybackTarget(optOut.completionPromptKey) : null)})`,
+  ];
+
+  if (optOut.mode === 'DTMF_MENU' && optOut.dtmfMenu) {
+    lines.push(
+      ` same => n,Set(__OPT_OUT_DTMF_TIMEOUT=${Math.max(1, Math.trunc(optOut.dtmfMenu.timeoutSeconds))})`,
+      ` same => n,Set(__OPT_OUT_DTMF_MAX_RETRIES=${Math.max(0, Math.trunc(optOut.dtmfMenu.maxRetries))})`,
+      ` same => n,Set(__OPT_OUT_DTMF_INVALID_PROMPT=${normalizeOptionalArg(optOut.dtmfMenu.invalidPromptKey ? toPlaybackTarget(optOut.dtmfMenu.invalidPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_DTMF_TIMEOUT_PROMPT=${normalizeOptionalArg(optOut.dtmfMenu.timeoutPromptKey ? toPlaybackTarget(optOut.dtmfMenu.timeoutPromptKey) : null)})`,
+    );
+
+    for (const mapping of optOut.dtmfMenu.mappings) {
+      lines.push(
+        ` same => n,Set(__OPT_OUT_DTMF_ACTION_${mapping.digit}=${mapping.actionType})`,
+        ` same => n,Set(__OPT_OUT_DTMF_QUEUE_${mapping.digit}=${normalizeOptionalArg(mapping.queueName)})`,
+        ` same => n,Set(__OPT_OUT_DTMF_SMS_${mapping.digit}=${normalizeOptionalArg(mapping.smsTemplateId)})`,
+      );
+    }
+  }
+
+  if (optOut.mode === 'SMART_OPT_OUT' && optOut.smartFlow) {
+    lines.push(
+      ' same => n,Set(__OPT_OUT_SMART_END_DIGIT=#)',
+      ` same => n,Set(__OPT_OUT_SMART_TIMEOUT=${Math.max(1, Math.trunc(optOut.smartFlow.inputTimeoutSeconds))})`,
+      ` same => n,Set(__OPT_OUT_SMART_MAX_RETRIES=${Math.max(0, Math.trunc(optOut.smartFlow.maxRetries))})`,
+      ` same => n,Set(__OPT_OUT_SMART_INPUT_PROMPT=${normalizeOptionalArg(optOut.smartFlow.inputPromptKey ? toPlaybackTarget(optOut.smartFlow.inputPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_REENTRY_PROMPT=${normalizeOptionalArg(optOut.smartFlow.reentryPromptKey ? toPlaybackTarget(optOut.smartFlow.reentryPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_SAME_NUMBER_PROMPT=${normalizeOptionalArg(optOut.smartFlow.sameNumberPromptKey ? toPlaybackTarget(optOut.smartFlow.sameNumberPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_CONFIRM_PREFIX=${normalizeOptionalArg(optOut.smartFlow.confirmPrefixPromptKey ? toPlaybackTarget(optOut.smartFlow.confirmPrefixPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_CONFIRM_SUFFIX=${normalizeOptionalArg(optOut.smartFlow.confirmSuffixPromptKey ? toPlaybackTarget(optOut.smartFlow.confirmSuffixPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_CONFIRM_MENU=${normalizeOptionalArg(optOut.smartFlow.confirmMenuPromptKey ? toPlaybackTarget(optOut.smartFlow.confirmMenuPromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_FAILURE_PROMPT=${normalizeOptionalArg(optOut.smartFlow.failurePromptKey ? toPlaybackTarget(optOut.smartFlow.failurePromptKey) : null)})`,
+      ` same => n,Set(__OPT_OUT_SMART_FINAL_PROMPT=${normalizeOptionalArg(optOut.smartFlow.finalPromptKey ? toPlaybackTarget(optOut.smartFlow.finalPromptKey) : null)})`,
+    );
+
+    for (const mapping of optOut.smartFlow.confirmationMappings) {
+      lines.push(
+        ` same => n,Set(__OPT_OUT_SMART_CONFIRM_ACTION_${mapping.digit}=${mapping.actionType})`,
+        ` same => n,Set(__OPT_OUT_SMART_CONFIRM_SMS_${mapping.digit}=${normalizeOptionalArg(mapping.smsTemplateId)})`,
+      );
+    }
+  }
+
+  return lines;
+}
+
+function renderDidOptOutRoute(did: DidInput, blocklistEntries: BlocklistEntryInput[]): string {
+  const blocklistLines = renderBlocklistChecks(blocklistEntries);
+  const optOutLines = renderOptOutVariableLines(did);
+  return [
+    `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> 080 opt-out)`,
+    ' same => n,Set(__ENTRY_DID=${EXTEN})',
+    ...blocklistLines,
+    ...optOutLines,
+    ' same => n,Goto(080-optout-entry,${EXTEN},1)',
+  ].join('\n');
+}
+
+function renderDidStandardRoute(
   did: DidInput,
   ivrMenus: IvrMenuInput[],
   forwardingRules: ForwardingRuleInput[],
   blocklistEntries: BlocklistEntryInput[],
 ): string | null {
-  assertNoNewlines(did.did, 'did');
   const blocklistLines = renderBlocklistChecks(blocklistEntries);
   const promptLines = did.branchPromptWaitForCompletion ? renderPromptPlaybackLines(did.branchPromptKeys) : [];
   const promptDelayLines = did.branchPromptWaitForCompletion
@@ -361,7 +519,7 @@ function renderDidExtension(
       }
       return [
         `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> forward ${forwardingRule.forwardType.toLowerCase()} ${forwardingRule.targetValue})`,
-        ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+        ' same => n,Set(__ENTRY_DID=${EXTEN})',
         ...blocklistLines,
         ...promptQueuePreludeLines,
         ...promptLines,
@@ -374,7 +532,7 @@ function renderDidExtension(
     if (schedulesToApply.length > 0 && fallbackLines) {
       return [
         `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> conditional forward ${forwardingRule.targetValue})`,
-        ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+        ' same => n,Set(__ENTRY_DID=${EXTEN})',
         ...blocklistLines,
         ...promptQueuePreludeLines,
         ...promptLines,
@@ -393,7 +551,7 @@ function renderDidExtension(
   if (fallbackLines) {
     return [
       `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN})`,
-      ` same => n,Set(__ENTRY_DID=\${EXTEN})`,
+      ' same => n,Set(__ENTRY_DID=${EXTEN})',
       ...blocklistLines,
       ...promptQueuePreludeLines,
       ...promptLines,
@@ -403,6 +561,20 @@ function renderDidExtension(
   }
   console.warn(`[DialplanRenderer] DID ${did.did} has neither ivrMenuId nor directQueue — skipped`);
   return null;
+}
+
+function renderDidExtension(
+  did: DidInput,
+  ivrMenus: IvrMenuInput[],
+  forwardingRules: ForwardingRuleInput[],
+  blocklistEntries: BlocklistEntryInput[],
+): string | null {
+  assertNoNewlines(did.did, 'did');
+  if (did.branchOptOut080?.enabled) {
+    return renderDidOptOutRoute(did, blocklistEntries);
+  }
+
+  return renderDidStandardRoute(did, ivrMenus, forwardingRules, blocklistEntries);
 }
 
 function renderIvrMenu(menu: IvrMenuInput): string {
@@ -417,16 +589,147 @@ function renderIvrMenu(menu: IvrMenuInput): string {
     assertNoNewlines(entry.digit, 'entry.digit');
     assertNoNewlines(entry.queueName, 'entry.queueName');
   }
-  const lines: string[] = [`[ivr-menu-${slug}]`, `exten => s,1,Answer()`];
+  const lines: string[] = [`[ivr-menu-${slug}]`, 'exten => s,1,Answer()'];
   if (menu.welcomePrompt) lines.push(` same => n,Playback(${toPlaybackTarget(menu.welcomePrompt)})`);
   if (menu.menuPrompt) lines.push(` same => n,Background(${toPlaybackTarget(menu.menuPrompt)})`);
   lines.push(` same => n,WaitExten(${menu.timeoutSecs})`);
   for (const entry of menu.entries) {
     lines.push(`exten => ${entry.digit},1,Goto(queue-entry,${entry.queueName},1)`);
   }
-  lines.push(`exten => t,1,Playback(vm-goodbye)`);
-  lines.push(` same => n,Hangup()`);
+  lines.push('exten => t,1,Playback(vm-goodbye)');
+  lines.push(' same => n,Hangup()');
   return lines.join('\n');
+}
+
+function renderOptOutContexts(): string {
+  return [
+    '[080-optout-entry]',
+    'exten => _X.,1,NoOp(080 Opt-Out Entry ${EXTEN})',
+    ' same => n,Set(__ENTRY_DID=${EXTEN})',
+    ' same => n,Answer()',
+    ' same => n,Set(CHANNEL(language)=)',
+    ' same => n,Set(__REQUESTER_PHONE=${FILTER(0-9,${CALLERID(num)})})',
+    ' same => n,ExecIf($["${OPT_OUT_BASE_PROMPT}"!="-" & "${LEN(${OPT_OUT_BASE_PROMPT})}"!="0"]?Playback(${OPT_OUT_BASE_PROMPT}))',
+    ' same => n,GotoIf($["${OPT_OUT_MODE}"="IMMEDIATE_OPT_OUT"]?immediate)',
+    ' same => n,GotoIf($["${OPT_OUT_MODE}"="DTMF_MENU"]?080-optout-dtmf,s,1)',
+    ' same => n,Goto(080-optout-smart-input,s,1)',
+    ' same => n(immediate),Set(__OPT_OUT_TARGET_PHONE=${REQUESTER_PHONE})',
+    ' same => n,Set(__OPT_OUT_SELECTED_ACTION=REGISTER_OPT_OUT)',
+    ' same => n,Set(__OPT_OUT_SELECTED_SMS_TEMPLATE=${OPT_OUT_SMS_TEMPLATE})',
+    ' same => n,Goto(080-optout-action,s,1)',
+    '',
+    '[080-optout-dtmf]',
+    'exten => s,1,NoOp(080 Opt-Out DTMF / DID=${ENTRY_DID})',
+    ' same => n,Set(__OPT_OUT_RETRY_COUNT=0)',
+    ' same => n(read),Read(OPT_OUT_DTMF_SELECTION,,1,,1,${OPT_OUT_DTMF_TIMEOUT})',
+    ' same => n,GotoIf($["${LEN(${OPT_OUT_DTMF_SELECTION})}"="0"]?timeout)',
+    ' same => n,Goto(${OPT_OUT_DTMF_SELECTION},1)',
+    ' same => n(timeout),ExecIf($["${OPT_OUT_DTMF_TIMEOUT_PROMPT}"!="-" & "${LEN(${OPT_OUT_DTMF_TIMEOUT_PROMPT})}"!="0"]?Playback(${OPT_OUT_DTMF_TIMEOUT_PROMPT}))',
+    ' same => n,Goto(080-optout-dtmf-retry,s,1)',
+    'exten => _[0-9],1,NoOp(080 Opt-Out DTMF Digit ${EXTEN})',
+    ' same => n,Set(__OPT_OUT_SELECTED_ACTION=${OPT_OUT_DTMF_ACTION_${EXTEN}})',
+    ' same => n,GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-dtmf-invalid,s,1)',
+    ' same => n,Set(__OPT_OUT_SELECTED_QUEUE=${OPT_OUT_DTMF_QUEUE_${EXTEN}})',
+    ' same => n,Set(__OPT_OUT_SELECTED_SMS_TEMPLATE=${OPT_OUT_DTMF_SMS_${EXTEN}})',
+    ' same => n,Set(__OPT_OUT_TARGET_PHONE=${REQUESTER_PHONE})',
+    ' same => n,Goto(080-optout-action,s,1)',
+    '',
+    '[080-optout-dtmf-invalid]',
+    'exten => s,1,NoOp(080 Opt-Out invalid DTMF selection)',
+    ' same => n,ExecIf($["${OPT_OUT_DTMF_INVALID_PROMPT}"!="-" & "${LEN(${OPT_OUT_DTMF_INVALID_PROMPT})}"!="0"]?Playback(${OPT_OUT_DTMF_INVALID_PROMPT}))',
+    ' same => n,Goto(080-optout-dtmf-retry,s,1)',
+    '',
+    '[080-optout-dtmf-retry]',
+    'exten => s,1,Set(__OPT_OUT_RETRY_COUNT=$[${OPT_OUT_RETRY_COUNT}+1])',
+    ' same => n,GotoIf($[${OPT_OUT_RETRY_COUNT}<=${OPT_OUT_DTMF_MAX_RETRIES}]?080-optout-dtmf,s,read)',
+    ' same => n,Hangup()',
+    '',
+    '[080-optout-smart-input]',
+    'exten => s,1,NoOp(080 Smart Opt-Out Input / DID=${ENTRY_DID})',
+    ' same => n,Set(__OPT_OUT_SMART_INPUT_RETRY_COUNT=0)',
+    ' same => n(read),NoOp(Smart opt-out end digit=${OPT_OUT_SMART_END_DIGIT})',
+    ' same => n,ExecIf($[${OPT_OUT_SMART_INPUT_RETRY_COUNT}>0 & "${OPT_OUT_SMART_REENTRY_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_REENTRY_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_REENTRY_PROMPT}))',
+    ' same => n,ExecIf($[${OPT_OUT_SMART_INPUT_RETRY_COUNT}=0 & "${OPT_OUT_SMART_INPUT_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_INPUT_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_INPUT_PROMPT}))',
+    ' same => n,Read(OPT_OUT_SMART_TARGET,,16,,1,${OPT_OUT_SMART_TIMEOUT})',
+    ' same => n,Set(__OPT_OUT_TARGET_PHONE=${FILTER(0-9,${OPT_OUT_SMART_TARGET})})',
+    ' same => n,GotoIf($["${LEN(${OPT_OUT_TARGET_PHONE})}"="0"]?retry)',
+    ' same => n,GotoIf($["${OPT_OUT_TARGET_PHONE}"="${REQUESTER_PHONE}"]?080-optout-smart-same-number,s,1)',
+    ' same => n,Goto(080-optout-smart-confirm,s,1)',
+    ' same => n(retry),Goto(080-optout-smart-input-retry,s,1)',
+    'exten => reenter,1,NoOp(Restart smart opt-out number entry)',
+    ' same => n,Goto(read)',
+    '',
+    '[080-optout-smart-same-number]',
+    'exten => s,1,NoOp(080 Smart Opt-Out Same Number Reject)',
+    ' same => n,ExecIf($["${OPT_OUT_SMART_SAME_NUMBER_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_SAME_NUMBER_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_SAME_NUMBER_PROMPT}))',
+    ' same => n,Goto(080-optout-smart-input,s,read)',
+    '',
+    '[080-optout-smart-input-retry]',
+    'exten => s,1,Set(__OPT_OUT_SMART_INPUT_RETRY_COUNT=$[${OPT_OUT_SMART_INPUT_RETRY_COUNT}+1])',
+    ' same => n,GotoIf($[${OPT_OUT_SMART_INPUT_RETRY_COUNT}<=${OPT_OUT_SMART_MAX_RETRIES}]?080-optout-smart-input,s,read)',
+    ' same => n,ExecIf($["${OPT_OUT_SMART_FAILURE_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_FAILURE_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_FAILURE_PROMPT}))',
+    ' same => n,Hangup()',
+    '',
+    '[080-optout-smart-confirm]',
+    'exten => s,1,NoOp(080 Smart Opt-Out Confirm / DID=${ENTRY_DID} / TARGET=${OPT_OUT_TARGET_PHONE})',
+    ' same => n,Set(__OPT_OUT_SMART_CONFIRM_RETRY_COUNT=0)',
+    ' same => n(playback),ExecIf($["${OPT_OUT_SMART_CONFIRM_PREFIX}"!="-" & "${LEN(${OPT_OUT_SMART_CONFIRM_PREFIX})}"!="0"]?Playback(${OPT_OUT_SMART_CONFIRM_PREFIX}))',
+    ' same => n,SayDigits(${OPT_OUT_TARGET_PHONE})',
+    ' same => n,ExecIf($["${OPT_OUT_SMART_CONFIRM_SUFFIX}"!="-" & "${LEN(${OPT_OUT_SMART_CONFIRM_SUFFIX})}"!="0"]?Playback(${OPT_OUT_SMART_CONFIRM_SUFFIX}))',
+    ' same => n,ExecIf($["${OPT_OUT_SMART_CONFIRM_MENU}"!="-" & "${LEN(${OPT_OUT_SMART_CONFIRM_MENU})}"!="0"]?Playback(${OPT_OUT_SMART_CONFIRM_MENU}))',
+    ' same => n,Read(OPT_OUT_SMART_CONFIRM_DIGIT,,1,,1,${OPT_OUT_SMART_TIMEOUT})',
+    ' same => n,GotoIf($["${LEN(${OPT_OUT_SMART_CONFIRM_DIGIT})}"="0"]?retry)',
+    ' same => n,Goto(${OPT_OUT_SMART_CONFIRM_DIGIT},1)',
+    ' same => n(retry),Goto(080-optout-smart-confirm-retry,s,1)',
+    'exten => _[0-9],1,NoOp(080 Smart confirm digit ${EXTEN})',
+    ' same => n,Set(__OPT_OUT_SELECTED_ACTION=${OPT_OUT_SMART_CONFIRM_ACTION_${EXTEN}})',
+    ' same => n,GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-smart-confirm-invalid,s,1)',
+    ' same => n,Set(__OPT_OUT_SELECTED_SMS_TEMPLATE=${OPT_OUT_SMART_CONFIRM_SMS_${EXTEN}})',
+    ' same => n,GotoIf($["${OPT_OUT_SELECTED_ACTION}"="REENTER_NUMBER"]?080-optout-smart-input,reenter,1)',
+    ' same => n,GotoIf($["${OPT_OUT_SELECTED_ACTION}"="HANGUP"]?080-optout-result,s,1)',
+    ' same => n,Goto(080-optout-action,s,1)',
+    '',
+    '[080-optout-smart-confirm-invalid]',
+    'exten => s,1,NoOp(080 Smart confirm invalid selection)',
+    ' same => n,Goto(080-optout-smart-confirm-retry,s,1)',
+    '',
+    '[080-optout-smart-confirm-retry]',
+    'exten => s,1,Set(__OPT_OUT_SMART_CONFIRM_RETRY_COUNT=$[${OPT_OUT_SMART_CONFIRM_RETRY_COUNT}+1])',
+    ' same => n,GotoIf($[${OPT_OUT_SMART_CONFIRM_RETRY_COUNT}<=${OPT_OUT_SMART_MAX_RETRIES}]?080-optout-smart-confirm,s,playback)',
+    ' same => n,ExecIf($["${OPT_OUT_SMART_FAILURE_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_FAILURE_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_FAILURE_PROMPT}))',
+    ' same => n,Hangup()',
+    '',
+    '[080-optout-action]',
+    'exten => s,1,NoOp(080 Opt-Out Action ${OPT_OUT_SELECTED_ACTION} / DID=${ENTRY_DID})',
+    ' same => n,Set(__OPT_OUT_TARGET_PHONE=${IF($["${LEN(${OPT_OUT_TARGET_PHONE})}"="0"]?${REQUESTER_PHONE}:${OPT_OUT_TARGET_PHONE})})',
+    ' same => n,Set(__OPT_OUT_SELECTED_SMS_TEMPLATE=${IF($["${OPT_OUT_SELECTED_SMS_TEMPLATE}"="-" | "${LEN(${OPT_OUT_SELECTED_SMS_TEMPLATE})}"="0"]?${OPT_OUT_SMS_TEMPLATE}:${OPT_OUT_SELECTED_SMS_TEMPLATE})})',
+    ' same => n,GotoIf($["${OPT_OUT_SELECTED_ACTION}"="QUEUE_ROUTE"]?queue-route)',
+    ' same => n,GotoIf($["${OPT_OUT_SELECTED_ACTION}"="REGISTER_OPT_OUT"]?register)',
+    ' same => n,GotoIf($["${OPT_OUT_SELECTED_ACTION}"="UNREGISTER_OPT_OUT"]?unregister)',
+    ' same => n,GotoIf($["${OPT_OUT_SELECTED_ACTION}"="SEND_SMS"]?sms)',
+    ' same => n,Goto(080-optout-result,s,1)',
+    ' same => n(queue-route),Goto(queue-entry,${OPT_OUT_SELECTED_QUEUE},1)',
+    ` same => n(register),System(${buildOptOutHookCommand('register')})`,
+    ' same => n,GotoIf($["${SYSTEMSTATUS}"!="SUCCESS"]?080-optout-failure,s,1)',
+    ' same => n,Goto(080-optout-result,s,1)',
+    ` same => n(unregister),System(${buildOptOutHookCommand('unregister')})`,
+    ' same => n,GotoIf($["${SYSTEMSTATUS}"!="SUCCESS"]?080-optout-failure,s,1)',
+    ' same => n,Goto(080-optout-result,s,1)',
+    ` same => n(sms),System(${buildOptOutHookCommand('sms')})`,
+    ' same => n,GotoIf($["${SYSTEMSTATUS}"!="SUCCESS"]?080-optout-failure,s,1)',
+    ' same => n,Goto(080-optout-result,s,1)',
+    '',
+    '[080-optout-result]',
+    'exten => s,1,NoOp(080 Opt-Out Result)',
+    ' same => n,Set(__OPT_OUT_RESULT_PROMPT=${IF($["${OPT_OUT_MODE}"="SMART_OPT_OUT"]?${OPT_OUT_SMART_FINAL_PROMPT}:${OPT_OUT_COMPLETION_PROMPT})})',
+    ' same => n,ExecIf($["${OPT_OUT_RESULT_PROMPT}"!="-" & "${LEN(${OPT_OUT_RESULT_PROMPT})}"!="0"]?Playback(${OPT_OUT_RESULT_PROMPT}))',
+    ' same => n,Hangup()',
+    '',
+    '[080-optout-failure]',
+    'exten => s,1,NoOp(080 Opt-Out Failure / ACTION=${OPT_OUT_SELECTED_ACTION} / STATUS=${SYSTEMSTATUS})',
+    ' same => n,Playback(ss-noservice)',
+    ' same => n,Hangup()',
+  ].join('\n');
 }
 
 export function renderDialplan(input: DialplanInput): DialplanOutput {
@@ -434,6 +737,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
   const blocklistEntries = input.blocklistEntries ?? [];
   const enabledDids = input.dids.filter((d) => d.enabled);
   const forwardingContexts = enabledDids
+    .filter((did) => !did.branchOptOut080?.enabled)
     .map((did) => {
       const rule = forwardingRules.find((item) => item.didId === did.id && item.enabled);
       return rule ? renderForwardingRuleContext(did, rule) : null;
@@ -479,7 +783,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     ' same => n,Hangup()',
   ].join('\n');
 
-  const extensionsQueue = [queueEntry, ...input.ivrMenus
+  const extensionsQueue = [queueEntry, renderOptOutContexts(), ...input.ivrMenus
     .filter((m) => m.entries.length > 0)
     .map(renderIvrMenu), buildDynamicDispatchLines().join('\n')]
     .join('\n\n');

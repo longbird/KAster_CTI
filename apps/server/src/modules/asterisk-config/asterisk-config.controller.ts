@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, ServiceUnavailableException, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
@@ -15,6 +16,9 @@ import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
 import { UpdateSipPasswordDto } from './dto/update-sip-password.dto';
+import { ExecuteOptOutActionDto } from '../opt-out/dto/execute-opt-out-action.dto';
+import { ExecuteSmartOptOutDto } from '../opt-out/dto/execute-smart-opt-out.dto';
+import { OptOutService } from '../opt-out/opt-out.service';
 
 interface UploadedPromptAudioFile {
   originalname: string;
@@ -125,4 +129,72 @@ export class AsteriskConfigController {
   // Reload + Preview
   @Post('reload') async manualReload(@CurrentUser() u: any) { await this.assertAsteriskAction(u, 'operate'); return this.reload.executeReload(u.tenantId); }
   @Get('preview') async preview(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.previewConfFiles(u.tenantId); }
+}
+
+@ApiTags('asterisk-config-internal')
+@Controller('asterisk-config/internal/opt-out')
+export class AsteriskConfigInternalController {
+  constructor(
+    private readonly optOutService: OptOutService,
+    private readonly reload: AsteriskReloadService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private assertInternalSecret(secretHeader?: string) {
+    const configuredSecret = this.config.get<string>('KASTER_INTERNAL_SECRET')?.trim();
+
+    if (!configuredSecret) {
+      throw new ServiceUnavailableException(
+        'KASTER_INTERNAL_SECRET must be configured for internal opt-out execution',
+      );
+    }
+
+    if (secretHeader?.trim() !== configuredSecret) {
+      throw new UnauthorizedException('Invalid internal secret');
+    }
+  }
+
+  @Post('register')
+  async register(
+    @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
+    @Body() dto: ExecuteOptOutActionDto,
+  ) {
+    this.assertInternalSecret(secretHeader);
+    const result = await this.optOutService.register(dto);
+    this.reload.scheduleReload(result.tenantId);
+    return result;
+  }
+
+  @Post('unregister')
+  async unregister(
+    @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
+    @Body() dto: ExecuteOptOutActionDto,
+  ) {
+    this.assertInternalSecret(secretHeader);
+    const result = await this.optOutService.unregister(dto);
+    this.reload.scheduleReload(result.tenantId);
+    return result;
+  }
+
+  @Post('smart/register')
+  async registerSmart(
+    @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
+    @Body() dto: ExecuteSmartOptOutDto,
+  ) {
+    this.assertInternalSecret(secretHeader);
+    const result = await this.optOutService.register(dto);
+    this.reload.scheduleReload(result.tenantId);
+    return result;
+  }
+
+  @Post('smart/unregister')
+  async unregisterSmart(
+    @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
+    @Body() dto: ExecuteSmartOptOutDto,
+  ) {
+    this.assertInternalSecret(secretHeader);
+    const result = await this.optOutService.unregister(dto);
+    this.reload.scheduleReload(result.tenantId);
+    return result;
+  }
 }

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { normalizePhone } from '../customers/customers.service';
 import { TransferDetectorService } from './transfer-detector.service';
 
 // conv 44 SESSION_PRECEDENCE: 역순 도착 이벤트로 인한 상태 역행 차단.
@@ -53,6 +54,32 @@ export class SessionEngineService {
     private readonly redis: RedisService,
     private readonly transferDetector: TransferDetectorService,
   ) {}
+
+  private async resolveCustomerId(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    rawPhone: string | null | undefined,
+  ) {
+    const normalizedPhone = normalizePhone(rawPhone ?? '');
+    if (!normalizedPhone) return null;
+
+    const phone = await tx.customerPhones.findFirst({
+      where: {
+        normalizedPhone,
+        isActive: true,
+        customer: {
+          tenantId,
+          status: 'active',
+        },
+      },
+      select: {
+        customerId: true,
+      },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return phone?.customerId ?? null;
+  }
 
   private async resolvePrimaryAgentId(candidate: string | null | undefined, tenantId: string) {
     const normalized = candidate?.trim();
@@ -223,6 +250,7 @@ export class SessionEngineService {
   ) {
     await this.prisma.$transaction(async (tx) => {
       const found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+      const customerId = await this.resolveCustomerId(tx, tenantId, patch.ani);
 
       if (!found) {
         const created = await tx.callSessions.create({
@@ -232,8 +260,9 @@ export class SessionEngineService {
             direction: 'inbound',
             sessionStatus: 'NEW',
             ani: patch.ani ?? undefined,
-            aniNormalized: patch.ani ?? undefined,
+            aniNormalized: normalizePhone(patch.ani ?? ''),
             dnis: patch.dnis ?? undefined,
+            customerId: customerId ?? undefined,
             startedAt: new Date(),
           },
         });
@@ -245,10 +274,17 @@ export class SessionEngineService {
       const data: Prisma.callSessionsUpdateInput = {};
       if (!found.ani && patch.ani) {
         data.ani = patch.ani;
-        data.aniNormalized = patch.ani;
+        data.aniNormalized = normalizePhone(patch.ani);
       }
       if (!found.dnis && patch.dnis) {
         data.dnis = patch.dnis;
+      }
+      if (!found.customerId && customerId) {
+        data.customer = {
+          connect: {
+            customerId,
+          },
+        };
       }
 
       if (Object.keys(data).length === 0) {
@@ -271,6 +307,7 @@ export class SessionEngineService {
   ) {
     await this.prisma.$transaction(async (tx) => {
       let found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
+      const customerId = await this.resolveCustomerId(tx, tenantId, patch.ani);
 
       if (!found) {
         try {
@@ -281,9 +318,10 @@ export class SessionEngineService {
               direction: 'inbound',
               sessionStatus: patch.sessionStatus || 'NEW',
               ani: patch.ani,
-              aniNormalized: patch.ani,
+              aniNormalized: normalizePhone(patch.ani ?? ''),
               dnis: patch.dnis,
               queueName: patch.queueName,
+              customerId: customerId ?? undefined,
               startedAt: new Date(),
               queuedAt: patch.queuedAt,
               ringingAt: patch.ringingAt,
@@ -316,6 +354,16 @@ export class SessionEngineService {
       // timestamps/agent 같은 보조 필드는 그대로 덮어쓴다.
       const { sessionStatus, ...rest } = patch;
       const data: Prisma.callSessionsUpdateInput = { ...rest };
+      if (!found.customerId && customerId) {
+        data.customer = {
+          connect: {
+            customerId,
+          },
+        };
+      }
+      if (!found.aniNormalized && patch.ani) {
+        data.aniNormalized = normalizePhone(patch.ani);
+      }
       if (sessionStatus && statusRank(sessionStatus) > statusRank(found.sessionStatus)) {
         data.sessionStatus = sessionStatus;
       } else if (sessionStatus && sessionStatus !== found.sessionStatus) {
@@ -355,6 +403,15 @@ export class SessionEngineService {
           holdSeconds: found.holdSeconds + pendingHoldSeconds,
         },
       });
+
+      if (found.customerId) {
+        await tx.customers.update({
+          where: { customerId: found.customerId },
+          data: {
+            lastCalledAt: endedAt,
+          },
+        });
+      }
 
       await this.enqueueOutbox(tx, tenantId, 'call.ended', updated);
     });

@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { createReadStream, promises as fs } from 'node:fs';
 import { ApiBearerAuth, ApiHeader, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { CommandAckResponseDto } from '../../common/dto/command-ack-response.dto';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
@@ -11,6 +13,12 @@ import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
+
+function buildDownloadDisposition(fileName: string) {
+  const fallback = fileName.replace(/[^\w.\-() ]+/g, '_') || 'recording';
+  const encoded = encodeURIComponent(fileName);
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
 
 @ApiTags('calls')
 @ApiBearerAuth()
@@ -83,6 +91,81 @@ export class CallsController {
       );
     }
     return this.callsService.listRecordings(req.user.tenantId, { from, to, branchId });
+  }
+
+  @Get('recordings/:recordingId/stream')
+  @ApiOperation({ summary: '녹취 파일 스트리밍', description: '브라우저 재생용 인증 스트리밍. Range 요청을 지원한다.' })
+  async streamRecording(@Req() req: any, @Param('recordingId') recordingId: string, @Res() res: Response) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        'reports/recordings',
+        'view',
+        req.user.sub,
+      );
+    }
+
+    const recording = await this.callsService.getRecordingFile(req.user.tenantId, recordingId);
+    const stat = await fs.stat(recording.filePath).catch(() => null);
+    if (!stat?.isFile()) {
+      throw new NotFoundException('Recording file not found');
+    }
+
+    const rangeHeader = typeof req.headers.range === 'string' ? req.headers.range : undefined;
+
+    res.setHeader('Content-Type', recording.contentType);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    if (!rangeHeader) {
+      res.setHeader('Content-Length', stat.size);
+      createReadStream(recording.filePath).pipe(res);
+      return;
+    }
+
+    const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+    const start = match?.[1] ? Number.parseInt(match[1], 10) : 0;
+    const requestedEnd = match?.[2] ? Number.parseInt(match[2], 10) : stat.size - 1;
+    const end = Number.isFinite(requestedEnd) ? Math.min(requestedEnd, stat.size - 1) : stat.size - 1;
+
+    if (!match || !Number.isFinite(start) || start < 0 || start > end || start >= stat.size) {
+      res.status(416);
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
+      res.end();
+      return;
+    }
+
+    res.status(206);
+    res.setHeader('Content-Length', end - start + 1);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+    createReadStream(recording.filePath, { start, end }).pipe(res);
+  }
+
+  @Get('recordings/:recordingId/download')
+  @ApiOperation({ summary: '녹취 파일 다운로드', description: '인증된 사용자만 녹취 파일을 attachment 로 내려받는다.' })
+  async downloadRecording(@Req() req: any, @Param('recordingId') recordingId: string, @Res() res: Response) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        'reports/recordings',
+        'export',
+        req.user.sub,
+      );
+    }
+
+    const recording = await this.callsService.getRecordingFile(req.user.tenantId, recordingId);
+    const stat = await fs.stat(recording.filePath).catch(() => null);
+    if (!stat?.isFile()) {
+      throw new NotFoundException('Recording file not found');
+    }
+
+    res.setHeader('Content-Type', recording.contentType);
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Content-Disposition', buildDownloadDisposition(recording.fileName));
+    res.setHeader('Cache-Control', 'private, no-store');
+    createReadStream(recording.filePath).pipe(res);
   }
 
   @Get(':callId')

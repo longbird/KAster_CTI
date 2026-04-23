@@ -33,6 +33,149 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
   });
 
+  it('routes opt-out DID to immediate 080 entry flow', () => {
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids: [{
+        id: 'did-optout-immediate',
+        did: '0801234567',
+        ivrMenuId: null,
+        directQueue: 'sales',
+        enabled: true,
+        description: null,
+        branchOptOut080: {
+          enabled: true,
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          mode: 'IMMEDIATE_OPT_OUT',
+          basePromptKey: 'custom/080_base',
+          completionPromptKey: 'custom/080_done',
+          smsTemplateId: 'tpl-1',
+        },
+      }],
+      ivrMenus: [],
+    });
+
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_MODE=IMMEDIATE_OPT_OUT)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_TENANT_ID=tenant-1)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_BRANCH_ID=branch-1)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_BASE_PROMPT=/var/lib/asterisk/sounds/custom/080_base)');
+    expect(extensionsInbound).toContain('Goto(080-optout-entry,${EXTEN},1)');
+    expect(extensionsInbound).not.toContain('Goto(queue-entry,sales,1)');
+
+    expect(extensionsQueue).toContain('[080-optout-entry]');
+    expect(extensionsQueue).toContain('GotoIf($["${OPT_OUT_MODE}"="IMMEDIATE_OPT_OUT"]?immediate)');
+    expect(extensionsQueue).toContain("/var/lib/asterisk/bin/kaster-opt-out-hook.sh 'register'");
+  });
+
+  it('renders DTMF opt-out menu actions with queue and hook execution', () => {
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids: [{
+        id: 'did-optout-dtmf',
+        did: '0807654321',
+        ivrMenuId: null,
+        directQueue: 'sales',
+        enabled: true,
+        description: null,
+        branchOptOut080: {
+          enabled: true,
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          mode: 'DTMF_MENU',
+          basePromptKey: 'custom/080_menu',
+          completionPromptKey: 'custom/080_done',
+          smsTemplateId: 'tpl-default',
+          dtmfMenu: {
+            timeoutSeconds: 4,
+            maxRetries: 2,
+            invalidPromptKey: 'custom/080_invalid',
+            timeoutPromptKey: 'custom/080_timeout',
+            mappings: [
+              { digit: '1', actionType: 'QUEUE_ROUTE', queueName: 'sales', smsTemplateId: null },
+              { digit: '2', actionType: 'REGISTER_OPT_OUT', queueName: null, smsTemplateId: null },
+              { digit: '3', actionType: 'UNREGISTER_OPT_OUT', queueName: null, smsTemplateId: null },
+              { digit: '4', actionType: 'SEND_SMS', queueName: null, smsTemplateId: 'tpl-4' },
+            ],
+          },
+        },
+      }],
+      ivrMenus: [],
+    });
+
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_DTMF_ACTION_1=QUEUE_ROUTE)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_DTMF_QUEUE_1=sales)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_DTMF_ACTION_4=SEND_SMS)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_DTMF_SMS_4=tpl-4)');
+
+    expect(extensionsQueue).toContain('[080-optout-dtmf]');
+    expect(extensionsQueue).toContain('Read(OPT_OUT_DTMF_SELECTION,,1,,1,${OPT_OUT_DTMF_TIMEOUT})');
+    expect(extensionsQueue).toContain('Set(__OPT_OUT_SELECTED_ACTION=${OPT_OUT_DTMF_ACTION_${EXTEN}})');
+    expect(extensionsQueue).toContain('GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-dtmf-invalid,s,1)');
+    expect(extensionsQueue).toContain('[080-optout-dtmf-invalid]');
+    expect(extensionsQueue).toContain('Goto(queue-entry,${OPT_OUT_SELECTED_QUEUE},1)');
+    expect(extensionsQueue).toContain("/var/lib/asterisk/bin/kaster-opt-out-hook.sh 'unregister'");
+    expect(extensionsQueue).toContain("/var/lib/asterisk/bin/kaster-opt-out-hook.sh 'sms'");
+    expect(extensionsQueue).toContain('GotoIf($["${SYSTEMSTATUS}"!="SUCCESS"]?080-optout-failure,s,1)');
+    expect(extensionsQueue).toContain('[080-optout-failure]');
+  });
+
+  it('renders smart opt-out input and confirm flow with same-number rejection', () => {
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids: [{
+        id: 'did-optout-smart',
+        did: '0809999000',
+        ivrMenuId: null,
+        directQueue: 'sales',
+        enabled: true,
+        description: null,
+        branchOptOut080: {
+          enabled: true,
+          tenantId: 'tenant-9',
+          branchId: 'branch-9',
+          mode: 'SMART_OPT_OUT',
+          basePromptKey: 'custom/080_smart_base',
+          smartFlow: {
+            inputPromptKey: 'custom/080_input',
+            reentryPromptKey: 'custom/080_retry',
+            sameNumberPromptKey: 'custom/080_same',
+            confirmPrefixPromptKey: 'custom/080_confirm_prefix',
+            confirmSuffixPromptKey: 'custom/080_confirm_suffix',
+            confirmMenuPromptKey: 'custom/080_confirm_menu',
+            failurePromptKey: 'custom/080_fail',
+            finalPromptKey: 'custom/080_final',
+            inputTimeoutSeconds: 6,
+            maxRetries: 3,
+            confirmationMappings: [
+              { digit: '1', actionType: 'REGISTER_OPT_OUT', queueName: null, smsTemplateId: null },
+              { digit: '2', actionType: 'REENTER_NUMBER', queueName: null, smsTemplateId: null },
+              { digit: '3', actionType: 'SEND_SMS', queueName: null, smsTemplateId: 'tpl-smart' },
+              { digit: '4', actionType: 'HANGUP', queueName: null, smsTemplateId: null },
+            ],
+          },
+        },
+      }],
+      ivrMenus: [],
+    });
+
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_SMART_END_DIGIT=#)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_SMART_CONFIRM_ACTION_2=REENTER_NUMBER)');
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_SMART_CONFIRM_SMS_3=tpl-smart)');
+
+    expect(extensionsQueue).toContain('[080-optout-smart-input]');
+    expect(extensionsQueue).toContain('Read(OPT_OUT_SMART_TARGET,,16,,1,${OPT_OUT_SMART_TIMEOUT})');
+    expect(extensionsQueue).toContain('GotoIf($["${OPT_OUT_TARGET_PHONE}"="${REQUESTER_PHONE}"]?080-optout-smart-same-number,s,1)');
+    expect(extensionsQueue).toContain('[080-optout-smart-same-number]');
+    expect(extensionsQueue).toContain('Playback(${OPT_OUT_SMART_SAME_NUMBER_PROMPT})');
+    expect(extensionsQueue).toContain('Goto(080-optout-smart-input,s,read)');
+    expect(extensionsQueue).toContain('[080-optout-smart-confirm]');
+    expect(extensionsQueue).toContain('SayDigits(${OPT_OUT_TARGET_PHONE})');
+    expect(extensionsQueue).toContain('GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-smart-confirm-invalid,s,1)');
+    expect(extensionsQueue).toContain('[080-optout-smart-confirm-invalid]');
+    expect(extensionsQueue).toContain('GotoIf($["${OPT_OUT_SELECTED_ACTION}"="REENTER_NUMBER"]?080-optout-smart-input,reenter,1)');
+    expect(extensionsQueue).toContain('Set(__OPT_OUT_RESULT_PROMPT=${IF($["${OPT_OUT_MODE}"="SMART_OPT_OUT"]?${OPT_OUT_SMART_FINAL_PROMPT}:${OPT_OUT_COMPLETION_PROMPT})})');
+    expect(extensionsQueue).toContain('NoOp(080 Opt-Out Failure / ACTION=${OPT_OUT_SELECTED_ACTION} / STATUS=${SYSTEMSTATUS})');
+    expect(extensionsQueue).toContain('Playback(ss-noservice)');
+  });
+
   it('renders branch prompt playback before direct queue routing when wait-for-completion is enabled', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{

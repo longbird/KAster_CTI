@@ -7,9 +7,11 @@ import { KpiPage } from '../features/kpi/KpiPage';
 import { AgentSettingsPage } from '../features/agent-settings/AgentSettingsPage';
 import { QueueSettingsPage } from '../features/queue-settings/QueueSettingsPage';
 import { BranchSettingsPage } from '../features/branch-settings/BranchSettingsPage';
+import { CustomersPage } from '../features/customers/CustomersPage';
 import { BlocklistPage } from '../features/blocklist/BlocklistPage';
 import { PermissionSettingsPage } from '../features/permission-settings/PermissionSettingsPage';
 import { PromptSettingsPage } from '../features/prompt-settings/PromptSettingsPage';
+import { SmsTemplatesPage } from '../features/sms-templates/SmsTemplatesPage';
 import { CallsReportPage } from '../features/reports/CallsReportPage';
 import { AmiLogsPage } from '../features/reports/AmiLogsPage';
 import { MissedCallsPage } from '../features/reports/MissedCallsPage';
@@ -34,8 +36,10 @@ export const router = createBrowserRouter([
       { path: 'settings/queues',      element: <QueueSettingsPage /> },
       { path: 'settings/forwarding',  element: <ForwardingSettingsPage /> },
       { path: 'settings/prompts',     element: <PromptSettingsPage /> },
+      { path: 'settings/sms-templates', element: <SmsTemplatesPage /> },
       { path: 'settings/branches',    element: <BranchSettingsPage /> },
       { path: 'settings/permissions', element: <PermissionSettingsPage /> },
+      { path: 'customers',            element: <CustomersPage /> },
       { path: 'reports/calls',        element: <CallsReportPage /> },
       { path: 'reports/missed',       element: <MissedCallsPage /> },
       { path: 'reports/recordings',   element: <RecordingsPage /> },

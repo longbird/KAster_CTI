@@ -1,7 +1,10 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
-import { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
+import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { downloadCsv } from '../../shared/lib/csv';
+import { useBranchOptions } from '../../shared/branches/useBranchOptions';
 import {
   createBlocklistEntry,
   deleteBlocklistEntry,
@@ -16,6 +19,7 @@ export function BlocklistPage() {
   const [rows, setRows] = useState<AsteriskBlocklistEntry[] | null>(null);
   const [editing, setEditing] = useState<AsteriskBlocklistEntry | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const { options: branchOptions } = useBranchOptions();
 
   const load = async () => {
     try {
@@ -58,36 +62,110 @@ export function BlocklistPage() {
     }
   };
 
+  const exportRows = () => {
+    if (!rows) {
+      return;
+    }
+
+    const branchById = new Map(branchOptions.map((branch) => [branch.branchId, branch]));
+    downloadCsv(
+      `blocklist-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      ['전화번호', '요청자 전화번호', '소스 유형', 'DID', '지사', '매칭', '사유', '상태', '등록일'],
+      rows.map((row) => {
+        const branch = row.branchId ? branchById.get(row.branchId) : undefined;
+        const branchLabel = branch
+          ? `${branch.branchName} (${branch.branchCode})`
+          : row.branchId ?? '-';
+        return [
+          row.normalizedPhoneNumber ?? row.phoneNumber,
+          row.normalizedRequesterPhone ?? row.requesterPhoneNumber ?? '-',
+          row.sourceType ?? '-',
+          row.entryDid ?? '-',
+          branchLabel,
+          row.matchType === 'PREFIX' ? '접두어' : '정확히 일치',
+          row.description ?? '',
+          row.isActive ? '활성' : '비활성',
+          row.createdAt ? dayjs(row.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-',
+        ];
+      }),
+    );
+  };
+
+  const branchById = useMemo(() => new Map(branchOptions.map((branch) => [branch.branchId, branch])), [branchOptions]);
+
   if (!rows) return <Skeleton active paragraph={{ rows: 6 }} />;
 
   return (
     <Card>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} align="start">
         <div>
           <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
-            080 수신거부 관리
+            수신거부 고객 관리
           </Typography.Title>
           <Typography.Text type="secondary">
-            등록된 ANI는 inbound dialplan에서 먼저 검사되며, 일치하면 안내 멘트 후 통화가 종료됩니다.
+            고객이 수신을 원하지 않아 등록한 번호 목록입니다. 센터 내부 분류용 BLACK 고객과는 별개로 관리합니다.
           </Typography.Text>
         </div>
-        {blocklistPermission?.canCreate !== false ? (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-            번호 등록
-          </Button>
-        ) : null}
+        <Space wrap>
+          {blocklistPermission?.canExport !== false ? (
+            <Button icon={<DownloadOutlined />} onClick={exportRows}>
+              내보내기
+            </Button>
+          ) : null}
+          {blocklistPermission?.canCreate !== false ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+              번호 등록
+            </Button>
+          ) : null}
+        </Space>
       </Space>
 
       <Table<AsteriskBlocklistEntry>
         rowKey="id"
         dataSource={rows}
         pagination={false}
+        scroll={{ x: 1560 }}
         columns={[
           {
-            title: '전화번호',
+            title: '대상 전화',
             dataIndex: 'phoneNumber',
             width: 180,
-            render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+            render: (_: unknown, row) => (
+              <Typography.Text code>
+                {row.normalizedPhoneNumber ?? row.phoneNumber}
+              </Typography.Text>
+            ),
+          },
+          {
+            title: '요청자 전화',
+            width: 180,
+            render: (_: unknown, row) => (
+              <Typography.Text code>
+                {row.normalizedRequesterPhone ?? row.requesterPhoneNumber ?? '-'}
+              </Typography.Text>
+            ),
+          },
+          {
+            title: '소스 유형',
+            dataIndex: 'sourceType',
+            width: 150,
+            render: (value?: string | null) => value ? <Tag color={value.startsWith('OPT_OUT_') ? 'green' : 'blue'}>{value}</Tag> : '-',
+          },
+          {
+            title: 'Entry DID',
+            dataIndex: 'entryDid',
+            width: 160,
+            render: (value?: string | null) => value ? <Typography.Text code>{value}</Typography.Text> : '-',
+          },
+          {
+            title: '지사',
+            dataIndex: 'branchId',
+            width: 200,
+            render: (value?: string | null) => {
+              if (!value) return '-';
+              const branch = branchById.get(value);
+              return branch ? `${branch.branchName} (${branch.branchCode})` : value;
+            },
           },
           {
             title: '매칭',
@@ -105,18 +183,18 @@ export function BlocklistPage() {
             render: (value?: string | null) => value || '-',
           },
           {
-            title: '상태',
+            title: '활성 상태',
             dataIndex: 'isActive',
             width: 100,
             render: (value: boolean) => (
-              <Tag color={value ? 'red' : 'default'}>{value ? '차단중' : '비활성'}</Tag>
+              <Tag color={value ? 'red' : 'default'}>{value ? '활성' : '비활성'}</Tag>
             ),
           },
           {
             title: '등록일',
             dataIndex: 'createdAt',
             width: 160,
-            render: (value?: string) => value ? new Date(value).toLocaleString('ko-KR') : '-',
+            render: (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-',
           },
           {
             title: '액션',

@@ -116,6 +116,18 @@ export class OutboxPublisherService implements OnModuleInit {
         },
       });
       if (customer) {
+        const recentCalls = await this.prisma.callSessions.findMany({
+          where: { tenantId, customerId: customer.customerId },
+          orderBy: { startedAt: 'desc' },
+          take: 5,
+          select: {
+            callId: true,
+            direction: true,
+            startedAt: true,
+            queueName: true,
+            sessionStatus: true,
+          },
+        });
         return {
           customerId: customer.customerId,
           customerName: customer.customerName ?? '미식별 고객',
@@ -123,6 +135,8 @@ export class OutboxPublisherService implements OnModuleInit {
           phoneNumber: customer.phones[0]?.phoneNumber ?? '',
           companyName: customer.companyName ?? undefined,
           memo: customer.memo ?? undefined,
+          lastCalledAt: customer.lastCalledAt?.toISOString() ?? undefined,
+          recentCalls,
         };
       }
     }
@@ -141,6 +155,19 @@ export class OutboxPublisherService implements OnModuleInit {
     });
     if (!phone) return null;
 
+    const recentCalls = await this.prisma.callSessions.findMany({
+      where: { tenantId, customerId: phone.customer.customerId },
+      orderBy: { startedAt: 'desc' },
+      take: 5,
+      select: {
+        callId: true,
+        direction: true,
+        startedAt: true,
+        queueName: true,
+        sessionStatus: true,
+      },
+    });
+
     return {
       customerId: phone.customer.customerId,
       customerName: phone.customer.customerName ?? '미식별 고객',
@@ -148,6 +175,8 @@ export class OutboxPublisherService implements OnModuleInit {
       phoneNumber: phone.phoneNumber,
       companyName: phone.customer.companyName ?? undefined,
       memo: phone.customer.memo ?? undefined,
+      lastCalledAt: phone.customer.lastCalledAt?.toISOString() ?? undefined,
+      recentCalls,
     };
   }
 }

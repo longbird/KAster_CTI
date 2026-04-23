@@ -17,6 +17,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { AsteriskConfigModule } from './modules/asterisk-config/asterisk-config.module';
 import { AgentUpdatesModule } from './modules/agent-updates/agent-updates.module';
+import { SmsTemplatesModule } from './modules/sms-templates/sms-templates.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AgentUpdatesModule } from './modules/agent-updates/agent-updates.module
     CustomersModule,
     QueuesModule,
     AdminModule,
+    SmsTemplatesModule,
     AsteriskConfigModule,
     AgentUpdatesModule,
     HealthModule,

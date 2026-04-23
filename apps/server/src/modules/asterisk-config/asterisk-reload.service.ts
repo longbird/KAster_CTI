@@ -13,6 +13,52 @@ import { renderPjsip } from './renderers/pjsip.renderer';
 import { renderQueuesConf } from './renderers/queues.renderer';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
+const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/bin/kaster-opt-out-hook.sh';
+
+type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
+type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
+type Blocklist080SmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
+
+interface Blocklist080Mapping {
+  digit: string;
+  actionType: Blocklist080DtmfActionType | Blocklist080SmartActionType | string;
+  queueId?: string | null;
+  smsTemplateId?: string | null;
+}
+
+interface Blocklist080DtmfMenu {
+  timeoutSeconds?: number;
+  maxRetries?: number;
+  invalidPromptId?: string | null;
+  timeoutPromptId?: string | null;
+  mappings?: Blocklist080Mapping[];
+}
+
+interface Blocklist080SmartFlow {
+  inputPromptId?: string | null;
+  reentryPromptId?: string | null;
+  sameNumberPromptId?: string | null;
+  confirmPrefixPromptId?: string | null;
+  confirmSuffixPromptId?: string | null;
+  confirmMenuPromptId?: string | null;
+  failurePromptId?: string | null;
+  finalPromptId?: string | null;
+  inputTimeoutSeconds?: number;
+  maxRetries?: number;
+  confirmationMappings?: Blocklist080Mapping[];
+}
+
+interface Blocklist080Profile {
+  enabled?: boolean;
+  mode?: Blocklist080Mode | string | null;
+  basePromptId?: string | null;
+  completionPromptId?: string | null;
+  smsTemplateId?: string | null;
+  dtmfMenu?: Blocklist080DtmfMenu | null;
+  smartFlow?: Blocklist080SmartFlow | null;
+}
+
+const BLOCKLIST080_MODES: Blocklist080Mode[] = ['IMMEDIATE_OPT_OUT', 'DTMF_MENU', 'SMART_OPT_OUT'];
 
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -72,6 +118,126 @@ function extractBranchPromptWaitForCompletion(settingsProfile: unknown): boolean
   }
 
   return prompts.waitForPlaybackCompletionBeforeQueue === true;
+}
+
+function extractBlocklist080Profile(settingsProfile: unknown): Blocklist080Profile | null {
+  if (!settingsProfile || typeof settingsProfile !== 'object' || Array.isArray(settingsProfile)) {
+    return null;
+  }
+
+  const source = settingsProfile as Record<string, unknown>;
+  const blocklist080 = source.blocklist080 && typeof source.blocklist080 === 'object' && !Array.isArray(source.blocklist080)
+    ? source.blocklist080 as Blocklist080Profile
+    : null;
+
+  if (!blocklist080?.enabled) {
+    return null;
+  }
+
+  return blocklist080;
+}
+
+function normalizePositiveInteger(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(1, Math.trunc(value));
+}
+
+function mapPromptKey(promptId: string | null | undefined, promptKeyById: Map<string, string>): string | null {
+  if (!promptId?.trim()) {
+    return null;
+  }
+
+  return promptKeyById.get(promptId.trim()) ?? null;
+}
+
+function normalizeBlocklist080Mappings(
+  mappings: Blocklist080Mapping[] | undefined,
+  queueNameById: Map<string, string>,
+): Array<{
+  digit: string;
+  actionType: Blocklist080DtmfActionType | Blocklist080SmartActionType;
+  queueName: string | null;
+  smsTemplateId: string | null;
+}> {
+  if (!Array.isArray(mappings)) {
+    return [];
+  }
+
+  return mappings
+    .filter((mapping) => typeof mapping?.digit === 'string' && typeof mapping?.actionType === 'string')
+    .map((mapping) => ({
+      digit: mapping.digit.trim(),
+      actionType: mapping.actionType.trim() as Blocklist080DtmfActionType | Blocklist080SmartActionType,
+      queueName: mapping.queueId ? queueNameById.get(mapping.queueId) ?? null : null,
+      smsTemplateId: mapping.smsTemplateId?.trim() || null,
+    }))
+    .filter((mapping) => Boolean(mapping.digit && mapping.actionType));
+}
+
+function resolveDidBranchOptOut(
+  branchMappings: Array<{
+    branchId?: string;
+    branch?: { isActive: boolean; settingsProfile: unknown } | null;
+  }>,
+  promptKeyById: Map<string, string>,
+  queueNameById: Map<string, string>,
+) {
+  for (const mapping of branchMappings) {
+    if (!mapping.branch?.isActive) {
+      continue;
+    }
+
+    const profile = extractBlocklist080Profile(mapping.branch.settingsProfile);
+    if (!profile) {
+      continue;
+    }
+
+    const normalizedMode = typeof profile.mode === 'string' && profile.mode.trim()
+      ? profile.mode.trim()
+      : 'IMMEDIATE_OPT_OUT';
+    const mode: Blocklist080Mode = BLOCKLIST080_MODES.includes(normalizedMode as Blocklist080Mode)
+      ? normalizedMode as Blocklist080Mode
+      : 'IMMEDIATE_OPT_OUT';
+
+    return {
+      enabled: true,
+      tenantId: '',
+      branchId: mapping.branchId ?? null,
+      mode,
+      basePromptKey: mapPromptKey(profile.basePromptId, promptKeyById),
+      completionPromptKey: mapPromptKey(profile.completionPromptId, promptKeyById),
+      smsTemplateId: profile.smsTemplateId?.trim() || null,
+      dtmfMenu: profile.dtmfMenu
+        ? {
+          timeoutSeconds: normalizePositiveInteger(profile.dtmfMenu.timeoutSeconds, 5),
+          maxRetries: Math.max(0, Math.trunc(profile.dtmfMenu.maxRetries ?? 0)),
+          invalidPromptKey: mapPromptKey(profile.dtmfMenu.invalidPromptId, promptKeyById),
+          timeoutPromptKey: mapPromptKey(profile.dtmfMenu.timeoutPromptId, promptKeyById),
+          mappings: normalizeBlocklist080Mappings(profile.dtmfMenu.mappings, queueNameById),
+        }
+        : null,
+      smartFlow: profile.smartFlow
+        ? {
+          inputPromptKey: mapPromptKey(profile.smartFlow.inputPromptId, promptKeyById),
+          reentryPromptKey: mapPromptKey(profile.smartFlow.reentryPromptId, promptKeyById),
+          sameNumberPromptKey: mapPromptKey(profile.smartFlow.sameNumberPromptId, promptKeyById),
+          confirmPrefixPromptKey: mapPromptKey(profile.smartFlow.confirmPrefixPromptId, promptKeyById),
+          confirmSuffixPromptKey: mapPromptKey(profile.smartFlow.confirmSuffixPromptId, promptKeyById),
+          confirmMenuPromptKey: mapPromptKey(profile.smartFlow.confirmMenuPromptId, promptKeyById),
+          failurePromptKey: mapPromptKey(profile.smartFlow.failurePromptId, promptKeyById),
+          finalPromptKey: mapPromptKey(profile.smartFlow.finalPromptId, promptKeyById),
+          inputTimeoutSeconds: normalizePositiveInteger(profile.smartFlow.inputTimeoutSeconds, 5),
+          maxRetries: Math.max(0, Math.trunc(profile.smartFlow.maxRetries ?? 0)),
+          confirmationMappings: normalizeBlocklist080Mappings(profile.smartFlow.confirmationMappings, queueNameById),
+        }
+        : null,
+    };
+  }
+
+  return null;
 }
 
 function resolveDidPromptKeys(
@@ -153,6 +319,92 @@ function buildDefaultMusiconholdBaseContent(includeLine: string): string {
   ].join('\n');
 }
 
+function buildOptOutHookScript(port: number, configuredSecret: string | null): string {
+  const defaultSecret = (configuredSecret ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+  return [
+    '#!/bin/sh',
+    'set -eu',
+    '',
+    'ACTION="${1:-}"',
+    'TENANT_ID="${2:-}"',
+    'BRANCH_ID="${3:-}"',
+    'ENTRY_DID="${4:-}"',
+    'REQUESTER_PHONE="${5:-}"',
+    'TARGET_PHONE="${6:-}"',
+    'SOURCE_TYPE="${7:-}"',
+    'SMS_TEMPLATE_ID="${8:-}"',
+    'API_BASE_URL="${KASTER_OPT_OUT_API_BASE_URL:-http://127.0.0.1:' + port + '/api/v1/asterisk-config/internal/opt-out}"',
+    'INTERNAL_SECRET="${KASTER_INTERNAL_SECRET:-' + defaultSecret + '}"',
+    '',
+    'normalize_optional() {',
+    '  if [ "${1:-}" = "-" ]; then',
+    "    printf ''",
+    '  else',
+    '    printf %s "${1:-}"',
+    '  fi',
+    '}',
+    '',
+    'BRANCH_ID="$(normalize_optional "$BRANCH_ID")"',
+    'ENTRY_DID="$(normalize_optional "$ENTRY_DID")"',
+    'TARGET_PHONE="$(normalize_optional "$TARGET_PHONE")"',
+    'SMS_TEMPLATE_ID="$(normalize_optional "$SMS_TEMPLATE_ID")"',
+    '',
+    'if [ -z "$ACTION" ] || [ -z "$TENANT_ID" ] || [ -z "$REQUESTER_PHONE" ] || [ -z "$SOURCE_TYPE" ]; then',
+    "  echo 'missing required opt-out hook arguments' >&2",
+    '  exit 64',
+    'fi',
+    '',
+    'if [ -z "$INTERNAL_SECRET" ]; then',
+    "  echo 'KASTER_INTERNAL_SECRET is not configured for opt-out hook' >&2",
+    '  exit 65',
+    'fi',
+    '',
+    'build_action_payload() {',
+    '  printf \'{"tenantId":"%s","branchId":"%s","entryDid":"%s","requesterPhoneNumber":"%s","sourceType":"%s","smsTemplateId":"%s"}\' "$TENANT_ID" "$BRANCH_ID" "$ENTRY_DID" "$REQUESTER_PHONE" "$SOURCE_TYPE" "$SMS_TEMPLATE_ID"',
+    '}',
+    '',
+    'build_smart_payload() {',
+    '  printf \'{"tenantId":"%s","branchId":"%s","entryDid":"%s","requesterPhoneNumber":"%s","targetPhoneNumber":"%s","sourceType":"%s","smsTemplateId":"%s"}\' "$TENANT_ID" "$BRANCH_ID" "$ENTRY_DID" "$REQUESTER_PHONE" "$TARGET_PHONE" "$SOURCE_TYPE" "$SMS_TEMPLATE_ID"',
+    '}',
+    '',
+    'post_payload() {',
+    '  endpoint="$1"',
+    '  payload="$2"',
+    '  curl -fsS --connect-timeout 3 --max-time 10 -X POST "$API_BASE_URL/$endpoint" \\',
+    "    -H 'Content-Type: application/json' \\",
+    '    -H "x-kaster-internal-secret: $INTERNAL_SECRET" \\',
+    '    --data "$payload" >/dev/null',
+    '}',
+    '',
+    'case "$ACTION" in',
+    '  register)',
+    '    if [ -n "$TARGET_PHONE" ] && [ "$TARGET_PHONE" != "$REQUESTER_PHONE" ]; then',
+    '      post_payload "smart/register" "$(build_smart_payload)"',
+    '    else',
+    '      post_payload "register" "$(build_action_payload)"',
+    '    fi',
+    '    ;;',
+    '  unregister)',
+    '    if [ -n "$TARGET_PHONE" ] && [ "$TARGET_PHONE" != "$REQUESTER_PHONE" ]; then',
+    '      post_payload "smart/unregister" "$(build_smart_payload)"',
+    '    else',
+    '      post_payload "unregister" "$(build_action_payload)"',
+    '    fi',
+    '    ;;',
+    '  sms)',
+    '    printf \'opt-out sms delivery is not implemented: tenant=%s requester=%s template=%s\\n\' "$TENANT_ID" "$REQUESTER_PHONE" "$SMS_TEMPLATE_ID" >&2',
+    '    exit 69',
+    '    ;;',
+    '  *)',
+    "    echo 'unknown opt-out hook action' >&2",
+    '    exit 64',
+    '    ;;',
+    'esac',
+    '',
+  ].join('\n');
+}
+
 @Injectable()
 export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(AsteriskReloadService.name);
@@ -224,6 +476,8 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   async writeConfFiles(tenantId: string): Promise<boolean> {
     const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
     const soundsDir = this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom');
+    const internalSecret = this.config.get<string>('KASTER_INTERNAL_SECRET')?.trim() || null;
+    const httpPort = Number(this.config.get<string>('PORT', '3000')) || 3000;
 
     if (!path.isAbsolute(confDir)) {
       throw new Error(`ASTERISK_CONF_DIR must be an absolute path, got: "${confDir}"`);
@@ -309,6 +563,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     fs.writeFileSync(path.join(confDir, 'queues.conf'), queuesContent, 'utf8');
     fs.writeFileSync(path.join(confDir, PROMPT_MOH_INCLUDE_FILENAME), musiconholdContent, 'utf8');
     this.ensurePromptMohInclude(confDir);
+    this.writeOptOutHookScript(httpPort, internalSecret);
     return true;
   }
 
@@ -423,6 +678,16 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     return classes;
   }
 
+  private writeOptOutHookScript(httpPort: number, internalSecret: string | null) {
+    fs.mkdirSync(path.dirname(OPT_OUT_HOOK_SCRIPT_PATH), { recursive: true });
+    fs.writeFileSync(
+      OPT_OUT_HOOK_SCRIPT_PATH,
+      buildOptOutHookScript(httpPort, internalSecret),
+      { encoding: 'utf8', mode: 0o755 },
+    );
+    fs.chmodSync(OPT_OUT_HOOK_SCRIPT_PATH, 0o755);
+  }
+
   private syncPromptMohAssets(
     classes: Array<{ className: string; directory: string; promptBaseName: string }>,
     soundsDir: string,
@@ -508,7 +773,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   }
 
   private async fetchTenantData(tenantId: string) {
-    const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, prompts, settings] = await Promise.all([
+    const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, prompts, queues, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
       this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
       this.prisma.asteriskDid.findMany({
@@ -537,6 +802,10 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         where: { tenantId, isActive: true },
         select: { id: true, promptKey: true },
       }),
+      this.prisma.queues.findMany({
+        where: { tenantId },
+        select: { queueId: true, queueName: true },
+      }),
       this.prisma.tenantSystemSettings.findUnique({
         where: { tenantId },
         select: {
@@ -559,11 +828,16 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       | null;
     const defaultSipPassword = settings?.defaultSipPassword ?? null;
     const promptKeyById = new Map(prompts.map((prompt) => [prompt.id, prompt.promptKey]));
+    const queueNameById = new Map(queues.map((queue) => [queue.queueId, queue.queueName]));
     const dids = didRows.map(({ branchMappings, ...did }) => ({
       ...did,
       branchPromptKeys: resolveDidPromptKeys(branchMappings, promptKeyById),
       branchPromptQueueDelaySeconds: resolveDidPromptQueueDelaySeconds(branchMappings),
       branchPromptWaitForCompletion: resolveDidPromptWaitForCompletion(branchMappings),
+      branchOptOut080: (() => {
+        const optOut = resolveDidBranchOptOut(branchMappings, promptKeyById, queueNameById);
+        return optOut ? { ...optOut, tenantId } : null;
+      })(),
     }));
 
     return {

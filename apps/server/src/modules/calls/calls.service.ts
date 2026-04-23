@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { extname } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
 import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
@@ -69,7 +70,27 @@ export class CallsService {
         },
       });
 
+      const recentCallsByCustomerId = await this.prisma.callSessions.findMany({
+        where: {
+          tenantId,
+          customerId: { in: customerIds },
+        },
+        orderBy: { startedAt: 'desc' },
+        select: {
+          customerId: true,
+          callId: true,
+          direction: true,
+          startedAt: true,
+          queueName: true,
+          sessionStatus: true,
+        },
+      });
+
       customers.forEach((customer) => {
+        const recentCalls = recentCallsByCustomerId
+          .filter((item) => item.customerId === customer.customerId)
+          .slice(0, 5)
+          .map(({ customerId: _customerId, ...rest }) => rest);
         byCustomerId.set(customer.customerId, {
           customerId: customer.customerId,
           customerName: customer.customerName ?? '미식별 고객',
@@ -77,6 +98,8 @@ export class CallsService {
           phoneNumber: customer.phones[0]?.phoneNumber ?? '',
           companyName: customer.companyName ?? undefined,
           memo: customer.memo ?? undefined,
+          lastCalledAt: customer.lastCalledAt?.toISOString() ?? undefined,
+          recentCalls,
         });
       });
     }
@@ -110,6 +133,8 @@ export class CallsService {
             phoneNumber: phone.phoneNumber,
             companyName: phone.customer.companyName ?? undefined,
             memo: phone.customer.memo ?? undefined,
+            lastCalledAt: phone.customer.lastCalledAt?.toISOString() ?? undefined,
+            recentCalls: [],
           });
         }
       });
@@ -303,6 +328,29 @@ export class CallsService {
     });
 
     return new Map(queues.map((queue) => [queue.queueName, queue.queueDisplayName]));
+  }
+
+  private getRecordingContentType(fileFormat?: string | null, fileName?: string | null) {
+    const normalized = (fileFormat?.trim() || extname(fileName ?? '').replace('.', '')).toLowerCase();
+    switch (normalized) {
+      case 'wav':
+        return 'audio/wav';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'ogg':
+        return 'audio/ogg';
+      case 'webm':
+        return 'audio/webm';
+      case 'm4a':
+      case 'mp4':
+        return 'audio/mp4';
+      case 'aac':
+        return 'audio/aac';
+      case 'flac':
+        return 'audio/flac';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   async getActiveCalls(tenantId: string, branchId?: string) {
@@ -1106,5 +1154,36 @@ export class CallsService {
         : null,
     }));
     return { success: true, data, error: null };
+  }
+
+  async getRecordingFile(tenantId: string, recordingId: string) {
+    const recording = await this.prisma.callRecordings.findFirst({
+      where: {
+        tenantId,
+        recordingId,
+      },
+      select: {
+        recordingId: true,
+        tenantId: true,
+        filePath: true,
+        fileName: true,
+        fileFormat: true,
+        fileSizeBytes: true,
+        storageProvider: true,
+      },
+    });
+
+    if (!recording) {
+      throw new NotFoundException('Recording not found');
+    }
+
+    if ((recording.storageProvider ?? 'local') !== 'local') {
+      throw new BadRequestException('현재는 로컬 저장 녹취만 지원합니다.');
+    }
+
+    return {
+      ...recording,
+      contentType: this.getRecordingContentType(recording.fileFormat, recording.fileName),
+    };
   }
 }

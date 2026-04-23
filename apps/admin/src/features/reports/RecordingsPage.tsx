@@ -1,7 +1,7 @@
-import { Button, Card, DatePicker, Space, Table, Tag, Typography } from 'antd';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button, Card, DatePicker, Modal, Space, Table, Tag, Typography, message } from 'antd';
+import { DownloadOutlined, PlayCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
 import { usePermissionStore } from '../../store/usePermissionStore';
@@ -50,10 +50,36 @@ function getQueueLabel(row: RecRow) {
 
 export function RecordingsPage() {
   const reportPermission = usePermissionStore((state) => state.permissionsByMenu['reports/recordings']);
+  const [messageApi, messageContextHolder] = message.useMessage();
+  const playerRequestSeq = useRef(0);
   const [rows, setRows]       = useState<RecRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [playerRow, setPlayerRow] = useState<RecRow | null>(null);
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
+  const [playerLoading, setPlayerLoading] = useState(false);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const replacePlayerUrl = (nextUrl: string | null) => {
+    setPlayerUrl((currentUrl) => {
+      if (currentUrl) {
+        URL.revokeObjectURL(currentUrl);
+      }
+      return nextUrl;
+    });
+  };
+
+  const closePlayer = () => {
+    playerRequestSeq.current += 1;
+    setPlayerOpen(false);
+    setPlayerRow(null);
+    setPlayerLoading(false);
+    setPlayerError(null);
+    replacePlayerUrl(null);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -91,8 +117,68 @@ export function RecordingsPage() {
     );
   };
 
+  const openPlayer = async (row: RecRow) => {
+    const requestSeq = playerRequestSeq.current + 1;
+    playerRequestSeq.current = requestSeq;
+    setPlayerOpen(true);
+    setPlayerRow(row);
+    setPlayerLoading(true);
+    setPlayerError(null);
+    replacePlayerUrl(null);
+
+    try {
+      const res = await apiClient.get(`/calls/recordings/${row.recordingId}/stream`, {
+        responseType: 'blob',
+      });
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: res.headers['content-type'] as string | undefined });
+      const nextUrl = URL.createObjectURL(blob);
+      if (requestSeq !== playerRequestSeq.current) {
+        URL.revokeObjectURL(nextUrl);
+        return;
+      }
+      replacePlayerUrl(nextUrl);
+    } catch {
+      if (requestSeq !== playerRequestSeq.current) {
+        return;
+      }
+      setPlayerError('파일을 재생할 수 없습니다.');
+      messageApi.error('녹취 파일을 재생할 수 없습니다.');
+    } finally {
+      if (requestSeq === playerRequestSeq.current) {
+        setPlayerLoading(false);
+      }
+    }
+  };
+
+  const downloadRecording = async (row: RecRow) => {
+    setDownloadingId(row.recordingId);
+    try {
+      const res = await apiClient.get(`/calls/recordings/${row.recordingId}/download`, {
+        responseType: 'blob',
+      });
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: res.headers['content-type'] as string | undefined });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = row.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      messageApi.error('녹취 파일을 다운로드할 수 없습니다.');
+    } finally {
+      setDownloadingId((current) => (current === row.recordingId ? null : current));
+    }
+  };
+
   return (
     <Card>
+      {messageContextHolder}
       <Typography.Title level={4} style={{ marginTop: 0 }}>녹취 목록</Typography.Title>
       <Space style={{ marginBottom: 16 }} wrap>
         <DatePicker.RangePicker
@@ -163,8 +249,56 @@ export function RecordingsPage() {
             width: 70,
           },
           { title: '길이(초)', dataIndex: 'durationSeconds', width: 80 },
+          {
+            title: '작업',
+            key: 'actions',
+            width: 170,
+            render: (_: unknown, row: RecRow) => (
+              <Space size="small">
+                <Button
+                  icon={<PlayCircleOutlined />}
+                  onClick={() => void openPlayer(row)}
+                  loading={playerLoading && playerRow?.recordingId === row.recordingId}
+                >
+                  재생
+                </Button>
+                {reportPermission?.canExport ? (
+                  <Button
+                    icon={<DownloadOutlined />}
+                    onClick={() => void downloadRecording(row)}
+                    loading={downloadingId === row.recordingId}
+                  >
+                    다운로드
+                  </Button>
+                ) : null}
+              </Space>
+            ),
+          },
         ]}
       />
+      <Modal
+        title="녹취 재생"
+        open={playerOpen}
+        onCancel={closePlayer}
+        footer={null}
+        destroyOnClose
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Typography.Text strong>{playerRow?.fileName ?? '-'}</Typography.Text>
+            <Typography.Text type="secondary">
+              발신번호 {playerRow?.session?.ani ?? '-'} / 상담원 {playerRow?.session?.primaryAgent?.agentName ?? '-'}
+            </Typography.Text>
+          </Space>
+          {playerLoading ? <Typography.Text type="secondary">녹취 파일을 불러오는 중입니다.</Typography.Text> : null}
+          {playerError ? <Typography.Text type="danger">{playerError}</Typography.Text> : null}
+          {!playerLoading && !playerError && playerUrl ? (
+            <audio controls autoPlay src={playerUrl} style={{ width: '100%' }}>
+              브라우저가 오디오 재생을 지원하지 않습니다.
+            </audio>
+          ) : null}
+        </Space>
+      </Modal>
     </Card>
   );
 }

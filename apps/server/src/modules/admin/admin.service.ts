@@ -47,6 +47,49 @@ interface BranchRoutingRule {
   daysOfWeek: string[];
 }
 
+type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
+type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
+type Blocklist080SmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
+
+interface BranchBlocklist080Mapping {
+  digit: string;
+  actionType: Blocklist080DtmfActionType | Blocklist080SmartActionType | string;
+  queueId: string | null;
+  smsTemplateId: string | null;
+}
+
+interface BranchBlocklist080DtmfMenu {
+  timeoutSeconds: number;
+  maxRetries: number;
+  invalidPromptId: string | null;
+  timeoutPromptId: string | null;
+  mappings: BranchBlocklist080Mapping[];
+}
+
+interface BranchBlocklist080SmartFlow {
+  inputPromptId: string | null;
+  reentryPromptId: string | null;
+  sameNumberPromptId: string | null;
+  confirmPrefixPromptId: string | null;
+  confirmSuffixPromptId: string | null;
+  confirmMenuPromptId: string | null;
+  failurePromptId: string | null;
+  finalPromptId: string | null;
+  inputTimeoutSeconds: number;
+  maxRetries: number;
+  confirmationMappings: BranchBlocklist080Mapping[];
+}
+
+interface BranchBlocklist080Profile {
+  enabled: boolean;
+  mode: Blocklist080Mode;
+  basePromptId: string | null;
+  completionPromptId: string | null;
+  dtmfMenu?: BranchBlocklist080DtmfMenu;
+  smartFlow?: BranchBlocklist080SmartFlow;
+  smsTemplateId: string | null;
+}
+
 interface BranchSettingsProfile {
   routing: {
     enabled: boolean;
@@ -59,9 +102,7 @@ interface BranchSettingsProfile {
   recording: {
     enabled: boolean;
   };
-  blocklist080: {
-    enabled: boolean;
-  };
+  blocklist080: BranchBlocklist080Profile;
   cid: {
     enabled: boolean;
     defaultOutboundCallerId: string | null;
@@ -96,6 +137,10 @@ const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
   },
   blocklist080: {
     enabled: false,
+    mode: 'IMMEDIATE_OPT_OUT',
+    basePromptId: null,
+    completionPromptId: null,
+    smsTemplateId: null,
   },
   cid: {
     enabled: false,
@@ -108,10 +153,139 @@ const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
 
 const WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const TIME_TEXT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const BLOCKLIST080_MODES: Blocklist080Mode[] = ['IMMEDIATE_OPT_OUT', 'DTMF_MENU', 'SMART_OPT_OUT'];
+const BLOCKLIST080_DTMF_ACTION_TYPES: Blocklist080DtmfActionType[] = [
+  'QUEUE_ROUTE',
+  'REGISTER_OPT_OUT',
+  'UNREGISTER_OPT_OUT',
+  'SEND_SMS',
+];
+const BLOCKLIST080_SMART_ACTION_TYPES: Blocklist080SmartActionType[] = [
+  'REGISTER_OPT_OUT',
+  'REENTER_NUMBER',
+  'SEND_SMS',
+  'HANGUP',
+];
+const BLOCKLIST080_DIGIT_PATTERN = /^[0-9]$/;
+const BLOCKLIST080_SMART_FLOW_END_DIGIT_OVERRIDE_PATTERNS = [
+  'enddigit',
+  'inputenddigit',
+  'terminationdigit',
+  'terminatordigit',
+  'finaldigit',
+];
 
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean))];
+}
+
+function normalizeOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function isBlocklist080SmartFlowEndDigitOverrideKey(key: string): boolean {
+  const normalizedKey = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  return BLOCKLIST080_SMART_FLOW_END_DIGIT_OVERRIDE_PATTERNS.some((pattern) => normalizedKey.includes(pattern));
+}
+
+function normalizeBlocklist080Mode(value: unknown): Blocklist080Mode {
+  if (value === undefined || value === null || value === '') {
+    return DEFAULT_BRANCH_SETTINGS_PROFILE.blocklist080.mode;
+  }
+
+  if (typeof value !== 'string') {
+    throw new BadRequestException('080 수신거부 모드가 올바르지 않습니다.');
+  }
+
+  const normalized = value.trim();
+  if (BLOCKLIST080_MODES.includes(normalized as Blocklist080Mode)) {
+    return normalized as Blocklist080Mode;
+  }
+
+  throw new BadRequestException('080 수신거부 모드가 올바르지 않습니다.');
+}
+
+function normalizeBlocklist080Mappings(value: unknown): BranchBlocklist080Mapping[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => ({
+      digit: typeof item.digit === 'string' ? item.digit.trim() : '',
+      actionType: typeof item.actionType === 'string' ? item.actionType.trim() : '',
+      queueId: normalizeOptionalString(item.queueId),
+      smsTemplateId: normalizeOptionalString(item.smsTemplateId),
+    }));
+}
+
+function normalizeBlocklist080DtmfMenu(value: unknown): BranchBlocklist080DtmfMenu | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const source = value as Record<string, unknown>;
+  return {
+    timeoutSeconds:
+      typeof source.timeoutSeconds === 'number' && Number.isFinite(source.timeoutSeconds)
+        ? Math.max(0, Math.trunc(source.timeoutSeconds))
+        : 0,
+    maxRetries:
+      typeof source.maxRetries === 'number' && Number.isFinite(source.maxRetries)
+        ? Math.max(0, Math.trunc(source.maxRetries))
+        : 0,
+    invalidPromptId: normalizeOptionalString(source.invalidPromptId),
+    timeoutPromptId: normalizeOptionalString(source.timeoutPromptId),
+    mappings: normalizeBlocklist080Mappings(source.mappings),
+  };
+}
+
+function normalizeBlocklist080SmartFlow(value: unknown): BranchBlocklist080SmartFlow | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const source = value as Record<string, unknown>;
+  const overrideKey = Object.keys(source).find((key) => isBlocklist080SmartFlowEndDigitOverrideKey(key));
+
+  if (overrideKey) {
+    throw new BadRequestException('스마트 수신거부의 종료 숫자는 #로 고정되어 있습니다.');
+  }
+
+  return {
+    inputPromptId: normalizeOptionalString(source.inputPromptId),
+    reentryPromptId: normalizeOptionalString(source.reentryPromptId),
+    sameNumberPromptId: normalizeOptionalString(source.sameNumberPromptId),
+    confirmPrefixPromptId: normalizeOptionalString(source.confirmPrefixPromptId),
+    confirmSuffixPromptId: normalizeOptionalString(source.confirmSuffixPromptId),
+    confirmMenuPromptId: normalizeOptionalString(source.confirmMenuPromptId),
+    failurePromptId: normalizeOptionalString(source.failurePromptId),
+    finalPromptId: normalizeOptionalString(source.finalPromptId),
+    inputTimeoutSeconds:
+      typeof source.inputTimeoutSeconds === 'number' && Number.isFinite(source.inputTimeoutSeconds)
+        ? Math.max(0, Math.trunc(source.inputTimeoutSeconds))
+        : 0,
+    maxRetries:
+      typeof source.maxRetries === 'number' && Number.isFinite(source.maxRetries)
+        ? Math.max(0, Math.trunc(source.maxRetries))
+        : 0,
+    confirmationMappings: normalizeBlocklist080Mappings(source.confirmationMappings),
+  };
+}
+
+function normalizeBlocklist080Profile(value: unknown): BranchBlocklist080Profile {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.blocklist080.enabled,
+    mode: normalizeBlocklist080Mode(source.mode),
+    basePromptId: normalizeOptionalString(source.basePromptId),
+    completionPromptId: normalizeOptionalString(source.completionPromptId),
+    dtmfMenu: normalizeBlocklist080DtmfMenu(source.dtmfMenu),
+    smartFlow: normalizeBlocklist080SmartFlow(source.smartFlow),
+    smsTemplateId: normalizeOptionalString(source.smsTemplateId),
+  };
 }
 
 function normalizeWeekdays(value: unknown): string[] {
@@ -199,9 +373,6 @@ function normalizeBranchSettingsProfile(
   const prompts = source.prompts && typeof source.prompts === 'object' ? source.prompts as Record<string, unknown> : {};
   const ars = source.ars && typeof source.ars === 'object' ? source.ars as Record<string, unknown> : {};
   const recording = source.recording && typeof source.recording === 'object' ? source.recording as Record<string, unknown> : {};
-  const blocklist080 = source.blocklist080 && typeof source.blocklist080 === 'object'
-    ? source.blocklist080 as Record<string, unknown>
-    : {};
   const cid = source.cid && typeof source.cid === 'object' ? source.cid as Record<string, unknown> : {};
   const smdr = source.smdr && typeof source.smdr === 'object' ? source.smdr as Record<string, unknown> : {};
 
@@ -239,12 +410,7 @@ function normalizeBranchSettingsProfile(
       enabled:
         typeof recording.enabled === 'boolean' ? recording.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.recording.enabled,
     },
-    blocklist080: {
-      enabled:
-        typeof blocklist080.enabled === 'boolean'
-          ? blocklist080.enabled
-          : DEFAULT_BRANCH_SETTINGS_PROFILE.blocklist080.enabled,
-    },
+    blocklist080: normalizeBlocklist080Profile(source.blocklist080),
     cid: {
       enabled: typeof cid.enabled === 'boolean' ? cid.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.cid.enabled,
       defaultOutboundCallerId:
@@ -308,6 +474,70 @@ function validateBranchSettingsProfile(
   if (!Number.isInteger(queueJoinDelaySeconds) || queueJoinDelaySeconds < 0 || queueJoinDelaySeconds > 300) {
     throw new BadRequestException('큐 인입 지연 시간은 0초 이상 300초 이하 정수여야 합니다.');
   }
+
+  const blocklist080 = profile.blocklist080;
+  if (blocklist080.mode === 'DTMF_MENU') {
+    if (!blocklist080.dtmfMenu) {
+      throw new BadRequestException('080 수신거부 DTMF 메뉴 설정이 필요합니다.');
+    }
+
+    for (const mapping of blocklist080.dtmfMenu.mappings) {
+      if (!BLOCKLIST080_DIGIT_PATTERN.test(mapping.digit)) {
+        throw new BadRequestException('DTMF 메뉴 매핑의 숫자는 0-9만 사용할 수 있습니다.');
+      }
+
+      if (!BLOCKLIST080_DTMF_ACTION_TYPES.includes(mapping.actionType as Blocklist080DtmfActionType)) {
+        throw new BadRequestException('DTMF 메뉴 매핑의 동작은 허용된 값만 사용할 수 있습니다.');
+      }
+
+      if (mapping.actionType === 'QUEUE_ROUTE') {
+        if (!mapping.queueId) {
+          throw new BadRequestException('큐 분기 동작에는 queueId가 필요합니다.');
+        }
+
+        if (!queueIds.includes(mapping.queueId)) {
+          throw new BadRequestException('큐 분기 동작의 queueId는 지사에 연결된 큐여야 합니다.');
+        }
+      }
+    }
+  }
+
+  if (blocklist080.mode === 'SMART_OPT_OUT') {
+    if (!blocklist080.smartFlow) {
+      throw new BadRequestException('080 수신거부 스마트 플로우 설정이 필요합니다.');
+    }
+
+    for (const mapping of blocklist080.smartFlow.confirmationMappings) {
+      if (!BLOCKLIST080_DIGIT_PATTERN.test(mapping.digit)) {
+        throw new BadRequestException('스마트 수신거부 확인 매핑의 숫자는 0-9만 사용할 수 있습니다.');
+      }
+
+      if (!BLOCKLIST080_SMART_ACTION_TYPES.includes(mapping.actionType as Blocklist080SmartActionType)) {
+        throw new BadRequestException('스마트 수신거부 확인 매핑의 동작은 허용된 값만 사용할 수 있습니다.');
+      }
+    }
+  }
+}
+
+function collectReferencedOptOutSmsTemplateIds(profile: BranchSettingsProfile): string[] {
+  const ids = new Set<string>();
+  const addId = (value: string | null | undefined) => {
+    if (typeof value === 'string' && value.trim()) {
+      ids.add(value.trim());
+    }
+  };
+
+  addId(profile.blocklist080.smsTemplateId);
+
+  for (const mapping of profile.blocklist080.dtmfMenu?.mappings ?? []) {
+    addId(mapping.smsTemplateId);
+  }
+
+  for (const mapping of profile.blocklist080.smartFlow?.confirmationMappings ?? []) {
+    addId(mapping.smsTemplateId);
+  }
+
+  return [...ids];
 }
 
 function buildBranchSettingsSummary(profile: BranchSettingsProfile, counts: { queueCount: number; didCount: number }) {
@@ -821,7 +1051,7 @@ export class AdminService {
       },
     });
 
-    const [agents, queues, dids, prompts, ivrMenus, forwardingRules, systemSettings] = await Promise.all([
+    const [agents, queues, dids, prompts, ivrMenus, forwardingRules, systemSettings, availableSmsTemplates] = await Promise.all([
       this.prisma.agents.findMany({
         where: { tenantId, isActive: true },
         orderBy: [{ extension: 'asc' }],
@@ -894,6 +1124,19 @@ export class AdminService {
           defaultOutboundCallerId: true,
         },
       } as any),
+      this.prisma.tenantSmsTemplate.findMany({
+        where: {
+          tenantId,
+          isActive: true,
+        },
+        orderBy: [{ templateName: 'asc' }],
+        select: {
+          templateId: true,
+          templateName: true,
+          category: true,
+          isActive: true,
+        },
+      }),
     ]);
 
     const assignedQueueIds = branch?.queueMappings.map((item) => item.queueId) ?? [];
@@ -932,6 +1175,7 @@ export class AdminService {
           conditionType: rule.conditionType,
           did: rule.did,
         })),
+        availableSmsTemplates,
         availableCallerIds: callerIds,
         defaultSystemRecordingEnabled: systemSettings?.recordingEnabled ?? true,
         defaultSystemCallerId: systemSettings?.defaultOutboundCallerId ?? null,
@@ -968,6 +1212,7 @@ export class AdminService {
         queueIds: effectiveQueueIds,
         didIds: effectiveDidIds,
       });
+      await this.assertValidOptOutSmsTemplates(tenantId, settingsProfile);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -1321,11 +1566,11 @@ export class AdminService {
       success: true,
       data: row
         ? {
-            ...row,
-            defaultSipPassword: row.defaultSipPassword ?? '',
-            allowedOutboundCallerIds: row.allowedOutboundCallerIds ?? '',
-            defaultOutboundCallerId: row.defaultOutboundCallerId ?? '',
-          }
+          ...row,
+          defaultSipPassword: row.defaultSipPassword ?? '',
+          allowedOutboundCallerIds: row.allowedOutboundCallerIds ?? '',
+          defaultOutboundCallerId: row.defaultOutboundCallerId ?? '',
+        }
         : defaults,
       error: null,
     };
@@ -1381,5 +1626,26 @@ export class AdminService {
     await this.asteriskReloadService.executeReload(tenantId);
 
     return { success: true, data: row, error: null };
+  }
+
+  private async assertValidOptOutSmsTemplates(tenantId: string, profile: BranchSettingsProfile) {
+    const templateIds = collectReferencedOptOutSmsTemplateIds(profile);
+    if (templateIds.length === 0) {
+      return;
+    }
+
+    const rows = await this.prisma.tenantSmsTemplate.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        templateId: { in: templateIds },
+      },
+      select: { templateId: true },
+    });
+    const foundIds = new Set(rows.map((row) => row.templateId));
+
+    if (templateIds.some((templateId) => !foundIds.has(templateId))) {
+      throw new BadRequestException('선택한 SMS 템플릿을 찾을 수 없습니다.');
+    }
   }
 }

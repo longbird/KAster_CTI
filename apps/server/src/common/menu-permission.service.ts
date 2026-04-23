@@ -26,11 +26,13 @@ export const MENU_KEYS = [
   'reports/missed',
   'reports/recordings',
   'reports/logs',
+  'customers',
   'announcements',
   'settings/agents',
   'settings/queues',
   'settings/forwarding',
   'settings/prompts',
+  'settings/sms-templates',
   'settings/branches',
   'settings/permissions',
   'blocklist',
@@ -56,8 +58,10 @@ const MUTABLE_MENU_KEYS = new Set([
   'settings/queues',
   'settings/forwarding',
   'settings/prompts',
+  'settings/sms-templates',
   'settings/branches',
   'settings/permissions',
+  'customers',
   'blocklist',
   'system',
   'asterisk',
@@ -73,6 +77,8 @@ const OPERABLE_MENU_KEYS = new Set([
   'settings/queues',
   'settings/agents',
   'settings/permissions',
+  'settings/sms-templates',
+  'customers',
   'blocklist',
 ]);
 
@@ -143,7 +149,12 @@ export function defaultPermissionFlags(roleCode: string, menuKey: string): Permi
     canUpdate: MUTABLE_MENU_KEYS.has(menuKey),
     canDelete: MUTABLE_MENU_KEYS.has(menuKey),
     canOperate: MUTABLE_MENU_KEYS.has(menuKey) || OPERABLE_MENU_KEYS.has(menuKey),
-    canExport: menuKey.startsWith(REPORT_MENU_PREFIX) || menuKey === 'queues' || menuKey === 'agents',
+    canExport:
+      menuKey.startsWith(REPORT_MENU_PREFIX) ||
+      menuKey === 'queues' ||
+      menuKey === 'agents' ||
+      menuKey === 'customers' ||
+      menuKey === 'settings/sms-templates',
   };
 }
 

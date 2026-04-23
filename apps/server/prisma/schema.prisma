@@ -10,6 +10,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SmsTemplateCategory {
+  OPT_OUT_080
+  GENERAL_NOTICE
+  RESERVATION_ALERT
+}
+
 model tenants {
   tenantId     String    @id @default(uuid()) @db.Uuid
   tenantCode   String    @unique @db.VarChar(32)
@@ -49,6 +55,7 @@ model tenants {
   asteriskTrunks       AsteriskTrunk[]
   asteriskDids         AsteriskDid[]
   asteriskIvrMenus     AsteriskIvrMenu[]
+  smsTemplates         tenantSmsTemplate[]
 }
 
 model agents {
@@ -139,9 +146,10 @@ model customers {
   customerCode   String?   @db.VarChar(32)
   customerName   String?   @db.VarChar(128)
   companyName    String?   @db.VarChar(128)
-  grade          String?   @db.VarChar(32)
+  grade          String?   @default("NORMAL") @db.VarChar(32)
   status         String?   @default("active") @db.VarChar(32)
   memo           String?
+  lastCalledAt   DateTime? @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @db.Timestamptz(6)
 
@@ -164,6 +172,7 @@ model customerPhones {
 
   customer        customers @relation(fields: [customerId], references: [customerId], onDelete: Cascade)
 
+  @@unique([customerId, normalizedPhone])
   @@index([normalizedPhone])
 }
 
@@ -182,6 +191,8 @@ model agentStatusHistory {
 
   tenant          tenants  @relation(fields: [tenantId], references: [tenantId])
   agent           agents   @relation(fields: [agentId], references: [agentId])
+
+  @@index([tenantId, agentId, endedAt, startedAt(sort: Desc)])
 }
 
 model callSessions {
@@ -730,17 +741,39 @@ model AsteriskPrompt {
 }
 
 model AsteriskBlocklistEntry {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @db.Uuid
-  matchType   String   @default("EXACT") @db.VarChar(16)
-  phoneNumber String   @db.VarChar(32)
-  description String?  @db.VarChar(255)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @db.Uuid
+  matchType              String   @default("EXACT") @db.VarChar(16)
+  phoneNumber            String   @db.VarChar(32)
+  normalizedPhoneNumber  String?  @db.VarChar(32)
+  requesterPhoneNumber   String?  @db.VarChar(32)
+  normalizedRequesterPhone String? @db.VarChar(32)
+  sourceType             String?  @db.VarChar(32)
+  branchId               String?  @db.Uuid
+  entryDid               String?  @db.VarChar(32)
+  description            String?  @db.VarChar(255)
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
 
   tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, matchType, phoneNumber])
   @@index([tenantId, isActive])
+}
+
+model tenantSmsTemplate {
+  templateId   String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  templateName String   @db.VarChar(120)
+  category     SmsTemplateCategory
+  content      String   @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, templateName], map: "tenantSmsTemplate_tenantId_templateName_key")
+  @@index([tenantId, category], map: "tenantSmsTemplate_tenantId_category_idx")
 }

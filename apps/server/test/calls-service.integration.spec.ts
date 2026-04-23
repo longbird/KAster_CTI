@@ -38,6 +38,7 @@ describe('CallsService branch filter integration', () => {
       update: jest.fn(),
     },
     callRecordings: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
     },
     agents: {
@@ -317,6 +318,59 @@ describe('CallsService branch filter integration', () => {
       ],
       error: null,
     });
+  });
+
+  it('getRecordingFile 는 local 녹취 파일 메타와 재생 가능한 contentType 을 반환한다', async () => {
+    prisma.callRecordings.findFirst.mockResolvedValue({
+      recordingId: 'rec-local-1',
+      tenantId: 'tenant-1',
+      filePath: 'D:\\recordings\\2026\\rec-local-1.wav',
+      fileName: 'rec-local-1.wav',
+      fileFormat: 'wav',
+      fileSizeBytes: BigInt(2048),
+      storageProvider: 'local',
+    });
+
+    await expect(service.getRecordingFile('tenant-1', 'rec-local-1')).resolves.toMatchObject({
+      recordingId: 'rec-local-1',
+      tenantId: 'tenant-1',
+      filePath: 'D:\\recordings\\2026\\rec-local-1.wav',
+      fileName: 'rec-local-1.wav',
+      fileSizeBytes: BigInt(2048),
+      contentType: 'audio/wav',
+    });
+
+    expect(prisma.callRecordings.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        recordingId: 'rec-local-1',
+      },
+      select: {
+        recordingId: true,
+        tenantId: true,
+        filePath: true,
+        fileName: true,
+        fileFormat: true,
+        fileSizeBytes: true,
+        storageProvider: true,
+      },
+    });
+  });
+
+  it('getRecordingFile 는 local 이 아닌 스토리지를 거부한다', async () => {
+    prisma.callRecordings.findFirst.mockResolvedValue({
+      recordingId: 'rec-s3-1',
+      tenantId: 'tenant-1',
+      filePath: 's3://bucket/rec-s3-1.mp3',
+      fileName: 'rec-s3-1.mp3',
+      fileFormat: 'mp3',
+      fileSizeBytes: BigInt(1024),
+      storageProvider: 's3',
+    });
+
+    await expect(service.getRecordingFile('tenant-1', 'rec-s3-1')).rejects.toThrow(
+      '현재는 로컬 저장 녹취만 지원합니다.',
+    );
   });
 
   it('branchId 가 없으면 branch mapping 조회 없이 기본 범위로 history 를 조회한다', async () => {

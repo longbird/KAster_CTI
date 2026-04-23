@@ -133,10 +133,23 @@ export interface AsteriskBlocklistEntry {
   id: string;
   matchType: 'EXACT' | 'PREFIX';
   phoneNumber: string;
+  normalizedPhoneNumber?: string | null;
+  requesterPhoneNumber?: string | null;
+  normalizedRequesterPhone?: string | null;
+  sourceType?: string | null;
+  branchId?: string | null;
+  entryDid?: string | null;
   description: string | null;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface AsteriskBlocklistEntryInput {
+  matchType?: 'EXACT' | 'PREFIX';
+  phoneNumber: string;
+  description?: string;
+  isActive?: boolean;
 }
 
 export interface ConfPreview {
