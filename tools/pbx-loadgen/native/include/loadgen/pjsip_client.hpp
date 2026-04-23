@@ -1,27 +1,28 @@
 #pragma once
 
-#include <functional>
-#include <optional>
+#include <memory>
 #include <string>
 
-#include "loadgen/call_types.hpp"
-#include "loadgen/scenario.hpp"
+#include "loadgen/live_run.hpp"
 
 namespace loadgen {
 
-using CallUpdateHandler = std::function<void(const CallResult&)>;
-
-class PjsipClient {
+class PjsipClient : public LiveCallRunner {
  public:
-  void start(const Scenario& scenario);
-  void stop();
-  void makeOneCall(const std::string& callRunId,
-                   const std::string& callerId,
-                   const std::string& did,
-                   CallUpdateHandler onUpdate);
+  struct Impl;
+
+  PjsipClient();
+  ~PjsipClient() override;
+
+  PjsipClient(const PjsipClient&) = delete;
+  PjsipClient& operator=(const PjsipClient&) = delete;
+
+  void start(const Scenario& scenario) override;
+  void stop() override;
+  CallResult runCall(const LiveCallRequest& request) override;
 
  private:
-  std::optional<Scenario> scenario_;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace loadgen

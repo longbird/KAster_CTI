@@ -1,11 +1,17 @@
 #include "loadgen/command_logic.hpp"
 
-#include <cmath>
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <future>
 #include <limits>
 #include <queue>
 #include <string>
+#include <thread>
 #include <vector>
+
+#include "loadgen/live_run.hpp"
 
 namespace loadgen {
 
@@ -44,6 +50,38 @@ int rampedStartOffsetMs(std::size_t callNumber,
 
   return static_cast<int>(static_cast<long long>(rampUpMs) / 2 +
                           (1000LL * callOrdinal) / targetCps);
+}
+
+int deriveHoldDurationMs(std::size_t callIndex, const Scenario& scenario) {
+  const int minHoldSeconds = std::max(0, scenario.callFlow.holdSecondsMin);
+  const int maxHoldSeconds =
+      std::max(minHoldSeconds, scenario.callFlow.holdSecondsMax);
+  const int rangeSeconds = maxHoldSeconds - minHoldSeconds;
+  const int holdSeconds =
+      minHoldSeconds + (rangeSeconds > 0 ? static_cast<int>(callIndex % (rangeSeconds + 1)) : 0);
+  return holdSeconds * 1000;
+}
+
+std::string failureCodeToString(FailureCode failureCode) {
+  switch (failureCode) {
+    case FailureCode::NONE:
+      return "none";
+    case FailureCode::AUTH_FAILED:
+      return "auth_failed";
+    case FailureCode::TIMEOUT_NO_RESPONSE:
+      return "timeout_no_response";
+    case FailureCode::REJECTED_4XX:
+      return "rejected_4xx";
+    case FailureCode::SERVER_5XX:
+      return "server_5xx";
+    case FailureCode::MEDIA_INIT_FAILED:
+      return "media_init_failed";
+    case FailureCode::RTP_INACTIVE:
+      return "rtp_inactive";
+    case FailureCode::TRANSPORT_ERROR:
+      return "transport_error";
+  }
+  return "unknown";
 }
 
 std::vector<CallResultDetail> buildSimulatedDetails(
@@ -164,6 +202,122 @@ std::string formatDryRunSummary(const PracticalSchedule& schedule) {
          " firstStartMs=" + std::to_string(schedule.firstStartMs) +
          " lastStartMs=" + std::to_string(schedule.lastStartMs) +
          " totalScheduleMs=" + std::to_string(schedule.totalScheduleMs);
+}
+
+PracticalRunResult executeLiveRun(const Scenario& scenario,
+                                  LiveCallRunner& runner) {
+  const auto practicalSchedule = buildPracticalSchedule(scenario);
+  std::vector<std::future<std::pair<CallResult, CallResultDetail>>> futures;
+  futures.reserve(practicalSchedule.schedule.calls.size());
+
+  std::atomic<int> activeCalls{0};
+  std::atomic<int> peakConcurrent{0};
+  const auto testStart = std::chrono::steady_clock::now();
+
+  runner.start(scenario);
+
+  try {
+    for (const auto& scheduledCall : practicalSchedule.schedule.calls) {
+      futures.push_back(std::async(
+          std::launch::async,
+          [&scenario,
+           &runner,
+           &activeCalls,
+           &peakConcurrent,
+           scheduledCall,
+           testStart]() -> std::pair<CallResult, CallResultDetail> {
+            std::this_thread::sleep_until(
+                testStart + std::chrono::milliseconds(scheduledCall.startOffsetMs));
+
+            const int currentActive = activeCalls.fetch_add(1) + 1;
+            int observedPeak = peakConcurrent.load();
+            while (currentActive > observedPeak &&
+                   !peakConcurrent.compare_exchange_weak(observedPeak,
+                                                         currentActive)) {
+            }
+
+            struct ActiveCallScope {
+              std::atomic<int>& counter;
+              ~ActiveCallScope() { counter.fetch_sub(1); }
+            } scope{activeCalls};
+
+            const std::string callRunId =
+                "call-" + std::to_string(scheduledCall.index + 1);
+            const std::string callerId =
+                scenario.callFlow.callerIdPool[scheduledCall.index %
+                                               scenario.callFlow.callerIdPool.size()];
+            const std::string did =
+                scenario.callFlow.didPool[scheduledCall.index %
+                                          scenario.callFlow.didPool.size()];
+
+            const LiveCallRequest request{
+                callRunId,
+                callerId,
+                did,
+                scheduledCall.startOffsetMs,
+                scenario.callFlow.answerTimeoutMs,
+                deriveHoldDurationMs(scheduledCall.index, scenario),
+            };
+
+            CallResult result;
+            try {
+              result = runner.runCall(request);
+            } catch (...) {
+              result.callRunId = request.callRunId;
+              result.state = CallState::FAILED;
+              result.failureCode = FailureCode::TRANSPORT_ERROR;
+            }
+
+            if (result.callRunId.empty()) {
+              result.callRunId = request.callRunId;
+            }
+
+            return {
+                result,
+                CallResultDetail{
+                    request.callRunId,
+                    request.callerId,
+                    request.did,
+                    result.finalSipCode,
+                    failureCodeToString(result.failureCode),
+                    request.startOffsetMs,
+                },
+            };
+          }));
+    }
+
+    int connected = 0;
+    std::vector<CallResultDetail> details;
+    details.reserve(futures.size());
+
+    for (auto& future : futures) {
+      auto [result, detail] = future.get();
+      if (isSuccessful(result)) {
+        ++connected;
+      }
+      details.push_back(std::move(detail));
+    }
+
+    runner.stop();
+
+    const RunSummary summary{
+        static_cast<int>(practicalSchedule.schedule.calls.size()),
+        connected,
+        static_cast<int>(practicalSchedule.schedule.calls.size()) - connected,
+        peakConcurrent.load(),
+        practicalSchedule.totalScheduleMs,
+    };
+
+    const auto artifacts = writeReports(summary,
+                                        details,
+                                        scenario.reporting.outputDir,
+                                        scenario.reporting.saveFailureDetails);
+
+    return {summary, artifacts};
+  } catch (...) {
+    runner.stop();
+    throw;
+  }
 }
 
 PracticalRunResult executePracticalRun(const Scenario& scenario) {

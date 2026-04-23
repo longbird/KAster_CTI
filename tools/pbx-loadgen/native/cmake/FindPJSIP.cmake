@@ -7,7 +7,7 @@ include(FindPackageHandleStandardArgs)
 set(_PJSIP_NOT_FOUND_MESSAGE "")
 unset(PJSIP_INCLUDE_DIR)
 unset(PJSIP_LIBRARIES)
-unset(PJSIP_PJSUA2_LIBRARY)
+unset(PJSIP_PJSUA_LIB_LIBRARY)
 
 function(_pjsip_resolve_library out_var lib_name)
   unset(${out_var} PARENT_SCOPE)
@@ -47,9 +47,31 @@ function(_pjsip_resolve_library out_var lib_name)
   list(SORT _pjsip_pattern_matches)
   list(LENGTH _pjsip_pattern_matches _pjsip_pattern_match_count)
   if(_pjsip_pattern_match_count GREATER 0)
-    list(GET _pjsip_pattern_matches 0 _pjsip_pattern_match)
-    set(${out_var} "${_pjsip_pattern_match}" PARENT_SCOPE)
-    set(${_pjsip_cache_var} "${_pjsip_pattern_match}" PARENT_SCOPE)
+    unset(_pjsip_preferred_match)
+    unset(_pjsip_preferred_match_name)
+    foreach(_pjsip_pattern_match IN LISTS _pjsip_pattern_matches)
+      string(TOLOWER "${_pjsip_pattern_match}" _pjsip_pattern_match_lower)
+      if(_pjsip_pattern_match_lower MATCHES "debug")
+        continue()
+      endif()
+      get_filename_component(_pjsip_pattern_match_name "${_pjsip_pattern_match}" NAME)
+      if(NOT _pjsip_preferred_match)
+        set(_pjsip_preferred_match "${_pjsip_pattern_match}")
+        set(_pjsip_preferred_match_name "${_pjsip_pattern_match_name}")
+        continue()
+      endif()
+      string(LENGTH "${_pjsip_pattern_match_name}" _pjsip_pattern_match_name_length)
+      string(LENGTH "${_pjsip_preferred_match_name}" _pjsip_preferred_match_name_length)
+      if(_pjsip_pattern_match_name_length LESS _pjsip_preferred_match_name_length)
+        set(_pjsip_preferred_match "${_pjsip_pattern_match}")
+        set(_pjsip_preferred_match_name "${_pjsip_pattern_match_name}")
+      endif()
+    endforeach()
+    if(NOT _pjsip_preferred_match)
+      list(GET _pjsip_pattern_matches 0 _pjsip_preferred_match)
+    endif()
+    set(${out_var} "${_pjsip_preferred_match}" PARENT_SCOPE)
+    set(${_pjsip_cache_var} "${_pjsip_preferred_match}" PARENT_SCOPE)
   endif()
 endfunction()
 
@@ -61,15 +83,21 @@ else()
   file(
     GLOB_RECURSE PJSIP_HEADER_CANDIDATES
     LIST_DIRECTORIES false
-    "${PJSIP_ROOT}/**/pjsua2.hpp"
+    "${PJSIP_ROOT}/**/pjsua.h"
   )
   list(LENGTH PJSIP_HEADER_CANDIDATES _pjsip_header_count)
   if(_pjsip_header_count GREATER 0)
     list(GET PJSIP_HEADER_CANDIDATES 0 PJSIP_HEADER_FILE)
-    get_filename_component(PJSIP_INCLUDE_DIR "${PJSIP_HEADER_FILE}" DIRECTORY)
+    get_filename_component(_PJSIP_HEADER_DIR "${PJSIP_HEADER_FILE}" DIRECTORY)
+    get_filename_component(_PJSIP_HEADER_DIR_NAME "${_PJSIP_HEADER_DIR}" NAME)
+    if(_PJSIP_HEADER_DIR_NAME STREQUAL "pjsua-lib")
+      get_filename_component(PJSIP_INCLUDE_DIR "${_PJSIP_HEADER_DIR}" DIRECTORY)
+    else()
+      set(PJSIP_INCLUDE_DIR "${_PJSIP_HEADER_DIR}")
+    endif()
   else()
     set(_PJSIP_NOT_FOUND_MESSAGE
-        "Could not find pjsua2.hpp under PJSIP_ROOT='${PJSIP_ROOT}'.")
+        "Could not find pjsua.h under PJSIP_ROOT='${PJSIP_ROOT}'.")
   endif()
 
   set(_PJSIP_LIBRARY_DIR_HINTS
@@ -92,17 +120,16 @@ else()
   list(REMOVE_DUPLICATES _PJSIP_LIBRARY_DIR_HINTS)
 
   set(_PJSIP_NAMED_LIBRARIES
-      pjsua2
-      pjsua
+      pjsua-lib
       pjsip-ua
       pjsip-simple
-      pjsip
+      pjsip-core
       pjmedia
       pjmedia-codec
-      pjmedia-audiodev
       pjnath
+      pjlib
       pjlib-util
-      pj
+      libpjproject
   )
   foreach(_pjsip_lib_name IN LISTS _PJSIP_NAMED_LIBRARIES)
     _pjsip_resolve_library(_pjsip_resolved_library "${_pjsip_lib_name}")
@@ -112,15 +139,30 @@ else()
   endforeach()
   list(REMOVE_DUPLICATES PJSIP_LIBRARIES)
 
-  if(NOT PJSIP_PJSUA2_LIBRARY AND NOT _PJSIP_NOT_FOUND_MESSAGE)
+  if(WIN32)
+    list(APPEND PJSIP_LIBRARIES
+         ws2_32
+         wsock32
+         iphlpapi
+         winmm
+         ole32
+         oleaut32
+         uuid
+         secur32
+         advapi32
+         avrt
+         legacy_stdio_definitions)
+  endif()
+
+  if(NOT PJSIP_PJSUA_LIB_LIBRARY AND NOT _PJSIP_NOT_FOUND_MESSAGE)
     set(_PJSIP_NOT_FOUND_MESSAGE
-        "Could not find the required pjsua2 library under PJSIP_ROOT='${PJSIP_ROOT}'.")
+        "Could not find the required pjsua-lib library under PJSIP_ROOT='${PJSIP_ROOT}'.")
   endif()
 endif()
 
 find_package_handle_standard_args(
   PJSIP
-  REQUIRED_VARS PJSIP_INCLUDE_DIR PJSIP_PJSUA2_LIBRARY
+  REQUIRED_VARS PJSIP_INCLUDE_DIR PJSIP_PJSUA_LIB_LIBRARY
   FAIL_MESSAGE "${_PJSIP_NOT_FOUND_MESSAGE}"
 )
 

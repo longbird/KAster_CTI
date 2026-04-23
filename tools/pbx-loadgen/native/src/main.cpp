@@ -5,6 +5,8 @@
 #include <string>
 
 #include "loadgen/command_logic.hpp"
+#include "loadgen/live_run.hpp"
+#include "loadgen/pjsip_client.hpp"
 #include "loadgen/report_writer.hpp"
 #include "loadgen/scenario.hpp"
 
@@ -51,9 +53,10 @@ int main(int argc, char** argv) {
 
     if (*run) {
       const auto scenario = loadgen::loadScenarioFromFile(file);
-      std::cout << loadgen::formatRunArtifacts(
-                       loadgen::executePracticalRun(scenario).artifacts)
-                << '\n';
+      loadgen::PjsipClient client;
+      std::cout
+          << loadgen::formatRunArtifacts(loadgen::executeLiveRun(scenario, client).artifacts)
+          << '\n';
       return 0;
     }
 

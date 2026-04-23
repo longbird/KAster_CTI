@@ -1,9 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
+#include <algorithm>
 #include <filesystem>
+#include <mutex>
 
 #include "loadgen/command_logic.hpp"
+#include "loadgen/live_run.hpp"
 #include "loadgen/report_writer.hpp"
 #include "loadgen/scenario.hpp"
 
@@ -21,6 +24,30 @@ loadgen::Scenario makeScenario(const std::string& outputDir,
       {outputDir, 500, saveFailureDetails},
   };
 }
+
+class FakeLiveRunner : public loadgen::LiveCallRunner {
+ public:
+  void start(const loadgen::Scenario&) override { started = true; }
+  void stop() override { stopped = true; }
+
+  loadgen::CallResult runCall(const loadgen::LiveCallRequest& request) override {
+    std::lock_guard<std::mutex> lock(mutex);
+    requests.push_back(request);
+
+    loadgen::CallResult result;
+    result.callRunId = request.callRunId;
+    result.finalSipCode = request.did == "1898" ? 486 : 200;
+    result.state = result.finalSipCode == 200 ? loadgen::CallState::COMPLETED
+                                              : loadgen::CallState::FAILED;
+    result.failureCode = loadgen::mapFailureCode(result.finalSipCode);
+    return result;
+  }
+
+  bool started{false};
+  bool stopped{false};
+  std::mutex mutex;
+  std::vector<loadgen::LiveCallRequest> requests;
+};
 
 }  // namespace
 
@@ -104,4 +131,38 @@ TEST_CASE("practical report replay formats saved summary", "[command]") {
   REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("attempted=4"));
   REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("connected=4"));
   REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("failed=0"));
+}
+
+TEST_CASE("live run executes scheduled calls through the provided runner", "[command]") {
+  const auto outputDir =
+      (std::filesystem::temp_directory_path() / "pbx-loadgen-command-live").string();
+  std::filesystem::remove_all(outputDir);
+  auto scenario = makeScenario(outputDir, true, 0, 0);
+  scenario.load.totalCalls = 2;
+  scenario.load.maxConcurrent = 2;
+  scenario.callFlow.didPool = {"1899", "1898"};
+  scenario.callFlow.holdSecondsMin = 1;
+  scenario.callFlow.holdSecondsMax = 1;
+
+  FakeLiveRunner runner;
+  const auto result = loadgen::executeLiveRun(scenario, runner);
+
+  REQUIRE(runner.started);
+  REQUIRE(runner.stopped);
+  REQUIRE(runner.requests.size() == 2);
+  REQUIRE(std::all_of(runner.requests.begin(),
+                      runner.requests.end(),
+                      [](const loadgen::LiveCallRequest& request) {
+                        return request.answerTimeoutMs == 8000 &&
+                               request.holdDurationMs == 1000;
+                      }));
+  REQUIRE(result.summary.attempted == 2);
+  REQUIRE(result.summary.connected == 1);
+  REQUIRE(result.summary.failed == 1);
+  REQUIRE(std::filesystem::exists(result.artifacts.jsonPath));
+  REQUIRE(std::filesystem::exists(result.artifacts.csvPath));
+
+  const auto replayed = loadgen::readSummaryReport(result.artifacts.jsonPath);
+  REQUIRE(replayed.connected == 1);
+  REQUIRE(replayed.failed == 1);
 }
