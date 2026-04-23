@@ -1,8 +1,8 @@
 target:
-  host: 192.168.0.10
-  port: 5060
+  host: 49.247.46.86
+  port: 36070
   transport: udp
-  requestUriTemplate: "sip:{did}@192.168.0.10:5060"
+  requestUriTemplate: "sip:{did}@49.247.46.86:36070"
 load:
   cps: 30
   maxConcurrent: 300
@@ -11,7 +11,7 @@ load:
   callStartJitterMs: 50
 callFlow:
   callerIdPool: ["01011110001", "01011110002", "01011110003", "01011110004"]
-  didPool: ["1899"]
+  didPool: ["07052346380", "07052346381", "07052346382", "07052346383", "07052346384", "07052346385", "07052346386", "07052346387", "07052346388", "07052346389"]
   answerTimeoutMs: 12000
   holdSecondsMin: 15
   holdSecondsMax: 20
