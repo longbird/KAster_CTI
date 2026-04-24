@@ -167,12 +167,6 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
       </div>
 
       <Space wrap size={8} className="customers-page__filters">
-        <Input
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="전화번호 또는 성명 검색"
-          style={{ width: 220 }}
-        />
         <Select
           allowClear
           value={grade}
@@ -199,6 +193,12 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           onChange={(value) => setDateRange((value as [Dayjs, Dayjs]) ?? null)}
           className="customers-page__date-range"
           style={{ width: 250 }}
+        />
+        <Input
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          placeholder="전화번호 또는 성명 검색"
+          style={{ width: 220 }}
         />
         <Button onClick={() => void load()}>조회</Button>
       </Space>

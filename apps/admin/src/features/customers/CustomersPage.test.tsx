@@ -50,6 +50,16 @@ describe('CustomersPage layout', () => {
     expect(html).toContain('width:250px');
     expect(html.match(/class="ant-picker ant-picker-range /g)?.length ?? 0).toBe(1);
   });
+
+  it('places the keyword search immediately before the search button', () => {
+    const html = renderToStaticMarkup(<CustomersPage />);
+    const keywordIndex = html.indexOf('placeholder="전화번호 또는 성명 검색"');
+    const dateRangeIndex = html.indexOf('customers-page__date-range');
+    const searchButtonIndex = html.indexOf('>조회<');
+
+    expect(keywordIndex).toBeGreaterThan(dateRangeIndex);
+    expect(searchButtonIndex).toBeGreaterThan(keywordIndex);
+  });
 });
 
 describe('buildCustomerListParams', () => {
