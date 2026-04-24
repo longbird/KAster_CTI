@@ -1,10 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import dayjs from 'dayjs';
+import { Form } from 'antd';
 
 import { buildCustomerListParams, CustomersPage } from './CustomersPage';
 import { formatCustomerListDate, formatCustomerPhoneDisplay } from './customerDisplay';
 import { buildCustomerFormValues, normalizeCustomerFormValues } from './CustomerFormFields';
+import { CustomerDetailSummary } from './CustomerDetailSummary';
 
 vi.mock('../../store/usePermissionStore', () => ({
   usePermissionStore: (selector: (state: unknown) => unknown) =>
@@ -169,5 +171,46 @@ describe('customer form helpers', () => {
       primaryPhoneNumber: '01012345678',
       extraPhoneNumbers: ['021234567', '0312345678'],
     });
+  });
+});
+
+describe('customer detail summary', () => {
+  const detail = {
+    customerId: 'customer-1',
+    customerName: '김고객',
+    grade: 'VIP' as const,
+    memo: '상세 메모',
+    createdAt: '2026-04-24T00:00:00Z',
+    updatedAt: '2026-04-24T00:00:00Z',
+    lastCalledAt: '2026-04-25T00:00:00Z',
+    primaryPhoneNumber: '01012345678',
+    extraPhoneNumbers: ['021234567'],
+    phones: [
+      { customerPhoneId: 'phone-1', phoneNumber: '01012345678', normalizedPhone: '01012345678', isPrimary: true, isActive: true },
+      { customerPhoneId: 'phone-2', phoneNumber: '021234567', normalizedPhone: '021234567', isPrimary: false, isActive: true },
+    ],
+    recentCalls: [],
+  };
+
+  it('keeps the same detail layout while showing read-only values', () => {
+    const html = renderToStaticMarkup(<CustomerDetailSummary detail={detail} editing={false} />);
+
+    expect(html).toContain('대표 전화번호');
+    expect(html).toContain('010-1234-5678');
+    expect(html).toContain('02-123-4567');
+    expect(html).toContain('2026-04-25');
+  });
+
+  it('renders editable controls inside the same detail summary layout', () => {
+    const html = renderToStaticMarkup(
+      <Form initialValues={buildCustomerFormValues(detail, detail.grade)}>
+        <CustomerDetailSummary detail={detail} editing />
+      </Form>,
+    );
+
+    expect(html).toContain('대표 전화번호');
+    expect(html).toContain('value="01012345678"');
+    expect(html).toContain('줄바꿈 또는 쉼표로 구분');
+    expect(html).toContain('상세 메모');
   });
 });
