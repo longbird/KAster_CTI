@@ -1,4 +1,4 @@
-import { DeleteOutlined, DownloadOutlined, EditOutlined, EyeOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { Button, Card, DatePicker, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -10,6 +10,7 @@ import { CustomerFormModal } from './CustomerFormModal';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { CustomerFormInput, CustomerRow } from './types/customer';
 import type { CustomerListParams } from './api/customersApi';
+import { formatCustomerListDate, formatCustomerPhoneDisplay } from './customerDisplay';
 
 interface Props {
   initialGrade?: 'NORMAL' | 'VIP' | 'BLACK';
@@ -23,35 +24,6 @@ const GRADE_COLOR: Record<string, string> = {
 };
 
 const headerLabel = (label: string) => <span className="customers-page__table-header">{label}</span>;
-
-export function formatCustomerPhoneDisplay(value?: string | null): string {
-  if (!value) return '-';
-  const digits = value.replace(/\D/g, '');
-
-  if (/^15\d{6}$|^16\d{6}$|^18\d{6}$/.test(digits)) {
-    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-  }
-
-  if (digits.startsWith('02')) {
-    if (digits.length === 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
-    if (digits.length === 10) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-
-  return value;
-}
-
-export function formatCustomerListDate(value?: string | null): string {
-  if (!value) return '-';
-  return dayjs(value).format('YYYY-MM-DD');
-}
 
 export type CustomerDateFilterType = 'registered' | 'lastCalled';
 
@@ -244,9 +216,30 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
             title: headerLabel('대표전화번호'),
             dataIndex: 'primaryPhoneNumber',
             width: 160,
-            render: (value?: string | null) => formatCustomerPhoneDisplay(value),
+            render: (value: string | null | undefined, row) => (
+              <Button
+                type="link"
+                style={{ padding: 0, height: 'auto', whiteSpace: 'nowrap' }}
+                onClick={() => setDetailCustomerId(row.customerId)}
+              >
+                {formatCustomerPhoneDisplay(value)}
+              </Button>
+            ),
           },
-          { title: headerLabel('성명'), dataIndex: 'customerName', width: 140, render: (value?: string | null) => value ?? '-' },
+          {
+            title: headerLabel('성명'),
+            dataIndex: 'customerName',
+            width: 140,
+            render: (value: string | null | undefined, row) => (
+              <Button
+                type="link"
+                style={{ padding: 0, height: 'auto', whiteSpace: 'nowrap' }}
+                onClick={() => setDetailCustomerId(row.customerId)}
+              >
+                {value ?? '-'}
+              </Button>
+            ),
+          },
           {
             title: headerLabel('등급'),
             dataIndex: 'grade',
@@ -258,12 +251,9 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           { title: headerLabel('기본메모'), dataIndex: 'memo', width: 180, ellipsis: true, render: (value?: string | null) => value || '-' },
           {
             title: headerLabel('액션'),
-            width: 200,
+            width: 132,
             render: (_: unknown, row) => (
               <Space>
-                <Button size="small" icon={<EyeOutlined />} onClick={() => setDetailCustomerId(row.customerId)}>
-                  상세
-                </Button>
                 {permission?.canUpdate !== false ? (
                   <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
                     수정
@@ -287,7 +277,13 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
         onClose={() => { setCreateOpen(false); setEditing(null); }}
         onSave={saveCustomer}
       />
-      <CustomerDetailDrawer open={!!detailCustomerId} customerId={detailCustomerId} onClose={() => setDetailCustomerId(null)} />
+      <CustomerDetailDrawer
+        open={!!detailCustomerId}
+        customerId={detailCustomerId}
+        onClose={() => setDetailCustomerId(null)}
+        canUpdate={permission?.canUpdate !== false}
+        onSaved={load}
+      />
       <CustomerImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}

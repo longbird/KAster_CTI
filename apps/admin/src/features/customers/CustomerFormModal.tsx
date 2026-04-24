@@ -1,6 +1,7 @@
-import { Form, Input, Modal, Select } from 'antd';
+import { Form, Modal } from 'antd';
 import { useEffect } from 'react';
 import type { CustomerFormInput, CustomerRow } from './types/customer';
+import { buildCustomerFormValues, CustomerFormFields, normalizeCustomerFormValues, type CustomerFormValues } from './CustomerFormFields';
 
 interface Props {
   open: boolean;
@@ -11,21 +12,11 @@ interface Props {
 }
 
 export function CustomerFormModal({ open, customer, defaultGrade = 'NORMAL', onClose, onSave }: Props) {
-  const [form] = Form.useForm<CustomerFormInput & { extraPhoneNumbersText?: string }>();
+  const [form] = Form.useForm<CustomerFormValues>();
 
   useEffect(() => {
     if (!open) return;
-    form.setFieldsValue({
-      customerName: customer?.customerName ?? '',
-      grade: customer?.grade ?? defaultGrade,
-      memo: customer?.memo ?? '',
-      primaryPhoneNumber:
-        customer?.phones.find((phone) => phone.isPrimary)?.phoneNumber ?? customer?.primaryPhoneNumber ?? '',
-      extraPhoneNumbersText: (customer?.phones ?? [])
-        .filter((phone) => !phone.isPrimary)
-        .map((phone) => phone.phoneNumber)
-        .join('\n'),
-    });
+    form.setFieldsValue(buildCustomerFormValues(customer, defaultGrade));
   }, [customer, defaultGrade, form, open]);
 
   return (
@@ -37,40 +28,11 @@ export function CustomerFormModal({ open, customer, defaultGrade = 'NORMAL', onC
       onCancel={onClose}
       onOk={async () => {
         const values = await form.validateFields();
-        await onSave({
-          customerName: values.customerName,
-          grade: values.grade,
-          memo: values.memo,
-          primaryPhoneNumber: values.primaryPhoneNumber,
-          extraPhoneNumbers: (values.extraPhoneNumbersText ?? '')
-            .split(/\r?\n|,/)
-            .map((item) => item.trim())
-            .filter(Boolean),
-        });
+        await onSave(normalizeCustomerFormValues(values));
       }}
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="customerName" label="성명" rules={[{ required: true, message: '성명을 입력하세요.' }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="primaryPhoneNumber" label="대표 전화번호" rules={[{ required: true, message: '대표 전화번호를 입력하세요.' }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="grade" label="등급">
-          <Select
-            options={[
-              { value: 'NORMAL', label: '일반' },
-              { value: 'VIP', label: 'VIP' },
-              { value: 'BLACK', label: 'BLACK' },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item name="extraPhoneNumbersText" label="추가 전화번호">
-          <Input.TextArea rows={4} placeholder="줄바꿈 또는 쉼표로 구분" />
-        </Form.Item>
-        <Form.Item name="memo" label="기본 메모">
-          <Input.TextArea rows={4} />
-        </Form.Item>
+        <CustomerFormFields />
       </Form>
     </Modal>
   );

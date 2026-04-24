@@ -2,7 +2,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import dayjs from 'dayjs';
 
-import { buildCustomerListParams, CustomersPage, formatCustomerListDate, formatCustomerPhoneDisplay } from './CustomersPage';
+import { buildCustomerListParams, CustomersPage } from './CustomersPage';
+import { formatCustomerListDate, formatCustomerPhoneDisplay } from './customerDisplay';
+import { buildCustomerFormValues, normalizeCustomerFormValues } from './CustomerFormFields';
 
 vi.mock('../../store/usePermissionStore', () => ({
   usePermissionStore: (selector: (state: unknown) => unknown) =>
@@ -122,5 +124,50 @@ describe('customer list display helpers', () => {
   it('shows customer list dates as date-only values', () => {
     expect(formatCustomerListDate('2026-04-24T09:30:00Z')).toBe('2026-04-24');
     expect(formatCustomerListDate(null)).toBe('-');
+  });
+});
+
+describe('customer form helpers', () => {
+  it('builds edit form values from the customer record', () => {
+    expect(
+      buildCustomerFormValues({
+        customerId: 'customer-1',
+        customerName: '김고객',
+        grade: 'VIP',
+        memo: '메모',
+        createdAt: '2026-04-24T00:00:00Z',
+        updatedAt: '2026-04-24T00:00:00Z',
+        primaryPhoneNumber: '01012345678',
+        extraPhoneNumbers: ['021234567'],
+        phones: [
+          { customerPhoneId: 'phone-1', phoneNumber: '01012345678', normalizedPhone: '01012345678', isPrimary: true, isActive: true },
+          { customerPhoneId: 'phone-2', phoneNumber: '021234567', normalizedPhone: '021234567', isPrimary: false, isActive: true },
+        ],
+      }),
+    ).toMatchObject({
+      customerName: '김고객',
+      grade: 'VIP',
+      memo: '메모',
+      primaryPhoneNumber: '01012345678',
+      extraPhoneNumbersText: '021234567',
+    });
+  });
+
+  it('normalizes drawer form values back into the api payload', () => {
+    expect(
+      normalizeCustomerFormValues({
+        customerName: '김고객',
+        grade: 'NORMAL',
+        memo: '메모',
+        primaryPhoneNumber: '01012345678',
+        extraPhoneNumbersText: '021234567\n0312345678',
+      }),
+    ).toEqual({
+      customerName: '김고객',
+      grade: 'NORMAL',
+      memo: '메모',
+      primaryPhoneNumber: '01012345678',
+      extraPhoneNumbers: ['021234567', '0312345678'],
+    });
   });
 });
