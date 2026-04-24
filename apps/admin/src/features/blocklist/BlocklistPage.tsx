@@ -1,4 +1,4 @@
-import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -9,16 +9,20 @@ import {
   createBlocklistEntry,
   deleteBlocklistEntry,
   getBlocklistEntries,
+  importBlocklistEntries,
   updateBlocklistEntry,
 } from '../asterisk-config/api/asteriskConfigApi';
 import type { AsteriskBlocklistEntry } from '../asterisk-config/types/asterisk-config';
+import { BLOCKLIST_COPY } from './blocklistCopy';
 import { BlocklistEntryModal, type BlocklistEntryFormValue } from './BlocklistEntryModal';
+import { BlocklistImportModal, type ImportBlocklistEntryRow } from './BlocklistImportModal';
 
 export function BlocklistPage() {
   const blocklistPermission = usePermissionStore((state) => state.permissionsByMenu['blocklist']);
   const [rows, setRows] = useState<AsteriskBlocklistEntry[] | null>(null);
   const [editing, setEditing] = useState<AsteriskBlocklistEntry | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const { options: branchOptions } = useBranchOptions();
 
   const load = async () => {
@@ -26,7 +30,7 @@ export function BlocklistPage() {
       setRows(await getBlocklistEntries());
     } catch {
       setRows([]);
-      message.error('수신거부 목록을 불러오지 못했습니다.');
+      message.error(BLOCKLIST_COPY.loadError);
     }
   };
 
@@ -38,10 +42,10 @@ export function BlocklistPage() {
     try {
       if (editing) {
         await updateBlocklistEntry(editing.id, values);
-        message.success('수신거부 번호를 수정했습니다.');
+        message.success(BLOCKLIST_COPY.editSuccess);
       } else {
         await createBlocklistEntry(values);
-        message.success('수신거부 번호를 등록했습니다.');
+        message.success(BLOCKLIST_COPY.createSuccess);
       }
       setEditing(null);
       setCreateOpen(false);
@@ -55,10 +59,23 @@ export function BlocklistPage() {
   const remove = async (id: string) => {
     try {
       await deleteBlocklistEntry(id);
-      message.success('수신거부 번호를 삭제했습니다.');
+      message.success(BLOCKLIST_COPY.deleteSuccess);
       await load();
     } catch (error: any) {
       message.error(error?.response?.data?.error?.message ?? '삭제에 실패했습니다.');
+    }
+  };
+
+  const importRows = async (importRows: ImportBlocklistEntryRow[]) => {
+    try {
+      const result = await importBlocklistEntries(importRows);
+      const { successCount, skippedCount, failedCount } = result.summary;
+      message.success(`등록 ${successCount}건, 중복 ${skippedCount}건, 실패 ${failedCount}건`);
+      setImportOpen(false);
+      await load();
+    } catch (error: any) {
+      message.error(error?.response?.data?.error?.message ?? '가져오기에 실패했습니다.');
+      throw error;
     }
   };
 
@@ -100,10 +117,10 @@ export function BlocklistPage() {
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} align="start">
         <div>
           <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
-            수신거부 고객 관리
+            {BLOCKLIST_COPY.pageTitle}
           </Typography.Title>
           <Typography.Text type="secondary">
-            고객이 수신을 원하지 않아 등록한 번호 목록입니다. 센터 내부 분류용 BLACK 고객과는 별개로 관리합니다.
+            {BLOCKLIST_COPY.pageDescription}
           </Typography.Text>
         </div>
         <Space wrap>
@@ -113,8 +130,13 @@ export function BlocklistPage() {
             </Button>
           ) : null}
           {blocklistPermission?.canCreate !== false ? (
+            <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+              가져오기
+            </Button>
+          ) : null}
+          {blocklistPermission?.canCreate !== false ? (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              번호 등록
+              {BLOCKLIST_COPY.createButton}
             </Button>
           ) : null}
         </Space>
@@ -207,7 +229,7 @@ export function BlocklistPage() {
                   </Button>
                 ) : null}
                 {blocklistPermission?.canDelete !== false ? (
-                  <Popconfirm title="수신거부 번호를 삭제하시겠습니까?" onConfirm={() => void remove(row.id)}>
+                  <Popconfirm title={BLOCKLIST_COPY.deleteConfirm} onConfirm={() => void remove(row.id)}>
                     <Button size="small" danger icon={<DeleteOutlined />} />
                   </Popconfirm>
                 ) : null}
@@ -231,6 +253,13 @@ export function BlocklistPage() {
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onSave={save}
+        />
+      ) : null}
+      {blocklistPermission?.canCreate !== false ? (
+        <BlocklistImportModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImport={importRows}
         />
       ) : null}
       {blocklistPermission?.canUpdate !== false ? (

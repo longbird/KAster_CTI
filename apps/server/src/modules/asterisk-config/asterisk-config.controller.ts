@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AsteriskConfigService } from './asterisk-config.service';
 import { AsteriskReloadService } from './asterisk-reload.service';
-import { CreateBlocklistEntryDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
+import { CreateBlocklistEntryDto, ImportBlocklistEntriesDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
 import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
@@ -123,6 +123,7 @@ export class AsteriskConfigController {
   // 080 Blocklist
   @Get('blocklist') async getBlocklistEntries(@CurrentUser() u: any) { await this.assertBlocklistAccess(u); return this.svc.getBlocklistEntries(u.tenantId); }
   @Post('blocklist') async createBlocklistEntry(@CurrentUser() u: any, @Body() dto: CreateBlocklistEntryDto) { await this.assertBlocklistAction(u, 'create'); return this.svc.createBlocklistEntry(u.tenantId, dto); }
+  @Post('blocklist/import') async importBlocklistEntries(@CurrentUser() u: any, @Body() dto: ImportBlocklistEntriesDto) { await this.assertBlocklistAction(u, 'create'); return this.svc.importBlocklistEntries(u.tenantId, dto.rows); }
   @Put('blocklist/:id') async updateBlocklistEntry(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateBlocklistEntryDto) { await this.assertBlocklistAction(u, 'update'); return this.svc.updateBlocklistEntry(u.tenantId, id, dto); }
   @Delete('blocklist/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteBlocklistEntry(@CurrentUser() u: any, @Param('id') id: string) { await this.assertBlocklistAction(u, 'delete'); return this.svc.deleteBlocklistEntry(u.tenantId, id); }
 

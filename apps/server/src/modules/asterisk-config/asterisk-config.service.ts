@@ -11,7 +11,7 @@ import {
   DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
   DEFAULT_DISTRIBUTION_RULE_QUEUE_NAME,
 } from '../../common/call-routing.constants';
-import { CreateBlocklistEntryDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
+import { CreateBlocklistEntryDto, ImportBlocklistEntryRowDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
 import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
@@ -1245,6 +1245,43 @@ export class AsteriskConfigService {
     return entry;
   }
 
+  async importBlocklistEntries(tenantId: string, rows: ImportBlocklistEntryRowDto[]) {
+    const summary = { successCount: 0, skippedCount: 0, failedCount: 0 };
+    const failures: Array<{ rowNumber: number; reason: string }> = [];
+
+    for (const [index, row] of rows.entries()) {
+      try {
+        await this.prisma.asteriskBlocklistEntry.create({
+          data: {
+            tenantId,
+            matchType: 'EXACT',
+            phoneNumber: this.normalizePhoneNumber(row.전화번호, 'EXACT'),
+            description: row.사유?.trim() || null,
+            isActive: true,
+          },
+        });
+        summary.successCount += 1;
+      } catch (error: any) {
+        if (error?.code === 'P2002') {
+          summary.skippedCount += 1;
+          continue;
+        }
+
+        summary.failedCount += 1;
+        failures.push({
+          rowNumber: index + 1,
+          reason: error?.message ?? '알 수 없는 오류',
+        });
+      }
+    }
+
+    if (summary.successCount > 0) {
+      this.reload.scheduleReload(tenantId);
+    }
+
+    return { success: true, data: { summary, failures }, error: null };
+  }
+
   async updateBlocklistEntry(tenantId: string, id: string, dto: UpdateBlocklistEntryDto) {
     await this.assertBlocklistEntryBelongs(tenantId, id);
     const matchType = this.normalizeBlocklistMatchType(dto.matchType);
@@ -1275,8 +1312,8 @@ export class AsteriskConfigService {
     return normalized;
   }
 
-  private normalizePhoneNumber(phoneNumber: string, matchType: string) {
-    const normalized = phoneNumber.replace(/\D/g, '');
+  private normalizePhoneNumber(phoneNumber: string | number, matchType: string) {
+    const normalized = String(phoneNumber ?? '').replace(/\D/g, '');
     const isValid =
       matchType === 'PREFIX' ? /^\d{2,16}$/.test(normalized) : /^\d{8,16}$/.test(normalized);
     if (!isValid) {

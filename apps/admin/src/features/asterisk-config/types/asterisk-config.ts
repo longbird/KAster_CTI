@@ -152,6 +152,11 @@ export interface AsteriskBlocklistEntryInput {
   isActive?: boolean;
 }
 
+export interface ImportBlocklistEntryRow {
+  전화번호: string;
+  사유?: string;
+}
+
 export interface ConfPreview {
   pjsip: string;
   extensionsInbound: string;

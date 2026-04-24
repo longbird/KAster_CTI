@@ -1,0 +1,23 @@
+{
+  "name": "kaster_cti",
+  "version": "1.0.0",
+  "description": "Asterisk 기반 콜센터 CTI 프로젝트 풀 패키지입니다.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/longbird/KAster_CTI.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/longbird/KAster_CTI/issues"
+  },
+  "homepage": "https://github.com/longbird/KAster_CTI#readme"
+}

@@ -793,7 +793,7 @@ body {
 .dashboard-compact__bottom {
   grid-area: bottom;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 .dashboard-compact .ant-card-head { min-height: 34px; padding: 0 12px; }
@@ -819,6 +819,17 @@ body {
 .dashboard-compact__kpi-cell .label { font-size: 11px; color: #8c8c8c; }
 .dashboard-compact__kpi-cell .value { font-size: 18px; font-weight: 700; color: #141414; }
 .dashboard-compact__kpi-cell .delta { font-size: 11px; color: #52c41a; }
+
+.queue-summary-table__queue-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-summary-table__table .ant-tag {
+  margin-inline-end: 0;
+}
 
 /* ============= Active Calls Kanban (dashboard) ============= */
 .active-calls-kanban {

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../../../config';
-import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskTrunk, AsteriskTrunkInput, ConfPreview } from '../types/asterisk-config';
+import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskTrunk, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow } from '../types/asterisk-config';
 
 function headers(): Record<string, string> {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -81,6 +81,12 @@ export const getBlocklistEntries = () =>
   axios.get<{ data: AsteriskBlocklistEntry[] }>(`${base}/blocklist`, { headers: headers() }).then(r => r.data.data);
 export const createBlocklistEntry = (dto: Omit<AsteriskBlocklistEntry, 'id' | 'createdAt' | 'updatedAt'>) =>
   axios.post<{ data: AsteriskBlocklistEntry }>(`${base}/blocklist`, dto, { headers: headers() }).then(r => r.data.data);
+export const importBlocklistEntries = (rows: ImportBlocklistEntryRow[]) =>
+  axios.post<{ data: { summary: { successCount: number; skippedCount: number; failedCount: number }; failures: Array<{ rowNumber: number; reason: string }> } }>(
+    `${base}/blocklist/import`,
+    { rows },
+    { headers: headers() },
+  ).then(r => r.data.data);
 export const updateBlocklistEntry = (id: string, dto: Omit<AsteriskBlocklistEntry, 'id' | 'createdAt' | 'updatedAt'>) =>
   axios.put<{ data: AsteriskBlocklistEntry }>(`${base}/blocklist/${id}`, dto, { headers: headers() }).then(r => r.data.data);
 export const deleteBlocklistEntry = (id: string) =>

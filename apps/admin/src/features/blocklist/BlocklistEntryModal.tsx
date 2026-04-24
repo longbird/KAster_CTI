@@ -1,6 +1,7 @@
 import { Form, Input, Modal, Select, Switch } from 'antd';
 import { useEffect } from 'react';
 import type { AsteriskBlocklistEntry } from '../asterisk-config/types/asterisk-config';
+import { BLOCKLIST_COPY } from './blocklistCopy';
 
 export type BlocklistEntryFormValue = Omit<AsteriskBlocklistEntry, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -9,6 +10,10 @@ interface Props {
   entry?: AsteriskBlocklistEntry | null;
   onClose: () => void;
   onSave: (values: BlocklistEntryFormValue) => Promise<void>;
+}
+
+export function getBlocklistEntryModalTitle(entry?: AsteriskBlocklistEntry | null) {
+  return entry ? BLOCKLIST_COPY.editTitle : BLOCKLIST_COPY.createTitle;
 }
 
 export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
@@ -35,7 +40,7 @@ export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
 
   return (
     <Modal
-      title={entry ? '수신거부 번호 수정' : '수신거부 번호 등록'}
+      title={getBlocklistEntryModalTitle(entry)}
       open={open}
       onOk={() => void handleOk()}
       onCancel={onClose}
@@ -79,7 +84,7 @@ export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
           <Input placeholder="08012345678 또는 080" />
         </Form.Item>
         <Form.Item name="description" label="사유">
-          <Input placeholder="수신거부 요청" />
+          <Input placeholder={BLOCKLIST_COPY.descriptionPlaceholder} />
         </Form.Item>
         <Form.Item name="isActive" label="활성" valuePropName="checked">
           <Switch />
