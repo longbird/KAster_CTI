@@ -44,6 +44,10 @@ describe('CustomersPage layout', () => {
     const html = renderToStaticMarkup(<CustomersPage />);
 
     expect(html).toContain('customers-page__date-filter');
+    expect(html).toContain('customers-page__date-range');
+    expect(html).toContain('width:108px');
+    expect(html).toContain('width:120px');
+    expect(html).toContain('width:250px');
     expect(html.match(/class="ant-picker ant-picker-range /g)?.length ?? 0).toBe(1);
   });
 });

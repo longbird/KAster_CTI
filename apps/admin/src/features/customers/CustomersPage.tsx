@@ -166,18 +166,18 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
         </Space>
       </div>
 
-      <Space wrap className="customers-page__filters">
+      <Space wrap size={8} className="customers-page__filters">
         <Input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
           placeholder="전화번호 또는 성명 검색"
-          style={{ width: 240 }}
+          style={{ width: 220 }}
         />
         <Select
           allowClear
           value={grade}
           onChange={(value) => setGrade(value)}
-          style={{ width: 140 }}
+          style={{ width: 108 }}
           options={[
             { value: 'NORMAL', label: '일반' },
             { value: 'VIP', label: 'VIP' },
@@ -188,13 +188,18 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           value={dateFilterType}
           onChange={(value) => setDateFilterType(value)}
           className="customers-page__date-filter"
-          style={{ width: 140 }}
+          style={{ width: 120 }}
           options={[
             { value: 'registered', label: '등록일' },
             { value: 'lastCalled', label: '최종통화일' },
           ]}
         />
-        <DatePicker.RangePicker value={dateRange} onChange={(value) => setDateRange((value as [Dayjs, Dayjs]) ?? null)} />
+        <DatePicker.RangePicker
+          value={dateRange}
+          onChange={(value) => setDateRange((value as [Dayjs, Dayjs]) ?? null)}
+          className="customers-page__date-range"
+          style={{ width: 250 }}
+        />
         <Button onClick={() => void load()}>조회</Button>
       </Space>
 
