@@ -1,10 +1,7 @@
 import {
   DashboardOutlined,
-  DesktopOutlined,
   FileTextOutlined,
   MonitorOutlined,
-  NotificationOutlined,
-  PhoneOutlined,
   SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
@@ -26,6 +23,9 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
     children: [
       { key: '/live-calls', label: '통화 현황 조회' },
       { key: '/kpi', label: '업무 현황 조회' },
+      { key: '/queues', label: '큐 현황' },
+      { key: '/agents', label: '상담원 현황' },
+      { key: '/monitoring', label: '시스템 모니터링' },
     ],
   },
   {
@@ -51,16 +51,20 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/settings/prompts', label: '멘트 관리' },
       { key: '/settings/sms-templates', label: '문자 템플릿 관리' },
       { key: '/settings/permissions', label: '권한 관리' },
+      { key: '/announcements', label: '공지사항' },
+      { key: '/asterisk', label: '연동 설정' },
+      { key: '/system', label: '시스템 설정' },
     ],
   },
-  { key: '/customers', icon: <TeamOutlined />, label: '고객 관리' },
-  { key: '/announcements', icon: <NotificationOutlined />, label: '공지사항' },
-  { key: '/blocklist', icon: <PhoneOutlined />, label: '블랙리스트 관리' },
-  { key: '/system', icon: <DesktopOutlined />, label: '시스템 설정' },
-  { key: '/queues', icon: <NotificationOutlined />, label: '큐 현황' },
-  { key: '/agents', icon: <TeamOutlined />, label: '상담원 현황' },
-  { key: '/monitoring', icon: <DesktopOutlined />, label: '시스템 모니터링' },
-  { key: '/asterisk', icon: <SettingOutlined />, label: '연동 설정' },
+  {
+    key: 'customers-group',
+    icon: <TeamOutlined />,
+    label: '고객 관리',
+    children: [
+      { key: '/customers', label: '고객 관리' },
+      { key: '/blocklist', label: '블랙리스트 관리' },
+    ],
+  },
 ];
 
 export function pathToMenuKey(pathname: string) {
