@@ -91,6 +91,12 @@ export function allLeafMenuKeys(items: MenuConfigItem[]): string[] {
   return items.flatMap((item) => (item.children?.length ? allLeafMenuKeys(item.children) : [item.key]));
 }
 
+export function allGroupMenuKeys(items: MenuConfigItem[]): string[] {
+  return items.flatMap((item) =>
+    item.children?.length ? [item.key, ...allGroupMenuKeys(item.children)] : [],
+  );
+}
+
 export function openMenuGroupKeysForPath(
   path: string,
   items: MenuConfigItem[] = ADMIN_MENU_CONFIG,

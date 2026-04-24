@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ADMIN_MENU_CONFIG,
+  type MenuConfigItem,
+  allGroupMenuKeys,
   allLeafMenuKeys,
   filterMenuByAllowedPaths,
   openMenuGroupKeysForPath,
@@ -31,6 +33,20 @@ const BASELINE_LEAF_KEYS = [
   '/settings/sms-templates',
   '/system',
 ] as const;
+
+const NESTED_MENU_CONFIG: MenuConfigItem[] = [
+  {
+    key: 'parent',
+    label: 'Parent',
+    children: [
+      {
+        key: 'child',
+        label: 'Child',
+        children: [{ key: '/deep-leaf', label: 'Deep Leaf' }],
+      },
+    ],
+  },
+];
 
 function childKeysOf(groupKey: string) {
   const group = ADMIN_MENU_CONFIG.find((item) => item.key === groupKey);
@@ -118,5 +134,21 @@ describe('openMenuGroupKeysForPath', () => {
   it('returns no parent groups for top-level routes or unknown paths', () => {
     expect(openMenuGroupKeysForPath('/dashboard')).toEqual([]);
     expect(openMenuGroupKeysForPath('/missing')).toEqual([]);
+  });
+
+  it('returns the full ancestor chain for nested menu trees', () => {
+    expect(openMenuGroupKeysForPath('/deep-leaf', NESTED_MENU_CONFIG)).toEqual(['parent', 'child']);
+  });
+});
+
+describe('allGroupMenuKeys', () => {
+  it('collects visible group keys recursively', () => {
+    expect(allGroupMenuKeys(NESTED_MENU_CONFIG)).toEqual(['parent', 'child']);
+    expect(allGroupMenuKeys(ADMIN_MENU_CONFIG)).toEqual([
+      'realtime',
+      'reports',
+      'settings',
+      'customers-group',
+    ]);
   });
 });

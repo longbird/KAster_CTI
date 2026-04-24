@@ -10,6 +10,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionStore } from '../store/usePermissionStore';
 import {
   ADMIN_MENU_CONFIG,
+  allGroupMenuKeys,
   filterMenuByAllowedPaths,
   openMenuGroupKeysForPath,
   pathToMenuKey,
@@ -54,7 +55,7 @@ export function AppLayout() {
   const isAllowed = USE_MOCK || allowedPathSet.has(canonicalPath);
   const activeGroupKeys = useMemo(() => openMenuGroupKeysForPath(canonicalPath), [canonicalPath]);
   const visibleGroupKeys = useMemo(
-    () => new Set(menuItems.filter((item) => item.children?.length).map((item) => item.key)),
+    () => new Set(allGroupMenuKeys(menuItems)),
     [menuItems],
   );
   const [userOpenKeys, setUserOpenKeys] = useState<string[]>([]);
