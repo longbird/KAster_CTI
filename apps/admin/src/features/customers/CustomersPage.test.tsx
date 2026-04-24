@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import dayjs from 'dayjs';
 
-import { buildCustomerListParams, CustomersPage } from './CustomersPage';
+import { buildCustomerListParams, CustomersPage, formatCustomerListDate, formatCustomerPhoneDisplay } from './CustomersPage';
 
 vi.mock('../../store/usePermissionStore', () => ({
   usePermissionStore: (selector: (state: unknown) => unknown) =>
@@ -65,8 +65,7 @@ describe('CustomersPage layout', () => {
     const html = renderToStaticMarkup(<CustomersPage />);
 
     expect(html).toContain('customers-page__table-header');
-    expect(html).toContain('>추가전화번호<');
-    expect(html).toContain('width:180px');
+    expect(html).not.toContain('>추가전화번호<');
   });
 });
 
@@ -109,5 +108,19 @@ describe('buildCustomerListParams', () => {
       lastCalledFrom: range[0].startOf('day').toISOString(),
       lastCalledTo: range[1].endOf('day').toISOString(),
     });
+  });
+});
+
+describe('customer list display helpers', () => {
+  it('formats phone numbers for display without changing the stored value', () => {
+    expect(formatCustomerPhoneDisplay('01012345678')).toBe('010-1234-5678');
+    expect(formatCustomerPhoneDisplay('021234567')).toBe('02-123-4567');
+    expect(formatCustomerPhoneDisplay('15881234')).toBe('1588-1234');
+    expect(formatCustomerPhoneDisplay(null)).toBe('-');
+  });
+
+  it('shows customer list dates as date-only values', () => {
+    expect(formatCustomerListDate('2026-04-24T09:30:00Z')).toBe('2026-04-24');
+    expect(formatCustomerListDate(null)).toBe('-');
   });
 });

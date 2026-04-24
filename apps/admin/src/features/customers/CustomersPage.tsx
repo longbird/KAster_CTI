@@ -24,6 +24,35 @@ const GRADE_COLOR: Record<string, string> = {
 
 const headerLabel = (label: string) => <span className="customers-page__table-header">{label}</span>;
 
+export function formatCustomerPhoneDisplay(value?: string | null): string {
+  if (!value) return '-';
+  const digits = value.replace(/\D/g, '');
+
+  if (/^15\d{6}$|^16\d{6}$|^18\d{6}$/.test(digits)) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+
+  if (digits.startsWith('02')) {
+    if (digits.length === 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    if (digits.length === 10) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
+  return value;
+}
+
+export function formatCustomerListDate(value?: string | null): string {
+  if (!value) return '-';
+  return dayjs(value).format('YYYY-MM-DD');
+}
+
 export type CustomerDateFilterType = 'registered' | 'lastCalled';
 
 interface BuildCustomerListParamsInput {
@@ -209,9 +238,14 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
         rowKey="customerId"
         loading={loading}
         dataSource={rows}
-        scroll={{ x: 1320 }}
+        scroll={{ x: 1140 }}
         columns={[
-          { title: headerLabel('대표전화번호'), dataIndex: 'primaryPhoneNumber', width: 150, render: (value?: string | null) => value ?? '-' },
+          {
+            title: headerLabel('대표전화번호'),
+            dataIndex: 'primaryPhoneNumber',
+            width: 160,
+            render: (value?: string | null) => formatCustomerPhoneDisplay(value),
+          },
           { title: headerLabel('성명'), dataIndex: 'customerName', width: 140, render: (value?: string | null) => value ?? '-' },
           {
             title: headerLabel('등급'),
@@ -219,13 +253,8 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
             width: 100,
             render: (value: string) => <Tag color={GRADE_COLOR[value] ?? 'default'}>{value}</Tag>,
           },
-          {
-            title: headerLabel('추가전화번호'),
-            width: 180,
-            render: (_: unknown, row) => (row.extraPhoneNumbers ?? []).join(', ') || '-',
-          },
-          { title: headerLabel('등록일'), dataIndex: 'createdAt', width: 160, render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm') },
-          { title: headerLabel('최종통화일'), dataIndex: 'lastCalledAt', width: 160, render: (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-' },
+          { title: headerLabel('등록일'), dataIndex: 'createdAt', width: 130, render: (value: string) => formatCustomerListDate(value) },
+          { title: headerLabel('최종통화일'), dataIndex: 'lastCalledAt', width: 130, render: (value?: string | null) => formatCustomerListDate(value) },
           { title: headerLabel('기본메모'), dataIndex: 'memo', width: 180, ellipsis: true, render: (value?: string | null) => value || '-' },
           {
             title: headerLabel('액션'),
