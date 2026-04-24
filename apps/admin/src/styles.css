@@ -169,6 +169,40 @@ body {
   padding: 20px;
 }
 
+.customers-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.customers-page__heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customers-page__title.ant-typography {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.customers-page__summary.ant-typography {
+  display: block;
+  line-height: 1.4;
+}
+
+.customers-page__toolbar {
+  align-self: center;
+}
+
+.customers-page__filters {
+  margin-bottom: 12px;
+}
+
 .traffic-chart {
   display: flex;
   flex-direction: column;

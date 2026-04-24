@@ -109,14 +109,16 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
 
   return (
     <Card>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <Space size={8} wrap align="center">
-          <Typography.Title level={4} style={{ margin: 0 }}>
+      <div className="customers-page__header">
+        <div className="customers-page__heading">
+          <Typography.Title level={4} className="customers-page__title">
             {title}
           </Typography.Title>
-          <Typography.Text type="secondary">{gradeSummary}</Typography.Text>
-        </Space>
-        <Space wrap>
+          <Typography.Text type="secondary" className="customers-page__summary">
+            {gradeSummary}
+          </Typography.Text>
+        </div>
+        <Space wrap className="customers-page__toolbar">
           {permission?.canCreate !== false ? (
             <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
               파일 가져오기
@@ -135,7 +137,7 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
         </Space>
       </div>
 
-      <Space wrap style={{ marginBottom: 12 }}>
+      <Space wrap className="customers-page__filters">
         <Input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
