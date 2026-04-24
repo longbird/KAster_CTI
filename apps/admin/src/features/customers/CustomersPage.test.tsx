@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import dayjs from 'dayjs';
 
-import { CustomersPage } from './CustomersPage';
+import { buildCustomerListParams, CustomersPage } from './CustomersPage';
 
 vi.mock('../../store/usePermissionStore', () => ({
   usePermissionStore: (selector: (state: unknown) => unknown) =>
@@ -37,5 +38,54 @@ describe('CustomersPage layout', () => {
     expect(html).toContain('customers-page__heading');
     expect(html).toContain('customers-page__toolbar');
     expect(html).toContain('customers-page__filters');
+  });
+
+  it('uses a single date range picker with an explicit date filter selector', () => {
+    const html = renderToStaticMarkup(<CustomersPage />);
+
+    expect(html).toContain('customers-page__date-filter');
+    expect(html.match(/class="ant-picker ant-picker-range /g)?.length ?? 0).toBe(1);
+  });
+});
+
+describe('buildCustomerListParams', () => {
+  it('maps the selected date range to registered dates by default', () => {
+    const range = [dayjs('2026-04-01T09:00:00'), dayjs('2026-04-03T18:00:00')] as const;
+
+    expect(
+      buildCustomerListParams({
+        keyword: '010',
+        grade: 'VIP',
+        dateFilterType: 'registered',
+        dateRange: range,
+      }),
+    ).toMatchObject({
+      keyword: '010',
+      grade: 'VIP',
+      registeredFrom: range[0].startOf('day').toISOString(),
+      registeredTo: range[1].endOf('day').toISOString(),
+      lastCalledFrom: undefined,
+      lastCalledTo: undefined,
+    });
+  });
+
+  it('maps the selected date range to last-called dates when requested', () => {
+    const range = [dayjs('2026-04-11T09:00:00'), dayjs('2026-04-12T18:00:00')] as const;
+
+    expect(
+      buildCustomerListParams({
+        keyword: '',
+        grade: undefined,
+        dateFilterType: 'lastCalled',
+        dateRange: range,
+      }),
+    ).toMatchObject({
+      keyword: undefined,
+      grade: undefined,
+      registeredFrom: undefined,
+      registeredTo: undefined,
+      lastCalledFrom: range[0].startOf('day').toISOString(),
+      lastCalledTo: range[1].endOf('day').toISOString(),
+    });
   });
 });

@@ -9,6 +9,7 @@ import { CustomerDetailDrawer } from './CustomerDetailDrawer';
 import { CustomerFormModal } from './CustomerFormModal';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { CustomerFormInput, CustomerRow } from './types/customer';
+import type { CustomerListParams } from './api/customersApi';
 
 interface Props {
   initialGrade?: 'NORMAL' | 'VIP' | 'BLACK';
@@ -21,14 +22,42 @@ const GRADE_COLOR: Record<string, string> = {
   BLACK: 'red',
 };
 
+export type CustomerDateFilterType = 'registered' | 'lastCalled';
+
+interface BuildCustomerListParamsInput {
+  keyword: string;
+  grade?: 'NORMAL' | 'VIP' | 'BLACK';
+  dateFilterType: CustomerDateFilterType;
+  dateRange: readonly [Dayjs, Dayjs] | null;
+}
+
+export function buildCustomerListParams({
+  keyword,
+  grade,
+  dateFilterType,
+  dateRange,
+}: BuildCustomerListParamsInput): CustomerListParams {
+  const from = dateRange?.[0]?.startOf('day').toISOString();
+  const to = dateRange?.[1]?.endOf('day').toISOString();
+
+  return {
+    keyword: keyword || undefined,
+    grade,
+    registeredFrom: dateFilterType === 'registered' ? from : undefined,
+    registeredTo: dateFilterType === 'registered' ? to : undefined,
+    lastCalledFrom: dateFilterType === 'lastCalled' ? from : undefined,
+    lastCalledTo: dateFilterType === 'lastCalled' ? to : undefined,
+  };
+}
+
 export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) {
   const permission = usePermissionStore((state) => state.permissionsByMenu.customers);
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [grade, setGrade] = useState<'NORMAL' | 'VIP' | 'BLACK' | undefined>(initialGrade);
-  const [registeredRange, setRegisteredRange] = useState<[Dayjs, Dayjs] | null>(null);
-  const [lastCalledRange, setLastCalledRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [dateFilterType, setDateFilterType] = useState<CustomerDateFilterType>('registered');
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailCustomerId, setDetailCustomerId] = useState<string | null>(null);
@@ -37,14 +66,14 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await listCustomers({
-        keyword: keyword || undefined,
-        grade,
-        registeredFrom: registeredRange?.[0]?.startOf('day').toISOString(),
-        registeredTo: registeredRange?.[1]?.endOf('day').toISOString(),
-        lastCalledFrom: lastCalledRange?.[0]?.startOf('day').toISOString(),
-        lastCalledTo: lastCalledRange?.[1]?.endOf('day').toISOString(),
-      });
+      const data = await listCustomers(
+        buildCustomerListParams({
+          keyword,
+          grade,
+          dateFilterType,
+          dateRange,
+        }),
+      );
       setRows(data);
     } catch {
       setRows([]);
@@ -155,8 +184,17 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
             { value: 'BLACK', label: 'BLACK' },
           ]}
         />
-        <DatePicker.RangePicker value={registeredRange} onChange={(value) => setRegisteredRange((value as [Dayjs, Dayjs]) ?? null)} />
-        <DatePicker.RangePicker value={lastCalledRange} onChange={(value) => setLastCalledRange((value as [Dayjs, Dayjs]) ?? null)} />
+        <Select
+          value={dateFilterType}
+          onChange={(value) => setDateFilterType(value)}
+          className="customers-page__date-filter"
+          style={{ width: 140 }}
+          options={[
+            { value: 'registered', label: '등록일' },
+            { value: 'lastCalled', label: '최종통화일' },
+          ]}
+        />
+        <DatePicker.RangePicker value={dateRange} onChange={(value) => setDateRange((value as [Dayjs, Dayjs]) ?? null)} />
         <Button onClick={() => void load()}>조회</Button>
       </Space>
 
