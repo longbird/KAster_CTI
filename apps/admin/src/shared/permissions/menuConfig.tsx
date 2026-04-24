@@ -91,6 +91,27 @@ export function allLeafMenuKeys(items: MenuConfigItem[]): string[] {
   return items.flatMap((item) => (item.children?.length ? allLeafMenuKeys(item.children) : [item.key]));
 }
 
+export function openMenuGroupKeysForPath(
+  path: string,
+  items: MenuConfigItem[] = ADMIN_MENU_CONFIG,
+  ancestors: string[] = [],
+): string[] {
+  for (const item of items) {
+    if (item.key === path) {
+      return ancestors;
+    }
+
+    if (item.children?.length) {
+      const hit = openMenuGroupKeysForPath(path, item.children, [...ancestors, item.key]);
+      if (hit.length > 0 || item.children.some((child) => child.key === path)) {
+        return hit;
+      }
+    }
+  }
+
+  return [];
+}
+
 export function labelForMenuPath(path: string) {
   const walk = (items: MenuConfigItem[]): string | null => {
     for (const item of items) {

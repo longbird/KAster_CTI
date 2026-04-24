@@ -11,6 +11,7 @@ import { usePermissionStore } from '../store/usePermissionStore';
 import {
   ADMIN_MENU_CONFIG,
   filterMenuByAllowedPaths,
+  openMenuGroupKeysForPath,
   pathToMenuKey,
 } from '../shared/permissions/menuConfig';
 
@@ -51,6 +52,26 @@ export function AppLayout() {
   const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
   const canonicalPath = normalizedPath === '/integrations' ? '/asterisk' : normalizedPath;
   const isAllowed = USE_MOCK || allowedPathSet.has(canonicalPath);
+  const activeGroupKeys = useMemo(() => openMenuGroupKeysForPath(canonicalPath), [canonicalPath]);
+  const visibleGroupKeys = useMemo(
+    () => new Set(menuItems.filter((item) => item.children?.length).map((item) => item.key)),
+    [menuItems],
+  );
+  const [userOpenKeys, setUserOpenKeys] = useState<string[]>([]);
+  const openKeys = useMemo(
+    () =>
+      Array.from(new Set([...activeGroupKeys, ...userOpenKeys])).filter((key) => visibleGroupKeys.has(key)),
+    [activeGroupKeys, userOpenKeys, visibleGroupKeys],
+  );
+
+  useEffect(() => {
+    setUserOpenKeys((current) => {
+      const next = current.filter((key) => visibleGroupKeys.has(key));
+      return next.length === current.length && next.every((key, index) => key === current[index])
+        ? current
+        : next;
+    });
+  }, [visibleGroupKeys]);
 
   if (!USE_MOCK && (!loaded || loading)) {
     return (
@@ -83,7 +104,9 @@ export function AppLayout() {
             mode="inline"
             inlineCollapsed={collapsed}
             selectedKeys={[canonicalPath]}
+            openKeys={collapsed ? [] : openKeys}
             items={antdMenuItems}
+            onOpenChange={(nextOpenKeys) => setUserOpenKeys(nextOpenKeys as string[])}
             onClick={({ key }) => {
               navigate(key as string);
               if (isMobile) setCollapsed(true);

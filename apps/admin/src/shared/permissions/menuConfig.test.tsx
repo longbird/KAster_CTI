@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { ADMIN_MENU_CONFIG, allLeafMenuKeys, filterMenuByAllowedPaths } from './menuConfig';
+import {
+  ADMIN_MENU_CONFIG,
+  allLeafMenuKeys,
+  filterMenuByAllowedPaths,
+  openMenuGroupKeysForPath,
+} from './menuConfig';
 
 const BASELINE_LEAF_KEYS = [
   '/agents',
@@ -91,5 +96,27 @@ describe('filterMenuByAllowedPaths', () => {
     expect(
       filtered.find((item) => item.key === 'customers-group')?.children?.map((child) => child.key),
     ).toEqual(['/customers']);
+  });
+});
+
+describe('openMenuGroupKeysForPath', () => {
+  it('returns the containing realtime group for operational leaf routes', () => {
+    expect(openMenuGroupKeysForPath('/queues')).toEqual(['realtime']);
+    expect(openMenuGroupKeysForPath('/agents')).toEqual(['realtime']);
+  });
+
+  it('returns the containing settings group for settings leaf routes', () => {
+    expect(openMenuGroupKeysForPath('/system')).toEqual(['settings']);
+    expect(openMenuGroupKeysForPath('/settings/queues')).toEqual(['settings']);
+  });
+
+  it('returns the containing customer group for customer leaf routes', () => {
+    expect(openMenuGroupKeysForPath('/customers')).toEqual(['customers-group']);
+    expect(openMenuGroupKeysForPath('/blocklist')).toEqual(['customers-group']);
+  });
+
+  it('returns no parent groups for top-level routes or unknown paths', () => {
+    expect(openMenuGroupKeysForPath('/dashboard')).toEqual([]);
+    expect(openMenuGroupKeysForPath('/missing')).toEqual([]);
   });
 });
