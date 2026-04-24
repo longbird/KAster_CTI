@@ -22,6 +22,8 @@ const GRADE_COLOR: Record<string, string> = {
   BLACK: 'red',
 };
 
+const headerLabel = (label: string) => <span className="customers-page__table-header">{label}</span>;
+
 export type CustomerDateFilterType = 'registered' | 'lastCalled';
 
 interface BuildCustomerListParamsInput {
@@ -207,24 +209,26 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
         rowKey="customerId"
         loading={loading}
         dataSource={rows}
+        scroll={{ x: 1320 }}
         columns={[
-          { title: '대표전화번호', dataIndex: 'primaryPhoneNumber', width: 150, render: (value?: string | null) => value ?? '-' },
-          { title: '성명', dataIndex: 'customerName', width: 140, render: (value?: string | null) => value ?? '-' },
+          { title: headerLabel('대표전화번호'), dataIndex: 'primaryPhoneNumber', width: 150, render: (value?: string | null) => value ?? '-' },
+          { title: headerLabel('성명'), dataIndex: 'customerName', width: 140, render: (value?: string | null) => value ?? '-' },
           {
-            title: '등급',
+            title: headerLabel('등급'),
             dataIndex: 'grade',
             width: 100,
             render: (value: string) => <Tag color={GRADE_COLOR[value] ?? 'default'}>{value}</Tag>,
           },
           {
-            title: '추가전화번호',
+            title: headerLabel('추가전화번호'),
+            width: 180,
             render: (_: unknown, row) => (row.extraPhoneNumbers ?? []).join(', ') || '-',
           },
-          { title: '등록일', dataIndex: 'createdAt', width: 160, render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm') },
-          { title: '최종통화일', dataIndex: 'lastCalledAt', width: 160, render: (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-' },
-          { title: '기본메모', dataIndex: 'memo', ellipsis: true, render: (value?: string | null) => value || '-' },
+          { title: headerLabel('등록일'), dataIndex: 'createdAt', width: 160, render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm') },
+          { title: headerLabel('최종통화일'), dataIndex: 'lastCalledAt', width: 160, render: (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-' },
+          { title: headerLabel('기본메모'), dataIndex: 'memo', width: 180, ellipsis: true, render: (value?: string | null) => value || '-' },
           {
-            title: '액션',
+            title: headerLabel('액션'),
             width: 200,
             render: (_: unknown, row) => (
               <Space>

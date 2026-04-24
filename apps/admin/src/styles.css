@@ -203,6 +203,11 @@ body {
   margin-bottom: 12px;
 }
 
+.customers-page__table-header {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 .traffic-chart {
   display: flex;
   flex-direction: column;

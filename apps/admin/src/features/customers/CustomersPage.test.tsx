@@ -60,6 +60,14 @@ describe('CustomersPage layout', () => {
     expect(keywordIndex).toBeGreaterThan(dateRangeIndex);
     expect(searchButtonIndex).toBeGreaterThan(keywordIndex);
   });
+
+  it('keeps the additional-phone header on one line with an explicit column width', () => {
+    const html = renderToStaticMarkup(<CustomersPage />);
+
+    expect(html).toContain('customers-page__table-header');
+    expect(html).toContain('>추가전화번호<');
+    expect(html).toContain('width:180px');
+  });
 });
 
 describe('buildCustomerListParams', () => {
