@@ -16,6 +16,17 @@ endif()
 
 catch_discover_tests(pbx_loadgen_tests)
 
+add_executable(pbx_loadgen_test_plan_tests test_plan_test.cpp)
+target_link_libraries(
+  pbx_loadgen_test_plan_tests
+  PRIVATE
+    Catch2::Catch2WithMain
+    loadgen_test_plan
+)
+target_include_directories(pbx_loadgen_test_plan_tests PRIVATE ../include)
+
+catch_discover_tests(pbx_loadgen_test_plan_tests)
+
 add_executable(pbx_loadgen_tone_generator_tests tone_generator_test.cpp ../src/tone_generator.cpp)
 target_link_libraries(pbx_loadgen_tone_generator_tests PRIVATE Catch2::Catch2WithMain)
 target_include_directories(pbx_loadgen_tone_generator_tests PRIVATE ../include)

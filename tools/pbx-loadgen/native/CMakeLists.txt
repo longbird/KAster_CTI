@@ -25,6 +25,10 @@ add_library(loadgen_scenario STATIC src/scenario.cpp)
 target_link_libraries(loadgen_scenario PUBLIC yaml-cpp)
 target_include_directories(loadgen_scenario PUBLIC include)
 
+add_library(loadgen_test_plan STATIC src/test_plan.cpp)
+target_link_libraries(loadgen_test_plan PUBLIC yaml-cpp)
+target_include_directories(loadgen_test_plan PUBLIC include)
+
 add_library(loadgen_orchestrator STATIC src/orchestrator.cpp)
 target_include_directories(loadgen_orchestrator PUBLIC include)
 
