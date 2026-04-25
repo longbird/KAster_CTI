@@ -79,7 +79,7 @@ export function LoginPage() {
 
         {error && <div className="kc-login-error">{error}</div>}
 
-        <fieldset className="kc-login-field">
+        <fieldset className="kc-login-field kc-login-mode">
           <legend>통화 방식</legend>
           <label>
             <input

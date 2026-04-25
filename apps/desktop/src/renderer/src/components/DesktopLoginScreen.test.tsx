@@ -27,7 +27,7 @@ describe('DesktopLoginScreen', () => {
     fireEvent.change(screen.getByLabelText('로그인 ID'), {
       target: { value: 'agent1001' },
     });
-    fireEvent.change(screen.getByLabelText('내선'), {
+    fireEvent.change(screen.getByLabelText('내선 번호'), {
       target: { value: '1001' },
     });
     fireEvent.change(screen.getByLabelText('비밀번호'), {

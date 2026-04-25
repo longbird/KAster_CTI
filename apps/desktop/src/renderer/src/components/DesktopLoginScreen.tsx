@@ -42,7 +42,7 @@ export function DesktopLoginScreen({
   return (
     <section className="auth-screen">
       <form
-        className="login-card panel"
+        className="desktop-login-card"
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit({
@@ -53,21 +53,31 @@ export function DesktopLoginScreen({
           });
         }}
       >
-        <header className="login-card-header" onDoubleClick={onTogglePairing}>
-          <h1>KAster Agent Desktop</h1>
+        <header className="desktop-login-brand" onDoubleClick={onTogglePairing}>
+          <div className="desktop-brand-box">K</div>
+          <div className="desktop-brand-wordmark">
+            KASTER<span> / CTI</span>
+          </div>
+        </header>
+
+        <div className="desktop-login-heading">
+          <h1>상담원 로그인</h1>
+          <p>데스크톱 소프트폰 런타임이 자동으로 연결됩니다.</p>
           {!serverUrlRequired ? (
             <button
-              className="text-button"
+              className="desktop-login-advanced"
               type="button"
               onClick={() => setShowAdvanced((current) => !current)}
             >
               고급 옵션
             </button>
           ) : null}
-        </header>
+        </div>
+
+        {error ? <p className="desktop-login-error">{error}</p> : null}
 
         {serverFieldVisible ? (
-          <label className="field compact-field">
+          <label className="desktop-login-field">
             <span>서버 URL</span>
             <input
               autoComplete="url"
@@ -79,7 +89,7 @@ export function DesktopLoginScreen({
           </label>
         ) : null}
 
-        <label className="field compact-field">
+        <label className="desktop-login-field">
           <span>로그인 ID</span>
           <input
             autoComplete="username"
@@ -89,8 +99,8 @@ export function DesktopLoginScreen({
           />
         </label>
 
-        <label className="field compact-field">
-          <span>내선</span>
+        <label className="desktop-login-field">
+          <span>내선 번호</span>
           <input
             autoComplete="tel"
             disabled={busy}
@@ -99,7 +109,7 @@ export function DesktopLoginScreen({
           />
         </label>
 
-        <label className="field compact-field">
+        <label className="desktop-login-field">
           <span>비밀번호</span>
           <div className="password-input-shell">
             <input
@@ -121,11 +131,14 @@ export function DesktopLoginScreen({
           </div>
         </label>
 
-        {error ? <p className="login-error">{error}</p> : null}
-
-        <button className="primary-button" disabled={busy} type="submit">
+        <button className="desktop-login-submit" disabled={busy} type="submit">
           {busy ? '로그인 중...' : '로그인'}
         </button>
+
+        <div className="desktop-login-footer">
+          <span>desktop</span>
+          <span>softphone · kaster-cti</span>
+        </div>
       </form>
     </section>
   );
