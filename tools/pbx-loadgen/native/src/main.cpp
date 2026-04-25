@@ -9,7 +9,9 @@
 
 #include "loadgen/command_logic.hpp"
 #include "loadgen/live_run.hpp"
+#if defined(PBX_LOADGEN_HAS_PJSIP)
 #include "loadgen/pjsip_client.hpp"
+#endif
 #include "loadgen/report_writer.hpp"
 #include "loadgen/scenario.hpp"
 #include "loadgen/test_result.hpp"
@@ -121,11 +123,17 @@ int main(int argc, char** argv) {
 
     if (*run) {
       const auto scenario = loadgen::loadScenarioFromFile(file);
+#if defined(PBX_LOADGEN_HAS_PJSIP)
       loadgen::PjsipClient client;
       std::cout
           << loadgen::formatRunArtifacts(loadgen::executeLiveRun(scenario, client).artifacts)
           << '\n';
       return 0;
+#else
+      static_cast<void>(scenario);
+      throw std::runtime_error(
+          "run requires a PJSIP-enabled build. Set PJSIP_ROOT and rebuild.");
+#endif
     }
 
     if (*report) {

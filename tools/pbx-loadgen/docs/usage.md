@@ -7,7 +7,8 @@
 - CMake 3.20 or newer
 - A C++17 toolchain
 - Network access for the first configure step so CMake can fetch CLI11, yaml-cpp, nlohmann/json, and Catch2
-- `PJSIP_ROOT` is required for CLI builds and must point to a local pjproject install
+- `PJSIP_ROOT` is required for live SIP `run` support and must point to a local pjproject install
+- Without `PJSIP_ROOT`, the CLI still builds and supports non-live commands such as `validate`, `dry-run`, `report`, and `test-plan`; live `run` fails clearly until rebuilt with PJSIP
 - If the CLI is linked against pjproject shared libraries, those libraries must remain discoverable at package time or the package scripts will abort instead of emitting an incomplete dist
 - If you know a build is fully static, set `PBX_LOADGEN_ASSUME_STATIC_PJSIP=1` to allow packaging without discovered pjproject runtimes
 

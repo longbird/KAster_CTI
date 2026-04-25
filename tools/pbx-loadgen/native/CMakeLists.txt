@@ -58,18 +58,23 @@ target_link_libraries(
 target_include_directories(loadgen_command_logic PUBLIC include)
 
 if(PBX_LOADGEN_BUILD_CLI)
-  find_package(PJSIP REQUIRED)
+  find_package(PJSIP QUIET)
 
   add_executable(pbx-loadgen src/main.cpp)
-  target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp src/tone_generator.cpp)
   target_link_libraries(
     pbx-loadgen
     PRIVATE
       CLI11::CLI11
       loadgen_command_logic
       nlohmann_json::nlohmann_json
-      PJSIP::PJSIP
   )
+  if(PJSIP_FOUND)
+    target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp src/tone_generator.cpp)
+    target_link_libraries(pbx-loadgen PRIVATE PJSIP::PJSIP)
+    target_compile_definitions(pbx-loadgen PRIVATE PBX_LOADGEN_HAS_PJSIP=1)
+  else()
+    message(WARNING "PJSIP was not found. Building pbx-loadgen CLI with live SIP run disabled.")
+  endif()
   target_include_directories(pbx-loadgen PRIVATE include)
 endif()
 
