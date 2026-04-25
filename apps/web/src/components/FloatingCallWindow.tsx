@@ -1,6 +1,7 @@
 import { ControlPanel } from './ControlPanel';
 import { CurrentCallPanel } from './CurrentCallPanel';
 import type { ActiveCall } from '../types/cti';
+import { formatPhoneNumber } from '../utils/format';
 
 interface Props {
   call?: ActiveCall;
@@ -48,7 +49,7 @@ export function FloatingCallWindow({
             현재 통화
           </span>
           <span className="block text-sm font-bold">
-            {call.customer?.customerName ?? call.ani ?? '미식별 고객'}
+            {call.customer?.customerName ?? (call.ani ? formatPhoneNumber(call.ani) : '미식별 고객')}
           </span>
         </span>
       </button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCtiStore } from '../store/useCtiStore';
 import { CALL_STATUS_LABEL, CALL_STATUS_COLOR } from './statusMeta';
+import { formatPhoneNumber } from '../utils/format';
 
 type FilterMode = 'all' | 'talking' | 'queued';
 
@@ -101,10 +102,10 @@ export function CallListPanel() {
                 ● {statusLabel}
               </div>
               <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>
-                {call.customer?.customerName ?? call.ani ?? '미식별'}
+                {call.customer?.customerName ?? (call.ani ? formatPhoneNumber(call.ani) : '미식별')}
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
-                {call.queueName} · {call.ani}
+                {call.queueName} · {formatPhoneNumber(call.ani)}
               </div>
             </button>
           );

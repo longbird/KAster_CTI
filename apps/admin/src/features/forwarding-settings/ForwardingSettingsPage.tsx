@@ -3,6 +3,7 @@ import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, mess
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import {
   createForwardingRule,
   deleteForwardingRule,
@@ -76,7 +77,7 @@ export function ForwardingSettingsPage() {
   const didOptions = useMemo(
     () => dids.map((did) => ({
       value: did.id,
-      label: did.description ? `${did.did} (${did.description})` : did.did,
+      label: did.description ? `${formatPhoneNumber(did.did)} (${did.description})` : formatPhoneNumber(did.did),
       directQueue: did.directQueue,
     })),
     [dids],
@@ -178,7 +179,7 @@ export function ForwardingSettingsPage() {
             width: 220,
             render: (_: unknown, row) => (
               <Space direction="vertical" size={0}>
-                <Typography.Text strong>{row.did.did}</Typography.Text>
+                <Typography.Text strong>{formatPhoneNumber(row.did.did)}</Typography.Text>
                 <Typography.Text type="secondary">{row.did.description || '-'}</Typography.Text>
               </Space>
             ),
@@ -202,7 +203,7 @@ export function ForwardingSettingsPage() {
                   ? queueLabelMap[row.targetValue] ?? row.targetValue
                   : row.forwardType === 'EXTENSION'
                     ? extensionLabelMap[row.targetValue] ?? row.targetValue
-                    : row.targetValue;
+                    : formatPhoneNumber(row.targetValue);
               return <Typography.Text>{label}</Typography.Text>;
             },
           },

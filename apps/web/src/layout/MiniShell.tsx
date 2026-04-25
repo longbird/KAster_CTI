@@ -5,6 +5,7 @@ import { AgentStatusTag } from '../components/AgentStatusTag';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
+import { formatPhoneNumber } from '../utils/format';
 
 // MiniShell — 420px dark-pro card (5-section redesign).
 // Sections: Header / Summary Grid / Active Call Card / Quick Controls / Notes.
@@ -120,7 +121,7 @@ export function MiniShell() {
 
   const customerName = selectedCall?.customer?.customerName ?? '미식별 고객';
   const customerInitial = customerName.charAt(0).toUpperCase();
-  const phone = selectedCall?.ani ?? '-';
+  const phone = formatPhoneNumber(selectedCall?.ani);
   const transferStateLabel = selectedCall?.latestTransfer
     ? `${selectedCall.latestTransfer.phase} · ${selectedCall.latestTransfer.toExtension ?? '-'}`
     : '-';
@@ -260,7 +261,7 @@ export function MiniShell() {
               <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customerName}</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
                 {phone}
-                {selectedCall?.dnis ? ` · DID ${selectedCall.dnis}` : ''}
+                {selectedCall?.dnis ? ` · DID ${formatPhoneNumber(selectedCall.dnis)}` : ''}
               </div>
               {selectedCall?.queueName ? (
                 <div style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 600, marginTop: 2 }}>

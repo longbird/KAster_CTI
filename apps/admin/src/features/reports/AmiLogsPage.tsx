@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 
 interface AmiLogRow {
@@ -241,8 +242,8 @@ function summarizeAmiEvent(row: AmiLogRow) {
     return '스마트 ARS 이벤트';
   }
   return [
-    raw.CallerIDNum ? `발신 ${String(raw.CallerIDNum)}` : null,
-    raw.Exten ? `착신 ${String(raw.Exten)}` : null,
+    raw.CallerIDNum ? `발신 ${formatPhoneNumber(String(raw.CallerIDNum))}` : null,
+    raw.Exten ? `착신 ${formatPhoneNumber(String(raw.Exten))}` : null,
     raw.Queue ? `큐 ${String(raw.Queue)}` : null,
     raw.MemberName ? `상담원 ${String(raw.MemberName)}` : null,
     raw.ChannelStateDesc ? `상태 ${getChannelStateLabel(raw.ChannelStateDesc)}` : null,
@@ -308,8 +309,8 @@ export function AmiLogsPage() {
       calls.map((row) => [
         formatTime(row.startedAt),
         formatTime(row.endedAt),
-        row.callerNumber ?? '',
-        row.inboundNumber ?? '',
+        formatPhoneNumber(row.callerNumber),
+        formatPhoneNumber(row.inboundNumber),
         row.customerName ?? '',
         row.agentName ?? '',
         row.queueName ?? '',
@@ -391,8 +392,8 @@ export function AmiLogsPage() {
             width: 180,
             render: (_: unknown, row) => (
               <Space direction="vertical" size={0}>
-                <Typography.Text strong>{row.callerNumber ?? '-'}</Typography.Text>
-                <Typography.Text type="secondary">→ {row.inboundNumber ?? '-'}</Typography.Text>
+                <Typography.Text strong>{formatPhoneNumber(row.callerNumber)}</Typography.Text>
+                <Typography.Text type="secondary">→ {formatPhoneNumber(row.inboundNumber)}</Typography.Text>
               </Space>
             ),
           },
@@ -434,7 +435,7 @@ export function AmiLogsPage() {
       />
 
       <Drawer
-        title={selected ? `호 흐름: ${selected.callerNumber ?? '-'} -> ${selected.inboundNumber ?? '-'}` : '호 흐름'}
+        title={selected ? `호 흐름: ${formatPhoneNumber(selected.callerNumber)} -> ${formatPhoneNumber(selected.inboundNumber)}` : '호 흐름'}
         open={!!selected}
         onClose={() => setSelected(null)}
         width={820}
@@ -442,8 +443,8 @@ export function AmiLogsPage() {
         {selected ? (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions size="small" bordered column={2}>
-              <Descriptions.Item label="발신번호">{selected.callerNumber ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="착신번호">{selected.inboundNumber ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="발신번호">{formatPhoneNumber(selected.callerNumber)}</Descriptions.Item>
+              <Descriptions.Item label="착신번호">{formatPhoneNumber(selected.inboundNumber)}</Descriptions.Item>
               <Descriptions.Item label="고객">{selected.customerName ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="상담원">{selected.agentName ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="큐">{selected.queueName ?? '-'}</Descriptions.Item>

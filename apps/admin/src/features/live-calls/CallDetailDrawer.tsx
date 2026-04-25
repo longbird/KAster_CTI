@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Descriptions, Drawer, Empty, List, Popconfirm, Space, Spin, Tag, Typography, message } from 'antd';
 import { apiClient } from '../../shared/lib/apiClient';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 
 export interface CallRow {
@@ -179,9 +180,9 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="Call ID">{detail.callId}</Descriptions.Item>
             <Descriptions.Item label="Linked ID">{detail.linkedid}</Descriptions.Item>
-            <Descriptions.Item label="고객 번호">{detail.ani}</Descriptions.Item>
-            <Descriptions.Item label="대표번호">{detail.representativeNumber ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="DID">{detail.didNumber ?? detail.dnis ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="고객 번호">{formatPhoneNumber(detail.ani)}</Descriptions.Item>
+            <Descriptions.Item label="대표번호">{formatPhoneNumber(detail.representativeNumber)}</Descriptions.Item>
+            <Descriptions.Item label="DID">{formatPhoneNumber(detail.didNumber ?? detail.dnis)}</Descriptions.Item>
             <Descriptions.Item label="큐">{detail.queueName ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="상담원">{detail.agentName || detail.primaryAgentId || '-'}</Descriptions.Item>
             <Descriptions.Item label="상태">

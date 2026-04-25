@@ -1152,7 +1152,7 @@ export class AdminService {
     const agentName = call.primaryAgent?.agentName ?? null;
     const customerName = call.customer?.customerName ?? null;
     const ended = call.endedAt ? '종료' : this.getSessionStatusLabel(call.sessionStatus);
-    const flowParts = [callerNumber, inboundNumber, queueName, agentName, ended]
+    const flowParts = [this.formatPhoneNumber(callerNumber), this.formatPhoneNumber(inboundNumber), queueName, agentName, ended]
       .filter((item): item is string => Boolean(item));
 
     return {
@@ -1189,7 +1189,12 @@ export class AdminService {
       items.push({ type, time, label, detail: detail ?? null });
     };
 
-    add('CALL_STARTED', call.startedAt, '호 시작', [call.ani, call.didNumber ?? call.dnis].filter(Boolean).join(' -> '));
+    add(
+      'CALL_STARTED',
+      call.startedAt,
+      '호 시작',
+      [this.formatPhoneNumber(call.ani), this.formatPhoneNumber(call.didNumber ?? call.dnis)].filter(Boolean).join(' -> '),
+    );
     add('QUEUE_ENTERED', call.queuedAt, '큐 진입', call.queueName);
     add('AGENT_RINGING', call.ringingAt, '상담원 호출', call.primaryAgent?.agentName ?? null);
     add('CALL_ANSWERED', call.answeredAt, '상담 연결', call.primaryAgent?.agentName ?? null);
@@ -1292,6 +1297,30 @@ export class AdminService {
       case 'UNPAUSE': return '상담원 휴식 해제';
       default: return eventType ? `큐 이벤트: ${eventType}` : '큐 이벤트';
     }
+  }
+
+  private formatPhoneNumber(value?: string | null) {
+    if (!value) return null;
+    const digits = value.replace(/\D/g, '');
+
+    if (/^15\d{6}$|^16\d{6}$|^18\d{6}$/.test(digits)) {
+      return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    }
+
+    if (digits.startsWith('02')) {
+      if (digits.length === 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+      if (digits.length === 10) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+    }
+
+    if (digits.length === 10) {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+
+    if (digits.length === 11) {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    }
+
+    return value;
   }
 
   private getLegTypeLabel(legType?: string | null) {

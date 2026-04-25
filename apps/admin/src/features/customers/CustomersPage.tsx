@@ -95,10 +95,10 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
       `customers-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
       ['대표전화번호', '성명', '등급', '추가전화번호', '등록일', '최종통화일', '기본메모'],
       rows.map((row) => [
-        row.primaryPhoneNumber ?? '-',
+        formatCustomerPhoneDisplay(row.primaryPhoneNumber),
         row.customerName ?? '-',
         row.grade,
-        (row.extraPhoneNumbers ?? []).join(', '),
+        (row.extraPhoneNumbers ?? []).map((phone) => formatCustomerPhoneDisplay(phone)).join(', '),
         dayjs(row.createdAt).format('YYYY-MM-DD HH:mm:ss'),
         row.lastCalledAt ? dayjs(row.lastCalledAt).format('YYYY-MM-DD HH:mm:ss') : '-',
         row.memo ?? '',

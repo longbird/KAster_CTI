@@ -4,6 +4,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
@@ -91,12 +92,12 @@ function getRepresentativeDidLines(row: CdrRow) {
   const did = getDisplayDid(row)?.trim() || null;
 
   if (representative && did && representative !== did) {
-    return { primary: representative, secondary: did };
+    return { primary: formatPhoneNumber(representative), secondary: formatPhoneNumber(did) };
   }
 
   return {
-    primary: representative ?? did ?? '-',
-    secondary: representative && did && representative === did ? null : did,
+    primary: formatPhoneNumber(representative ?? did),
+    secondary: representative && did && representative === did ? null : did ? formatPhoneNumber(did) : null,
   };
 }
 
@@ -137,9 +138,9 @@ export function CallsReportPage() {
       ['시작', '발신번호', '대표번호', 'DID', '큐', '상담원', '상태', '전환', '대기(초)', '통화(초)', '포기', '녹취'],
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
-        row.ani,
-        row.representativeNumber ?? row.didNumber ?? '-',
-        row.didNumber ?? '-',
+        formatPhoneNumber(row.ani),
+        formatPhoneNumber(row.representativeNumber ?? row.didNumber),
+        formatPhoneNumber(row.didNumber),
         getQueueLabel(row),
         row.primaryAgent?.agentName ?? '-',
         getStatusLabel(row.sessionStatus),
@@ -197,7 +198,7 @@ export function CallsReportPage() {
             render: (v: string) => dayjs(v).format('MM-DD HH:mm:ss'),
             width: 130,
           },
-          { title: '발신번호', dataIndex: 'ani', width: 120 },
+          { title: '발신번호', dataIndex: 'ani', width: 120, render: (value: string) => formatPhoneNumber(value) },
           {
             title: '대표번호 / DID',
             width: 180,

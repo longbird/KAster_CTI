@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { downloadCsv } from '../../shared/lib/csv';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import { useBranchOptions } from '../../shared/branches/useBranchOptions';
 import {
   createBlocklistEntry,
@@ -95,7 +96,7 @@ export function BlocklistPage() {
           : row.branchId ?? '-';
         return [
           branchLabel,
-          row.normalizedPhoneNumber ?? row.phoneNumber,
+          formatPhoneNumber(row.normalizedPhoneNumber ?? row.phoneNumber),
           row.description ?? '',
           row.isActive ? '활성' : '비활성',
           row.createdAt ? dayjs(row.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-',
@@ -169,7 +170,7 @@ export function BlocklistPage() {
             width: 170,
             render: (_: unknown, row) => (
               <Typography.Text code>
-                {row.normalizedPhoneNumber ?? row.phoneNumber}
+                {formatPhoneNumber(row.normalizedPhoneNumber ?? row.phoneNumber)}
               </Typography.Text>
             ),
           },

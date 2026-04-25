@@ -28,6 +28,7 @@ import type {
   EventLogItem,
   QueueSummary,
 } from '../types/cti';
+import { formatPhoneNumber } from '../utils/format';
 
 interface CtiState {
   loading: boolean;
@@ -272,7 +273,7 @@ export const useCtiStore = create<CtiState>((set, get) => ({
 
     const ack = await originateExternalCall(normalized, callerId);
     const msg = enrichCommandMessage(
-      `외부 발신 요청이 접수되었습니다. 대상: ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`,
+      `외부 발신 요청이 접수되었습니다. 대상: ${formatPhoneNumber(normalized)}${callerId ? ` / 발신번호 ${formatPhoneNumber(callerId)}` : ''}`,
       ack.data,
     );
     set((state) => ({
@@ -362,7 +363,7 @@ export const useCtiStore = create<CtiState>((set, get) => ({
   applyEvent: (event) => {
     switch (event.type) {
       case 'call.created': {
-        const msg = `신규 콜 수신 (${event.payload.ani})`;
+        const msg = `신규 콜 수신 (${formatPhoneNumber(event.payload.ani)})`;
         set((state) => ({
           activeCalls: [event.payload, ...state.activeCalls],
           selectedCallId: event.payload.callId,

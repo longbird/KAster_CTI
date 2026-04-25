@@ -4,14 +4,7 @@ import { createDid, deleteDid, getDids, updateDid } from '../api/asteriskConfigA
 import type { AsteriskDid } from '../types/asterisk-config';
 import { DidForm } from './DidForm';
 import { usePermissionStore } from '../../../store/usePermissionStore';
-
-function formatDid(value: string) {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  if (digits.length === 10 && digits.startsWith('02')) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
-  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  return value;
-}
+import { formatPhoneNumber } from '../../../shared/lib/format';
 
 export function DidsTab() {
   const [rows, setRows] = useState<AsteriskDid[]>([]);
@@ -57,12 +50,12 @@ export function DidsTab() {
     {
       title: '대표번호',
       dataIndex: 'representativeNumber',
-      render: (value: string | null) => value || '-',
+      render: (value: string | null) => formatPhoneNumber(value),
     },
     {
       title: '착신번호',
       dataIndex: 'did',
-      render: (value: string) => formatDid(value),
+      render: (value: string) => formatPhoneNumber(value),
     },
     { title: '설명', dataIndex: 'description' },
     {

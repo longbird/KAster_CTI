@@ -13,6 +13,7 @@ import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { CallListPanel } from '../components/CallListPanel';
+import { formatPhoneNumber } from '../utils/format';
 
 function formatTime(value?: string) {
   if (!value) return '-';
@@ -178,10 +179,10 @@ export function FullShell() {
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <p className="truncate font-bold text-on-surface">
-                                {call.customer?.customerName ?? call.ani ?? '미식별 고객'}
+                                {call.customer?.customerName ?? (call.ani ? formatPhoneNumber(call.ani) : '미식별 고객')}
                               </p>
                               <p className="mt-1 truncate text-xs text-outline">
-                                {call.ani ?? '-'} · {call.queueName || '-'}
+                                {formatPhoneNumber(call.ani)} · {call.queueName || '-'}
                               </p>
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
@@ -216,7 +217,7 @@ export function FullShell() {
                             <div className="min-w-0">
                               <p className="truncate font-bold text-on-surface">{item.customerName}</p>
                               <p className="mt-1 truncate text-xs text-outline">
-                                {item.phoneNumber} · {item.queueName}
+                                {formatPhoneNumber(item.phoneNumber)} · {item.queueName}
                               </p>
                             </div>
                             <span className="shrink-0 text-xs text-outline">{formatTime(item.startedAt)}</span>
@@ -273,10 +274,10 @@ export function FullShell() {
                             </div>
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
                               <InfoTile label="고객명" value={selectedCall.customer?.customerName ?? '미식별 고객'} />
-                              <InfoTile label="전화번호" value={selectedCall.ani ?? '-'} />
+                              <InfoTile label="전화번호" value={formatPhoneNumber(selectedCall.ani)} />
                               <InfoTile label="대표 큐" value={selectedCall.queueName || '-'} />
                               <InfoTile label="현재 상태" value={selectedCall.sessionStatus} />
-                              <InfoTile label="유입 번호" value={selectedCall.dnis ?? '-'} />
+                              <InfoTile label="유입 번호" value={formatPhoneNumber(selectedCall.dnis)} />
                               <InfoTile label="고객 등급" value={selectedCall.customer?.grade ?? '-'} />
                               <InfoTile label="시작 시각" value={formatTime(selectedCall.startedAt)} />
                               <InfoTile
@@ -507,7 +508,7 @@ export function FullShell() {
                           <div>
                             <p className="font-bold text-on-surface">{item.customerName}</p>
                             <p className="mt-1 text-xs text-outline">
-                              {item.phoneNumber} · {item.queueName}
+                              {formatPhoneNumber(item.phoneNumber)} · {item.queueName}
                             </p>
                           </div>
                           <div className="text-right">

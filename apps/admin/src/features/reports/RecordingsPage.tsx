@@ -4,6 +4,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useRef, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 
@@ -35,12 +36,12 @@ function getRepresentativeDidLines(row: RecRow) {
   const did = getDisplayDid(row)?.trim() || null;
 
   if (representative && did && representative !== did) {
-    return { primary: representative, secondary: did };
+    return { primary: formatPhoneNumber(representative), secondary: formatPhoneNumber(did) };
   }
 
   return {
-    primary: representative ?? did ?? '-',
-    secondary: representative && did && representative === did ? null : did,
+    primary: formatPhoneNumber(representative ?? did),
+    secondary: representative && did && representative === did ? null : did ? formatPhoneNumber(did) : null,
   };
 }
 
@@ -105,9 +106,9 @@ export function RecordingsPage() {
       ['시작', '발신번호', '대표번호', 'DID', '큐', '상담원', '파일명', '형식', '길이(초)'],
       rows.map((row) => [
         row.recordingStartedAt ? dayjs(row.recordingStartedAt).format('YYYY-MM-DD HH:mm:ss') : '-',
-        row.session?.ani ?? '-',
-        row.session?.representativeNumber ?? row.session?.didNumber ?? '-',
-        row.session?.didNumber ?? '-',
+        formatPhoneNumber(row.session?.ani),
+        formatPhoneNumber(row.session?.representativeNumber ?? row.session?.didNumber),
+        formatPhoneNumber(row.session?.didNumber),
         getQueueLabel(row),
         row.session?.primaryAgent?.agentName ?? '-',
         row.fileName,
@@ -213,7 +214,7 @@ export function RecordingsPage() {
           },
           {
             title: '발신번호',
-            render: (_: unknown, r: RecRow) => r.session?.ani ?? '-',
+            render: (_: unknown, r: RecRow) => formatPhoneNumber(r.session?.ani),
             width: 120,
           },
           {
@@ -287,7 +288,7 @@ export function RecordingsPage() {
           <Space direction="vertical" size={0} style={{ width: '100%' }}>
             <Typography.Text strong>{playerRow?.fileName ?? '-'}</Typography.Text>
             <Typography.Text type="secondary">
-              발신번호 {playerRow?.session?.ani ?? '-'} / 상담원 {playerRow?.session?.primaryAgent?.agentName ?? '-'}
+              발신번호 {formatPhoneNumber(playerRow?.session?.ani)} / 상담원 {playerRow?.session?.primaryAgent?.agentName ?? '-'}
             </Typography.Text>
           </Space>
           {playerLoading ? <Typography.Text type="secondary">녹취 파일을 불러오는 중입니다.</Typography.Text> : null}

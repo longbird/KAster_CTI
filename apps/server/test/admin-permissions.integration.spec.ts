@@ -352,12 +352,13 @@ describe('Admin/Permission service integration', () => {
         inboundNumber: '07052346380',
         customerName: '홍길동',
         agentName: '상담원A',
-        flowSummary: '01012345678 -> 07052346380 -> default-distribution -> 상담원A -> 종료',
+        flowSummary: '010-1234-5678 -> 070-5234-6380 -> default-distribution -> 상담원A -> 종료',
       });
       expect(data.calls[0].timeline.map((item: any) => item.type)).toEqual(
         expect.arrayContaining(['CALL_STARTED', 'SMART_ARS_PROMPT', 'SMART_ARS_SELECTION', 'SMART_ARS_RESULT', 'QUEUE_ENTERED', 'AGENT_RINGING', 'CALL_ANSWERED', 'TRANSFER_COMPLETED', 'RECORDING_STARTED', 'CALL_ENDED', 'MEMO_SAVED']),
       );
       expect(data.calls[0].timeline).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'CALL_STARTED', label: '호 시작', detail: '010-1234-5678 -> 070-5234-6380' }),
         expect.objectContaining({ type: 'SMART_ARS_SELECTION', label: '스마트 ARS 사용자 선택', detail: '입력 1 · 수신거부 등록 · 선택됨' }),
         expect.objectContaining({ type: 'SMART_ARS_RESULT', label: '스마트 ARS 액션 결과', detail: '수신거부 등록 · 성공' }),
         expect.objectContaining({ type: 'QUEUE_ENTERQUEUE', label: '대기열 진입', detail: 'default-distribution' }),

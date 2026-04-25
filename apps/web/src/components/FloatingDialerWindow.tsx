@@ -2,6 +2,7 @@ import { message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { AGENT_META } from './statusMeta';
 import type { AgentDirectoryItem } from '../types/cti';
+import { formatPhoneNumber } from '../utils/format';
 
 const LS_CALLER_ID_KEY = 'kaster.outbound_caller_id';
 
@@ -126,7 +127,7 @@ export function FloatingDialerWindow({
                 <option value="">설정된 발신번호 없음</option>
               ) : callerIds.map((callerId) => (
                 <option key={callerId} value={callerId}>
-                  {callerId}
+                  {formatPhoneNumber(callerId)}
                 </option>
               ))}
             </select>
@@ -148,7 +149,7 @@ export function FloatingDialerWindow({
                   return;
                 }
                 await onOriginateExternal(phoneNumber.trim(), selectedCallerId);
-                message.success(`외부 발신을 요청했습니다: ${phoneNumber.trim()}`);
+                message.success(`외부 발신을 요청했습니다: ${formatPhoneNumber(phoneNumber.trim())}`);
                 setPhoneNumber('');
               }}
               className="btn-primary-gradient mt-4 w-full rounded-xl py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"

@@ -2,6 +2,7 @@ import { Alert, Button, Card, Col, Collapse, Form, Modal, Row, Select, Space, Sw
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import type { BranchRow } from './BranchEditModal';
 
 interface AgentOption {
@@ -175,7 +176,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
     () =>
       (data?.availableDids ?? []).map((did) => ({
         value: did.id,
-        label: did.description ? `${did.did} (${did.description})` : did.did,
+        label: did.description ? `${formatPhoneNumber(did.did)} (${did.description})` : formatPhoneNumber(did.did),
       })),
     [data?.availableDids],
   );
@@ -184,7 +185,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
     () =>
       (data?.availableForwardingRules ?? []).map((rule) => ({
         value: rule.id,
-        label: `${rule.did.did} → ${FORWARD_TYPE_LABEL[rule.forwardType] ?? rule.forwardType} ${rule.targetValue}${
+        label: `${formatPhoneNumber(rule.did.did)} → ${FORWARD_TYPE_LABEL[rule.forwardType] ?? rule.forwardType} ${rule.forwardType === 'EXTERNAL_NUMBER' ? formatPhoneNumber(rule.targetValue) : rule.targetValue}${
           rule.conditionType === 'TIME_RANGE' ? ' (조건형)' : ''
         }`,
       })),
@@ -201,7 +202,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
   );
 
   const callerIdOptions = useMemo(
-    () => (data?.availableCallerIds ?? []).map((callerId) => ({ value: callerId, label: callerId })),
+    () => (data?.availableCallerIds ?? []).map((callerId) => ({ value: callerId, label: formatPhoneNumber(callerId) })),
     [data?.availableCallerIds],
   );
 

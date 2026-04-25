@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ActiveCall } from '../types/cti';
+import { formatPhoneNumber } from '../utils/format';
 
 interface Props {
   call?: ActiveCall;
@@ -63,7 +64,7 @@ export function CurrentCallPanel({
   }
 
   const customer = call.customer;
-  const displayName = customer?.customerName ?? call.ani ?? '미식별 고객';
+  const displayName = customer?.customerName ?? (call.ani ? formatPhoneNumber(call.ani) : '미식별 고객');
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const duration = formatCallDuration(call.answeredAt ?? call.startedAt);
   const canPickup = ['QUEUED', 'RINGING_AGENT'].includes(call.sessionStatus) && !call.answeredAt;
@@ -95,7 +96,7 @@ export function CurrentCallPanel({
             {displayName}
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-            {call.ani ?? '-'}
+            {formatPhoneNumber(call.ani)}
             {call.queueName ? ` · ${call.queueName}` : ''}
             {customer?.companyName ? ` · ${customer.companyName}` : ''}
           </div>

@@ -3,6 +3,7 @@ import type { CSSProperties, MouseEvent } from 'react';
 import type { CallRow } from '../../features/live-calls/CallDetailDrawer';
 import { toKanbanColumn, KANBAN_COLUMNS } from '../lib/callStatusMap';
 import { formatElapsed, secondsSince } from '../hooks/useNow';
+import { formatPhoneNumber } from '../lib/format';
 
 const TRANSFER_PHASE_LABEL: Record<string, string> = {
   REQUESTED: '요청됨',
@@ -65,7 +66,7 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
     return (
       <div className="call-card call-card--mini" style={style} onClick={handleClick}>
         <div className="call-card__row">
-          <Typography.Text strong className="call-card__ani">{call.ani}</Typography.Text>
+          <Typography.Text strong className="call-card__ani">{formatPhoneNumber(call.ani)}</Typography.Text>
           <Typography.Text className="call-card__elapsed">{formatElapsed(elapsed)}</Typography.Text>
         </div>
         <Typography.Text type="secondary" className="call-card__sub">
@@ -84,7 +85,7 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
     <div className="call-card call-card--full" style={style} onClick={handleClick}>
       <div className="call-card__row">
         <Tooltip title={`Linked ${call.linkedid}`}>
-          <Typography.Text strong className="call-card__ani">{call.ani}</Typography.Text>
+          <Typography.Text strong className="call-card__ani">{formatPhoneNumber(call.ani)}</Typography.Text>
         </Tooltip>
         <Typography.Text className="call-card__elapsed">{formatElapsed(elapsed)}</Typography.Text>
       </div>
@@ -98,7 +99,7 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
       </div>
       {call.representativeNumber || call.didNumber || call.dnis ? (
         <Typography.Text type="secondary" className="call-card__did">
-          {call.representativeNumber ?? call.didNumber ?? call.dnis}
+          {formatPhoneNumber(call.representativeNumber ?? call.didNumber ?? call.dnis)}
         </Typography.Text>
       ) : null}
       {transferPhase ? (
