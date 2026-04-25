@@ -166,3 +166,37 @@ TEST_CASE("live run executes scheduled calls through the provided runner", "[com
   REQUIRE(replayed.connected == 1);
   REQUIRE(replayed.failed == 1);
 }
+
+TEST_CASE("test plan command logic formats generated inventory", "[command]") {
+  const std::string openapi = R"({
+    "openapi": "3.0.0",
+    "paths": {
+      "/calls/active": { "get": {} },
+      "/queues/summary": { "get": {} }
+    }
+  })";
+
+  const auto text = loadgen::formatFeatureInventoryFromOpenApi(openapi);
+
+  REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("\"id\": \"calls.inbound.basic\""));
+  REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("\"id\": \"queues.summary.after-inbound\""));
+}
+
+TEST_CASE("test plan command logic validates and dry-runs yaml", "[command]") {
+  const std::string yaml = R"(
+id: calls.inbound.basic
+title: Basic inbound call reaches CTI active call state
+source: { generatedFrom: ["docs/openapi.json"], generatorVersion: 1 }
+environment: { apiBaseUrl: "${CTI_API_BASE_URL}", wsUrl: "${CTI_WS_URL}", accessToken: "${CTI_ACCESS_TOKEN}" }
+scenario:
+  target: { host: 49.247.46.86, port: 36070, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:36070" }
+  callFlow: { callerIdPool: ["01011112222"], didPool: ["07052346380"] }
+steps:
+  - { type: inbound_call, id: call-1, answerTimeoutMs: 12000, holdSeconds: 5 }
+  - { type: assert_result, expect: { finalSipCode: 200 } }
+)";
+
+  REQUIRE(loadgen::validateTestPlanYaml(yaml) == "test plan ok: calls.inbound.basic steps=2");
+  REQUIRE_THAT(loadgen::formatTestPlanDryRunFromYaml(yaml),
+               Catch::Matchers::ContainsSubstring("1. inbound_call id=call-1"));
+}

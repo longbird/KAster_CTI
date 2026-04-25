@@ -48,9 +48,12 @@ add_library(loadgen_command_logic STATIC src/command_logic.cpp)
 target_link_libraries(
   loadgen_command_logic
   PUBLIC
+    loadgen_feature_inventory
     loadgen_orchestrator
     loadgen_report_writer
     loadgen_scenario
+    loadgen_test_plan
+    loadgen_test_result
 )
 target_include_directories(loadgen_command_logic PUBLIC include)
 

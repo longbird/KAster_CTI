@@ -27,5 +27,11 @@ std::string formatDryRunSummary(const PracticalSchedule& schedule);
 PracticalRunResult executePracticalRun(const Scenario& scenario);
 std::string formatRunArtifacts(const ReportArtifacts& artifacts);
 std::string formatReportReplay(const RunSummary& summary);
+std::string formatFeatureInventoryFromOpenApi(const std::string& openapiJson);
+std::string validateTestPlanYaml(const std::string& yaml);
+std::string formatTestPlanDryRunFromYaml(const std::string& yaml);
+std::string renderGeneratedTestPlanForFeature(const std::string& openapiJson,
+                                              const std::string& featureId);
+std::string renderFeedbackFromTestResultFile(const std::string& resultJsonPath);
 
 }  // namespace loadgen
