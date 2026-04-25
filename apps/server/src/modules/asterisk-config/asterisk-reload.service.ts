@@ -13,11 +13,13 @@ import { renderPjsip } from './renderers/pjsip.renderer';
 import { renderQueuesConf } from './renderers/queues.renderer';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
-const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/bin/kaster-opt-out-hook.sh';
+const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh';
+const SMART_ARS_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-smart-ars-hook.sh';
 
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
 type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
 type Blocklist080SmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
+type SmartArsActionType = 'QUEUE_ROUTE' | 'TRANSFER' | 'SEND_SMS' | 'OPT_OUT' | 'PLAY_PROMPT';
 
 interface Blocklist080Mapping {
   digit: string;
@@ -58,7 +60,27 @@ interface Blocklist080Profile {
   smartFlow?: Blocklist080SmartFlow | null;
 }
 
+interface SmartArsActionProfile {
+  digit?: string;
+  actionType?: SmartArsActionType | string;
+  queueId?: string | null;
+  transferNumber?: string | null;
+  smsTemplateId?: string | null;
+  promptId?: string | null;
+}
+
+interface SmartArsProfile {
+  enabled?: boolean;
+  guidePromptId?: string | null;
+  invalidPromptId?: string | null;
+  failPromptId?: string | null;
+  timeoutSeconds?: number;
+  maxRetries?: number;
+  actions?: SmartArsActionProfile[];
+}
+
 const BLOCKLIST080_MODES: Blocklist080Mode[] = ['IMMEDIATE_OPT_OUT', 'DTMF_MENU', 'SMART_OPT_OUT'];
+const SMART_ARS_ACTION_TYPES: SmartArsActionType[] = ['QUEUE_ROUTE', 'TRANSFER', 'SEND_SMS', 'OPT_OUT', 'PLAY_PROMPT'];
 
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -137,12 +159,37 @@ function extractBlocklist080Profile(settingsProfile: unknown): Blocklist080Profi
   return blocklist080;
 }
 
+function extractSmartArsProfile(settingsProfile: unknown): SmartArsProfile | null {
+  if (!settingsProfile || typeof settingsProfile !== 'object' || Array.isArray(settingsProfile)) {
+    return null;
+  }
+
+  const source = settingsProfile as Record<string, unknown>;
+  const smartArs = source.smartArs && typeof source.smartArs === 'object' && !Array.isArray(source.smartArs)
+    ? source.smartArs as SmartArsProfile
+    : null;
+
+  if (!smartArs?.enabled || !Array.isArray(smartArs.actions) || smartArs.actions.length === 0) {
+    return null;
+  }
+
+  return smartArs;
+}
+
 function normalizePositiveInteger(value: unknown, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return fallback;
   }
 
   return Math.max(1, Math.trunc(value));
+}
+
+function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.trunc(value));
 }
 
 function mapPromptKey(promptId: string | null | undefined, promptKeyById: Map<string, string>): string | null {
@@ -234,6 +281,77 @@ function resolveDidBranchOptOut(
           confirmationMappings: normalizeBlocklist080Mappings(profile.smartFlow.confirmationMappings, queueNameById),
         }
         : null,
+    };
+  }
+
+  return null;
+}
+
+function resolveDidSmartArs(
+  branchMappings: Array<{
+    branchId?: string;
+    branch?: { isActive: boolean; settingsProfile: unknown } | null;
+  }>,
+  promptKeyById: Map<string, string>,
+  queueNameById: Map<string, string>,
+) {
+  for (const mapping of branchMappings) {
+    if (!mapping.branch?.isActive) {
+      continue;
+    }
+
+    const profile = extractSmartArsProfile(mapping.branch.settingsProfile);
+    if (!profile) {
+      continue;
+    }
+
+    const actions = profile.actions
+      ?.filter((action) => typeof action?.digit === 'string' && typeof action?.actionType === 'string')
+      .map((action) => {
+        const actionType = action.actionType?.trim() as SmartArsActionType;
+        if (!SMART_ARS_ACTION_TYPES.includes(actionType)) {
+          return null;
+        }
+
+        return {
+          digit: action.digit!.trim(),
+          actionType,
+          queueName: action.queueId ? queueNameById.get(action.queueId) ?? null : null,
+          transferNumber: action.transferNumber?.replace(/\D/g, '') || null,
+          smsTemplateId: action.smsTemplateId?.trim() || null,
+          promptKey: mapPromptKey(action.promptId, promptKeyById),
+        };
+      })
+      .filter((action): action is {
+        digit: string;
+        actionType: SmartArsActionType;
+        queueName: string | null;
+        transferNumber: string | null;
+        smsTemplateId: string | null;
+        promptKey: string | null;
+      } => action !== null)
+      .filter((action) => {
+        if (action.actionType === 'QUEUE_ROUTE') return Boolean(action.queueName);
+        if (action.actionType === 'TRANSFER') return Boolean(action.transferNumber);
+        if (action.actionType === 'SEND_SMS') return Boolean(action.smsTemplateId);
+        if (action.actionType === 'PLAY_PROMPT') return Boolean(action.promptKey);
+        return true;
+      }) ?? [];
+
+    if (actions.length === 0) {
+      continue;
+    }
+
+    return {
+      enabled: true,
+      tenantId: '',
+      branchId: mapping.branchId ?? null,
+      guidePromptKey: mapPromptKey(profile.guidePromptId, promptKeyById),
+      invalidPromptKey: mapPromptKey(profile.invalidPromptId, promptKeyById),
+      failPromptKey: mapPromptKey(profile.failPromptId, promptKeyById),
+      timeoutSeconds: normalizePositiveInteger(profile.timeoutSeconds, 5),
+      maxRetries: normalizeNonNegativeInteger(profile.maxRetries, 2),
+      actions,
     };
   }
 
@@ -405,6 +523,72 @@ function buildOptOutHookScript(port: number, configuredSecret: string | null): s
   ].join('\n');
 }
 
+function buildSmartArsHookScript(port: number, configuredSecret: string | null): string {
+  const defaultSecret = (configuredSecret ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+  return [
+    '#!/bin/sh',
+    'set -eu',
+    '',
+    'ACTION="${1:-}"',
+    'TENANT_ID="${2:-}"',
+    'BRANCH_ID="${3:-}"',
+    'ENTRY_DID="${4:-}"',
+    'REQUESTER_PHONE="${5:-}"',
+    'SMS_TEMPLATE_ID="${6:-}"',
+    'API_BASE_URL="${KASTER_SMART_ARS_API_BASE_URL:-http://127.0.0.1:' + port + '/api/v1/asterisk-config/internal/smart-ars}"',
+    'INTERNAL_SECRET="${KASTER_INTERNAL_SECRET:-' + defaultSecret + '}"',
+    '',
+    'normalize_optional() {',
+    '  if [ "${1:-}" = "-" ]; then',
+    "    printf ''",
+    '  else',
+    '    printf %s "${1:-}"',
+    '  fi',
+    '}',
+    '',
+    'BRANCH_ID="$(normalize_optional "$BRANCH_ID")"',
+    'ENTRY_DID="$(normalize_optional "$ENTRY_DID")"',
+    'SMS_TEMPLATE_ID="$(normalize_optional "$SMS_TEMPLATE_ID")"',
+    '',
+    'if [ -z "$ACTION" ] || [ -z "$TENANT_ID" ] || [ -z "$REQUESTER_PHONE" ]; then',
+    "  echo 'missing required smart ARS hook arguments' >&2",
+    '  exit 64',
+    'fi',
+    '',
+    'if [ -z "$INTERNAL_SECRET" ]; then',
+    "  echo 'KASTER_INTERNAL_SECRET is not configured for smart ARS hook' >&2",
+    '  exit 65',
+    'fi',
+    '',
+    'build_payload() {',
+    '  printf \'{"tenantId":"%s","branchId":"%s","entryDid":"%s","requesterPhoneNumber":"%s","smsTemplateId":"%s"}\' "$TENANT_ID" "$BRANCH_ID" "$ENTRY_DID" "$REQUESTER_PHONE" "$SMS_TEMPLATE_ID"',
+    '}',
+    '',
+    'post_payload() {',
+    '  endpoint="$1"',
+    '  curl -fsS --connect-timeout 3 --max-time 10 -X POST "$API_BASE_URL/$endpoint" \\',
+    "    -H 'Content-Type: application/json' \\",
+    '    -H "x-kaster-internal-secret: $INTERNAL_SECRET" \\',
+    '    --data "$(build_payload)" >/dev/null',
+    '}',
+    '',
+    'case "$ACTION" in',
+    '  sms)',
+    '    post_payload "sms"',
+    '    ;;',
+    '  opt-out)',
+    '    post_payload "opt-out"',
+    '    ;;',
+    '  *)',
+    "    echo 'unknown smart ARS hook action' >&2",
+    '    exit 64',
+    '    ;;',
+    'esac',
+    '',
+  ].join('\n');
+}
+
 @Injectable()
 export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(AsteriskReloadService.name);
@@ -564,6 +748,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     fs.writeFileSync(path.join(confDir, PROMPT_MOH_INCLUDE_FILENAME), musiconholdContent, 'utf8');
     this.ensurePromptMohInclude(confDir);
     this.writeOptOutHookScript(httpPort, internalSecret);
+    this.writeSmartArsHookScript(httpPort, internalSecret);
     return true;
   }
 
@@ -686,6 +871,16 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       { encoding: 'utf8', mode: 0o755 },
     );
     fs.chmodSync(OPT_OUT_HOOK_SCRIPT_PATH, 0o755);
+  }
+
+  private writeSmartArsHookScript(httpPort: number, internalSecret: string | null) {
+    fs.mkdirSync(path.dirname(SMART_ARS_HOOK_SCRIPT_PATH), { recursive: true });
+    fs.writeFileSync(
+      SMART_ARS_HOOK_SCRIPT_PATH,
+      buildSmartArsHookScript(httpPort, internalSecret),
+      { encoding: 'utf8', mode: 0o755 },
+    );
+    fs.chmodSync(SMART_ARS_HOOK_SCRIPT_PATH, 0o755);
   }
 
   private syncPromptMohAssets(
@@ -837,6 +1032,10 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       branchOptOut080: (() => {
         const optOut = resolveDidBranchOptOut(branchMappings, promptKeyById, queueNameById);
         return optOut ? { ...optOut, tenantId } : null;
+      })(),
+      branchSmartArs: (() => {
+        const smartArs = resolveDidSmartArs(branchMappings, promptKeyById, queueNameById);
+        return smartArs ? { ...smartArs, tenantId } : null;
       })(),
     }));
 

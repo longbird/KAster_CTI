@@ -77,6 +77,7 @@ services:
       ASTERISK_OUTBOUND_CONTEXT: outbound-main
       ASTERISK_CONF_DIR: /etc/asterisk
       ASTERISK_SOUNDS_DIR: /var/lib/asterisk/sounds/custom
+      KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET:-change_me_internal}
       SEED_DEMO_PASSWORD: Password123!
       AUTO_SEED_DEMO_DATA: "true"
       # CORS: web(5173)/admin(5174) + host 직접 접속 허용

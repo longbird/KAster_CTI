@@ -22,6 +22,7 @@ interface BranchSettingsProfile {
   forwarding?: { enabled: boolean; ids?: string[] };
   prompts?: { enabled: boolean; ids?: string[] };
   ars?: { enabled: boolean; ids?: string[] };
+  smartArs?: { enabled: boolean };
   recording?: { enabled: boolean };
   blocklist080?: { enabled: boolean };
   cid?: { enabled: boolean; defaultOutboundCallerId?: string | null };
@@ -70,8 +71,7 @@ interface BranchOperationFormValue {
   forwardingRuleIds: string[];
   promptsEnabled: boolean;
   promptIds: string[];
-  arsEnabled: boolean;
-  ivrMenuIds: string[];
+  smartArsEnabled: boolean;
   recordingEnabled: boolean;
   blocklist080Enabled: boolean;
   cidEnabled: boolean;
@@ -102,8 +102,7 @@ function buildInitialValues(next: MappingResponse | null): BranchOperationFormVa
     forwardingRuleIds: next?.settingsProfile?.forwarding?.ids ?? [],
     promptsEnabled: next?.settingsProfile?.prompts?.enabled ?? false,
     promptIds: next?.settingsProfile?.prompts?.ids ?? [],
-    arsEnabled: next?.settingsProfile?.ars?.enabled ?? false,
-    ivrMenuIds: next?.settingsProfile?.ars?.ids ?? [],
+    smartArsEnabled: next?.settingsProfile?.smartArs?.enabled ?? false,
     recordingEnabled: next?.settingsProfile?.recording?.enabled ?? next?.defaultSystemRecordingEnabled ?? true,
     blocklist080Enabled: next?.settingsProfile?.blocklist080?.enabled ?? false,
     cidEnabled: next?.settingsProfile?.cid?.enabled ?? false,
@@ -127,7 +126,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
   const routingEnabled = Form.useWatch('routingEnabled', form) ?? true;
   const forwardingEnabled = Form.useWatch('forwardingEnabled', form) ?? false;
   const promptsEnabled = Form.useWatch('promptsEnabled', form) ?? false;
-  const arsEnabled = Form.useWatch('arsEnabled', form) ?? false;
+  const smartArsEnabled = Form.useWatch('smartArsEnabled', form) ?? false;
   const cidEnabled = Form.useWatch('cidEnabled', form) ?? false;
   const recordingEnabled = Form.useWatch('recordingEnabled', form) ?? true;
   const blocklist080Enabled = Form.useWatch('blocklist080Enabled', form) ?? false;
@@ -201,15 +200,6 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
     [data?.availablePrompts],
   );
 
-  const ivrMenuOptions = useMemo(
-    () =>
-      (data?.availableIvrMenus ?? []).map((menu) => ({
-        value: menu.id,
-        label: `${menu.name} (${menu.timeoutSecs}초)`,
-      })),
-    [data?.availableIvrMenus],
-  );
-
   const callerIdOptions = useMemo(
     () => (data?.availableCallerIds ?? []).map((callerId) => ({ value: callerId, label: callerId })),
     [data?.availableCallerIds],
@@ -228,6 +218,10 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
       onOk={async () => {
         if (!branch) return;
         const values = await form.validateFields();
+        if (smartArsEnabled && values.blocklist080Enabled) {
+          message.warning('스마트 ARS와 080 수신거부는 같은 지사에서 동시에 사용할 수 없습니다.');
+          return;
+        }
         setSaving(true);
         try {
           await apiClient.post(`/admin/settings/branches/${branch.branchId}/mappings`, {
@@ -245,10 +239,6 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
               prompts: {
                 enabled: values.promptsEnabled,
                 ids: values.promptIds ?? [],
-              },
-              ars: {
-                enabled: values.arsEnabled,
-                ids: values.ivrMenuIds ?? [],
               },
               recording: {
                 enabled: values.recordingEnabled,
@@ -331,8 +321,8 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                     <Typography.Text>착신전환</Typography.Text>
                     {featureStatusTag(promptsEnabled)}
                     <Typography.Text>멘트</Typography.Text>
-                    {featureStatusTag(arsEnabled)}
-                    <Typography.Text>ARS</Typography.Text>
+                    {featureStatusTag(smartArsEnabled)}
+                    <Typography.Text>스마트 ARS</Typography.Text>
                     {featureStatusTag(recordingEnabled)}
                     <Typography.Text>녹취</Typography.Text>
                     {featureStatusTag(blocklist080Enabled)}
@@ -462,38 +452,24 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                   ),
                 },
                 {
-                  key: 'ars',
+                  key: 'smartArs',
                   label: (
                     <Space>
-                      <Typography.Text strong>ARS 기능 설정</Typography.Text>
-                      {featureStatusTag(arsEnabled)}
+                      <Typography.Text strong>스마트 ARS 설정</Typography.Text>
+                      {featureStatusTag(smartArsEnabled)}
                     </Space>
                   ),
                   children: (
                     <Space direction="vertical" style={{ width: '100%' }} size={12}>
                       <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
-                        <Form.Item name="arsEnabled" valuePropName="checked" noStyle>
-                          <Switch checkedChildren="사용" unCheckedChildren="미사용" />
-                        </Form.Item>
-                        <Button type="link" size="small" onClick={() => moveTo('/asterisk')}>
-                          IVR 메뉴 관리
+                        {featureStatusTag(smartArsEnabled)}
+                        <Button type="link" size="small" onClick={() => moveTo('/settings/branches')}>
+                          지사 설정 수정
                         </Button>
                       </Space>
-                      <Form.Item
-                        label="사용할 ARS 메뉴"
-                        name="ivrMenuIds"
-                        extra="IVR 메뉴는 연동 설정에서 등록하고, 지사에서는 사용할 메뉴만 선택합니다."
-                      >
-                        <Select
-                          mode="multiple"
-                          allowClear
-                          showSearch
-                          maxTagCount="responsive"
-                          disabled={!arsEnabled}
-                          placeholder="사용할 IVR 메뉴를 선택하세요"
-                          options={ivrMenuOptions}
-                        />
-                      </Form.Item>
+                      <Typography.Text type="secondary">
+                        스마트 ARS의 안내 멘트, 입력 대기, 재시도, DTMF 동작은 지사 설정 수정 화면에서 관리합니다.
+                      </Typography.Text>
                     </Space>
                   ),
                 },

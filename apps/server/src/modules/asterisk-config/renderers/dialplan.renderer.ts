@@ -2,7 +2,8 @@ import { assertNoNewlines, toSlug } from './renderer-utils';
 
 const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
 const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
-const OPT_OUT_HOOK_PATH = '/var/lib/asterisk/bin/kaster-opt-out-hook.sh';
+const OPT_OUT_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-opt-out-hook.sh`;
+const SMART_ARS_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-smart-ars-hook.sh`;
 const OPT_OUT_MODE_SOURCE_TYPE: Record<OptOutMode, string> = {
   IMMEDIATE_OPT_OUT: 'OPT_OUT_080_IMMEDIATE',
   DTMF_MENU: 'OPT_OUT_080_DTMF',
@@ -13,6 +14,7 @@ export type OptOutMode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
 export type OptOutDtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
 export type OptOutSmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
 export type OptOutActionType = OptOutDtmfActionType | OptOutSmartActionType;
+export type SmartArsActionType = 'QUEUE_ROUTE' | 'TRANSFER' | 'SEND_SMS' | 'OPT_OUT' | 'PLAY_PROMPT';
 
 export interface OptOutDigitMappingInput {
   digit: string;
@@ -55,6 +57,27 @@ export interface BranchOptOut080Input {
   smartFlow?: OptOutSmartFlowInput | null;
 }
 
+export interface SmartArsActionInput {
+  digit: string;
+  actionType: SmartArsActionType;
+  queueName?: string | null;
+  transferNumber?: string | null;
+  smsTemplateId?: string | null;
+  promptKey?: string | null;
+}
+
+export interface BranchSmartArsInput {
+  enabled: boolean;
+  tenantId: string;
+  branchId: string | null;
+  guidePromptKey?: string | null;
+  invalidPromptKey?: string | null;
+  failPromptKey?: string | null;
+  timeoutSeconds: number;
+  maxRetries: number;
+  actions: SmartArsActionInput[];
+}
+
 export interface DidInput {
   id: string;
   did: string;
@@ -65,6 +88,7 @@ export interface DidInput {
   branchPromptQueueDelaySeconds?: number | null;
   branchPromptWaitForCompletion?: boolean | null;
   branchOptOut080?: BranchOptOut080Input | null;
+  branchSmartArs?: BranchSmartArsInput | null;
   enabled: boolean;
 }
 
@@ -194,6 +218,10 @@ function buildOptOutContextSuffix(did: DidInput): string {
   return normalized || 'default';
 }
 
+function buildSmartArsContextSuffix(did: DidInput): string {
+  return buildOptOutContextSuffix(did);
+}
+
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`;
 }
@@ -215,6 +243,19 @@ function buildOptOutHookCommand(action: 'register' | 'unregister' | 'sms'): stri
   ];
 
   return `${OPT_OUT_HOOK_PATH} ${args.join(' ')}`;
+}
+
+function buildSmartArsHookCommand(action: 'sms' | 'opt-out'): string {
+  const args = [
+    shellQuote(action),
+    shellQuote('${SMART_ARS_TENANT_ID}'),
+    shellQuote('${SMART_ARS_BRANCH_ID}'),
+    shellQuote('${ENTRY_DID}'),
+    shellQuote('${CALLERID(num)}'),
+    shellQuote('${SMART_ARS_SELECTED_SMS_TEMPLATE}'),
+  ];
+
+  return `${SMART_ARS_HOOK_PATH} ${args.join(' ')}`;
 }
 
 function renderPromptQueuePreludeLines(did: DidInput): string[] {
@@ -496,6 +537,44 @@ function renderDidOptOutRoute(did: DidInput, blocklistEntries: BlocklistEntryInp
   ].join('\n');
 }
 
+function renderSmartArsVariableLines(did: DidInput): string[] {
+  const smartArs = did.branchSmartArs;
+  if (!smartArs?.enabled || smartArs.actions.length === 0) {
+    return [];
+  }
+
+  const contextSuffix = buildSmartArsContextSuffix(did);
+  return [
+    ` same => n,Set(__SMART_ARS_CONTEXT_SUFFIX=${contextSuffix})`,
+    ` same => n,Set(__SMART_ARS_TENANT_ID=${normalizeOptionalArg(smartArs.tenantId)})`,
+    ` same => n,Set(__SMART_ARS_BRANCH_ID=${normalizeOptionalArg(smartArs.branchId)})`,
+    ` same => n,Set(__SMART_ARS_TIMEOUT=${Math.max(1, Math.trunc(smartArs.timeoutSeconds))})`,
+    ` same => n,Set(__SMART_ARS_MAX_RETRIES=${Math.max(0, Math.trunc(smartArs.maxRetries))})`,
+  ];
+}
+
+function renderDidSmartArsRoute(
+  did: DidInput,
+  blocklistEntries: BlocklistEntryInput[],
+): string | null {
+  const smartArs = did.branchSmartArs;
+  if (!smartArs?.enabled || smartArs.actions.length === 0) {
+    return null;
+  }
+
+  const blocklistLines = renderBlocklistChecks(blocklistEntries);
+  const smartArsLines = renderSmartArsVariableLines(did);
+  const contextSuffix = buildSmartArsContextSuffix(did);
+
+  return [
+    `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> Smart ARS)`,
+    ' same => n,Set(__ENTRY_DID=${EXTEN})',
+    ...blocklistLines,
+    ...smartArsLines,
+    ` same => n,Goto(smart-ars-${contextSuffix},s,1)`,
+  ].join('\n');
+}
+
 function renderDidStandardRoute(
   did: DidInput,
   ivrMenus: IvrMenuInput[],
@@ -574,6 +653,11 @@ function renderDidExtension(
     return renderDidOptOutRoute(did, blocklistEntries);
   }
 
+  const smartArsRoute = renderDidSmartArsRoute(did, blocklistEntries);
+  if (smartArsRoute) {
+    return smartArsRoute;
+  }
+
   return renderDidStandardRoute(did, ivrMenus, forwardingRules, blocklistEntries);
 }
 
@@ -598,6 +682,116 @@ function renderIvrMenu(menu: IvrMenuInput): string {
   }
   lines.push('exten => t,1,Playback(vm-goodbye)');
   lines.push(' same => n,Hangup()');
+  return lines.join('\n');
+}
+
+function renderSmartArsAction(action: SmartArsActionInput, contextSuffix: string): string[] {
+  assertNoNewlines(action.digit, 'smartArs.action.digit');
+  assertNoNewlines(action.actionType, 'smartArs.action.actionType');
+  const lines = [
+    `exten => ${action.digit},1,NoOp(Smart ARS digit ${action.digit} action ${action.actionType})`,
+  ];
+
+  if (action.actionType === 'QUEUE_ROUTE') {
+    if (!action.queueName) return [];
+    assertNoNewlines(action.queueName, 'smartArs.action.queueName');
+    lines.push(` same => n,Goto(queue-entry,${action.queueName},1)`);
+    return lines;
+  }
+
+  if (action.actionType === 'TRANSFER') {
+    if (!action.transferNumber) return [];
+    assertNoNewlines(action.transferNumber, 'smartArs.action.transferNumber');
+    lines.push(` same => n,Goto(transfer-target,${action.transferNumber},1)`);
+    return lines;
+  }
+
+  if (action.actionType === 'SEND_SMS') {
+    if (!action.smsTemplateId) return [];
+    assertNoNewlines(action.smsTemplateId, 'smartArs.action.smsTemplateId');
+    lines.push(
+      ` same => n,Set(__SMART_ARS_SELECTED_SMS_TEMPLATE=${action.smsTemplateId})`,
+      ` same => n,System(${buildSmartArsHookCommand('sms')})`,
+      ` same => n,GotoIf($["\${SYSTEMSTATUS}"!="SUCCESS"]?smart-ars-failure-${contextSuffix},s,1)`,
+      ' same => n,Hangup()',
+    );
+    return lines;
+  }
+
+  if (action.actionType === 'OPT_OUT') {
+    lines.push(
+      ' same => n,Set(__SMART_ARS_SELECTED_SMS_TEMPLATE=-)',
+      ` same => n,System(${buildSmartArsHookCommand('opt-out')})`,
+      ` same => n,GotoIf($["\${SYSTEMSTATUS}"!="SUCCESS"]?smart-ars-failure-${contextSuffix},s,1)`,
+      ' same => n,Hangup()',
+    );
+    return lines;
+  }
+
+  if (action.actionType === 'PLAY_PROMPT') {
+    if (!action.promptKey) return [];
+    assertNoNewlines(action.promptKey, 'smartArs.action.promptKey');
+    lines.push(
+      ` same => n,Playback(${toPlaybackTarget(action.promptKey)})`,
+      ' same => n,Hangup()',
+    );
+    return lines;
+  }
+
+  return [];
+}
+
+function renderSmartArsContext(did: DidInput): string | null {
+  const smartArs = did.branchSmartArs;
+  if (!smartArs?.enabled || smartArs.actions.length === 0) {
+    return null;
+  }
+
+  const contextSuffix = buildSmartArsContextSuffix(did);
+  const guidePrompt = smartArs.guidePromptKey ? toPlaybackTarget(smartArs.guidePromptKey) : null;
+  const invalidPrompt = smartArs.invalidPromptKey ? toPlaybackTarget(smartArs.invalidPromptKey) : null;
+  const failPrompt = smartArs.failPromptKey ? toPlaybackTarget(smartArs.failPromptKey) : 'ss-noservice';
+  const actionLines = smartArs.actions.flatMap((action) => renderSmartArsAction(action, contextSuffix));
+
+  if (actionLines.length === 0) {
+    return null;
+  }
+
+  const lines = [
+    `[smart-ars-${contextSuffix}]`,
+    'exten => s,1,Answer()',
+    ' same => n,Set(CHANNEL(language)=)',
+    ' same => n,Set(__SMART_ARS_RETRY_COUNT=0)',
+    ' same => n(loop),NoOp(Smart ARS wait / DID=${ENTRY_DID} / retry=${SMART_ARS_RETRY_COUNT})',
+  ];
+
+  if (guidePrompt) {
+    lines.push(` same => n,Background(${guidePrompt})`);
+  }
+  lines.push(
+    ' same => n,WaitExten(${SMART_ARS_TIMEOUT})',
+    'exten => t,1,NoOp(Smart ARS timeout)',
+    ` same => n,Goto(smart-ars-retry-${contextSuffix},s,1)`,
+    'exten => i,1,NoOp(Smart ARS invalid digit)',
+  );
+  if (invalidPrompt) {
+    lines.push(` same => n,Playback(${invalidPrompt})`);
+  }
+  lines.push(
+    ` same => n,Goto(smart-ars-retry-${contextSuffix},s,1)`,
+    ...actionLines,
+    '',
+    `[smart-ars-retry-${contextSuffix}]`,
+    'exten => s,1,Set(__SMART_ARS_RETRY_COUNT=$[${SMART_ARS_RETRY_COUNT}+1])',
+    ` same => n,GotoIf($[\${SMART_ARS_RETRY_COUNT}<=\${SMART_ARS_MAX_RETRIES}]?smart-ars-${contextSuffix},s,loop)`,
+    ` same => n,Goto(smart-ars-failure-${contextSuffix},s,1)`,
+    '',
+    `[smart-ars-failure-${contextSuffix}]`,
+    'exten => s,1,NoOp(Smart ARS failure / DID=${ENTRY_DID})',
+    ` same => n,Playback(${failPrompt})`,
+    ' same => n,Hangup()',
+  );
+
   return lines.join('\n');
 }
 
@@ -747,6 +941,9 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
   const didLines = enabledDids
     .map((d) => renderDidExtension(d, input.ivrMenus, forwardingRules, blocklistEntries))
     .filter((line): line is string => line !== null);
+  const smartArsContexts = enabledDids
+    .map(renderSmartArsContext)
+    .filter((line): line is string => line !== null);
 
   const blockedAniContext = [
     '[blocked-ani]',
@@ -785,7 +982,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
 
   const extensionsQueue = [queueEntry, renderOptOutContexts(), ...input.ivrMenus
     .filter((m) => m.entries.length > 0)
-    .map(renderIvrMenu), buildDynamicDispatchLines().join('\n')]
+    .map(renderIvrMenu), ...smartArsContexts, buildDynamicDispatchLines().join('\n')]
     .join('\n\n');
 
   return { extensionsInbound, extensionsQueue };

@@ -73,6 +73,470 @@ function createService() {
 }
 
 describe('AdminService opt-out settings', () => {
+  it('persists branch Smart ARS profiles and disables legacy ARS menu selection', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        queueMappings: [{ queueId: 'queue-1' }],
+        didMappings: [{ didId: 'did-1' }],
+      })
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        branchCode: 'BR-001',
+        branchName: 'Branch 1',
+        description: null,
+        isActive: true,
+        agentMappings: [],
+        queueMappings: [{ queueId: 'queue-1' }],
+        didMappings: [{ didId: 'did-1' }],
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            failPromptId: 'prompt-fail',
+            invalidPromptId: 'prompt-invalid',
+            actions: [
+              {
+                digit: '0',
+                actionType: 'QUEUE_ROUTE',
+                queueId: 'queue-1',
+              },
+              {
+                digit: '1',
+                actionType: 'TRANSFER',
+                transferNumber: '010-1234-5678',
+              },
+              {
+                digit: '3',
+                actionType: 'OPT_OUT',
+              },
+              {
+                digit: '4',
+                actionType: 'PLAY_PROMPT',
+                promptId: 'prompt-info',
+              },
+            ],
+          },
+        },
+      });
+    prisma.agents.findMany.mockResolvedValue([]);
+    prisma.queues.findMany.mockResolvedValue([]);
+    prisma.asteriskDid.findMany.mockResolvedValue([]);
+    prisma.asteriskPrompt.findMany.mockResolvedValue([]);
+    prisma.asteriskIvrMenu.findMany.mockResolvedValue([]);
+    prisma.asteriskForwardingRules.findMany.mockResolvedValue([]);
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      recordingEnabled: true,
+      allowedOutboundCallerIds: '',
+      defaultOutboundCallerId: '',
+    });
+    prisma.tenantSmsTemplate.findMany.mockResolvedValue([{ templateId: 'tpl-1' }]);
+    prisma.branches.updateMany.mockResolvedValue({ count: 1 });
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(prisma));
+
+    await service.updateBranchMappings('tenant-1', 'branch-1', {
+      settingsProfile: {
+        ars: {
+          enabled: true,
+          ids: ['legacy-menu-id'],
+        },
+        smartArs: {
+          enabled: true,
+          guidePromptId: 'prompt-guide',
+          timeoutSeconds: 5,
+          maxRetries: 2,
+          failPromptId: 'prompt-fail',
+          invalidPromptId: 'prompt-invalid',
+          actions: [
+            {
+              digit: '0',
+              actionType: 'QUEUE_ROUTE',
+              queueId: 'queue-1',
+            },
+            {
+              digit: '1',
+              actionType: 'TRANSFER',
+              transferNumber: '010-1234-5678',
+            },
+            {
+              digit: '3',
+              actionType: 'OPT_OUT',
+            },
+            {
+              digit: '4',
+              actionType: 'PLAY_PROMPT',
+              promptId: 'prompt-info',
+            },
+          ],
+        },
+      },
+    } as any);
+
+    expect(prisma.branches.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settingsProfile: expect.objectContaining({
+            ars: { enabled: false, ids: [] },
+            smartArs: {
+              enabled: true,
+              guidePromptId: 'prompt-guide',
+              timeoutSeconds: 5,
+              maxRetries: 2,
+              failPromptId: 'prompt-fail',
+              invalidPromptId: 'prompt-invalid',
+              actions: [
+                {
+                  digit: '0',
+                  actionType: 'QUEUE_ROUTE',
+                  queueId: 'queue-1',
+                  transferNumber: null,
+                  smsTemplateId: null,
+                  promptId: null,
+                },
+                {
+                  digit: '1',
+                  actionType: 'TRANSFER',
+                  queueId: null,
+                  transferNumber: '01012345678',
+                  smsTemplateId: null,
+                  promptId: null,
+                },
+                {
+                  digit: '3',
+                  actionType: 'OPT_OUT',
+                  queueId: null,
+                  transferNumber: null,
+                  smsTemplateId: null,
+                  promptId: null,
+                },
+                {
+                  digit: '4',
+                  actionType: 'PLAY_PROMPT',
+                  queueId: null,
+                  transferNumber: null,
+                  smsTemplateId: null,
+                  promptId: 'prompt-info',
+                },
+              ],
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('rejects Smart ARS actions with duplicate DTMF digits', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst.mockResolvedValue({
+      branchId: 'branch-1',
+      queueMappings: [{ queueId: 'queue-1' }],
+      didMappings: [],
+    });
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '1',
+                actionType: 'QUEUE_ROUTE',
+                queueId: 'queue-1',
+              },
+              {
+                digit: '1',
+                actionType: 'OPT_OUT',
+              },
+            ],
+          },
+        },
+      } as any),
+    ).rejects.toThrow('스마트 ARS DTMF 키는 중복될 수 없습니다.');
+  });
+
+  it('rejects Smart ARS queue actions outside the branch queue scope', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst.mockResolvedValue({
+      branchId: 'branch-1',
+      queueMappings: [{ queueId: 'queue-1' }],
+      didMappings: [],
+    });
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '0',
+                actionType: 'QUEUE_ROUTE',
+                queueId: 'queue-2',
+              },
+            ],
+          },
+        },
+      } as any),
+    ).rejects.toThrow('스마트 ARS 상담원 연결은 지사에 연결된 호 분배룰만 사용할 수 있습니다.');
+  });
+
+  it('rejects Smart ARS SMS actions before template lookup while SMS integration is deferred', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        queueMappings: [],
+        didMappings: [],
+      })
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        branchCode: 'BR-001',
+        branchName: 'Branch 1',
+        description: null,
+        isActive: true,
+        agentMappings: [],
+        queueMappings: [],
+        didMappings: [],
+        settingsProfile: {},
+      });
+    prisma.tenantSmsTemplate.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '2',
+                actionType: 'SEND_SMS',
+                smsTemplateId: 'tpl-missing',
+              },
+            ],
+          },
+        },
+      } as any),
+    ).rejects.toThrow('SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.');
+  });
+
+  it('rejects Smart ARS SMS actions while external SMS integration is deferred', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        queueMappings: [],
+        didMappings: [],
+      })
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        branchCode: 'BR-001',
+        branchName: 'Branch 1',
+        description: null,
+        isActive: true,
+        agentMappings: [],
+        queueMappings: [],
+        didMappings: [],
+        settingsProfile: {},
+      });
+    prisma.agents.findMany.mockResolvedValue([]);
+    prisma.queues.findMany.mockResolvedValue([]);
+    prisma.asteriskDid.findMany.mockResolvedValue([]);
+    prisma.asteriskPrompt.findMany.mockResolvedValue([]);
+    prisma.asteriskIvrMenu.findMany.mockResolvedValue([]);
+    prisma.asteriskForwardingRules.findMany.mockResolvedValue([]);
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue(null);
+    prisma.tenantSmsTemplate.findMany.mockResolvedValue([{ templateId: 'tpl-1' }]);
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '2',
+                actionType: 'SEND_SMS',
+                smsTemplateId: 'tpl-1',
+              },
+            ],
+          },
+        },
+      } as any),
+    ).rejects.toThrow('SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.');
+  });
+
+  it('rejects simultaneous Smart ARS and 080 opt-out activation', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        queueMappings: [{ queueId: 'queue-1' }],
+        didMappings: [{ didId: 'did-1' }],
+      })
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        branchCode: 'BR-001',
+        branchName: 'Branch 1',
+        description: null,
+        isActive: true,
+        agentMappings: [],
+        queueMappings: [{ queueId: 'queue-1' }],
+        didMappings: [{ didId: 'did-1' }],
+        settingsProfile: {},
+      });
+    prisma.agents.findMany.mockResolvedValue([]);
+    prisma.queues.findMany.mockResolvedValue([]);
+    prisma.asteriskDid.findMany.mockResolvedValue([]);
+    prisma.asteriskPrompt.findMany.mockResolvedValue([]);
+    prisma.asteriskIvrMenu.findMany.mockResolvedValue([]);
+    prisma.asteriskForwardingRules.findMany.mockResolvedValue([]);
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '0',
+                actionType: 'QUEUE_ROUTE',
+                queueId: 'queue-1',
+              },
+            ],
+          },
+          blocklist080: {
+            enabled: true,
+            mode: 'IMMEDIATE_OPT_OUT',
+            basePromptId: 'prompt-080-start',
+            completionPromptId: 'prompt-080-complete',
+          },
+        },
+      } as any),
+    ).rejects.toThrow('스마트 ARS와 080 수신거부는 같은 지사에서 동시에 사용할 수 없습니다.');
+  });
+
+  it('preserves existing Smart ARS settings when another branch settings form omits smartArs', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        queueMappings: [{ queueId: 'queue-1' }],
+        didMappings: [],
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '0',
+                actionType: 'QUEUE_ROUTE',
+                queueId: 'queue-1',
+              },
+            ],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        branchCode: 'BR-001',
+        branchName: 'Branch 1',
+        description: null,
+        isActive: true,
+        agentMappings: [],
+        queueMappings: [{ queueId: 'queue-1' }],
+        didMappings: [],
+        settingsProfile: {
+          smartArs: {
+            enabled: true,
+            guidePromptId: 'prompt-guide',
+            timeoutSeconds: 5,
+            maxRetries: 2,
+            actions: [
+              {
+                digit: '0',
+                actionType: 'QUEUE_ROUTE',
+                queueId: 'queue-1',
+              },
+            ],
+          },
+        },
+      });
+    prisma.agents.findMany.mockResolvedValue([]);
+    prisma.queues.findMany.mockResolvedValue([]);
+    prisma.asteriskDid.findMany.mockResolvedValue([]);
+    prisma.asteriskPrompt.findMany.mockResolvedValue([]);
+    prisma.asteriskIvrMenu.findMany.mockResolvedValue([]);
+    prisma.asteriskForwardingRules.findMany.mockResolvedValue([]);
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      recordingEnabled: true,
+      allowedOutboundCallerIds: '',
+      defaultOutboundCallerId: '',
+    });
+    prisma.branches.updateMany.mockResolvedValue({ count: 1 });
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(prisma));
+
+    await service.updateBranchMappings('tenant-1', 'branch-1', {
+      settingsProfile: {
+        recording: {
+          enabled: false,
+        },
+      },
+    } as any);
+
+    expect(prisma.branches.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settingsProfile: expect.objectContaining({
+            recording: { enabled: false },
+            smartArs: expect.objectContaining({
+              enabled: true,
+              guidePromptId: 'prompt-guide',
+              actions: [
+                {
+                  digit: '0',
+                  actionType: 'QUEUE_ROUTE',
+                  queueId: 'queue-1',
+                  transferNumber: null,
+                  smsTemplateId: null,
+                  promptId: null,
+                },
+              ],
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it('normalizes missing blocklist080 mode to immediate opt-out', async () => {
     const { prisma, service } = createService();
 
@@ -587,7 +1051,61 @@ describe('AdminService opt-out settings', () => {
     ).rejects.toThrow('선택한 SMS 템플릿을 찾을 수 없습니다.');
   });
 
-  it('accepts branch opt-out profiles that reference active templates from another category', async () => {
+  it('rejects 080 opt-out SMS actions while external SMS integration is deferred', async () => {
+    const { prisma, service } = createService();
+
+    prisma.branches.findFirst
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        queueMappings: [],
+        didMappings: [],
+      })
+      .mockResolvedValueOnce({
+        branchId: 'branch-1',
+        branchCode: 'BR-001',
+        branchName: 'Branch 1',
+        description: null,
+        isActive: true,
+        agentMappings: [],
+        queueMappings: [],
+        didMappings: [],
+        settingsProfile: {},
+      });
+    prisma.agents.findMany.mockResolvedValue([]);
+    prisma.queues.findMany.mockResolvedValue([]);
+    prisma.asteriskDid.findMany.mockResolvedValue([]);
+    prisma.asteriskPrompt.findMany.mockResolvedValue([]);
+    prisma.asteriskIvrMenu.findMany.mockResolvedValue([]);
+    prisma.asteriskForwardingRules.findMany.mockResolvedValue([]);
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue(null);
+    prisma.tenantSmsTemplate.findMany.mockResolvedValue([{ templateId: 'tpl-general' }]);
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          blocklist080: {
+            enabled: true,
+            mode: 'DTMF_MENU',
+            basePromptId: 'prompt-start',
+            completionPromptId: 'prompt-complete',
+            dtmfMenu: {
+              timeoutSeconds: 5,
+              maxRetries: 1,
+              mappings: [
+                {
+                  digit: '1',
+                  actionType: 'SEND_SMS',
+                  smsTemplateId: 'tpl-general',
+                },
+              ],
+            },
+          },
+        },
+      } as any),
+    ).rejects.toThrow('SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.');
+  });
+
+  it('accepts branch opt-out profiles that use non-SMS actions', async () => {
     const { prisma, service } = createService();
 
     prisma.branches.findFirst
@@ -615,8 +1133,8 @@ describe('AdminService opt-out settings', () => {
               mappings: [
                 {
                   digit: '4',
-                  actionType: 'SEND_SMS',
-                  smsTemplateId: 'tpl-general',
+                  actionType: 'REGISTER_OPT_OUT',
+                  smsTemplateId: null,
                 },
               ],
             },
@@ -658,8 +1176,8 @@ describe('AdminService opt-out settings', () => {
               mappings: [
                 {
                   digit: '4',
-                  actionType: 'SEND_SMS',
-                  smsTemplateId: 'tpl-general',
+                  actionType: 'REGISTER_OPT_OUT',
+                  smsTemplateId: null,
                 },
               ],
             },

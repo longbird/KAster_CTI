@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../src/common/prisma.service';
 import { AgentsService } from '../src/modules/agents/agents.service';
+import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 
 describe('AgentsService listForTenant', () => {
   let service: AgentsService;
@@ -22,6 +23,7 @@ describe('AgentsService listForTenant', () => {
       providers: [
         AgentsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: AsteriskReloadService, useValue: { scheduleReload: jest.fn() } },
       ],
     }).compile();
 

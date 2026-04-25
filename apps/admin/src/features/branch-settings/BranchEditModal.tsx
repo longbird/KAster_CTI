@@ -103,6 +103,7 @@ interface PromptSelectWithPreviewProps {
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
 type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
 type Blocklist080SmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
+type SmartArsActionType = 'QUEUE_ROUTE' | 'TRANSFER' | 'SEND_SMS' | 'OPT_OUT' | 'PLAY_PROMPT';
 
 interface Blocklist080MappingFormValue {
   digit?: string;
@@ -143,6 +144,25 @@ interface Blocklist080ProfileFormValue {
   smartFlow?: Blocklist080SmartFlowFormValue;
 }
 
+interface SmartArsActionFormValue {
+  digit?: string;
+  actionType?: SmartArsActionType;
+  queueId?: string;
+  transferNumber?: string;
+  smsTemplateId?: string;
+  promptId?: string;
+}
+
+interface SmartArsProfileFormValue {
+  enabled: boolean;
+  guidePromptId?: string;
+  timeoutSeconds?: number;
+  maxRetries?: number;
+  failPromptId?: string;
+  invalidPromptId?: string;
+  actions?: SmartArsActionFormValue[];
+}
+
 interface IvrMenuOption {
   id: string;
   name: string;
@@ -170,6 +190,7 @@ interface BranchSettingsProfile {
   forwarding?: { enabled: boolean; ids?: string[] };
   prompts?: { enabled: boolean; ids?: string[]; queueJoinDelaySeconds?: number; waitForPlaybackCompletionBeforeQueue?: boolean };
   ars?: { enabled: boolean; ids?: string[] };
+  smartArs?: SmartArsProfileFormValue;
   recording?: { enabled: boolean };
   blocklist080?: Blocklist080ProfileFormValue;
   cid?: { enabled: boolean; defaultOutboundCallerId?: string | null };
@@ -214,8 +235,13 @@ interface BranchConfigFormValue {
   defaultPromptId?: string;
   promptQueueJoinDelaySeconds: number;
   waitForPromptCompletionBeforeQueue: boolean;
-  arsEnabled: boolean;
-  ivrMenuIds: string[];
+  smartArsEnabled: boolean;
+  smartArsGuidePromptId?: string;
+  smartArsTimeoutSeconds: number;
+  smartArsMaxRetries: number;
+  smartArsFailPromptId?: string;
+  smartArsInvalidPromptId?: string;
+  smartArsActions: SmartArsActionFormValue[];
   recordingEnabled: boolean;
   blocklist080Enabled: boolean;
   blocklist080Mode: Blocklist080Mode;
@@ -281,6 +307,11 @@ const DIGIT_OPTIONS = Array.from({ length: 10 }, (_, index) => ({
   value: String(index),
   label: `${index}번`,
 }));
+const SMART_ARS_DIGIT_OPTIONS = [
+  ...DIGIT_OPTIONS,
+  { value: '*', label: '* 키' },
+  { value: '#', label: '# 키' },
+];
 const BLOCKLIST080_MODE_OPTIONS: Array<{ value: Blocklist080Mode; label: string }> = [
   { value: 'IMMEDIATE_OPT_OUT', label: '즉시 수신거부 등록' },
   { value: 'DTMF_MENU', label: '일반 DTMF 선택형' },
@@ -290,13 +321,17 @@ const BLOCKLIST080_DTMF_ACTION_OPTIONS: Array<{ value: Blocklist080DtmfActionTyp
   { value: 'QUEUE_ROUTE', label: '상담원 연결' },
   { value: 'REGISTER_OPT_OUT', label: '수신거부 등록' },
   { value: 'UNREGISTER_OPT_OUT', label: '수신거부 해제' },
-  { value: 'SEND_SMS', label: '안내문자 발송' },
 ];
 const BLOCKLIST080_SMART_ACTION_OPTIONS: Array<{ value: Blocklist080SmartActionType; label: string }> = [
   { value: 'REGISTER_OPT_OUT', label: '수신거부 등록' },
   { value: 'REENTER_NUMBER', label: '재입력' },
-  { value: 'SEND_SMS', label: '안내문자 발송' },
   { value: 'HANGUP', label: '통화 종료' },
+];
+const SMART_ARS_ACTION_OPTIONS: Array<{ value: SmartArsActionType; label: string }> = [
+  { value: 'QUEUE_ROUTE', label: '상담원 연결' },
+  { value: 'TRANSFER', label: '착신전환' },
+  { value: 'OPT_OUT', label: '문자수신거부' },
+  { value: 'PLAY_PROMPT', label: '멘트 재생' },
 ];
 
 function PromptSelectWithPreview({
@@ -380,7 +415,7 @@ const SECTIONS = [
   { key: 'routing', label: '호 분배룰', icon: <ShareAltOutlined /> },
   { key: 'forwarding', label: '착신전환', icon: <SwapOutlined /> },
   { key: 'prompts', label: '멘트', icon: <SoundOutlined /> },
-  { key: 'ars', label: 'ARS', icon: <OrderedListOutlined /> },
+  { key: 'smartArs', label: '스마트 ARS', icon: <OrderedListOutlined /> },
   { key: 'recording', label: '녹취', icon: <AudioOutlined /> },
   { key: 'blocklist', label: '080 수신거부', icon: <StopOutlined /> },
   { key: 'cid', label: 'CID / SMDR', icon: <IdcardOutlined /> },
@@ -437,6 +472,59 @@ function createEmptyBlocklist080Mapping(): Blocklist080MappingFormValue {
 
 function buildEmptyBlocklist080Mappings(): Blocklist080MappingFormValue[] {
   return [];
+}
+
+function createEmptySmartArsAction(): SmartArsActionFormValue {
+  return {
+    digit: undefined,
+    actionType: undefined,
+    queueId: undefined,
+    transferNumber: undefined,
+    smsTemplateId: undefined,
+    promptId: undefined,
+  };
+}
+
+function buildEmptySmartArsActions(): SmartArsActionFormValue[] {
+  return [];
+}
+
+export function buildSmartArsAvailableActionCombinations(options: {
+  queueIds: string[];
+  promptIds: string[];
+}): SmartArsActionFormValue[] {
+  const actions: SmartArsActionFormValue[] = [];
+  let nextDigit = 0;
+
+  const push = (action: SmartArsActionFormValue) => {
+    actions.push({ digit: String(nextDigit), ...action });
+    nextDigit += 1;
+  };
+
+  const firstQueueId = options.queueIds[0];
+  if (firstQueueId) {
+    push({ actionType: 'QUEUE_ROUTE', queueId: firstQueueId });
+  }
+
+  push({ actionType: 'OPT_OUT' });
+
+  const firstPromptId = options.promptIds[0];
+  if (firstPromptId) {
+    push({ actionType: 'PLAY_PROMPT', promptId: firstPromptId });
+  }
+
+  return actions;
+}
+
+function hydrateSmartArsActions(actions?: SmartArsActionFormValue[]): SmartArsActionFormValue[] {
+  return (actions ?? []).map((action) => ({
+    digit: normalizeOptionalText(action.digit),
+    actionType: action.actionType,
+    queueId: normalizeOptionalText(action.queueId),
+    transferNumber: normalizeOptionalText(action.transferNumber),
+    smsTemplateId: normalizeOptionalText(action.smsTemplateId),
+    promptId: normalizeOptionalText(action.promptId),
+  }));
 }
 
 function hydrateConfiguredBlocklist080Mappings(
@@ -517,6 +605,86 @@ function buildBlocklist080Payload(values: BranchConfigFormValue) {
   };
 }
 
+function buildSmartArsPayload(values: BranchConfigFormValue): SmartArsProfileFormValue {
+  const actions = (values.smartArsActions ?? [])
+    .filter(
+      (
+        action,
+      ): action is SmartArsActionFormValue & { digit: string; actionType: SmartArsActionType } =>
+        Boolean(action.digit && action.actionType),
+    )
+    .map((action) => ({
+      digit: action.digit,
+      actionType: action.actionType,
+      queueId: action.actionType === 'QUEUE_ROUTE' ? normalizeOptionalText(action.queueId) : undefined,
+      transferNumber: action.actionType === 'TRANSFER' ? normalizeOptionalText(action.transferNumber) : undefined,
+      smsTemplateId: action.actionType === 'SEND_SMS' ? normalizeOptionalText(action.smsTemplateId) : undefined,
+      promptId: action.actionType === 'PLAY_PROMPT' ? normalizeOptionalText(action.promptId) : undefined,
+    }));
+
+  return {
+    enabled: values.smartArsEnabled,
+    guidePromptId: normalizeOptionalText(values.smartArsGuidePromptId),
+    timeoutSeconds: Math.max(1, Math.min(15, Math.trunc(values.smartArsTimeoutSeconds ?? 5))),
+    maxRetries: Math.max(0, Math.min(10, Math.trunc(values.smartArsMaxRetries ?? 2))),
+    failPromptId: normalizeOptionalText(values.smartArsFailPromptId),
+    invalidPromptId: normalizeOptionalText(values.smartArsInvalidPromptId),
+    actions,
+  };
+}
+
+function validateSmartArsValues(values: BranchConfigFormValue, selectedQueueIds: string[]): string | null {
+  if (!values.smartArsEnabled) {
+    return null;
+  }
+
+  if (!normalizeOptionalText(values.smartArsGuidePromptId)) {
+    return '스마트 ARS 안내 멘트를 선택하세요.';
+  }
+
+  const actions = (values.smartArsActions ?? []).filter((action) => action.digit || action.actionType);
+  if (actions.length === 0) {
+    return '스마트 ARS 동작을 최소 1개 설정하세요.';
+  }
+
+  const digits = new Set<string>();
+  for (const action of actions) {
+    if (!action.digit || !/^[0-9*#]$/.test(action.digit)) {
+      return '스마트 ARS DTMF 키는 0-9, *, #만 사용할 수 있습니다.';
+    }
+    if (digits.has(action.digit)) {
+      return '스마트 ARS DTMF 키가 중복되었습니다.';
+    }
+    digits.add(action.digit);
+
+    if (!action.actionType) {
+      return `${action.digit}번 스마트 ARS 동작을 선택하세요.`;
+    }
+    if (action.actionType === 'QUEUE_ROUTE') {
+      if (!action.queueId) {
+        return `${action.digit}번 상담원 연결에는 호 분배룰이 필요합니다.`;
+      }
+      if (!selectedQueueIds.includes(action.queueId)) {
+        return '스마트 ARS 상담원 연결은 현재 지사에 연결된 호 분배룰만 선택할 수 있습니다.';
+      }
+    }
+    if (action.actionType === 'TRANSFER' && !normalizeOptionalText(action.transferNumber)) {
+      return `${action.digit}번 착신전환에는 전화번호가 필요합니다.`;
+    }
+    if (action.actionType === 'SEND_SMS' && !action.smsTemplateId) {
+      return `${action.digit}번 SMS 발송에는 문자 템플릿이 필요합니다.`;
+    }
+    if (action.actionType === 'SEND_SMS') {
+      return 'SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.';
+    }
+    if (action.actionType === 'PLAY_PROMPT' && !action.promptId) {
+      return `${action.digit}번 멘트 재생에는 재생할 멘트가 필요합니다.`;
+    }
+  }
+
+  return null;
+}
+
 function validateBlocklist080Values(values: BranchConfigFormValue, selectedQueueIds: string[]): string | null {
   if (!values.blocklist080Enabled) {
     return null;
@@ -542,6 +710,9 @@ function validateBlocklist080Values(values: BranchConfigFormValue, selectedQueue
     }
     for (const mapping of dtmfMappings) {
       if (mapping.actionType !== 'QUEUE_ROUTE') {
+        if (mapping.actionType === 'SEND_SMS') {
+          return 'SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.';
+        }
         continue;
       }
       if (!mapping.queueId) {
@@ -570,6 +741,9 @@ function validateBlocklist080Values(values: BranchConfigFormValue, selectedQueue
     if (new Set(smartMappings.map((mapping) => mapping.digit)).size !== smartMappings.length) {
       return '스마트 수신거부 최종 확인에서는 같은 숫자를 중복해서 사용할 수 없습니다.';
     }
+    if (smartMappings.some((mapping) => mapping.actionType === 'SEND_SMS')) {
+      return 'SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.';
+    }
   }
 
   return null;
@@ -592,8 +766,13 @@ function buildCreateDefaults(): BranchConfigFormValue {
     defaultPromptId: undefined,
     promptQueueJoinDelaySeconds: 0,
     waitForPromptCompletionBeforeQueue: false,
-    arsEnabled: false,
-    ivrMenuIds: [],
+    smartArsEnabled: false,
+    smartArsGuidePromptId: undefined,
+    smartArsTimeoutSeconds: 5,
+    smartArsMaxRetries: 2,
+    smartArsFailPromptId: undefined,
+    smartArsInvalidPromptId: undefined,
+    smartArsActions: buildEmptySmartArsActions(),
     recordingEnabled: true,
     blocklist080Enabled: false,
     blocklist080Mode: 'IMMEDIATE_OPT_OUT',
@@ -626,6 +805,7 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
   const didIds = mapping?.assignedDidIds ?? [];
   const queueIds = mapping?.assignedQueueIds ?? [];
   const optOut = mapping?.settingsProfile?.blocklist080;
+  const smartArs = mapping?.settingsProfile?.smartArs;
   const storedRoutingEnabled = mapping?.settingsProfile?.routing?.enabled;
   return {
     ...defaults,
@@ -647,8 +827,13 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
     promptQueueJoinDelaySeconds: mapping?.settingsProfile?.prompts?.queueJoinDelaySeconds ?? 0,
     waitForPromptCompletionBeforeQueue:
       mapping?.settingsProfile?.prompts?.waitForPlaybackCompletionBeforeQueue ?? false,
-    arsEnabled: mapping?.settingsProfile?.ars?.enabled ?? false,
-    ivrMenuIds: mapping?.settingsProfile?.ars?.ids ?? [],
+    smartArsEnabled: smartArs?.enabled ?? false,
+    smartArsGuidePromptId: normalizeOptionalText(smartArs?.guidePromptId),
+    smartArsTimeoutSeconds: smartArs?.timeoutSeconds ?? 5,
+    smartArsMaxRetries: smartArs?.maxRetries ?? 2,
+    smartArsFailPromptId: normalizeOptionalText(smartArs?.failPromptId),
+    smartArsInvalidPromptId: normalizeOptionalText(smartArs?.invalidPromptId),
+    smartArsActions: hydrateSmartArsActions(smartArs?.actions),
     recordingEnabled: mapping?.settingsProfile?.recording?.enabled ?? mapping?.defaultSystemRecordingEnabled ?? true,
     blocklist080Enabled: optOut?.enabled ?? false,
     blocklist080Mode: optOut?.mode ?? 'IMMEDIATE_OPT_OUT',
@@ -718,7 +903,8 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
   const forwardingEnabled = Form.useWatch('forwardingEnabled', form) ?? false;
   const promptsEnabled = Form.useWatch('promptsEnabled', form) ?? true;
   const defaultPromptId = Form.useWatch('defaultPromptId', form);
-  const arsEnabled = Form.useWatch('arsEnabled', form) ?? false;
+  const smartArsEnabled = Form.useWatch('smartArsEnabled', form) ?? false;
+  const smartArsActions = Form.useWatch('smartArsActions', form) ?? buildEmptySmartArsActions();
   const recordingEnabled = Form.useWatch('recordingEnabled', form) ?? true;
   const blocklist080Enabled = Form.useWatch('blocklist080Enabled', form) ?? false;
   const blocklist080Mode = Form.useWatch('blocklist080Mode', form) ?? 'IMMEDIATE_OPT_OUT';
@@ -732,7 +918,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     routing: routingEnabled,
     forwarding: forwardingEnabled,
     prompts: promptsEnabled,
-    ars: arsEnabled,
+    smartArs: smartArsEnabled,
     recording: recordingEnabled,
     blocklist: blocklist080Enabled,
     cid: cidSmdrEnabled,
@@ -741,7 +927,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     routingEnabled,
     forwardingEnabled,
     promptsEnabled,
-    arsEnabled,
+    smartArsEnabled,
     recordingEnabled,
     blocklist080Enabled,
     cidSmdrEnabled,
@@ -883,6 +1069,15 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
       })),
     [mappingData?.availablePrompts],
   );
+  const smartArsPromptIds = useMemo(() => {
+    const byKey = new Map((mappingData?.availablePrompts ?? []).map((prompt) => [prompt.promptKey, prompt.id]));
+    return {
+      guide: byKey.get('custom/smart_ars_guide'),
+      invalid: byKey.get('custom/smart_ars_invalid'),
+      fail: byKey.get('custom/smart_ars_fail'),
+      info: byKey.get('custom/smart_ars_info'),
+    };
+  }, [mappingData?.availablePrompts]);
 
   useEffect(() => {
     if (!promptsEnabled || defaultPromptId || promptOptions.length === 0) {
@@ -891,15 +1086,6 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
 
     form.setFieldValue('defaultPromptId', String(promptOptions[0]?.value));
   }, [defaultPromptId, form, promptOptions, promptsEnabled]);
-
-  const ivrMenuOptions = useMemo(
-    () =>
-      (mappingData?.availableIvrMenus ?? []).map((menu) => ({
-        value: menu.id,
-        label: `${menu.name} (${menu.timeoutSecs}초)`,
-      })),
-    [mappingData?.availableIvrMenus],
-  );
 
   const forwardingOptions = useMemo(
     () =>
@@ -933,9 +1119,9 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
 
   const getAvailableDigitOptions = (
     currentIndex: number,
-    fieldName: 'blocklist080DtmfMappings' | 'blocklist080SmartConfirmationMappings',
+    fieldName: 'blocklist080DtmfMappings' | 'blocklist080SmartConfirmationMappings' | 'smartArsActions',
   ) => {
-    const rows = (form.getFieldValue(fieldName) ?? []) as Blocklist080MappingFormValue[];
+    const rows = (form.getFieldValue(fieldName) ?? []) as Array<Blocklist080MappingFormValue | SmartArsActionFormValue>;
     const currentDigit = rows[currentIndex]?.digit;
     const usedDigits = new Set(
       rows
@@ -944,6 +1130,18 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     );
 
     return DIGIT_OPTIONS.filter((option) => option.value === currentDigit || !usedDigits.has(option.value));
+  };
+
+  const getAvailableSmartArsDigitOptions = (currentIndex: number) => {
+    const rows = (form.getFieldValue('smartArsActions') ?? []) as SmartArsActionFormValue[];
+    const currentDigit = rows[currentIndex]?.digit;
+    const usedDigits = new Set(
+      rows
+        .map((row, index) => (index === currentIndex ? undefined : row?.digit))
+        .filter((digit): digit is string => Boolean(digit)),
+    );
+
+    return SMART_ARS_DIGIT_OPTIONS.filter((option) => option.value === currentDigit || !usedDigits.has(option.value));
   };
 
   const renderSmsTemplateDropdown = (menu: ReactNode) => (
@@ -995,6 +1193,10 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
           message.warning('지사 대표번호는 반드시 1개 선택해야 합니다.');
           return;
         }
+        if (values.smartArsEnabled && values.blocklist080Enabled) {
+          message.warning('스마트 ARS와 080 수신거부는 같은 지사에서 동시에 사용할 수 없습니다.');
+          return;
+        }
         if (!(values.didIds ?? []).includes(values.representativeDidId)) {
           message.warning('대표번호는 연결된 DID 중에서 선택해야 합니다.');
           return;
@@ -1003,6 +1205,12 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
           message.warning('고객 안내를 위해 기본 멘트는 필수입니다.');
           return;
         }
+        const smartArsValidationError = validateSmartArsValues(values, values.queueIds ?? []);
+        if (smartArsValidationError) {
+          message.warning(smartArsValidationError);
+          return;
+        }
+
         const blocklist080ValidationError = validateBlocklist080Values(values, values.queueIds ?? []);
         if (blocklist080ValidationError) {
           message.warning(blocklist080ValidationError);
@@ -1079,10 +1287,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                 queueJoinDelaySeconds: values.promptQueueJoinDelaySeconds ?? 0,
                 waitForPlaybackCompletionBeforeQueue: values.waitForPromptCompletionBeforeQueue ?? false,
               },
-              ars: {
-                enabled: values.arsEnabled,
-                ids: values.ivrMenuIds ?? [],
-              },
+              smartArs: buildSmartArsPayload(values),
               recording: {
                 enabled: values.recordingEnabled,
               },
@@ -1417,28 +1622,245 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                 </Form.Item>
               </div>
 
-              <div className={`branch-edit-modal__section${activeSection === 'ars' ? ' is-active' : ''}`}>
+              <div className={`branch-edit-modal__section${activeSection === 'smartArs' ? ' is-active' : ''}`}>
                 <div className="branch-edit-modal__section-head">
                   <div>
-                    <Typography.Title level={5} style={{ margin: 0 }}>ARS 기능 설정</Typography.Title>
-                    <Typography.Text type="secondary">지사에서 사용하는 IVR 메뉴만 선택합니다.</Typography.Text>
+                    <Typography.Title level={5} style={{ margin: 0 }}>스마트 ARS 설정</Typography.Title>
+                    <Typography.Text type="secondary">
+                      안내 멘트 후 고객 DTMF 입력에 따라 상담원 연결, 착신전환, SMS, 수신거부, 멘트 재생을 실행합니다.
+                    </Typography.Text>
                   </div>
                   <Space size={8}>
-                    {sectionSwitch('arsEnabled')}
-                    <Button type="link" size="small" onClick={() => moveTo('/asterisk')}>IVR 메뉴 관리</Button>
+                    {sectionSwitch('smartArsEnabled')}
+                    <Button type="link" size="small" onClick={() => moveTo('/settings/prompts')}>멘트 관리</Button>
                   </Space>
                 </div>
-                <Form.Item className="branch-edit-modal__compact-item" label="사용할 ARS 메뉴" name="ivrMenuIds">
-                  <Select
-                    mode="multiple"
-                    allowClear
-                    showSearch
-                    maxTagCount="responsive"
-                    disabled={!arsEnabled}
-                    placeholder="사용할 IVR 메뉴를 선택하세요"
-                    options={ivrMenuOptions}
-                  />
-                </Form.Item>
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  <Row gutter={[12, 12]}>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        className="branch-edit-modal__compact-item"
+                        label={renderFieldLabel('안내 멘트', '고객에게 최초로 재생되는 스마트 ARS 안내 멘트입니다.')}
+                        name="smartArsGuidePromptId"
+                      >
+                        <PromptSelectWithPreview
+                          disabled={!smartArsEnabled}
+                          options={promptOptions}
+                          placeholder="스마트 ARS 안내 멘트"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} lg={6}>
+                      <Form.Item
+                        className="branch-edit-modal__compact-item"
+                        label={renderFieldLabel('입력 대기(초)', '안내 멘트 재생 후 DTMF 입력을 기다리는 시간입니다.')}
+                        name="smartArsTimeoutSeconds"
+                      >
+                        <InputNumber min={1} max={15} precision={0} style={{ width: '100%' }} disabled={!smartArsEnabled} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} lg={6}>
+                      <Form.Item
+                        className="branch-edit-modal__compact-item"
+                        label={renderFieldLabel('재시도', '무입력 또는 오입력을 다시 받을 횟수입니다.')}
+                        name="smartArsMaxRetries"
+                      >
+                        <InputNumber min={0} max={10} precision={0} style={{ width: '100%' }} disabled={!smartArsEnabled} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        className="branch-edit-modal__compact-item"
+                        label={renderFieldLabel('오류 키 멘트', '정의되지 않은 키를 눌렀을 때 재생합니다.')}
+                        name="smartArsInvalidPromptId"
+                      >
+                        <PromptSelectWithPreview
+                          disabled={!smartArsEnabled}
+                          options={promptOptions}
+                          placeholder="오류 키 안내 멘트"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        className="branch-edit-modal__compact-item"
+                        label={renderFieldLabel('실패 멘트', '재시도 초과 또는 액션 실패 시 재생합니다.')}
+                        name="smartArsFailPromptId"
+                      >
+                        <PromptSelectWithPreview
+                          disabled={!smartArsEnabled}
+                          options={promptOptions}
+                          placeholder="스마트 ARS 실패 멘트"
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <div className="branch-edit-modal__subpanel">
+                    <div className="branch-edit-modal__subpanel-head">
+                      <div>
+                        <Typography.Text strong>DTMF 동작</Typography.Text>
+                        <Typography.Text type="secondary">
+                          설정한 행만 저장되며, 같은 키는 한 번만 선택할 수 있습니다.
+                        </Typography.Text>
+                      </div>
+                      <Button
+                        type="dashed"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        disabled={!smartArsEnabled}
+                        onClick={() => {
+                          const rows = form.getFieldValue('smartArsActions') ?? [];
+                          form.setFieldValue('smartArsActions', [...rows, createEmptySmartArsAction()]);
+                        }}
+                      >
+                        행 추가
+                      </Button>
+                      <Button
+                        size="small"
+                        disabled={!smartArsEnabled}
+                        onClick={() => {
+                          const actions = buildSmartArsAvailableActionCombinations({
+                            queueIds: selectedQueueIds,
+                            promptIds: [
+                              smartArsPromptIds.info,
+                              ...promptOptions.map((option) => String(option.value)),
+                            ].filter((value): value is string => Boolean(value)),
+                          });
+                          if (smartArsPromptIds.guide) {
+                            form.setFieldValue('smartArsGuidePromptId', smartArsPromptIds.guide);
+                          }
+                          if (smartArsPromptIds.invalid) {
+                            form.setFieldValue('smartArsInvalidPromptId', smartArsPromptIds.invalid);
+                          }
+                          if (smartArsPromptIds.fail) {
+                            form.setFieldValue('smartArsFailPromptId', smartArsPromptIds.fail);
+                          }
+                          form.setFieldValue('smartArsActions', actions);
+                          if (actions.length === 0) {
+                            message.warning('현재 선택 가능한 스마트 ARS 동작이 없습니다.');
+                          }
+                        }}
+                      >
+                        가능 조합 채우기
+                      </Button>
+                    </div>
+                    <Form.List name="smartArsActions">
+                      {(fields, { remove }) => (
+                        <div className="branch-edit-modal__mapping-list">
+                          {fields.length === 0 ? (
+                            <div className="branch-edit-modal__mapping-empty">
+                              스마트 ARS 동작이 아직 없습니다. 고객이 누를 키와 동작을 추가하세요.
+                            </div>
+                          ) : null}
+                          {fields.map((field) => {
+                            const actionType = smartArsActions[field.name]?.actionType;
+                            const digitOptions = getAvailableSmartArsDigitOptions(field.name);
+
+                            return (
+                              <div
+                                className="branch-edit-modal__mapping-editor-row branch-edit-modal__mapping-editor-row--smart"
+                                key={field.key}
+                              >
+                                <Form.Item
+                                  className="branch-edit-modal__mapping-cell"
+                                  label={renderFieldLabel('DTMF', '고객이 누르는 키입니다.')}
+                                  name={[field.name, 'digit']}
+                                >
+                                  <Select
+                                    allowClear
+                                    disabled={!smartArsEnabled}
+                                    options={digitOptions}
+                                    placeholder="키"
+                                  />
+                                </Form.Item>
+                                <Form.Item
+                                  className="branch-edit-modal__mapping-cell"
+                                  label={renderFieldLabel('동작', '선택한 키에 대해 수행할 동작입니다.')}
+                                  name={[field.name, 'actionType']}
+                                >
+                                  <Select
+                                    allowClear
+                                    disabled={!smartArsEnabled}
+                                    options={SMART_ARS_ACTION_OPTIONS}
+                                    placeholder="동작 선택"
+                                  />
+                                </Form.Item>
+                                {actionType === 'QUEUE_ROUTE' ? (
+                                  <Form.Item
+                                    className="branch-edit-modal__mapping-cell"
+                                    label={renderFieldLabel('호 분배룰', '현재 지사에 연결된 호 분배룰만 선택할 수 있습니다.')}
+                                    name={[field.name, 'queueId']}
+                                  >
+                                    <Select
+                                      allowClear
+                                      disabled={!smartArsEnabled}
+                                      options={blocklistQueueOptions}
+                                      placeholder="호 분배룰 선택"
+                                    />
+                                  </Form.Item>
+                                ) : actionType === 'TRANSFER' ? (
+                                  <Form.Item
+                                    className="branch-edit-modal__mapping-cell"
+                                    label={renderFieldLabel('전화번호', '착신전환 대상 번호입니다.')}
+                                    name={[field.name, 'transferNumber']}
+                                  >
+                                    <Input disabled={!smartArsEnabled} placeholder="01012345678" />
+                                  </Form.Item>
+                                ) : actionType === 'SEND_SMS' ? (
+                                  <Form.Item
+                                    className="branch-edit-modal__mapping-cell"
+                                    label={renderFieldLabel('문자 템플릿', '발신자 번호로 보낼 템플릿입니다.')}
+                                    name={[field.name, 'smsTemplateId']}
+                                  >
+                                    <Select
+                                      allowClear
+                                      showSearch
+                                      disabled={!smartArsEnabled}
+                                      options={smsTemplateOptions}
+                                      optionFilterProp="label"
+                                      placeholder="문자 템플릿 선택"
+                                      dropdownRender={renderSmsTemplateDropdown}
+                                    />
+                                  </Form.Item>
+                                ) : actionType === 'PLAY_PROMPT' ? (
+                                  <Form.Item
+                                    className="branch-edit-modal__mapping-cell"
+                                    label={renderFieldLabel('재생 멘트', '선택 후 재생하고 통화를 종료합니다.')}
+                                    name={[field.name, 'promptId']}
+                                  >
+                                    <Select
+                                      allowClear
+                                      showSearch
+                                      disabled={!smartArsEnabled}
+                                      options={promptOptions}
+                                      optionFilterProp="label"
+                                      placeholder="재생 멘트 선택"
+                                    />
+                                  </Form.Item>
+                                ) : (
+                                  <div className="branch-edit-modal__mapping-cell branch-edit-modal__mapping-cell--empty">
+                                    추가 설정 없음
+                                  </div>
+                                )}
+                                <Button
+                                  danger
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  className="branch-edit-modal__mapping-remove"
+                                  disabled={!smartArsEnabled}
+                                  onClick={() => remove(field.name)}
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Form.List>
+                  </div>
+                </Space>
               </div>
 
               <div className={`branch-edit-modal__section${activeSection === 'recording' ? ' is-active' : ''}`}>

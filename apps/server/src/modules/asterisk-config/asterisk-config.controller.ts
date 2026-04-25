@@ -20,6 +20,8 @@ import { UpdateSipPasswordDto } from './dto/update-sip-password.dto';
 import { ExecuteOptOutActionDto } from '../opt-out/dto/execute-opt-out-action.dto';
 import { ExecuteSmartOptOutDto } from '../opt-out/dto/execute-smart-opt-out.dto';
 import { OptOutService } from '../opt-out/opt-out.service';
+import { ExecuteSmartArsActionDto } from '../smart-ars/dto/execute-smart-ars-action.dto';
+import { SmartArsRuntimeService } from '../smart-ars/smart-ars-runtime.service';
 
 interface UploadedPromptAudioFile {
   originalname: string;
@@ -204,6 +206,50 @@ export class AsteriskConfigInternalController {
   ) {
     this.assertInternalSecret(secretHeader);
     const result = await this.optOutService.unregister(dto);
+    this.reload.scheduleReload(result.tenantId);
+    return result;
+  }
+}
+
+@ApiTags('asterisk-config-internal')
+@Controller('asterisk-config/internal/smart-ars')
+export class SmartArsInternalController {
+  constructor(
+    private readonly smartArsRuntimeService: SmartArsRuntimeService,
+    private readonly reload: AsteriskReloadService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private assertInternalSecret(secretHeader?: string) {
+    const configuredSecret = this.config.get<string>('KASTER_INTERNAL_SECRET')?.trim();
+
+    if (!configuredSecret) {
+      throw new ServiceUnavailableException(
+        'KASTER_INTERNAL_SECRET must be configured for internal Smart ARS execution',
+      );
+    }
+
+    if (secretHeader?.trim() !== configuredSecret) {
+      throw new UnauthorizedException('Invalid internal secret');
+    }
+  }
+
+  @Post('sms')
+  async smartArsSms(
+    @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
+    @Body() dto: ExecuteSmartArsActionDto,
+  ) {
+    this.assertInternalSecret(secretHeader);
+    return this.smartArsRuntimeService.sendSms(dto);
+  }
+
+  @Post('opt-out')
+  async smartArsOptOut(
+    @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
+    @Body() dto: ExecuteSmartArsActionDto,
+  ) {
+    this.assertInternalSecret(secretHeader);
+    const result = await this.smartArsRuntimeService.registerOptOut(dto);
     this.reload.scheduleReload(result.tenantId);
     return result;
   }

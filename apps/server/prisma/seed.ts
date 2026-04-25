@@ -25,6 +25,33 @@ const QUEUE_ID = '00000000-0000-0000-0000-000000000101';
 const AGENT_ID = '00000000-0000-0000-0000-000000000201';
 const SUPERVISOR_ID = '00000000-0000-0000-0000-000000000202';
 
+const SMART_ARS_PROMPTS = [
+  {
+    promptKey: 'custom/smart_ars_guide',
+    displayName: '스마트 ARS 안내',
+    fileName: 'smart_ars_guide.wav',
+    description: '0번 상담원 연결, 1번 수신거부, 2번 이용 안내 선택 멘트',
+  },
+  {
+    promptKey: 'custom/smart_ars_invalid',
+    displayName: '스마트 ARS 오입력',
+    fileName: 'smart_ars_invalid.wav',
+    description: '정의되지 않은 DTMF 입력 안내 멘트',
+  },
+  {
+    promptKey: 'custom/smart_ars_fail',
+    displayName: '스마트 ARS 실패',
+    fileName: 'smart_ars_fail.wav',
+    description: '재시도 초과 또는 실행 실패 안내 멘트',
+  },
+  {
+    promptKey: 'custom/smart_ars_info',
+    displayName: '스마트 ARS 이용 안내',
+    fileName: 'smart_ars_info.wav',
+    description: 'PLAY_PROMPT 동작 검증용 안내 멘트',
+  },
+];
+
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
@@ -101,6 +128,33 @@ async function main() {
       agentId: supervisor.agentId,
     },
   });
+
+  for (const prompt of SMART_ARS_PROMPTS) {
+    await prisma.asteriskPrompt.upsert({
+      where: {
+        tenantId_promptKey: {
+          tenantId: TENANT_ID,
+          promptKey: prompt.promptKey,
+        },
+      },
+      update: {
+        displayName: prompt.displayName,
+        fileName: prompt.fileName,
+        category: 'smart_ars',
+        description: prompt.description,
+        isActive: true,
+      },
+      create: {
+        tenantId: TENANT_ID,
+        promptKey: prompt.promptKey,
+        displayName: prompt.displayName,
+        fileName: prompt.fileName,
+        category: 'smart_ars',
+        description: prompt.description,
+        isActive: true,
+      },
+    });
+  }
 
   // 시드는 여러 번 돌려도 되도록 upsert 패턴을 쓰지만, 데모용 콜 세션은
   // 매번 새로 만든다. 이미 있으면 건너뛴다.

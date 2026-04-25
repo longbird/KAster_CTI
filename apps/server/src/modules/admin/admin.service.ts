@@ -50,6 +50,7 @@ interface BranchRoutingRule {
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
 type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
 type Blocklist080SmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
+type SmartArsActionType = 'QUEUE_ROUTE' | 'TRANSFER' | 'SEND_SMS' | 'OPT_OUT' | 'PLAY_PROMPT';
 
 interface BranchBlocklist080Mapping {
   digit: string;
@@ -90,6 +91,25 @@ interface BranchBlocklist080Profile {
   smsTemplateId: string | null;
 }
 
+interface BranchSmartArsAction {
+  digit: string;
+  actionType: SmartArsActionType | string;
+  queueId: string | null;
+  transferNumber: string | null;
+  smsTemplateId: string | null;
+  promptId: string | null;
+}
+
+interface BranchSmartArsProfile {
+  enabled: boolean;
+  guidePromptId: string | null;
+  timeoutSeconds: number;
+  maxRetries: number;
+  failPromptId: string | null;
+  invalidPromptId: string | null;
+  actions: BranchSmartArsAction[];
+}
+
 interface BranchSettingsProfile {
   routing: {
     enabled: boolean;
@@ -99,6 +119,7 @@ interface BranchSettingsProfile {
   forwarding: BranchSettingsSectionSelection;
   prompts: BranchSettingsSectionSelection;
   ars: BranchSettingsSectionSelection;
+  smartArs: BranchSmartArsProfile;
   recording: {
     enabled: boolean;
   };
@@ -131,6 +152,15 @@ const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
   ars: {
     enabled: false,
     ids: [],
+  },
+  smartArs: {
+    enabled: false,
+    guidePromptId: null,
+    timeoutSeconds: 5,
+    maxRetries: 2,
+    failPromptId: null,
+    invalidPromptId: null,
+    actions: [],
   },
   recording: {
     enabled: true,
@@ -167,6 +197,9 @@ const BLOCKLIST080_SMART_ACTION_TYPES: Blocklist080SmartActionType[] = [
   'HANGUP',
 ];
 const BLOCKLIST080_DIGIT_PATTERN = /^[0-9]$/;
+const SMART_ARS_ACTION_TYPES: SmartArsActionType[] = ['QUEUE_ROUTE', 'TRANSFER', 'SEND_SMS', 'OPT_OUT', 'PLAY_PROMPT'];
+const SMS_DEFERRED_MESSAGE = 'SMS 발송은 외부 SMS 연동 후 사용할 수 있습니다.';
+const SMART_ARS_DIGIT_PATTERN = /^[0-9*#]$/;
 const BLOCKLIST080_SMART_FLOW_END_DIGIT_OVERRIDE_PATTERNS = [
   'enddigit',
   'inputenddigit',
@@ -182,6 +215,23 @@ function normalizeStringArray(value: unknown): string[] {
 
 function normalizeOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+function normalizePhoneDigits(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const digits = value.replace(/\D/g, '');
+  return digits || null;
 }
 
 function isBlocklist080SmartFlowEndDigitOverrideKey(key: string): boolean {
@@ -288,6 +338,40 @@ function normalizeBlocklist080Profile(value: unknown): BranchBlocklist080Profile
   };
 }
 
+function normalizeSmartArsActions(value: unknown): BranchSmartArsAction[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => {
+      const actionType = typeof item.actionType === 'string' ? item.actionType.trim() : '';
+
+      return {
+        digit: typeof item.digit === 'string' ? item.digit.trim() : '',
+        actionType,
+        queueId: actionType === 'QUEUE_ROUTE' ? normalizeOptionalString(item.queueId) : null,
+        transferNumber: actionType === 'TRANSFER' ? normalizePhoneDigits(item.transferNumber) : null,
+        smsTemplateId: actionType === 'SEND_SMS' ? normalizeOptionalString(item.smsTemplateId) : null,
+        promptId: actionType === 'PLAY_PROMPT' ? normalizeOptionalString(item.promptId) : null,
+      };
+    });
+}
+
+function normalizeSmartArsProfile(value: unknown): BranchSmartArsProfile {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.smartArs.enabled,
+    guidePromptId: normalizeOptionalString(source.guidePromptId),
+    timeoutSeconds: clampInteger(source.timeoutSeconds, DEFAULT_BRANCH_SETTINGS_PROFILE.smartArs.timeoutSeconds, 1, 15),
+    maxRetries: clampInteger(source.maxRetries, DEFAULT_BRANCH_SETTINGS_PROFILE.smartArs.maxRetries, 0, 10),
+    failPromptId: normalizeOptionalString(source.failPromptId),
+    invalidPromptId: normalizeOptionalString(source.invalidPromptId),
+    actions: normalizeSmartArsActions(source.actions),
+  };
+}
+
 function normalizeWeekdays(value: unknown): string[] {
   const normalized = normalizeStringArray(value).map((item) => item.toLowerCase());
   return WEEKDAY_ORDER.filter((day) => normalized.includes(day));
@@ -371,7 +455,6 @@ function normalizeBranchSettingsProfile(
   const routing = source.routing && typeof source.routing === 'object' ? source.routing as Record<string, unknown> : {};
   const forwarding = source.forwarding && typeof source.forwarding === 'object' ? source.forwarding as Record<string, unknown> : {};
   const prompts = source.prompts && typeof source.prompts === 'object' ? source.prompts as Record<string, unknown> : {};
-  const ars = source.ars && typeof source.ars === 'object' ? source.ars as Record<string, unknown> : {};
   const recording = source.recording && typeof source.recording === 'object' ? source.recording as Record<string, unknown> : {};
   const cid = source.cid && typeof source.cid === 'object' ? source.cid as Record<string, unknown> : {};
   const smdr = source.smdr && typeof source.smdr === 'object' ? source.smdr as Record<string, unknown> : {};
@@ -403,9 +486,10 @@ function normalizeBranchSettingsProfile(
           : (DEFAULT_BRANCH_SETTINGS_PROFILE.prompts.waitForPlaybackCompletionBeforeQueue ?? false),
     },
     ars: {
-      enabled: typeof ars.enabled === 'boolean' ? ars.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.ars.enabled,
-      ids: normalizeStringArray(ars.ids),
+      enabled: false,
+      ids: [],
     },
+    smartArs: normalizeSmartArsProfile(source.smartArs),
     recording: {
       enabled:
         typeof recording.enabled === 'boolean' ? recording.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.recording.enabled,
@@ -475,6 +559,63 @@ function validateBranchSettingsProfile(
     throw new BadRequestException('큐 인입 지연 시간은 0초 이상 300초 이하 정수여야 합니다.');
   }
 
+  const smartArs = profile.smartArs;
+  if (smartArs.enabled && profile.blocklist080.enabled) {
+    throw new BadRequestException('스마트 ARS와 080 수신거부는 같은 지사에서 동시에 사용할 수 없습니다.');
+  }
+
+  if (smartArs.enabled) {
+    if (!smartArs.guidePromptId) {
+      throw new BadRequestException('스마트 ARS 안내 멘트를 선택해야 합니다.');
+    }
+
+    if (smartArs.actions.length === 0) {
+      throw new BadRequestException('스마트 ARS 동작은 최소 1개 이상 설정해야 합니다.');
+    }
+
+    const digits = new Set<string>();
+    for (const action of smartArs.actions) {
+      if (!SMART_ARS_DIGIT_PATTERN.test(action.digit)) {
+        throw new BadRequestException('스마트 ARS DTMF 키는 0-9, *, #만 사용할 수 있습니다.');
+      }
+
+      if (digits.has(action.digit)) {
+        throw new BadRequestException('스마트 ARS DTMF 키는 중복될 수 없습니다.');
+      }
+      digits.add(action.digit);
+
+      if (!SMART_ARS_ACTION_TYPES.includes(action.actionType as SmartArsActionType)) {
+        throw new BadRequestException('스마트 ARS 동작은 허용된 값만 사용할 수 있습니다.');
+      }
+
+      if (action.actionType === 'QUEUE_ROUTE') {
+        if (!action.queueId) {
+          throw new BadRequestException('스마트 ARS 상담원 연결에는 호 분배룰이 필요합니다.');
+        }
+
+        if (!queueIds.includes(action.queueId)) {
+          throw new BadRequestException('스마트 ARS 상담원 연결은 지사에 연결된 호 분배룰만 사용할 수 있습니다.');
+        }
+      }
+
+      if (action.actionType === 'TRANSFER' && !action.transferNumber) {
+        throw new BadRequestException('스마트 ARS 착신전환에는 전화번호가 필요합니다.');
+      }
+
+      if (action.actionType === 'SEND_SMS' && !action.smsTemplateId) {
+        throw new BadRequestException('스마트 ARS SMS 발송에는 문자 템플릿이 필요합니다.');
+      }
+
+      if (action.actionType === 'SEND_SMS') {
+        throw new BadRequestException(SMS_DEFERRED_MESSAGE);
+      }
+
+      if (action.actionType === 'PLAY_PROMPT' && !action.promptId) {
+        throw new BadRequestException('스마트 ARS 멘트 재생에는 재생할 멘트가 필요합니다.');
+      }
+    }
+  }
+
   const blocklist080 = profile.blocklist080;
   if (blocklist080.mode === 'DTMF_MENU') {
     if (!blocklist080.dtmfMenu) {
@@ -488,6 +629,10 @@ function validateBranchSettingsProfile(
 
       if (!BLOCKLIST080_DTMF_ACTION_TYPES.includes(mapping.actionType as Blocklist080DtmfActionType)) {
         throw new BadRequestException('DTMF 메뉴 매핑의 동작은 허용된 값만 사용할 수 있습니다.');
+      }
+
+      if (mapping.actionType === 'SEND_SMS') {
+        throw new BadRequestException(SMS_DEFERRED_MESSAGE);
       }
 
       if (mapping.actionType === 'QUEUE_ROUTE') {
@@ -515,6 +660,10 @@ function validateBranchSettingsProfile(
       if (!BLOCKLIST080_SMART_ACTION_TYPES.includes(mapping.actionType as Blocklist080SmartActionType)) {
         throw new BadRequestException('스마트 수신거부 확인 매핑의 동작은 허용된 값만 사용할 수 있습니다.');
       }
+
+      if (mapping.actionType === 'SEND_SMS') {
+        throw new BadRequestException(SMS_DEFERRED_MESSAGE);
+      }
     }
   }
 }
@@ -537,6 +686,12 @@ function collectReferencedOptOutSmsTemplateIds(profile: BranchSettingsProfile): 
     addId(mapping.smsTemplateId);
   }
 
+  for (const action of profile.smartArs.actions) {
+    if (action.actionType === 'SEND_SMS') {
+      addId(action.smsTemplateId);
+    }
+  }
+
   return [...ids];
 }
 
@@ -545,7 +700,7 @@ function buildBranchSettingsSummary(profile: BranchSettingsProfile, counts: { qu
     { key: 'routing', enabled: profile.routing.enabled && counts.queueCount > 0, label: '호 분배룰' },
     { key: 'forwarding', enabled: profile.forwarding.enabled && profile.forwarding.ids.length > 0, label: '착신전환' },
     { key: 'prompts', enabled: profile.prompts.enabled && profile.prompts.ids.length > 0, label: '멘트' },
-    { key: 'ars', enabled: profile.ars.enabled && profile.ars.ids.length > 0, label: 'ARS' },
+    { key: 'smartArs', enabled: profile.smartArs.enabled && profile.smartArs.actions.length > 0, label: '스마트 ARS' },
     { key: 'recording', enabled: profile.recording.enabled, label: '녹취' },
     { key: 'blocklist080', enabled: profile.blocklist080.enabled, label: '080 수신거부' },
     { key: 'cid', enabled: profile.cid.enabled && !!profile.cid.defaultOutboundCallerId, label: 'CID' },
@@ -1191,6 +1346,7 @@ export class AdminService {
         branchId: true,
         queueMappings: { select: { queueId: true } },
         didMappings: { select: { didId: true } },
+        settingsProfile: true,
       },
     });
 
@@ -1200,8 +1356,20 @@ export class AdminService {
 
     const effectiveQueueIds = dto.queueIds ?? currentMappings.queueMappings.map((item) => item.queueId);
     const effectiveDidIds = dto.didIds ?? currentMappings.didMappings.map((item) => item.didId);
-    const settingsProfile = dto.settingsProfile
-      ? normalizeBranchSettingsProfile(dto.settingsProfile, {
+    const currentSettingsProfile =
+      currentMappings.settingsProfile &&
+      typeof currentMappings.settingsProfile === 'object' &&
+      !Array.isArray(currentMappings.settingsProfile)
+        ? currentMappings.settingsProfile as Record<string, unknown>
+        : {};
+    const nextSettingsProfile = dto.settingsProfile
+      ? {
+          ...currentSettingsProfile,
+          ...dto.settingsProfile,
+        }
+      : undefined;
+    const settingsProfile = nextSettingsProfile
+      ? normalizeBranchSettingsProfile(nextSettingsProfile, {
           queueIds: effectiveQueueIds,
           didIds: effectiveDidIds,
         })

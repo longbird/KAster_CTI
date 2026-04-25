@@ -64,7 +64,7 @@ describe('renderDialplan', () => {
 
     expect(extensionsQueue).toContain('[080-optout-entry]');
     expect(extensionsQueue).toContain('GotoIf($["${OPT_OUT_MODE}"="IMMEDIATE_OPT_OUT"]?immediate)');
-    expect(extensionsQueue).toContain("/var/lib/asterisk/bin/kaster-opt-out-hook.sh 'register'");
+    expect(extensionsQueue).toContain("/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh 'register'");
   });
 
   it('renders DTMF opt-out menu actions with queue and hook execution', () => {
@@ -112,8 +112,8 @@ describe('renderDialplan', () => {
     expect(extensionsQueue).toContain('GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-dtmf-invalid,s,1)');
     expect(extensionsQueue).toContain('[080-optout-dtmf-invalid]');
     expect(extensionsQueue).toContain('Goto(queue-entry,${OPT_OUT_SELECTED_QUEUE},1)');
-    expect(extensionsQueue).toContain("/var/lib/asterisk/bin/kaster-opt-out-hook.sh 'unregister'");
-    expect(extensionsQueue).toContain("/var/lib/asterisk/bin/kaster-opt-out-hook.sh 'sms'");
+    expect(extensionsQueue).toContain("/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh 'unregister'");
+    expect(extensionsQueue).toContain("/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh 'sms'");
     expect(extensionsQueue).toContain('GotoIf($["${SYSTEMSTATUS}"!="SUCCESS"]?080-optout-failure,s,1)');
     expect(extensionsQueue).toContain('[080-optout-failure]');
   });
@@ -174,6 +174,54 @@ describe('renderDialplan', () => {
     expect(extensionsQueue).toContain('Set(__OPT_OUT_RESULT_PROMPT=${IF($["${OPT_OUT_MODE}"="SMART_OPT_OUT"]?${OPT_OUT_SMART_FINAL_PROMPT}:${OPT_OUT_COMPLETION_PROMPT})})');
     expect(extensionsQueue).toContain('NoOp(080 Opt-Out Failure / ACTION=${OPT_OUT_SELECTED_ACTION} / STATUS=${SYSTEMSTATUS})');
     expect(extensionsQueue).toContain('Playback(ss-noservice)');
+  });
+
+  it('renders branch Smart ARS runtime route with all configured action types', () => {
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids: [{
+        id: 'did-smart-ars',
+        did: '07070001111',
+        ivrMenuId: null,
+        directQueue: 'fallback',
+        enabled: true,
+        description: null,
+        branchSmartArs: {
+          enabled: true,
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          guidePromptKey: 'custom/smart_ars_guide',
+          invalidPromptKey: 'custom/smart_ars_invalid',
+          failPromptKey: 'custom/smart_ars_fail',
+          timeoutSeconds: 5,
+          maxRetries: 2,
+          actions: [
+            { digit: '0', actionType: 'QUEUE_ROUTE', queueName: 'sales', transferNumber: null, smsTemplateId: null, promptKey: null },
+            { digit: '1', actionType: 'TRANSFER', queueName: null, transferNumber: '01012345678', smsTemplateId: null, promptKey: null },
+            { digit: '2', actionType: 'SEND_SMS', queueName: null, transferNumber: null, smsTemplateId: 'tpl-1', promptKey: null },
+            { digit: '3', actionType: 'OPT_OUT', queueName: null, transferNumber: null, smsTemplateId: null, promptKey: null },
+            { digit: '4', actionType: 'PLAY_PROMPT', queueName: null, transferNumber: null, smsTemplateId: null, promptKey: 'custom/office_hours' },
+          ],
+        },
+      }],
+      ivrMenus: [],
+    });
+
+    expect(extensionsInbound).toContain('Goto(smart-ars-did-smart-ars,s,1)');
+    expect(extensionsInbound).not.toContain('Goto(queue-entry,fallback,1)');
+    expect(extensionsQueue).toContain('[smart-ars-did-smart-ars]');
+    expect(extensionsQueue).toContain('Background(/var/lib/asterisk/sounds/custom/smart_ars_guide)');
+    expect(extensionsQueue).toContain('WaitExten(${SMART_ARS_TIMEOUT})');
+    expect(extensionsQueue).toContain('[smart-ars-retry-did-smart-ars]');
+    expect(extensionsQueue).toContain('GotoIf($[${SMART_ARS_RETRY_COUNT}<=${SMART_ARS_MAX_RETRIES}]?smart-ars-did-smart-ars,s,loop)');
+    expect(extensionsQueue).toContain('exten => 0,1,NoOp(Smart ARS digit 0 action QUEUE_ROUTE)');
+    expect(extensionsQueue).toContain('Goto(queue-entry,sales,1)');
+    expect(extensionsQueue).toContain('exten => 1,1,NoOp(Smart ARS digit 1 action TRANSFER)');
+    expect(extensionsQueue).toContain('Goto(transfer-target,01012345678,1)');
+    expect(extensionsQueue).toContain("kaster-smart-ars-hook.sh 'sms'");
+    expect(extensionsQueue).toContain("kaster-smart-ars-hook.sh 'opt-out'");
+    expect(extensionsQueue).toContain('Playback(/var/lib/asterisk/sounds/custom/office_hours)');
+    expect(extensionsQueue).toContain('[smart-ars-failure-did-smart-ars]');
+    expect(extensionsQueue).toContain('Playback(/var/lib/asterisk/sounds/custom/smart_ars_fail)');
   });
 
   it('renders branch prompt playback before direct queue routing when wait-for-completion is enabled', () => {
