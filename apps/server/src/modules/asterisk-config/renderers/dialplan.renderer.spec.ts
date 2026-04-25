@@ -82,6 +82,7 @@ describe('renderDialplan', () => {
           branchId: 'branch-1',
           mode: 'DTMF_MENU',
           basePromptKey: 'custom/080_menu',
+          basePromptInputDelaySeconds: 0,
           completionPromptKey: 'custom/080_done',
           smsTemplateId: 'tpl-default',
           dtmfMenu: {
@@ -107,7 +108,7 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Set(__OPT_OUT_DTMF_SMS_4=tpl-4)');
 
     expect(extensionsQueue).toContain('[080-optout-dtmf]');
-    expect(extensionsQueue).toContain('Read(OPT_OUT_DTMF_SELECTION,,1,,1,${OPT_OUT_DTMF_TIMEOUT})');
+    expect(extensionsQueue).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi,${OPT_OUT_BASE_PROMPT},${OPT_OUT_BASE_PROMPT_INPUT_DELAY},${OPT_OUT_DTMF_TIMEOUT},0123456789)');
     expect(extensionsQueue).toContain('Set(__OPT_OUT_SELECTED_ACTION=${OPT_OUT_DTMF_ACTION_${EXTEN}})');
     expect(extensionsQueue).toContain('GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-dtmf-invalid,s,1)');
     expect(extensionsQueue).toContain('[080-optout-dtmf-invalid]');
@@ -116,6 +117,38 @@ describe('renderDialplan', () => {
     expect(extensionsQueue).toContain("/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh 'sms'");
     expect(extensionsQueue).toContain('GotoIf($["${SYSTEMSTATUS}"!="SUCCESS"]?080-optout-failure,s,1)');
     expect(extensionsQueue).toContain('[080-optout-failure]');
+  });
+
+  it('renders guarded 080 base prompt playback when input delay is configured', () => {
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids: [{
+        id: 'did-optout-dtmf-delay',
+        did: '0807654322',
+        ivrMenuId: null,
+        directQueue: null,
+        enabled: true,
+        description: null,
+        branchOptOut080: {
+          enabled: true,
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          mode: 'DTMF_MENU',
+          basePromptKey: 'custom/080_menu',
+          basePromptInputDelaySeconds: 3,
+          dtmfMenu: {
+            timeoutSeconds: 4,
+            maxRetries: 0,
+            mappings: [
+              { digit: '1', actionType: 'REGISTER_OPT_OUT', queueName: null, smsTemplateId: null },
+            ],
+          },
+        },
+      }],
+      ivrMenus: [],
+    });
+
+    expect(extensionsInbound).toContain('Set(__OPT_OUT_BASE_PROMPT_INPUT_DELAY=3)');
+    expect(extensionsQueue).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi,${OPT_OUT_BASE_PROMPT},${OPT_OUT_BASE_PROMPT_INPUT_DELAY},${OPT_OUT_DTMF_TIMEOUT},0123456789)');
   });
 
   it('renders smart opt-out input and confirm flow with same-number rejection', () => {

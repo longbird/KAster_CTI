@@ -138,6 +138,7 @@ interface Blocklist080ProfileFormValue {
   enabled: boolean;
   mode?: Blocklist080Mode;
   basePromptId?: string;
+  basePromptInputDelaySeconds?: number;
   completionPromptId?: string;
   smsTemplateId?: string;
   dtmfMenu?: Blocklist080DtmfMenuFormValue;
@@ -246,6 +247,7 @@ interface BranchConfigFormValue {
   blocklist080Enabled: boolean;
   blocklist080Mode: Blocklist080Mode;
   blocklist080BasePromptId?: string;
+  blocklist080BasePromptInputDelaySeconds: number;
   blocklist080CompletionPromptId?: string;
   blocklist080SmsTemplateId?: string;
   blocklist080DtmfTimeoutSeconds: number;
@@ -571,6 +573,7 @@ function buildBlocklist080Payload(values: BranchConfigFormValue) {
     enabled: values.blocklist080Enabled,
     mode: values.blocklist080Mode,
     basePromptId: normalizeNullableText(values.blocklist080BasePromptId),
+    basePromptInputDelaySeconds: Math.max(0, Math.trunc(values.blocklist080BasePromptInputDelaySeconds ?? 0)),
     completionPromptId: normalizeNullableText(values.blocklist080CompletionPromptId),
     smsTemplateId: normalizeNullableText(values.blocklist080SmsTemplateId),
     dtmfMenu:
@@ -777,6 +780,7 @@ function buildCreateDefaults(): BranchConfigFormValue {
     blocklist080Enabled: false,
     blocklist080Mode: 'IMMEDIATE_OPT_OUT',
     blocklist080BasePromptId: undefined,
+    blocklist080BasePromptInputDelaySeconds: 0,
     blocklist080CompletionPromptId: undefined,
     blocklist080SmsTemplateId: undefined,
     blocklist080DtmfTimeoutSeconds: 0,
@@ -838,6 +842,7 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
     blocklist080Enabled: optOut?.enabled ?? false,
     blocklist080Mode: optOut?.mode ?? 'IMMEDIATE_OPT_OUT',
     blocklist080BasePromptId: normalizeOptionalText(optOut?.basePromptId),
+    blocklist080BasePromptInputDelaySeconds: optOut?.basePromptInputDelaySeconds ?? 0,
     blocklist080CompletionPromptId: normalizeOptionalText(optOut?.completionPromptId),
     blocklist080SmsTemplateId: normalizeOptionalText(optOut?.smsTemplateId),
     blocklist080DtmfTimeoutSeconds: optOut?.dtmfMenu?.timeoutSeconds ?? 0,
@@ -1941,7 +1946,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                       </Tag>
                     </div>
                     <Row gutter={[12, 12]}>
-                      <Col xs={24} lg={12}>
+                      <Col xs={24} lg={8}>
                         <Form.Item
                           className="branch-edit-modal__compact-item"
                           label={renderFieldLabel('시작 멘트', '모든 080 수신거부 흐름 시작 시 재생하는 멘트입니다.')}
@@ -1954,7 +1959,16 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                           />
                         </Form.Item>
                       </Col>
-                      <Col xs={24} lg={12}>
+                      <Col xs={24} lg={8}>
+                        <Form.Item
+                          className="branch-edit-modal__compact-item"
+                          label={renderFieldLabel('재생 우선 시간(초)', '0초이면 멘트 재생 중 입력을 즉시 처리합니다. 1초 이상이면 시작 멘트를 먼저 재생한 뒤 입력을 받습니다.')}
+                          name="blocklist080BasePromptInputDelaySeconds"
+                        >
+                          <InputNumber min={0} max={60} style={{ width: '100%' }} disabled={!blocklist080Enabled} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} lg={8}>
                         <Form.Item
                           className="branch-edit-modal__compact-item"
                           label={renderFieldLabel('완료 멘트', '즉시 또는 일반 DTMF 모드 완료 시 재생하는 멘트입니다.')}

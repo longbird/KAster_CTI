@@ -85,6 +85,7 @@ interface BranchBlocklist080Profile {
   enabled: boolean;
   mode: Blocklist080Mode;
   basePromptId: string | null;
+  basePromptInputDelaySeconds: number;
   completionPromptId: string | null;
   dtmfMenu?: BranchBlocklist080DtmfMenu;
   smartFlow?: BranchBlocklist080SmartFlow;
@@ -169,6 +170,7 @@ const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
     enabled: false,
     mode: 'IMMEDIATE_OPT_OUT',
     basePromptId: null,
+    basePromptInputDelaySeconds: 0,
     completionPromptId: null,
     smsTemplateId: null,
   },
@@ -331,6 +333,12 @@ function normalizeBlocklist080Profile(value: unknown): BranchBlocklist080Profile
     enabled: typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.blocklist080.enabled,
     mode: normalizeBlocklist080Mode(source.mode),
     basePromptId: normalizeOptionalString(source.basePromptId),
+    basePromptInputDelaySeconds: clampInteger(
+      source.basePromptInputDelaySeconds,
+      DEFAULT_BRANCH_SETTINGS_PROFILE.blocklist080.basePromptInputDelaySeconds,
+      0,
+      60,
+    ),
     completionPromptId: normalizeOptionalString(source.completionPromptId),
     dtmfMenu: normalizeBlocklist080DtmfMenu(source.dtmfMenu),
     smartFlow: normalizeBlocklist080SmartFlow(source.smartFlow),
@@ -617,6 +625,10 @@ function validateBranchSettingsProfile(
   }
 
   const blocklist080 = profile.blocklist080;
+  if (!Number.isInteger(blocklist080.basePromptInputDelaySeconds) || blocklist080.basePromptInputDelaySeconds < 0 || blocklist080.basePromptInputDelaySeconds > 60) {
+    throw new BadRequestException('080 수신거부 시작 멘트 입력 지연 시간은 0초 이상 60초 이하 정수여야 합니다.');
+  }
+
   if (blocklist080.mode === 'DTMF_MENU') {
     if (!blocklist080.dtmfMenu) {
       throw new BadRequestException('080 수신거부 DTMF 메뉴 설정이 필요합니다.');

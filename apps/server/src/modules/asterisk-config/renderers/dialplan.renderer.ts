@@ -3,6 +3,7 @@ import { assertNoNewlines, toSlug } from './renderer-utils';
 const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
 const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
 const OPT_OUT_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-opt-out-hook.sh`;
+const OPT_OUT_GUARDED_DIGIT_AGI_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-guarded-digit.agi`;
 const SMART_ARS_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-smart-ars-hook.sh`;
 const OPT_OUT_MODE_SOURCE_TYPE: Record<OptOutMode, string> = {
   IMMEDIATE_OPT_OUT: 'OPT_OUT_080_IMMEDIATE',
@@ -51,6 +52,7 @@ export interface BranchOptOut080Input {
   branchId: string | null;
   mode: OptOutMode;
   basePromptKey?: string | null;
+  basePromptInputDelaySeconds?: number | null;
   completionPromptKey?: string | null;
   smsTemplateId?: string | null;
   dtmfMenu?: OptOutDtmfMenuInput | null;
@@ -479,6 +481,7 @@ function renderOptOutVariableLines(did: DidInput): string[] {
     ` same => n,Set(__OPT_OUT_SOURCE_TYPE=${OPT_OUT_MODE_SOURCE_TYPE[optOut.mode]})`,
     ` same => n,Set(__OPT_OUT_SMS_TEMPLATE=${normalizeOptionalArg(optOut.smsTemplateId)})`,
     ` same => n,Set(__OPT_OUT_BASE_PROMPT=${normalizeOptionalArg(optOut.basePromptKey ? toPlaybackTarget(optOut.basePromptKey) : null)})`,
+    ` same => n,Set(__OPT_OUT_BASE_PROMPT_INPUT_DELAY=${Math.max(0, Math.trunc(optOut.basePromptInputDelaySeconds ?? 0))})`,
     ` same => n,Set(__OPT_OUT_COMPLETION_PROMPT=${normalizeOptionalArg(optOut.completionPromptKey ? toPlaybackTarget(optOut.completionPromptKey) : null)})`,
   ];
 
@@ -803,11 +806,11 @@ function renderOptOutContexts(): string {
     ' same => n,Answer()',
     ' same => n,Set(CHANNEL(language)=)',
     ' same => n,Set(__REQUESTER_PHONE=${FILTER(0-9,${CALLERID(num)})})',
-    ' same => n,ExecIf($["${OPT_OUT_BASE_PROMPT}"!="-" & "${LEN(${OPT_OUT_BASE_PROMPT})}"!="0"]?Playback(${OPT_OUT_BASE_PROMPT}))',
     ' same => n,GotoIf($["${OPT_OUT_MODE}"="IMMEDIATE_OPT_OUT"]?immediate)',
     ' same => n,GotoIf($["${OPT_OUT_MODE}"="DTMF_MENU"]?080-optout-dtmf,s,1)',
     ' same => n,Goto(080-optout-smart-input,s,1)',
-    ' same => n(immediate),Set(__OPT_OUT_TARGET_PHONE=${REQUESTER_PHONE})',
+    ' same => n(immediate),ExecIf($["${OPT_OUT_BASE_PROMPT}"!="-" & "${LEN(${OPT_OUT_BASE_PROMPT})}"!="0"]?Playback(${OPT_OUT_BASE_PROMPT}))',
+    ' same => n,Set(__OPT_OUT_TARGET_PHONE=${REQUESTER_PHONE})',
     ' same => n,Set(__OPT_OUT_SELECTED_ACTION=REGISTER_OPT_OUT)',
     ' same => n,Set(__OPT_OUT_SELECTED_SMS_TEMPLATE=${OPT_OUT_SMS_TEMPLATE})',
     ' same => n,Goto(080-optout-action,s,1)',
@@ -815,7 +818,7 @@ function renderOptOutContexts(): string {
     '[080-optout-dtmf]',
     'exten => s,1,NoOp(080 Opt-Out DTMF / DID=${ENTRY_DID})',
     ' same => n,Set(__OPT_OUT_RETRY_COUNT=0)',
-    ' same => n(read),Read(OPT_OUT_DTMF_SELECTION,,1,,1,${OPT_OUT_DTMF_TIMEOUT})',
+    ` same => n(read),AGI(${OPT_OUT_GUARDED_DIGIT_AGI_PATH},\${OPT_OUT_BASE_PROMPT},\${OPT_OUT_BASE_PROMPT_INPUT_DELAY},\${OPT_OUT_DTMF_TIMEOUT},0123456789)`,
     ' same => n,GotoIf($["${LEN(${OPT_OUT_DTMF_SELECTION})}"="0"]?timeout)',
     ' same => n,Goto(${OPT_OUT_DTMF_SELECTION},1)',
     ' same => n(timeout),ExecIf($["${OPT_OUT_DTMF_TIMEOUT_PROMPT}"!="-" & "${LEN(${OPT_OUT_DTMF_TIMEOUT_PROMPT})}"!="0"]?Playback(${OPT_OUT_DTMF_TIMEOUT_PROMPT}))',
@@ -842,6 +845,7 @@ function renderOptOutContexts(): string {
     'exten => s,1,NoOp(080 Smart Opt-Out Input / DID=${ENTRY_DID})',
     ' same => n,Set(__OPT_OUT_SMART_INPUT_RETRY_COUNT=0)',
     ' same => n(read),NoOp(Smart opt-out end digit=${OPT_OUT_SMART_END_DIGIT})',
+    ' same => n,ExecIf($[${OPT_OUT_SMART_INPUT_RETRY_COUNT}=0 & "${OPT_OUT_BASE_PROMPT}"!="-" & "${LEN(${OPT_OUT_BASE_PROMPT})}"!="0"]?Playback(${OPT_OUT_BASE_PROMPT}))',
     ' same => n,ExecIf($[${OPT_OUT_SMART_INPUT_RETRY_COUNT}>0 & "${OPT_OUT_SMART_REENTRY_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_REENTRY_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_REENTRY_PROMPT}))',
     ' same => n,ExecIf($[${OPT_OUT_SMART_INPUT_RETRY_COUNT}=0 & "${OPT_OUT_SMART_INPUT_PROMPT}"!="-" & "${LEN(${OPT_OUT_SMART_INPUT_PROMPT})}"!="0"]?Playback(${OPT_OUT_SMART_INPUT_PROMPT}))',
     ' same => n,Read(OPT_OUT_SMART_TARGET,,16,,1,${OPT_OUT_SMART_TIMEOUT})',

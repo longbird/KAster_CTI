@@ -14,6 +14,7 @@ import { renderQueuesConf } from './renderers/queues.renderer';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh';
+const OPT_OUT_GUARDED_DIGIT_AGI_PATH = '/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi';
 const SMART_ARS_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-smart-ars-hook.sh';
 
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
@@ -54,6 +55,7 @@ interface Blocklist080Profile {
   enabled?: boolean;
   mode?: Blocklist080Mode | string | null;
   basePromptId?: string | null;
+  basePromptInputDelaySeconds?: number | null;
   completionPromptId?: string | null;
   smsTemplateId?: string | null;
   dtmfMenu?: Blocklist080DtmfMenu | null;
@@ -255,6 +257,7 @@ function resolveDidBranchOptOut(
       branchId: mapping.branchId ?? null,
       mode,
       basePromptKey: mapPromptKey(profile.basePromptId, promptKeyById),
+      basePromptInputDelaySeconds: normalizeNonNegativeInteger(profile.basePromptInputDelaySeconds, 0),
       completionPromptKey: mapPromptKey(profile.completionPromptId, promptKeyById),
       smsTemplateId: profile.smsTemplateId?.trim() || null,
       dtmfMenu: profile.dtmfMenu
@@ -589,6 +592,89 @@ function buildSmartArsHookScript(port: number, configuredSecret: string | null):
   ].join('\n');
 }
 
+function buildOptOutGuardedDigitAgiScript(): string {
+  return [
+    '#!/usr/bin/env python3',
+    'import re',
+    'import sys',
+    '',
+    'def read_env():',
+    '    env = {}',
+    '    for line in sys.stdin:',
+    '        line = line.rstrip("\\n")',
+    '        if line == "":',
+    '            break',
+    '        key, _, value = line.partition(":")',
+    '        env[key.strip()] = value.strip()',
+    '    return env',
+    '',
+    'def agi_escape(value):',
+    '    return str(value).replace("\\\\", "\\\\\\\\").replace(\'"\', \'\\\\"\')',
+    '',
+    'def command(cmd):',
+    '    sys.stdout.write(cmd + "\\n")',
+    '    sys.stdout.flush()',
+    '    return sys.stdin.readline().strip()',
+    '',
+    'def parse_result(line):',
+    '    match = re.search(r"result=(-?\\d+)", line or "")',
+    '    return int(match.group(1)) if match else 0',
+    '',
+    'def get_var(name):',
+    '    line = command(f"GET VARIABLE {name}")',
+    '    match = re.search(r"result=1 \\((.*)\\)", line or "")',
+    '    return match.group(1) if match else ""',
+    '',
+    'def set_var(name, value):',
+    '    command(f\'SET VARIABLE {name} "{agi_escape(value)}"\')',
+    '',
+    'env = read_env()',
+    'prompt = env.get("agi_arg_1", "-") or "-"',
+    'try:',
+    '    guard_ms = max(0, int(float(env.get("agi_arg_2", "0") or "0") * 1000))',
+    'except ValueError:',
+    '    guard_ms = 0',
+    'try:',
+    '    timeout_ms = max(0, int(float(env.get("agi_arg_3", "0") or "0") * 1000))',
+    'except ValueError:',
+    '    timeout_ms = 0',
+    'digits = env.get("agi_arg_4", "0123456789") or "0123456789"',
+    '',
+    'set_var("OPT_OUT_DTMF_SELECTION", "")',
+    '',
+    'offset = 0',
+    'if prompt != "-" and prompt:',
+    '    while True:',
+    '        line = command(f\'CONTROL STREAM FILE "{agi_escape(prompt)}" "{agi_escape(digits)}" 3000 "" "" "" {offset}\')',
+    '        result = parse_result(line)',
+    '        c_offset_raw = get_var("CPLAYBACKOFFSET")',
+    '        try:',
+    '            c_offset = int(c_offset_raw)',
+    '        except ValueError:',
+    '            c_offset = -1',
+    '',
+    '        if result <= 0:',
+    '            break',
+    '',
+    '        digit = chr(result)',
+    '        if guard_ms == 0 or c_offset < 0 or c_offset >= guard_ms:',
+    '            set_var("OPT_OUT_DTMF_SELECTION", digit)',
+    '            sys.exit(0)',
+    '',
+    '        offset = max(c_offset, offset)',
+    '',
+    'if timeout_ms > 0:',
+    '    result = parse_result(command(f"WAIT FOR DIGIT {timeout_ms}"))',
+    '    if result > 0:',
+    '        digit = chr(result)',
+    '        if digit in digits:',
+    '            set_var("OPT_OUT_DTMF_SELECTION", digit)',
+    '',
+    'sys.exit(0)',
+    '',
+  ].join('\n');
+}
+
 @Injectable()
 export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(AsteriskReloadService.name);
@@ -748,6 +834,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     fs.writeFileSync(path.join(confDir, PROMPT_MOH_INCLUDE_FILENAME), musiconholdContent, 'utf8');
     this.ensurePromptMohInclude(confDir);
     this.writeOptOutHookScript(httpPort, internalSecret);
+    this.writeOptOutGuardedDigitAgiScript();
     this.writeSmartArsHookScript(httpPort, internalSecret);
     return true;
   }
@@ -871,6 +958,16 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       { encoding: 'utf8', mode: 0o755 },
     );
     fs.chmodSync(OPT_OUT_HOOK_SCRIPT_PATH, 0o755);
+  }
+
+  private writeOptOutGuardedDigitAgiScript() {
+    fs.mkdirSync(path.dirname(OPT_OUT_GUARDED_DIGIT_AGI_PATH), { recursive: true });
+    fs.writeFileSync(
+      OPT_OUT_GUARDED_DIGIT_AGI_PATH,
+      buildOptOutGuardedDigitAgiScript(),
+      { encoding: 'utf8', mode: 0o755 },
+    );
+    fs.chmodSync(OPT_OUT_GUARDED_DIGIT_AGI_PATH, 0o755);
   }
 
   private writeSmartArsHookScript(httpPort: number, internalSecret: string | null) {
