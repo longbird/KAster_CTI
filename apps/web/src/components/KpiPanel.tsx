@@ -19,73 +19,43 @@ interface TileProps {
 function KpiTile({ label, value, suffix, delta, accent, waveform }: TileProps) {
   return (
     <div
-      className="rounded-md p-3"
-      style={{
-        background: 'var(--bg-elevated)',
-        border: accent
-          ? '1px solid var(--accent)'
-          : '1px solid var(--border-subtle)',
-        borderLeft: accent ? '3px solid var(--accent)' : undefined,
-      }}
+      className="k-panel p-5"
+      style={accent ? { borderLeft: '3px solid var(--signal)' } : undefined}
     >
-      <div
-        style={{
-          color: 'var(--text-secondary)',
-          fontSize: 10,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
+      <p className="k-eyebrow mb-2" style={accent ? { color: 'var(--signal)' } : undefined}>
         {label}
-      </div>
-      <div className="flex items-baseline gap-1" style={{ marginTop: 4 }}>
+      </p>
+      <div className="flex items-baseline gap-2">
         <span
-          style={{
-            color: accent ? 'var(--accent)' : 'var(--text-primary)',
-            fontWeight: 700,
-            fontSize: 18,
-          }}
+          className="k-num text-[32px] font-semibold"
+          style={{ color: accent ? 'var(--signal)' : 'var(--fg-1)', lineHeight: 1 }}
         >
           {value}
         </span>
-        {suffix && (
-          <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
-            {suffix}
+        {suffix && <span className="text-[11px] text-[var(--fg-3)]">{suffix}</span>}
+        {delta && (
+          <span
+            className="k-mono text-[11px] font-semibold"
+            style={{
+              color:
+                delta.tone === 'ok'
+                  ? 'var(--signal)'
+                  : delta.tone === 'warn'
+                    ? 'var(--accent-danger)'
+                    : 'var(--fg-3)',
+            }}
+          >
+            {delta.value}
           </span>
         )}
         {waveform && (
           <div className="ml-auto flex h-4 items-end gap-1">
-            <div
-              className="waveform-bar w-1 rounded-full bg-primary"
-              style={{ animationDelay: '0.1s' }}
-            />
-            <div
-              className="waveform-bar w-1 rounded-full bg-primary"
-              style={{ animationDelay: '0.3s' }}
-            />
-            <div
-              className="waveform-bar w-1 rounded-full bg-primary"
-              style={{ animationDelay: '0.2s' }}
-            />
+            <div className="waveform-bar w-1 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.1s' }} />
+            <div className="waveform-bar w-1 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.3s' }} />
+            <div className="waveform-bar w-1 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.2s' }} />
           </div>
         )}
       </div>
-      {delta && (
-        <div
-          style={{
-            color:
-              delta.tone === 'ok'
-                ? 'var(--accent)'
-                : delta.tone === 'warn'
-                ? 'var(--status-danger)'
-                : 'var(--text-secondary)',
-            fontSize: 11,
-            marginTop: 2,
-          }}
-        >
-          {delta.value}
-        </div>
-      )}
     </div>
   );
 }
@@ -103,15 +73,10 @@ export function KpiPanel() {
       : 0;
 
   return (
-    <section className="flex flex-col gap-2">
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
       <KpiTile label="오늘 응대 건수" value={agentSession?.todayAnswered ?? 0} />
       <KpiTile label="평균 통화 시간" value={formatSeconds(avgTalk)} suffix="분" />
-      <KpiTile
-        label="현재 대기"
-        value={String(totalWaiting).padStart(2, '0')}
-        accent
-        waveform
-      />
+      <KpiTile label="현재 대기" value={String(totalWaiting).padStart(2, '0')} accent waveform />
       <KpiTile
         label="현재 통화"
         value={String(totalTalking).padStart(2, '0')}

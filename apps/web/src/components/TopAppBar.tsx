@@ -1,22 +1,12 @@
 import { LogoutOutlined } from '@ant-design/icons';
 import { logout } from '../api';
 import { useCtiStore } from '../store/useCtiStore';
-import { useUiStore, type FullWorkspaceSection } from '../store/useUiStore';
 import { AgentStatusTag } from './AgentStatusTag';
-import { ThemeToggle } from './ThemeToggle';
 
-const SECTION_LABEL: Record<FullWorkspaceSection, string> = {
-  overview: '개요',
-  call: '콜 센터',
-  queues: '큐 현황',
-  history: '이력',
-};
-
+// v2 Operator TopAppBar — hairline bottom, mono brand, signal accent.
 export function TopAppBar() {
   const agentSession = useCtiStore((s) => s.agentSession);
   const changeStatus = useCtiStore((s) => s.changeStatus);
-  const fullSection = useUiStore((s) => s.fullSection);
-  const setMode = useUiStore((s) => s.setMode);
 
   const onLogout = async () => {
     if (!window.confirm('현재 세션을 종료하시겠습니까?')) return;
@@ -26,53 +16,43 @@ export function TopAppBar() {
 
   return (
     <header
-      className="fixed top-0 right-0 z-30 flex h-[46px] items-center justify-between px-4"
-      style={{
-        left: 56,
-        background: 'var(--bg-base)',
-        borderBottom: '1px solid var(--border-subtle)',
-      }}
+      className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between px-6"
+      style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--line-1)' }}
     >
-      <div className="flex items-center gap-3">
-        <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>
-          {SECTION_LABEL[fullSection]}
+      <div className="flex items-center gap-5">
+        <span className="k-mono text-[14px] font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
+          KAster CTI
         </span>
+        <span className="k-hr-v" />
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-sm"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)' }}
+          >
+            <span className="material-symbols-outlined text-base" style={{ color: 'var(--fg-2)' }}>person</span>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold leading-none text-[var(--fg-1)]">
+              {agentSession?.agentName ?? '-'}
+            </p>
+            <p className="k-mono mt-1 text-[10px] tracking-wide text-[var(--fg-3)]">
+              EXT <span className="text-[var(--fg-2)]">{agentSession?.extension ?? '-'}</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
         <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
-        <div className="hidden md:flex flex-col items-end leading-tight">
-          <span style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 600 }}>
-            {agentSession?.agentName ?? '-'}
-          </span>
-          <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>
-            내선 {agentSession?.extension ?? '-'}
-          </span>
-        </div>
-
+        <span className="k-hr-v" />
         <button
-          type="button"
-          onClick={() => setMode('mini')}
-          className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
-          style={{
-            background: 'var(--bg-elevated)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border-subtle)',
+          onClick={() => {
+            void onLogout();
           }}
-          title="미니 모드"
-        >
-          미니
-        </button>
-
-        <ThemeToggle compact />
-
-        <button
-          onClick={() => { void onLogout(); }}
-          className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
-          style={{ color: 'var(--status-danger)' }}
-          title="로그아웃"
+          className="k-btn k-btn-danger k-btn-sm"
         >
           <LogoutOutlined />
+          로그아웃
         </button>
       </div>
     </header>

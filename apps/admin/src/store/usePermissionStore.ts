@@ -68,8 +68,12 @@ export const usePermissionStore = create<PermissionState>((set) => ({
       const permissionsByMenu = Object.fromEntries(
         (data.permissions ?? []).map((item) => [item.menuKey, item]),
       );
+      const paths = allowedMenuKeys.map(menuKeyToPath);
+      const merged = role === 'admin' || role === 'supervisor'
+        ? Array.from(new Set([...paths, ...ALL_PATHS]))
+        : paths;
       set({
-        allowedPaths: allowedMenuKeys.map(menuKeyToPath),
+        allowedPaths: merged,
         permissionsByMenu,
         loaded: true,
         loading: false,

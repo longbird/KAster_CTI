@@ -2,14 +2,13 @@ import { Form, Input, Select, Spin, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api';
 import { AgentStatusTag } from '../components/AgentStatusTag';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
 import { formatPhoneNumber } from '../utils/format';
 
-// MiniShell — 420px dark-pro card (5-section redesign).
-// Sections: Header / Summary Grid / Active Call Card / Quick Controls / Notes.
-// All store wiring and handler names preserved from original.
+// "The Precision Curator" Mini 모드.
+// 440px 슬림 패널. 대리운전 관리 프로그램과 함께 띄우는 전제.
+// 구성: 헤더(로고+에이전트+상태) → 현재 콜 카드(그라디언트) → 컨트롤 버튼 → 메모/결과.
 
 const RESULT_CODES = [
   { value: 'ORDER_COMPLETE', label: '주문 완료' },
@@ -87,10 +86,7 @@ export function MiniShell() {
 
   if (loading) {
     return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-      >
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg-0)' }}>
         <Spin />
       </div>
     );
@@ -98,296 +94,112 @@ export function MiniShell() {
 
   const duration = formatCallDuration(selectedCall?.answeredAt ?? selectedCall?.startedAt);
   const isActive = !!selectedCall;
-  const hasOpenConsult =
-    !!selectedCall?.latestTransfer &&
-    ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'].includes(
-      selectedCall.latestTransfer.phase,
-    );
-
-  const queuedCount = activeCalls.filter((c) => c.sessionStatus === 'QUEUED').length;
-  const STATUS_LABEL: Record<string, string> = {
-    AVAILABLE: '대기',
-    RINGING: '링 중',
-    TALKING: '통화 중',
-    AFTER_CALL_WORK: '후처리',
-    BREAK: '휴식',
-    MEAL: '식사',
-    TRAINING: '교육',
-    MANUAL_PAUSED: '일시정지',
-  };
-  const statusLabel = agentSession?.statusCode
-    ? (STATUS_LABEL[agentSession.statusCode] ?? agentSession.statusCode)
-    : '-';
-
-  const customerName = selectedCall?.customer?.customerName ?? '미식별 고객';
-  const customerInitial = customerName.charAt(0).toUpperCase();
-  const phone = formatPhoneNumber(selectedCall?.ani);
-  const transferStateLabel = selectedCall?.latestTransfer
-    ? `${selectedCall.latestTransfer.phase} · ${selectedCall.latestTransfer.toExtension ?? '-'}`
-    : '-';
+  const hasOpenConsult = !!selectedCall?.latestTransfer
+    && ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'].includes(selectedCall.latestTransfer.phase);
 
   return (
-    <div
-      className="mx-auto flex flex-col gap-3 p-3"
-      style={{
-        width: 420,
-        minHeight: '100vh',
-        background: 'var(--bg-surface)',
-        color: 'var(--text-primary)',
-      }}
-    >
-      {/* ── 1. Header ── */}
-      <header
-        className="flex items-center gap-3 rounded-lg p-3"
-        style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}
-      >
-        <div
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] text-xs font-extrabold text-white"
-          style={{
-            background: 'linear-gradient(135deg, var(--accent-strong), var(--accent))',
-            boxShadow: '0 0 10px var(--accent-glow)',
-          }}
-        >
-          K
-        </div>
-        <div className="min-w-0 flex-1">
-          <div
-            style={{
-              color: 'var(--accent)',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}
-          >
-            KASTER CTI
+    <div className="min-h-screen p-3 font-body" style={{ background: 'var(--bg-0)', color: 'var(--fg-1)' }}>
+      <div className="mx-auto max-w-[440px] space-y-3">
+        {/* Header: 로고 + 에이전트 + 액션 */}
+        <div className="k-panel flex items-center justify-between p-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-[var(--signal-dim)] bg-[var(--signal-soft)]">
+              <span className="material-symbols-outlined text-base" style={{ color: 'var(--signal)' }}>headset_mic</span>
+            </div>
+            <div className="min-w-0">
+              <p className="k-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
+                KAster CTI
+              </p>
+              <p className="truncate text-[10px]" style={{ color: 'var(--fg-3)' }}>
+                {agentSession?.agentName ?? '-'} · 내선 <span className="k-mono">{agentSession?.extension ?? '-'}</span>
+              </p>
+            </div>
           </div>
-          <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>
-            {agentSession?.agentName ?? '-'}
-          </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
-            내선 {agentSession?.extension ?? '-'} · 미니 패널
-          </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <ThemeToggle compact />
-          <button
-            type="button"
-            onClick={() => setMode('full')}
-            title="전체 모드"
-            className="flex h-7 w-7 items-center justify-center rounded"
-            style={{
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              open_in_full
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void onLogout();
-            }}
-            title="로그아웃"
-            className="flex h-7 w-7 items-center justify-center rounded"
-            style={{ color: 'var(--status-danger)' }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              logout
-            </span>
-          </button>
-        </div>
-        <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
-      </header>
-
-      {/* ── 2. Summary Grid (3-col) ── */}
-      <section className="grid grid-cols-3 gap-2">
-        {[
-          { label: '근무 상태', value: statusLabel },
-          { label: '활성 통화', value: activeCalls.length },
-          { label: '대기 큐', value: queuedCount },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-[9px] p-3 text-center"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
-          >
-            <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>{item.label}</div>
-            <div
-              style={{
-                color: 'var(--text-primary)',
-                fontWeight: 700,
-                fontSize: 14,
-                marginTop: 2,
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setMode('full')}
+              title="Full 모드로 전환"
+              className="k-btn k-btn-icon k-btn-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">open_in_full</span>
+            </button>
+            <button
+              onClick={() => {
+                void onLogout();
               }}
+              title="로그아웃"
+              className="k-btn k-btn-danger k-btn-icon k-btn-sm"
             >
-              {item.value}
-            </div>
+              <span className="material-symbols-outlined text-[16px]">logout</span>
+            </button>
           </div>
-        ))}
-      </section>
-
-      {/* ── 3. Active Call Card ── */}
-      {isActive ? (
-        <section
-          className="relative overflow-hidden rounded-lg p-4"
-          style={{
-            background: 'linear-gradient(135deg, var(--mini-card-from), var(--mini-card-to))',
-            border: '1px solid var(--accent-border)',
-          }}
-        >
-          {/* glow blobs */}
-          <div
-            className="pointer-events-none absolute -left-6 -top-6 h-24 w-24 rounded-full"
-            style={{ background: 'var(--accent-glow)', filter: 'blur(30px)' }}
-          />
-          <div
-            className="pointer-events-none absolute -right-6 -bottom-6 h-24 w-24 rounded-full"
-            style={{ background: 'var(--accent-glow)', filter: 'blur(30px)' }}
-          />
-
-          {/* caller row */}
-          <div className="relative flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-              style={{ background: 'var(--accent-dim)' }}
-            >
-              <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{customerInitial}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{customerName}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
-                {phone}
-                {selectedCall?.dnis ? ` · DID ${formatPhoneNumber(selectedCall.dnis)}` : ''}
-              </div>
-              {selectedCall?.queueName ? (
-                <div style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 600, marginTop: 2 }}>
-                  {selectedCall.queueName}
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          {/* duration + transfer state */}
-          <div className="relative mt-3 grid grid-cols-2 gap-3">
-            <div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>통화시간</div>
-              <div className="flex items-end gap-2">
-                <div
-                  style={{
-                    color: 'var(--accent)',
-                    fontWeight: 700,
-                    fontSize: 20,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {duration}
-                </div>
-                {selectedCall?.answeredAt ? (
-                  <div className="flex items-end gap-0.5">
-                    {[0, 0.15, 0.3, 0.45].map((delay, i) => (
-                      <div
-                        key={i}
-                        className="waveform-bar rounded-full"
-                        style={{
-                          width: 3,
-                          background: 'var(--accent)',
-                          animationDelay: `${delay}s`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            <div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>전환상태</div>
-              <div style={{ color: 'var(--text-primary)', fontSize: 13, marginTop: 4 }}>
-                {transferStateLabel}
-              </div>
-              {selectedCall?.customer?.grade ? (
-                <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginTop: 2 }}>
-                  고객 등급 {selectedCall.customer.grade}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      ) : (
-        /* ── Empty state ── */
-        <section
-          className="rounded-lg p-6 text-center"
-          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
-        >
-          <div
-            className="mx-auto flex h-12 w-12 items-center justify-center rounded-full"
-            style={{ background: 'var(--bg-raised)' }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 22, color: 'var(--text-secondary)' }}
-            >
-              ring_volume
-            </span>
-          </div>
-          <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, marginTop: 12 }}>
-            수신 대기 중
-          </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
-            진행 중인 통화가 없습니다
-          </div>
-        </section>
-      )}
-
-      {/* ── 4. Quick Controls (2x2) ── */}
-      <section
-        className="rounded-lg p-3"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <div
-            style={{
-              color: 'var(--text-secondary)',
-              fontSize: 10,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-            }}
-          >
-            빠른 제어
-          </div>
-          {hasOpenConsult ? (
-            <span
-              style={{
-                background: 'var(--accent-dim)',
-                color: 'var(--accent)',
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 20,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
-              상담 전환 진행 중
-            </span>
-          ) : null}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          {/* Pickup / Mute (dual-role) */}
-          <QuickCtrlButton
+        {/* Status row */}
+        <div className="k-panel flex items-center justify-between p-3">
+          <span className="k-eyebrow">현재 상태</span>
+          <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
+        </div>
+
+        {/* 현재 콜 — v2 panel with live dot */}
+        {isActive ? (
+          <div className="k-panel p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="k-dot k-dot-live" style={{ background: 'var(--signal)' }} />
+                <span className="k-eyebrow">LIVE</span>
+              </div>
+              <span className="k-chip is-talking">
+                <span className="k-chip-dot" style={{ background: 'var(--accent-info)' }} />
+                통화 중<span className="k-chip-code">TALKING</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--line-2)] bg-[var(--bg-2)]">
+                <span className="material-symbols-outlined text-xl text-[var(--fg-2)]">person</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-base font-bold text-[var(--fg-1)]">
+                  {selectedCall!.customer?.customerName ?? '미식별 고객'}
+                </h3>
+                <p className="truncate text-[11px] text-[var(--fg-3)]">
+                  <span className="k-mono text-[var(--fg-2)]">{formatPhoneNumber(selectedCall!.ani)}</span>
+                  {selectedCall!.customer?.grade && (
+                    <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--fg-1)]">
+                      {selectedCall!.customer.grade}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="k-eyebrow">DURATION</span>
+              <div className="flex items-center gap-2">
+                <span className="k-num text-lg text-[var(--signal)]">{duration}</span>
+                <div className="flex h-4 items-end gap-0.5">
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0s' }} />
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.15s' }} />
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.3s' }} />
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.45s' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="k-panel flex flex-col items-center gap-2 p-8 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-[var(--line-2)] bg-[var(--bg-2)]">
+              <span className="material-symbols-outlined text-xl text-[var(--fg-3)]">call</span>
+            </div>
+            <p className="text-sm font-semibold text-[var(--fg-1)]">통화 없음</p>
+            <p className="text-[11px] text-[var(--fg-3)]">새 콜이 배정되면 여기에 표시됩니다</p>
+          </div>
+        )}
+
+        {/* 컨트롤 버튼 — 4개 그리드 */}
+        <div className="grid grid-cols-4 gap-2">
+          <MiniCtrlButton
             icon={isActive && !selectedCall?.answeredAt ? 'phone_in_talk' : 'mic_off'}
-            label={
-              isActive && !selectedCall?.answeredAt
-                ? '당겨받기'
-                : selectedCall?.isMuted
-                  ? '음소거 해제'
-                  : '음소거'
-            }
+            label={isActive && !selectedCall?.answeredAt ? '당겨받기' : selectedCall?.isMuted ? '음소거 해제' : '음소거'}
             disabled={!isActive}
             onClick={async () => {
               if (selectedCall && !selectedCall.answeredAt) {
@@ -399,42 +211,42 @@ export function MiniShell() {
               message.success(selectedCall?.isMuted ? '음소거 해제 요청' : '음소거 요청');
             }}
           />
-          {/* Hold */}
-          <QuickCtrlButton
+          <MiniCtrlButton
             icon={selectedCall?.sessionStatus === 'HOLD' ? 'play_arrow' : 'pause'}
             label={selectedCall?.sessionStatus === 'HOLD' ? '보류 해제' : '보류'}
             disabled={!isActive || !agentSession?.callControlCapabilities?.holdEnabled}
             onClick={async () => {
               await toggleHold();
               message.success(
-                selectedCall?.sessionStatus === 'HOLD' ? '보류 해제 요청' : '보류 요청',
+                selectedCall?.sessionStatus === 'HOLD'
+                  ? '보류 해제 요청'
+                  : '보류 요청',
               );
             }}
           />
-          {/* Transfer */}
-          <QuickCtrlButton
+          <MiniCtrlButton
             icon="phone_forwarded"
             label="전환"
             disabled={!isActive}
             onClick={async () => {
-              const target = form.getFieldValue('transferTarget') as string;
-              const transferMode =
-                (form.getFieldValue('transferMode') as 'blind' | 'attended') ?? 'blind';
+              const target = form.getFieldValue('transferTarget');
+              const transferMode = form.getFieldValue('transferMode') ?? 'blind';
               if (!target) {
                 message.warning('아래 내선 입력 필요');
                 return;
               }
               await transfer(target, transferMode);
               message.success(
-                transferMode === 'attended' ? `상담 전환: ${target}` : `전환: ${target}`,
+                transferMode === 'attended'
+                  ? `상담 전환: ${target}`
+                  : `전환: ${target}`,
               );
             }}
           />
-          {/* Hangup */}
-          <QuickCtrlButton
+          <MiniCtrlButton
             icon="call_end"
             label="종료"
-            danger
+            tone="danger"
             disabled={!isActive}
             onClick={async () => {
               await hangup();
@@ -443,21 +255,20 @@ export function MiniShell() {
           />
         </div>
 
-        {/* Attended-transfer completion controls */}
         {hasOpenConsult ? (
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <QuickCtrlButton
+          <div className="grid grid-cols-2 gap-2">
+            <MiniCtrlButton
               icon="merge"
-              label="상담 전환 완료"
+              label="완료"
               onClick={async () => {
                 await completeAttendedTransfer();
                 message.success('상담 전환 완료 요청');
               }}
             />
-            <QuickCtrlButton
+            <MiniCtrlButton
               icon="close"
-              label="상담 전환 취소"
-              danger
+              label="취소"
+              tone="danger"
               onClick={async () => {
                 await cancelAttendedTransfer();
                 message.success('상담 전환 취소 요청');
@@ -465,123 +276,82 @@ export function MiniShell() {
             />
           </div>
         ) : null}
-      </section>
 
-      {/* ── 5. Notes Section ── */}
-      <section
-        className="rounded-lg p-3"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
-      >
-        <div
-          style={{
-            color: 'var(--text-secondary)',
-            fontSize: 10,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            marginBottom: 10,
-          }}
-        >
-          메모 및 후처리
-        </div>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={async (values) => {
-            await saveMemo(values.memo, values.resultCode);
-            message.success('저장 완료');
-          }}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <Form.Item name="resultCode" label={<MiniLabel>결과</MiniLabel>} className="!mb-2">
-              <Select options={RESULT_CODES} size="small" />
-            </Form.Item>
-            <Form.Item name="transferTarget" label={<MiniLabel>전환 내선</MiniLabel>} className="!mb-2">
-              <Input placeholder="예: 1002" size="small" />
-            </Form.Item>
-          </div>
-          <Form.Item name="transferMode" label={<MiniLabel>전환 방식</MiniLabel>} className="!mb-2">
-            <Select
-              size="small"
-              options={[
-                { value: 'blind', label: '블라인드 전환' },
-                { value: 'attended', label: '상담 전환' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="memo" label={<MiniLabel>메모</MiniLabel>} className="!mb-2">
-            <Input.TextArea rows={4} placeholder="상담 메모" className="!resize-none" />
-          </Form.Item>
-          <button
-            type="submit"
-            className="btn-primary-gradient w-full rounded-md py-2 text-sm font-semibold"
+        {/* 메모 / 후처리 */}
+        <div className="k-panel p-5">
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={async (values) => {
+              await saveMemo(values.memo, values.resultCode);
+              message.success('저장 완료');
+            }}
           >
-            메모 저장
-          </button>
-        </Form>
-      </section>
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <Form.Item name="resultCode" label={<MiniLabel>결과</MiniLabel>} className="!mb-0">
+                <Select options={RESULT_CODES} size="middle" />
+              </Form.Item>
+              <Form.Item
+                name="transferTarget"
+                label={<MiniLabel>전환 내선</MiniLabel>}
+                className="!mb-0"
+              >
+                <Input placeholder="예: 1002" size="middle" />
+              </Form.Item>
+            </div>
+            <Form.Item name="transferMode" label={<MiniLabel>전환 방식</MiniLabel>} className="!mb-3">
+              <Select
+                size="middle"
+                options={[
+                  { value: 'blind', label: '블라인드 전환' },
+                  { value: 'attended', label: '상담 전환' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="memo" label={<MiniLabel>메모</MiniLabel>} className="!mb-3">
+              <Input.TextArea rows={3} placeholder="상담 메모" className="!resize-none" />
+            </Form.Item>
+            <button
+              type="submit"
+              className="k-btn k-btn-primary w-full"
+              style={{ height: 36 }}
+            >
+              저장
+            </button>
+          </Form>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Sub-components ──
-
-function QuickCtrlButton({
+function MiniCtrlButton({
   icon,
   label,
   onClick,
   disabled,
-  danger = false,
+  tone = 'neutral',
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  danger?: boolean;
+  tone?: 'neutral' | 'danger';
 }) {
+  const base =
+    'flex flex-col items-center justify-center gap-1 rounded-sm py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 border';
+  const toneClass =
+    tone === 'danger'
+      ? 'border-[rgba(248,113,113,0.35)] bg-transparent text-[var(--accent-danger)] hover:bg-[var(--accent-danger-soft)]'
+      : 'border-[var(--line-1)] bg-[var(--bg-1)] text-[var(--fg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--line-3)]';
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex flex-col items-center justify-center rounded-md py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-      style={{
-        minHeight: 70,
-        background: danger ? 'rgba(248,81,73,0.08)' : 'var(--bg-raised)',
-        border: `1px solid ${danger ? 'rgba(248,81,73,0.3)' : 'var(--border-subtle)'}`,
-        color: danger ? 'var(--status-danger)' : 'var(--text-primary)',
-      }}
-    >
-      <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
-        {icon}
-      </span>
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          marginTop: 4,
-        }}
-      >
-        {label}
-      </span>
+    <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${toneClass}`}>
+      <span className="material-symbols-outlined text-[20px]">{icon}</span>
+      <span className="k-mono text-[10px] font-bold uppercase tracking-wider">{label}</span>
     </button>
   );
 }
 
 function MiniLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: 'uppercase',
-        letterSpacing: '0.08em',
-        color: 'var(--text-secondary)',
-      }}
-    >
-      {children}
-    </span>
-  );
+  return <span className="k-eyebrow">{children}</span>;
 }

@@ -1,4 +1,4 @@
-import { Button, Card, DatePicker, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, DatePicker, Select, Space, Table, Tag, Typography } from 'antd';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
+import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 
 interface CdrRow {
   callId: string;
@@ -156,8 +157,12 @@ export function CallsReportPage() {
   };
 
   return (
-    <Card>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>통화내역 조회</Typography.Title>
+    <>
+      <AdmPageHead
+        title="리포트 · 통화내역"
+        sub={`CDR 조회 · ${rows.length.toLocaleString()}건`}
+      />
+      <section className="adm-card" style={{ padding: 14 }}>
       <Space style={{ marginBottom: 16 }} wrap>
         <DatePicker.RangePicker
           value={range}
@@ -259,6 +264,7 @@ export function CallsReportPage() {
           },
         ]}
       />
-    </Card>
+      </section>
+    </>
   );
 }

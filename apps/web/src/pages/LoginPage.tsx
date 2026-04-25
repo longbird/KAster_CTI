@@ -1,5 +1,4 @@
-import { Alert, Button, Card, Form, Input, Radio, Typography } from 'antd';
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { createDesktopHandoff, login, logout } from '../api';
 import { API_BASE_URL } from '../config';
 import { extractErrorMessage } from '../utils/errorMessage';
@@ -11,31 +10,36 @@ import {
   waitForDesktopHandoff,
 } from '../utils/desktopBridge';
 
-// 실제 백엔드 `/auth/login` 호출. mock 모드에서는 이 페이지를 거치지 않음.
+type TelephonyMode = 'softphone' | 'deskphone';
+
+// v2 Operator — kc-login. Dark card over dotted radial mask.
 export function LoginPage() {
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
+  const [extension, setExtension] = useState('');
+  const [telephonyMode, setTelephonyMode] = useState<TelephonyMode>('softphone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form] = Form.useForm();
 
-  const onFinish = async (values: {
-    loginId: string;
-    password: string;
-    extension: string;
-    telephonyMode: 'softphone' | 'deskphone';
-  }) => {
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!loginId || !password || !extension) {
+      setError('로그인 ID, 비밀번호, 내선 번호를 모두 입력하세요.');
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      if (values.telephonyMode === 'softphone') {
+      if (telephonyMode === 'softphone') {
         const desktopReady = await ensureDesktopAgentReady();
         if (!desktopReady.ready) {
           throw new Error(desktopReady.message);
         }
       }
 
-      await login(values);
+      await login({ loginId, password, extension, telephonyMode });
 
-      if (values.telephonyMode === 'softphone') {
+      if (telephonyMode === 'softphone') {
         try {
           const handoff = await createDesktopHandoff();
           const connectUrl = buildDesktopConnectUrl({
@@ -53,7 +57,7 @@ export function LoginPage() {
           throw err;
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       setError(extractErrorMessage(err, '로그인 실패'));
     } finally {
       setLoading(false);
@@ -61,69 +65,96 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <Card className="w-full max-w-md shadow-panel">
-        <Typography.Title level={4} className="!mb-1">
-          KAster CTI 상담원 로그인
-        </Typography.Title>
-        <Typography.Text type="secondary" className="text-xs">
-          로그인 ID, 내선번호, 비밀번호로 로그인합니다.
-        </Typography.Text>
+    <div className="kc-login">
+      <form className="kc-login-card" onSubmit={onSubmit}>
+        <div className="kc-login-brand">
+          <div className="kc-brand-box" style={{ width: 28, height: 28, fontSize: 15 }}>K</div>
+          <div className="kc-brand-wm" style={{ fontSize: 12 }}>
+            KASTER<span> / CTI</span>
+          </div>
+        </div>
 
-        {error && (
-          <Alert
-            className="mt-3"
-            type="error"
-            showIcon
-            message={error}
-            closable
-            onClose={() => setError(null)}
+        <h1 className="kc-login-title">상담원 로그인</h1>
+        <p className="kc-login-sub">AMI 세션이 자동으로 연결됩니다.</p>
+
+        {error && <div className="kc-login-error">{error}</div>}
+
+        <fieldset className="kc-login-field">
+          <legend>통화 방식</legend>
+          <label>
+            <input
+              type="radio"
+              name="telephonyMode"
+              value="softphone"
+              checked={telephonyMode === 'softphone'}
+              onChange={() => setTelephonyMode('softphone')}
+            />
+            <span>소프트폰 사용</span>
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="telephonyMode"
+              value="deskphone"
+              checked={telephonyMode === 'deskphone'}
+              onChange={() => setTelephonyMode('deskphone')}
+            />
+            <span>SIP Phone 사용</span>
+          </label>
+        </fieldset>
+
+        <div className="kc-login-field">
+          <label htmlFor="kc-login-id">로그인 ID</label>
+          <input
+            id="kc-login-id"
+            className="k-input"
+            style={{ width: '100%' }}
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            placeholder="agent1001"
+            autoFocus
           />
-        )}
+        </div>
 
-        <Form
-          form={form}
-          layout="vertical"
-          className="mt-4"
-          onFinish={onFinish}
-          initialValues={{ loginId: '', password: '', extension: '', telephonyMode: 'softphone' }}
+        <div className="kc-login-field">
+          <label htmlFor="kc-login-pw">비밀번호</label>
+          <input
+            id="kc-login-pw"
+            className="k-input"
+            style={{ width: '100%' }}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
+
+        <div className="kc-login-field">
+          <label htmlFor="kc-login-ext">내선 번호</label>
+          <input
+            id="kc-login-ext"
+            className="k-input"
+            style={{ width: '100%' }}
+            value={extension}
+            onChange={(e) => setExtension(e.target.value)}
+            placeholder="1001"
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="k-btn k-btn-primary"
+          style={{ width: '100%', height: 34, marginTop: 6 }}
+          disabled={loading}
         >
-          <Form.Item label="통화 방식" name="telephonyMode">
-            <Radio.Group className="w-full">
-              <Radio.Button value="softphone">소프트폰 사용</Radio.Button>
-              <Radio.Button value="deskphone">SIP Phone 사용</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
+          {loading ? '접속 중…' : '로그인'}
+        </button>
 
-          <Form.Item
-            label="로그인 ID"
-            name="loginId"
-            rules={[{ required: true, message: '로그인 ID 를 입력하세요' }]}
-          >
-            <Input placeholder="예: agent1001" autoFocus />
-          </Form.Item>
-
-          <Form.Item
-            label="내선 번호"
-            name="extension"
-            rules={[{ required: true, message: '내선 번호를 입력하세요' }]}
-          >
-            <Input placeholder="예: 1001" />
-          </Form.Item>
-
-          <Form.Item
-            label="비밀번호"
-            name="password"
-            rules={[{ required: true, message: '비밀번호를 입력하세요' }]}
-          >
-            <Input.Password placeholder="비밀번호 입력" />
-          </Form.Item>
-
-          <Button type="primary" htmlType="submit" block loading={loading}>
-            로그인
-          </Button>
-        </Form>
-      </Card>
+        <div className="kc-login-footer">
+          <span>v2.4.1</span>
+          <span>ami · kaster-cti</span>
+        </div>
+      </form>
     </div>
   );
 }
