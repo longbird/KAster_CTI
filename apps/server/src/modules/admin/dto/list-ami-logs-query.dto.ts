@@ -23,6 +23,10 @@ export class ListAmiLogsQueryDto {
   branchId?: string;
 
   @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
   @Min(1)

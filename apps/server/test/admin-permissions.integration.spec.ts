@@ -227,6 +227,7 @@ describe('Admin/Permission service integration', () => {
     });
 
     it('지사 필터가 없으면 AMI 로그 조회에 branch scope 조회를 추가하지 않는다', async () => {
+      prisma.callSessions.count.mockResolvedValue(0);
       prisma.callSessions.findMany.mockResolvedValue([]);
       prisma.rawAmiEvents.count.mockResolvedValue(0);
       prisma.rawAmiEvents.findMany.mockResolvedValue([]);
@@ -238,12 +239,136 @@ describe('Admin/Permission service integration', () => {
 
       expect(prisma.branchAgents.findMany).not.toHaveBeenCalled();
       expect(prisma.branchQueues.findMany).not.toHaveBeenCalled();
-      expect(prisma.callSessions.findMany).not.toHaveBeenCalled();
       expect(prisma.rawAmiEvents.count).toHaveBeenCalledWith({
         where: expect.objectContaining({
           tenantId: 'tenant-1',
         }),
       });
+    });
+
+    it('호 로그 조회는 통화별 전화번호와 시작-종료 타임라인을 함께 반환한다', async () => {
+      prisma.callSessions.count.mockResolvedValue(1);
+      prisma.callSessions.findMany.mockResolvedValue([
+        {
+          callId: 'call-1',
+          linkedid: 'L-200',
+          ani: '01012345678',
+          dnis: '07052346380',
+          didNumber: '07052346380',
+          queueName: 'default-distribution',
+          sessionStatus: 'ENDED',
+          direction: 'INBOUND',
+          resultCode: 'NORMAL_CLEARING',
+          startedAt: new Date('2026-04-25T01:00:00.000Z'),
+          queuedAt: new Date('2026-04-25T01:00:05.000Z'),
+          ringingAt: new Date('2026-04-25T01:00:10.000Z'),
+          answeredAt: new Date('2026-04-25T01:00:15.000Z'),
+          endedAt: new Date('2026-04-25T01:02:00.000Z'),
+          waitSeconds: 10,
+          talkSeconds: 105,
+          abandonFlag: false,
+          recordingFlag: true,
+          primaryAgent: { agentName: '상담원A', extension: '1001' },
+          customer: { customerName: '홍길동' },
+          queueEvents: [
+            { eventType: 'ENTERQUEUE', eventTime: new Date('2026-04-25T01:00:05.000Z'), queueName: 'default-distribution', agentId: null },
+            { eventType: 'CONNECT', eventTime: new Date('2026-04-25T01:00:15.000Z'), queueName: 'default-distribution', agentId: 'agent-1' },
+          ],
+          callLegs: [
+            { legType: 'caller', channel: 'PJSIP/trunk-0001', startedAt: new Date('2026-04-25T01:00:00.000Z'), answeredAt: null, endedAt: new Date('2026-04-25T01:02:00.000Z') },
+            { legType: 'agent', channel: 'PJSIP/1001-0002', startedAt: new Date('2026-04-25T01:00:10.000Z'), answeredAt: new Date('2026-04-25T01:00:15.000Z'), endedAt: new Date('2026-04-25T01:02:00.000Z') },
+          ],
+          callTransfers: [
+            { transferType: 'blind', transferResult: 'COMPLETED', targetExtension: '1002', requestedAt: new Date('2026-04-25T01:01:00.000Z'), completedAt: new Date('2026-04-25T01:01:05.000Z') },
+          ],
+          callRecordings: [
+            { recordingId: 'rec-1', fileName: 'call-1.wav', recordingStartedAt: new Date('2026-04-25T01:00:15.000Z') },
+          ],
+          callMemos: [
+            { memoText: '상담 완료', resultCode: 'DONE', createdAt: new Date('2026-04-25T01:02:10.000Z') },
+          ],
+        },
+      ]);
+      prisma.rawAmiEvents.count.mockResolvedValue(2);
+      prisma.rawAmiEvents.findMany
+        .mockResolvedValueOnce([
+          {
+            eventId: 'evt-join',
+            eventName: 'QueueCallerJoin',
+            eventTime: new Date('2026-04-25T01:00:05.000Z'),
+            linkedid: 'L-200',
+            uniqueid: 'U-1',
+            payload: { CallerIDNum: '01012345678' },
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            eventId: 'evt-smart-prompt',
+            eventName: 'UserEvent',
+            eventTime: new Date('2026-04-25T01:00:01.000Z'),
+            linkedid: 'L-200',
+            uniqueid: 'U-1',
+            payload: { raw: { UserEvent: 'KasterSmartArs', Stage: 'prompt', Prompt: '/var/lib/asterisk/sounds/custom/smart_ars_guide', Result: 'started' } },
+          },
+          {
+            eventId: 'evt-smart-selection',
+            eventName: 'UserEvent',
+            eventTime: new Date('2026-04-25T01:00:03.000Z'),
+            linkedid: 'L-200',
+            uniqueid: 'U-1',
+            payload: { raw: { UserEvent: 'KasterSmartArs', Stage: 'selection', Digit: '1', Action: 'OPT_OUT', Result: 'selected' } },
+          },
+          {
+            eventId: 'evt-smart-result',
+            eventName: 'UserEvent',
+            eventTime: new Date('2026-04-25T01:00:04.000Z'),
+            linkedid: 'L-200',
+            uniqueid: 'U-1',
+            payload: { raw: { UserEvent: 'KasterSmartArs', Stage: 'result', Digit: '1', Action: 'OPT_OUT', Result: 'SUCCESS' } },
+          },
+        ]);
+
+      const result = await service.listAmiLogs('tenant-1', {
+        page: 1,
+        pageSize: 20,
+        from: '2026-04-25T00:00:00.000Z',
+        to: '2026-04-25T23:59:59.999Z',
+        phone: '0101234',
+      } as any);
+
+      expect(prisma.callSessions.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { ani: { contains: '0101234', mode: 'insensitive' } },
+            { dnis: { contains: '0101234', mode: 'insensitive' } },
+            { didNumber: { contains: '0101234', mode: 'insensitive' } },
+          ]),
+        }),
+      });
+      const data = result.data as any;
+      expect(data.calls[0]).toMatchObject({
+        callId: 'call-1',
+        callerNumber: '01012345678',
+        inboundNumber: '07052346380',
+        customerName: '홍길동',
+        agentName: '상담원A',
+        flowSummary: '01012345678 -> 07052346380 -> default-distribution -> 상담원A -> 종료',
+      });
+      expect(data.calls[0].timeline.map((item: any) => item.type)).toEqual(
+        expect.arrayContaining(['CALL_STARTED', 'SMART_ARS_PROMPT', 'SMART_ARS_SELECTION', 'SMART_ARS_RESULT', 'QUEUE_ENTERED', 'AGENT_RINGING', 'CALL_ANSWERED', 'TRANSFER_COMPLETED', 'RECORDING_STARTED', 'CALL_ENDED', 'MEMO_SAVED']),
+      );
+      expect(data.calls[0].timeline).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'SMART_ARS_SELECTION', label: '스마트 ARS 사용자 선택', detail: '입력 1 · 수신거부 등록 · 선택됨' }),
+        expect.objectContaining({ type: 'SMART_ARS_RESULT', label: '스마트 ARS 액션 결과', detail: '수신거부 등록 · 성공' }),
+        expect.objectContaining({ type: 'QUEUE_ENTERQUEUE', label: '대기열 진입', detail: 'default-distribution' }),
+        expect.objectContaining({ type: 'QUEUE_CONNECT', label: '상담 연결', detail: 'default-distribution · agent-1' }),
+        expect.objectContaining({ type: 'LEG_caller_STARTED', label: '고객 채널 시작', detail: 'PJSIP/trunk-0001' }),
+        expect.objectContaining({ type: 'LEG_agent_ANSWERED', label: '상담원 채널 응답', detail: 'PJSIP/1001-0002' }),
+        expect.objectContaining({ type: 'TRANSFER_COMPLETED', label: '전환 완료', detail: '1002' }),
+        expect.objectContaining({ type: 'CALL_ENDED', label: '호 종료', detail: '정상 종료' }),
+        expect.objectContaining({ type: 'MEMO_SAVED', label: '상담 메모', detail: '처리 완료' }),
+      ]));
+      expect(data.callTotal).toBe(1);
     });
 
     it('대시보드는 branchId 기준 queue/agent scope 를 집계 쿼리에 일관되게 전달한다', async () => {

@@ -260,6 +260,13 @@ function buildSmartArsHookCommand(action: 'sms' | 'opt-out'): string {
   return `${SMART_ARS_HOOK_PATH} ${args.join(' ')}`;
 }
 
+function buildSmartArsUserEvent(fields: Record<string, string>): string {
+  const body = Object.entries(fields)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(',');
+  return `UserEvent(KasterSmartArs,${body})`;
+}
+
 function renderPromptQueuePreludeLines(did: DidInput): string[] {
   const promptKey = did.branchPromptKeys?.[0]?.trim();
   if (!promptKey || did.branchPromptWaitForCompletion) {
@@ -693,19 +700,58 @@ function renderSmartArsAction(action: SmartArsActionInput, contextSuffix: string
   assertNoNewlines(action.actionType, 'smartArs.action.actionType');
   const lines = [
     `exten => ${action.digit},1,NoOp(Smart ARS digit ${action.digit} action ${action.actionType})`,
+    ` same => n,${buildSmartArsUserEvent({
+      Stage: 'selection',
+      Digit: action.digit,
+      Action: action.actionType,
+      Result: 'selected',
+      TenantId: '${SMART_ARS_TENANT_ID}',
+      BranchId: '${SMART_ARS_BRANCH_ID}',
+      EntryDid: '${ENTRY_DID}',
+      Caller: '${CALLERID(num)}',
+      Linkedid: '${CHANNEL(linkedid)}',
+    })}`,
   ];
 
   if (action.actionType === 'QUEUE_ROUTE') {
     if (!action.queueName) return [];
     assertNoNewlines(action.queueName, 'smartArs.action.queueName');
-    lines.push(` same => n,Goto(queue-entry,${action.queueName},1)`);
+    lines.push(
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'action',
+        Digit: action.digit,
+        Action: 'QUEUE_ROUTE',
+        Target: action.queueName,
+        Result: 'routed',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
+      ` same => n,Goto(queue-entry,${action.queueName},1)`,
+    );
     return lines;
   }
 
   if (action.actionType === 'TRANSFER') {
     if (!action.transferNumber) return [];
     assertNoNewlines(action.transferNumber, 'smartArs.action.transferNumber');
-    lines.push(` same => n,Goto(transfer-target,${action.transferNumber},1)`);
+    lines.push(
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'action',
+        Digit: action.digit,
+        Action: 'TRANSFER',
+        Target: action.transferNumber,
+        Result: 'transfer',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
+      ` same => n,Goto(transfer-target,${action.transferNumber},1)`,
+    );
     return lines;
   }
 
@@ -714,7 +760,31 @@ function renderSmartArsAction(action: SmartArsActionInput, contextSuffix: string
     assertNoNewlines(action.smsTemplateId, 'smartArs.action.smsTemplateId');
     lines.push(
       ` same => n,Set(__SMART_ARS_SELECTED_SMS_TEMPLATE=${action.smsTemplateId})`,
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'action',
+        Digit: action.digit,
+        Action: 'SEND_SMS',
+        Target: action.smsTemplateId,
+        Result: 'started',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
       ` same => n,System(${buildSmartArsHookCommand('sms')})`,
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'result',
+        Digit: action.digit,
+        Action: 'SEND_SMS',
+        Target: action.smsTemplateId,
+        Result: '${SYSTEMSTATUS}',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
       ` same => n,GotoIf($["\${SYSTEMSTATUS}"!="SUCCESS"]?smart-ars-failure-${contextSuffix},s,1)`,
       ' same => n,Hangup()',
     );
@@ -724,7 +794,29 @@ function renderSmartArsAction(action: SmartArsActionInput, contextSuffix: string
   if (action.actionType === 'OPT_OUT') {
     lines.push(
       ' same => n,Set(__SMART_ARS_SELECTED_SMS_TEMPLATE=-)',
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'action',
+        Digit: action.digit,
+        Action: 'OPT_OUT',
+        Result: 'started',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
       ` same => n,System(${buildSmartArsHookCommand('opt-out')})`,
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'result',
+        Digit: action.digit,
+        Action: 'OPT_OUT',
+        Result: '${SYSTEMSTATUS}',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
       ` same => n,GotoIf($["\${SYSTEMSTATUS}"!="SUCCESS"]?smart-ars-failure-${contextSuffix},s,1)`,
       ' same => n,Hangup()',
     );
@@ -735,7 +827,31 @@ function renderSmartArsAction(action: SmartArsActionInput, contextSuffix: string
     if (!action.promptKey) return [];
     assertNoNewlines(action.promptKey, 'smartArs.action.promptKey');
     lines.push(
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'action',
+        Digit: action.digit,
+        Action: 'PLAY_PROMPT',
+        Target: toPlaybackTarget(action.promptKey),
+        Result: 'started',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
       ` same => n,Playback(${toPlaybackTarget(action.promptKey)})`,
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'result',
+        Digit: action.digit,
+        Action: 'PLAY_PROMPT',
+        Target: toPlaybackTarget(action.promptKey),
+        Result: 'played',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
       ' same => n,Hangup()',
     );
     return lines;
@@ -769,16 +885,60 @@ function renderSmartArsContext(did: DidInput): string | null {
   ];
 
   if (guidePrompt) {
-    lines.push(` same => n,Background(${guidePrompt})`);
+    lines.push(
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'prompt',
+        Prompt: guidePrompt,
+        Result: 'started',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
+      ` same => n,Background(${guidePrompt})`,
+    );
   }
   lines.push(
     ' same => n,WaitExten(${SMART_ARS_TIMEOUT})',
     'exten => t,1,NoOp(Smart ARS timeout)',
+    ` same => n,${buildSmartArsUserEvent({
+      Stage: 'selection',
+      Digit: 'timeout',
+      Result: 'timeout',
+      TenantId: '${SMART_ARS_TENANT_ID}',
+      BranchId: '${SMART_ARS_BRANCH_ID}',
+      EntryDid: '${ENTRY_DID}',
+      Caller: '${CALLERID(num)}',
+      Linkedid: '${CHANNEL(linkedid)}',
+    })}`,
     ` same => n,Goto(smart-ars-retry-${contextSuffix},s,1)`,
     'exten => i,1,NoOp(Smart ARS invalid digit)',
   );
   if (invalidPrompt) {
-    lines.push(` same => n,Playback(${invalidPrompt})`);
+    lines.push(
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'selection',
+        Digit: 'invalid',
+        Result: 'invalid',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
+      ` same => n,${buildSmartArsUserEvent({
+        Stage: 'prompt',
+        Prompt: invalidPrompt,
+        Result: 'started',
+        TenantId: '${SMART_ARS_TENANT_ID}',
+        BranchId: '${SMART_ARS_BRANCH_ID}',
+        EntryDid: '${ENTRY_DID}',
+        Caller: '${CALLERID(num)}',
+        Linkedid: '${CHANNEL(linkedid)}',
+      })}`,
+      ` same => n,Playback(${invalidPrompt})`,
+    );
   }
   lines.push(
     ` same => n,Goto(smart-ars-retry-${contextSuffix},s,1)`,
@@ -791,6 +951,25 @@ function renderSmartArsContext(did: DidInput): string | null {
     '',
     `[smart-ars-failure-${contextSuffix}]`,
     'exten => s,1,NoOp(Smart ARS failure / DID=${ENTRY_DID})',
+    ` same => n,${buildSmartArsUserEvent({
+      Stage: 'result',
+      Result: 'failure',
+      TenantId: '${SMART_ARS_TENANT_ID}',
+      BranchId: '${SMART_ARS_BRANCH_ID}',
+      EntryDid: '${ENTRY_DID}',
+      Caller: '${CALLERID(num)}',
+      Linkedid: '${CHANNEL(linkedid)}',
+    })}`,
+    ` same => n,${buildSmartArsUserEvent({
+      Stage: 'prompt',
+      Prompt: failPrompt,
+      Result: 'started',
+      TenantId: '${SMART_ARS_TENANT_ID}',
+      BranchId: '${SMART_ARS_BRANCH_ID}',
+      EntryDid: '${ENTRY_DID}',
+      Caller: '${CALLERID(num)}',
+      Linkedid: '${CHANNEL(linkedid)}',
+    })}`,
     ` same => n,Playback(${failPrompt})`,
     ' same => n,Hangup()',
   );

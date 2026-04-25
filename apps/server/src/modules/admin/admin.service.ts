@@ -1035,6 +1035,23 @@ export class AdminService {
       linkedidsForBranch = rows.map((row) => row.linkedid);
     }
 
+    const phoneFilter = q.phone?.trim();
+    const callWhere: Prisma.callSessionsWhereInput = {
+      tenantId,
+      startedAt: { gte: from, lte: to },
+      ...(this.buildBranchCallFilter(branchScope) ?? {}),
+      ...(q.linkedid ? { linkedid: { contains: q.linkedid, mode: 'insensitive' as const } } : {}),
+      ...(phoneFilter
+        ? {
+            OR: [
+              { ani: { contains: phoneFilter, mode: 'insensitive' as const } },
+              { dnis: { contains: phoneFilter, mode: 'insensitive' as const } },
+              { didNumber: { contains: phoneFilter, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+
     const where: Prisma.rawAmiEventsWhereInput = {
       tenantId,
       eventTime: { gte: from, lte: to },
@@ -1049,7 +1066,26 @@ export class AdminService {
         : {}),
     };
 
-    const [total, rows] = await Promise.all([
+    const [callTotal, calls, total, rows] = await Promise.all([
+      this.prisma.callSessions.count({ where: callWhere }),
+      this.prisma.callSessions.findMany({
+        where: callWhere,
+        orderBy: { startedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          primaryAgent: { select: { agentName: true, extension: true } },
+          customer: { select: { customerName: true } },
+          queueEvents: true,
+          callLegs: true,
+          callTransfers: true,
+          callRecordings: true,
+          callMemos: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
       this.prisma.rawAmiEvents.count({ where }),
       this.prisma.rawAmiEvents.findMany({
         where,
@@ -1066,10 +1102,40 @@ export class AdminService {
         },
       }),
     ]);
+    const callLinkedids = [...new Set(calls.map((call: any) => call.linkedid).filter(Boolean))];
+    const smartArsEvents = callLinkedids.length > 0
+      ? await this.prisma.rawAmiEvents.findMany({
+          where: {
+            tenantId,
+            linkedid: { in: callLinkedids },
+            eventName: 'UserEvent',
+          },
+          orderBy: { eventTime: 'asc' },
+          take: 1000,
+          select: {
+            eventId: true,
+            eventName: true,
+            eventTime: true,
+            linkedid: true,
+            uniqueid: true,
+            payload: true,
+          },
+        })
+      : [];
+    const smartArsEventsByLinkedid = new Map<string, any[]>();
+    for (const event of smartArsEvents) {
+      if (!event.linkedid || !this.isSmartArsUserEvent(event)) continue;
+      smartArsEventsByLinkedid.set(event.linkedid, [
+        ...(smartArsEventsByLinkedid.get(event.linkedid) ?? []),
+        event,
+      ]);
+    }
 
     return {
       success: true,
       data: {
+        calls: calls.map((call) => this.buildCallLogSummary(call, smartArsEventsByLinkedid.get(call.linkedid) ?? [])),
+        callTotal,
         rows,
         page,
         pageSize,
@@ -1077,6 +1143,247 @@ export class AdminService {
       },
       error: null,
     };
+  }
+
+  private buildCallLogSummary(call: any, smartArsEvents: any[] = []) {
+    const callerNumber = call.ani ?? null;
+    const inboundNumber = call.didNumber ?? call.dnis ?? null;
+    const queueName = call.queueName ?? null;
+    const agentName = call.primaryAgent?.agentName ?? null;
+    const customerName = call.customer?.customerName ?? null;
+    const ended = call.endedAt ? '종료' : this.getSessionStatusLabel(call.sessionStatus);
+    const flowParts = [callerNumber, inboundNumber, queueName, agentName, ended]
+      .filter((item): item is string => Boolean(item));
+
+    return {
+      callId: call.callId,
+      linkedid: call.linkedid,
+      callerNumber,
+      inboundNumber,
+      ani: call.ani,
+      dnis: call.dnis,
+      didNumber: call.didNumber,
+      queueName,
+      customerName,
+      agentName,
+      agentExtension: call.primaryAgent?.extension ?? null,
+      sessionStatus: call.sessionStatus,
+      direction: call.direction,
+      resultCode: call.resultCode,
+      startedAt: call.startedAt,
+      answeredAt: call.answeredAt,
+      endedAt: call.endedAt,
+      waitSeconds: call.waitSeconds ?? 0,
+      talkSeconds: call.talkSeconds ?? 0,
+      abandonFlag: call.abandonFlag ?? false,
+      recordingFlag: call.recordingFlag ?? false,
+      flowSummary: flowParts.join(' -> '),
+      timeline: this.buildCallLogTimeline(call, smartArsEvents),
+    };
+  }
+
+  private buildCallLogTimeline(call: any, smartArsEvents: any[] = []) {
+    const items: Array<{ type: string; time: Date; label: string; detail?: string | null }> = [];
+    const add = (type: string, time: Date | null | undefined, label: string, detail?: string | null) => {
+      if (!time) return;
+      items.push({ type, time, label, detail: detail ?? null });
+    };
+
+    add('CALL_STARTED', call.startedAt, '호 시작', [call.ani, call.didNumber ?? call.dnis].filter(Boolean).join(' -> '));
+    add('QUEUE_ENTERED', call.queuedAt, '큐 진입', call.queueName);
+    add('AGENT_RINGING', call.ringingAt, '상담원 호출', call.primaryAgent?.agentName ?? null);
+    add('CALL_ANSWERED', call.answeredAt, '상담 연결', call.primaryAgent?.agentName ?? null);
+
+    for (const event of call.queueEvents ?? []) {
+      add(
+        `QUEUE_${event.eventType ?? 'EVENT'}`,
+        event.eventTime,
+        this.getQueueEventLabel(event.eventType),
+        [event.queueName, event.agentId].filter(Boolean).join(' · ') || null,
+      );
+    }
+
+    for (const leg of call.callLegs ?? []) {
+      const legLabel = this.getLegTypeLabel(leg.legType);
+      add(`LEG_${leg.legType ?? 'CHANNEL'}_STARTED`, leg.startedAt, `${legLabel} 시작`, leg.channel ?? null);
+      add(`LEG_${leg.legType ?? 'CHANNEL'}_ANSWERED`, leg.answeredAt, `${legLabel} 응답`, leg.channel ?? null);
+      add(`LEG_${leg.legType ?? 'CHANNEL'}_ENDED`, leg.endedAt, `${legLabel} 종료`, leg.channel ?? null);
+    }
+
+    for (const transfer of call.callTransfers ?? []) {
+      const target = transfer.targetExtension ?? transfer.targetNumber ?? transfer.toExtension ?? null;
+      add('TRANSFER_REQUESTED', transfer.requestedAt, '전환 요청', target);
+      add('TRANSFER_COMPLETED', transfer.completedAt, `전환 ${this.getTransferResultLabel(transfer.transferResult)}`, target);
+    }
+
+    for (const recording of call.callRecordings ?? []) {
+      add('RECORDING_STARTED', recording.recordingStartedAt, '녹취 시작', recording.fileName ?? recording.recordingId ?? null);
+    }
+
+    for (const memo of call.callMemos ?? []) {
+      add('MEMO_SAVED', memo.createdAt, '상담 메모', memo.resultCode ? this.getCallResultLabel(memo.resultCode) : memo.memoText ?? null);
+    }
+
+    for (const event of smartArsEvents) {
+      const raw = this.getAmiRawPayload(event);
+      const stage = String(raw.Stage ?? '').toLowerCase();
+      const digit = raw.Digit ? String(raw.Digit) : null;
+      const action = raw.Action ? String(raw.Action) : null;
+      const target = raw.Target ? String(raw.Target) : null;
+      const prompt = raw.Prompt ? String(raw.Prompt) : null;
+      const result = raw.Result ? String(raw.Result) : null;
+
+      if (stage === 'prompt') {
+        add('SMART_ARS_PROMPT', event.eventTime, '스마트 ARS 멘트 재생', prompt ? this.formatPromptName(prompt) : null);
+      } else if (stage === 'selection') {
+        add('SMART_ARS_SELECTION', event.eventTime, '스마트 ARS 사용자 선택', [
+          digit ? `입력 ${digit}` : null,
+          action ? this.getSmartArsActionLabel(action) : null,
+          result ? this.getSmartArsResultLabel(result) : null,
+        ].filter(Boolean).join(' · '));
+      } else if (stage === 'action') {
+        add('SMART_ARS_ACTION', event.eventTime, '스마트 ARS 액션 실행', [
+          action ? this.getSmartArsActionLabel(action) : null,
+          target ? `대상 ${target}` : null,
+          result ? this.getSmartArsResultLabel(result) : null,
+        ].filter(Boolean).join(' · '));
+      } else if (stage === 'result') {
+        add('SMART_ARS_RESULT', event.eventTime, '스마트 ARS 액션 결과', [
+          action ? this.getSmartArsActionLabel(action) : null,
+          result ? this.getSmartArsResultLabel(result) : null,
+        ].filter(Boolean).join(' · '));
+      }
+    }
+
+    add('CALL_ENDED', call.endedAt, '호 종료', call.resultCode ? this.getCallResultLabel(call.resultCode) : null);
+
+    return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  }
+
+  private getAmiRawPayload(event: any): Record<string, unknown> {
+    const payload = event?.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)
+      ? event.payload as Record<string, unknown>
+      : {};
+    return payload.raw && typeof payload.raw === 'object' && !Array.isArray(payload.raw)
+      ? payload.raw as Record<string, unknown>
+      : payload;
+  }
+
+  private isSmartArsUserEvent(event: any) {
+    const raw = this.getAmiRawPayload(event);
+    return raw.UserEvent === 'KasterSmartArs';
+  }
+
+  private getQueueEventLabel(eventType?: string | null) {
+    switch (eventType) {
+      case 'ENTERQUEUE':
+      case 'QueueCallerJoin': return '대기열 진입';
+      case 'CONNECT':
+      case 'AgentConnect': return '상담 연결';
+      case 'COMPLETECALLER': return '고객 종료';
+      case 'COMPLETEAGENT': return '상담원 종료';
+      case 'ABANDON':
+      case 'QueueCallerAbandon': return '고객 대기 포기';
+      case 'RINGNOANSWER': return '상담원 미응답';
+      case 'EXITWITHTIMEOUT': return '대기 시간 초과';
+      case 'EXITWITHKEY': return '키 입력 이탈';
+      case 'TRANSFER': return '큐 전환';
+      case 'PAUSE': return '상담원 휴식';
+      case 'UNPAUSE': return '상담원 휴식 해제';
+      default: return eventType ? `큐 이벤트: ${eventType}` : '큐 이벤트';
+    }
+  }
+
+  private getLegTypeLabel(legType?: string | null) {
+    switch (legType) {
+      case 'caller': return '고객 채널';
+      case 'agent': return '상담원 채널';
+      case 'queue': return '큐 채널';
+      case 'trunk': return '회선 채널';
+      case 'consult': return '협의 채널';
+      default: return '채널';
+    }
+  }
+
+  private getTransferResultLabel(result?: string | null) {
+    switch (result) {
+      case 'REQUESTED': return '요청';
+      case 'COMPLETED': return '완료';
+      case 'FAILED': return '실패';
+      case 'CANCELED':
+      case 'CANCELLED': return '취소';
+      case 'EXPIRED': return '만료';
+      default: return result ?? '완료';
+    }
+  }
+
+  private getCallResultLabel(result?: string | null) {
+    switch (result) {
+      case 'NORMAL_CLEARING': return '정상 종료';
+      case 'RECOVERY_TIMEOUT': return '장애 복구 종료';
+      case 'DONE': return '처리 완료';
+      case 'BUSY': return '통화 중';
+      case 'NO_ANSWER': return '미응답';
+      case 'FAILED':
+      case 'FAILURE': return '실패';
+      case 'CANCEL':
+      case 'CANCELED':
+      case 'CANCELLED': return '취소';
+      case 'TIMEOUT': return '시간 초과';
+      default: return result ?? null;
+    }
+  }
+
+  private formatPromptName(prompt: string) {
+    const name = prompt.split(/[\\/]/).filter(Boolean).pop() ?? prompt;
+    switch (name) {
+      case 'smart_ars_guide': return '스마트 ARS 안내 멘트';
+      case 'smart_ars_invalid': return '스마트 ARS 잘못된 입력 멘트';
+      case 'smart_ars_fail': return '스마트 ARS 실패 안내 멘트';
+      case 'smart_080_intro': return '080 수신거부 안내 멘트';
+      case 'smart_080_done': return '080 수신거부 완료 멘트';
+      default: return name;
+    }
+  }
+
+  private getSmartArsActionLabel(action: string) {
+    switch (action) {
+      case 'QUEUE_ROUTE': return '상담원 연결';
+      case 'TRANSFER': return '착신전환';
+      case 'SEND_SMS': return '문자 발송';
+      case 'OPT_OUT': return '수신거부 등록';
+      case 'PLAY_PROMPT': return '멘트 재생';
+      default: return action;
+    }
+  }
+
+  private getSmartArsResultLabel(result: string) {
+    switch (result) {
+      case 'started': return '시작';
+      case 'selected': return '선택됨';
+      case 'routed': return '큐 연결';
+      case 'transfer': return '전환';
+      case 'played': return '재생 완료';
+      case 'SUCCESS': return '성공';
+      case 'FAILURE':
+      case 'failure': return '실패';
+      case 'timeout': return '입력 없음';
+      case 'invalid': return '잘못된 입력';
+      default: return result;
+    }
+  }
+
+  private getSessionStatusLabel(status?: string | null) {
+    switch (status) {
+      case 'NEW': return '인입';
+      case 'QUEUED': return '대기';
+      case 'RINGING_AGENT': return '호출';
+      case 'TALKING': return '통화';
+      case 'AFTER_CALL_WORK': return '후처리';
+      case 'TRANSFERRING': return '전환';
+      case 'ENDED': return '종료';
+      default: return status ?? '상태 없음';
+    }
   }
 
   async listAnnouncements(tenantId: string) {
