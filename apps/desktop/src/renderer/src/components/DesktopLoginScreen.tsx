@@ -27,6 +27,7 @@ export function DesktopLoginScreen({
   const [loginId, setLoginId] = useState('');
   const [extension, setExtension] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     setDraftServerUrl(serverUrl);
@@ -100,13 +101,24 @@ export function DesktopLoginScreen({
 
         <label className="field compact-field">
           <span>비밀번호</span>
-          <input
-            autoComplete="current-password"
-            disabled={busy}
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <div className="password-input-shell">
+            <input
+              autoComplete="current-password"
+              disabled={busy}
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              aria-label={showPassword ? '비밀번호 감추기' : '비밀번호 보기'}
+              className="password-toggle-button"
+              disabled={busy}
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+            >
+              {showPassword ? '감추기' : '보기'}
+            </button>
+          </div>
         </label>
 
         {error ? <p className="login-error">{error}</p> : null}

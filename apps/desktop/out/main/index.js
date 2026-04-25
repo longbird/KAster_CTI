@@ -1,4 +1,4 @@
-import { safeStorage, app, ipcMain, shell, BrowserWindow, Notification, nativeImage, Tray, Menu } from "electron";
+import { safeStorage, app, Menu, ipcMain, shell, BrowserWindow, session, Notification, nativeImage, Tray } from "electron";
 import { createReadStream, existsSync } from "node:fs";
 import { join } from "node:path";
 import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
@@ -73,6 +73,18 @@ class AudioPreferencesStore {
     return next;
   }
 }
+function toDesktopAuthError(error) {
+  if (error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object") {
+    const response = error.response;
+    if (response.status === 401) {
+      return new Error("로그인 정보가 올바르지 않습니다. 로그인 ID, 내선, 비밀번호를 확인하세요.");
+    }
+    if (response.data?.error?.message) {
+      return new Error(response.data.error.message);
+    }
+  }
+  return error instanceof Error ? error : new Error("로그인에 실패했습니다.");
+}
 class DesktopAuthClient {
   http;
   constructor(baseUrl) {
@@ -119,8 +131,12 @@ class DesktopAuthClient {
     };
   }
   async requestTokens(path, body) {
-    const response = await this.http.post(path, body);
-    return response.data.data;
+    try {
+      const response = await this.http.post(path, body);
+      return response.data.data;
+    } catch (error) {
+      throw toDesktopAuthError(error);
+    }
   }
 }
 class DesktopBridgeServer {
@@ -372,6 +388,10 @@ class CtiRuntime {
   async pickup(callId) {
     return this.sendSimpleCommand(`/calls/${callId}/pickup`);
   }
+  async changeAgentStatus(agentId, statusCode) {
+    const response = await this.http.post(`/agents/${agentId}/status`, { statusCode });
+    return response.data.data;
+  }
   async originate(params) {
     const correlationId = randomUUID();
     const response = await this.http.post(
@@ -514,21 +534,21 @@ class RuntimeSupervisor {
   recoveryScheduled = false;
   async connect() {
     const config = await this.options.loadConfig();
-    const session = await this.options.loadSession();
-    if (!config || !session) {
+    const session2 = await this.options.loadSession();
+    if (!config || !session2) {
       throw new Error("Desktop runtime prerequisites are missing.");
     }
-    this.startRuntime(config, session);
+    this.startRuntime(config, session2);
   }
   disconnect() {
     this.runtime?.disconnect();
     this.runtime = null;
   }
-  startRuntime(config, session) {
+  startRuntime(config, session2) {
     this.runtime?.disconnect();
     this.runtime = this.options.createRuntime({
       baseUrl: config.serverUrl,
-      accessToken: session.accessToken
+      accessToken: session2.accessToken
     });
     this.runtime.connect({
       onEvent: (event) => this.options.broadcast(event),
@@ -559,14 +579,14 @@ class RuntimeSupervisor {
     if (!config || !storedSession) {
       return;
     }
-    let session = storedSession;
+    let session2 = storedSession;
     try {
-      session = await this.options.refreshSession(storedSession);
-      await this.options.saveSession(session);
+      session2 = await this.options.refreshSession(storedSession);
+      await this.options.saveSession(session2);
     } catch {
-      session = storedSession;
+      session2 = storedSession;
     }
-    this.startRuntime(config, session);
+    this.startRuntime(config, session2);
   }
 }
 class TokenVault {
@@ -584,9 +604,9 @@ class TokenVault {
       return null;
     }
   }
-  async save(session) {
+  async save(session2) {
     await mkdir(this.userDataDir, { recursive: true });
-    const payload = this.encode(JSON.stringify(session));
+    const payload = this.encode(JSON.stringify(session2));
     await writeFile(this.filePath, payload);
   }
   async clear() {
@@ -748,11 +768,11 @@ class UpdateClient {
     };
   }
   async createUpdateSession(deviceId, currentVersion) {
-    const session = await this.http.post("/agent-updates/session", {
+    const session2 = await this.http.post("/agent-updates/session", {
       deviceId,
       currentVersion
     });
-    return session.data.data.updateSessionToken;
+    return session2.data.data.updateSessionToken;
   }
   async report(params) {
     await this.http.post("/agent-updates/report", params);
@@ -848,16 +868,24 @@ function ensureDesktopBridgeServer() {
   void desktopBridgeServer.start().catch(() => {
   });
 }
+function allowMediaPermissions() {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "media");
+  });
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === "media";
+  });
+}
 function joinBaseUrlAndPath(baseUrl, path) {
   return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
-function toSessionSummary(session) {
-  if (!session) {
+function toSessionSummary(session2) {
+  if (!session2) {
     return null;
   }
   return {
-    agent: session.agent,
-    softphoneConfig: session.softphoneConfig
+    agent: session2.agent,
+    softphoneConfig: session2.softphoneConfig
   };
 }
 function createWindow() {
@@ -873,9 +901,11 @@ function createWindow() {
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: false
     }
   });
+  win.setMenuBarVisibility(false);
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) {
     void win.loadURL(rendererUrl);
@@ -950,16 +980,16 @@ async function loginDesktopSession(input) {
     channel: input.channel
   });
   const authClient = new DesktopAuthClient(normalizedConfig.serverUrl);
-  const session = await authClient.loginWithCredentials({
+  const session2 = await authClient.loginWithCredentials({
     loginId: input.loginId,
     password: input.password,
     extension: input.extension
   });
   const result = {
-    session: toSessionSummary(session)
+    session: toSessionSummary(session2)
   };
   if (input.createWebHandoff) {
-    const webHandoff = await authClient.createWebHandoff(session.accessToken, {
+    const webHandoff = await authClient.createWebHandoff(session2.accessToken, {
       redirectPath: input.redirectPath
     });
     result.webHandoff = {
@@ -970,7 +1000,7 @@ async function loginDesktopSession(input) {
     };
   }
   const config = await configStore.save(normalizedConfig);
-  await tokenVault.save(session);
+  await tokenVault.save(session2);
   return result;
 }
 async function connectDesktopProtocol(payload) {
@@ -979,13 +1009,13 @@ async function connectDesktopProtocol(payload) {
     channel: payload.channel
   });
   const authClient = new DesktopAuthClient(normalizedConfig.serverUrl);
-  const session = await authClient.exchangeHandoff(payload.handoffToken);
+  const session2 = await authClient.exchangeHandoff(payload.handoffToken);
   await configStore.save(normalizedConfig);
-  await tokenVault.save(session);
+  await tokenVault.save(session2);
   desktopBridgeServer.markHandoffStatus(payload.handoffToken, {
     state: "connected"
   });
-  return toSessionSummary(session);
+  return toSessionSummary(session2);
 }
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {
@@ -1012,7 +1042,9 @@ app.on("open-url", (event, url) => {
   }
 });
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   registerProtocolClient();
+  allowMediaPermissions();
   ensureDesktopBridgeServer();
   const startupProtocolConnect = resolveProtocolConnect(process.argv);
   if (startupProtocolConnect) {
@@ -1031,12 +1063,12 @@ app.whenReady().then(() => {
     if (!config) {
       throw new Error("Center config is missing.");
     }
-    const session = accessToken ? { accessToken } : await tokenVault.load();
-    if (!session?.accessToken) {
+    const session2 = accessToken ? { accessToken } : await tokenVault.load();
+    if (!session2?.accessToken) {
       throw new Error("Desktop access token is missing.");
     }
     const authClient = new DesktopAuthClient(config.serverUrl);
-    return authClient.getDesktopSession(session.accessToken);
+    return authClient.getDesktopSession(session2.accessToken);
   });
   ipcMain.handle("desktop:exchange-handoff", async (_event, handoffToken) => {
     const config = await configStore.load();
@@ -1044,9 +1076,9 @@ app.whenReady().then(() => {
       throw new Error("Center config is missing.");
     }
     const authClient = new DesktopAuthClient(config.serverUrl);
-    const session = await authClient.exchangeHandoff(handoffToken);
-    await tokenVault.save(session);
-    return toSessionSummary(session);
+    const session2 = await authClient.exchangeHandoff(handoffToken);
+    await tokenVault.save(session2);
+    return toSessionSummary(session2);
   });
   ipcMain.handle("desktop:login", (_event, input) => loginDesktopSession(input));
   ipcMain.handle("desktop:refresh-session", async () => {
@@ -1059,9 +1091,9 @@ app.whenReady().then(() => {
       return null;
     }
     const authClient = new DesktopAuthClient(config.serverUrl);
-    const session = await authClient.refreshSession(current.refreshToken);
-    await tokenVault.save(session);
-    return toSessionSummary(session);
+    const session2 = await authClient.refreshSession(current.refreshToken);
+    await tokenVault.save(session2);
+    return toSessionSummary(session2);
   });
   ipcMain.handle("desktop:connect-with-protocol", (_event, payload) => {
     return connectDesktopProtocol(payload).catch((error) => {
@@ -1080,14 +1112,14 @@ app.whenReady().then(() => {
     runtimeSupervisor ??= new RuntimeSupervisor({
       loadConfig: () => configStore.load(),
       loadSession: () => tokenVault.load(),
-      saveSession: (session) => tokenVault.save(session),
-      refreshSession: async (session) => {
+      saveSession: (session2) => tokenVault.save(session2),
+      refreshSession: async (session2) => {
         const config = await configStore.load();
         if (!config) {
           throw new Error("Center config is missing.");
         }
         const authClient = new DesktopAuthClient(config.serverUrl);
-        return authClient.refreshSession(session.refreshToken);
+        return authClient.refreshSession(session2.refreshToken);
       },
       createRuntime: (input) => {
         runtime = new CtiRuntime(input);
@@ -1123,6 +1155,12 @@ app.whenReady().then(() => {
       throw new Error("Runtime is not connected.");
     }
     return runtime.pickup(callId);
+  });
+  ipcMain.handle("desktop:change-agent-status", (_event, agentId, statusCode) => {
+    if (!runtime) {
+      throw new Error("Runtime is not connected.");
+    }
+    return runtime.changeAgentStatus(agentId, statusCode);
   });
   ipcMain.handle("desktop:originate", (_event, params) => {
     if (!runtime) {
@@ -1162,11 +1200,11 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("desktop:check-for-updates", async () => {
     const config = await configStore.load();
-    const session = await tokenVault.load();
-    if (!config || !session) {
+    const session2 = await tokenVault.load();
+    if (!config || !session2) {
       return null;
     }
-    const client = new UpdateClient(config.serverUrl, session.accessToken);
+    const client = new UpdateClient(config.serverUrl, session2.accessToken);
     return client.pollManifest({
       deviceId: config.deviceId,
       currentVersion: app.getVersion(),
@@ -1175,13 +1213,13 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("desktop:prepare-update", async () => {
     const config = await configStore.load();
-    const session = await tokenVault.load();
-    if (!config || !session) {
+    const session2 = await tokenVault.load();
+    if (!config || !session2) {
       return null;
     }
     const client = new UpdateClient(
       config.serverUrl,
-      session.accessToken,
+      session2.accessToken,
       join(app.getPath("temp"), "kaster-agent-updates")
     );
     preparedUpdate = await client.prepareUpdate({

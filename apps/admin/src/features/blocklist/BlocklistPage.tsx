@@ -1,5 +1,5 @@
-import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, QuestionCircleOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Tooltip, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
@@ -87,19 +87,15 @@ export function BlocklistPage() {
     const branchById = new Map(branchOptions.map((branch) => [branch.branchId, branch]));
     downloadCsv(
       `blocklist-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['전화번호', '요청자 전화번호', '소스 유형', 'DID', '지사', '매칭', '사유', '상태', '등록일'],
+      ['지사', '대상번호', '사유', '상태', '등록일'],
       rows.map((row) => {
         const branch = row.branchId ? branchById.get(row.branchId) : undefined;
         const branchLabel = branch
           ? `${branch.branchName} (${branch.branchCode})`
           : row.branchId ?? '-';
         return [
-          row.normalizedPhoneNumber ?? row.phoneNumber,
-          row.normalizedRequesterPhone ?? row.requesterPhoneNumber ?? '-',
-          row.sourceType ?? '-',
-          row.entryDid ?? '-',
           branchLabel,
-          row.matchType === 'PREFIX' ? '접두어' : '정확히 일치',
+          row.normalizedPhoneNumber ?? row.phoneNumber,
           row.description ?? '',
           row.isActive ? '활성' : '비활성',
           row.createdAt ? dayjs(row.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-',
@@ -114,16 +110,25 @@ export function BlocklistPage() {
 
   return (
     <Card>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} align="start">
-        <div>
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
+      <div
+        style={{
+          alignItems: 'center',
+          display: 'flex',
+          gap: 12,
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          width: '100%',
+        }}
+      >
+        <div style={{ alignItems: 'center', display: 'flex', gap: 8, minWidth: 0 }}>
+          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0, whiteSpace: 'nowrap' }}>
             {BLOCKLIST_COPY.pageTitle}
           </Typography.Title>
-          <Typography.Text type="secondary">
-            {BLOCKLIST_COPY.pageDescription}
-          </Typography.Text>
+          <Tooltip title={BLOCKLIST_COPY.pageDescription}>
+            <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
+          </Tooltip>
         </div>
-        <Space wrap>
+        <Space wrap={false} style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
           {blocklistPermission?.canExport !== false ? (
             <Button icon={<DownloadOutlined />} onClick={exportRows}>
               내보내기
@@ -140,45 +145,14 @@ export function BlocklistPage() {
             </Button>
           ) : null}
         </Space>
-      </Space>
+      </div>
 
       <Table<AsteriskBlocklistEntry>
         rowKey="id"
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 1560 }}
+        scroll={{ x: 980 }}
         columns={[
-          {
-            title: '대상 전화',
-            dataIndex: 'phoneNumber',
-            width: 180,
-            render: (_: unknown, row) => (
-              <Typography.Text code>
-                {row.normalizedPhoneNumber ?? row.phoneNumber}
-              </Typography.Text>
-            ),
-          },
-          {
-            title: '요청자 전화',
-            width: 180,
-            render: (_: unknown, row) => (
-              <Typography.Text code>
-                {row.normalizedRequesterPhone ?? row.requesterPhoneNumber ?? '-'}
-              </Typography.Text>
-            ),
-          },
-          {
-            title: '소스 유형',
-            dataIndex: 'sourceType',
-            width: 150,
-            render: (value?: string | null) => value ? <Tag color={value.startsWith('OPT_OUT_') ? 'green' : 'blue'}>{value}</Tag> : '-',
-          },
-          {
-            title: 'Entry DID',
-            dataIndex: 'entryDid',
-            width: 160,
-            render: (value?: string | null) => value ? <Typography.Text code>{value}</Typography.Text> : '-',
-          },
           {
             title: '지사',
             dataIndex: 'branchId',
@@ -190,19 +164,25 @@ export function BlocklistPage() {
             },
           },
           {
-            title: '매칭',
-            dataIndex: 'matchType',
-            width: 120,
-            render: (value: 'EXACT' | 'PREFIX') => (
-              <Tag color={value === 'PREFIX' ? 'orange' : 'red'}>
-                {value === 'PREFIX' ? '접두어' : '정확히 일치'}
-              </Tag>
+            title: '대상번호',
+            dataIndex: 'phoneNumber',
+            width: 170,
+            render: (_: unknown, row) => (
+              <Typography.Text code>
+                {row.normalizedPhoneNumber ?? row.phoneNumber}
+              </Typography.Text>
             ),
           },
           {
             title: '사유',
             dataIndex: 'description',
-            render: (value?: string | null) => value || '-',
+            width: 260,
+            ellipsis: true,
+            render: (value?: string | null) => (
+              <Typography.Text ellipsis={{ tooltip: value || undefined }} style={{ maxWidth: 240 }}>
+                {value || '-'}
+              </Typography.Text>
+            ),
           },
           {
             title: '활성 상태',
@@ -215,12 +195,12 @@ export function BlocklistPage() {
           {
             title: '등록일',
             dataIndex: 'createdAt',
-            width: 160,
+            width: 170,
             render: (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-',
           },
           {
             title: '액션',
-            width: 180,
+            width: 140,
             render: (_: unknown, row) => (
               <Space>
                 {blocklistPermission?.canUpdate !== false ? (

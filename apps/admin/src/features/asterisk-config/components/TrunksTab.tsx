@@ -106,7 +106,16 @@ export function TrunksTab() {
         </Space>
       </Card>
       <Card title="트렁크 목록">
-        <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+        <Table
+          rowKey="id"
+          dataSource={rows}
+          columns={columns}
+          loading={loading}
+          pagination={false}
+          size="small"
+          tableLayout="fixed"
+          scroll={{ x: 860 }}
+        />
       </Card>
       <TrunkForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
       <BulkTrunkModal open={bulkOpen} onOk={handleBulkSave} onCancel={() => setBulkOpen(false)} />

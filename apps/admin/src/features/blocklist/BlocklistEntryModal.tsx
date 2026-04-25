@@ -1,5 +1,6 @@
 import { Form, Input, Modal, Select, Switch } from 'antd';
 import { useEffect } from 'react';
+import { useBranchOptions, type BranchOption } from '../../shared/branches/useBranchOptions';
 import type { AsteriskBlocklistEntry } from '../asterisk-config/types/asterisk-config';
 import { BLOCKLIST_COPY } from './blocklistCopy';
 
@@ -16,12 +17,21 @@ export function getBlocklistEntryModalTitle(entry?: AsteriskBlocklistEntry | nul
   return entry ? BLOCKLIST_COPY.editTitle : BLOCKLIST_COPY.createTitle;
 }
 
+export function buildBlocklistBranchSelectOptions(branchOptions: BranchOption[]) {
+  return branchOptions.map((branch) => ({
+    value: branch.branchId,
+    label: `${branch.branchName} (${branch.branchCode})`,
+  }));
+}
+
 export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
   const [form] = Form.useForm<BlocklistEntryFormValue>();
+  const { options: branchOptions, loading: branchLoading } = useBranchOptions();
 
   useEffect(() => {
     if (!open) return;
     form.setFieldsValue({
+      branchId: entry?.branchId ?? undefined,
       matchType: entry?.matchType ?? 'EXACT',
       phoneNumber: entry?.phoneNumber,
       description: entry?.description ?? undefined,
@@ -49,6 +59,13 @@ export function BlocklistEntryModal({ open, entry, onClose, onSave }: Props) {
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
+        <Form.Item name="branchId" label="지사" rules={[{ required: true, message: '지사를 선택하세요.' }]}>
+          <Select
+            loading={branchLoading}
+            placeholder="지사를 선택하세요"
+            options={buildBlocklistBranchSelectOptions(branchOptions)}
+          />
+        </Form.Item>
         <Form.Item name="matchType" label="매칭 방식" rules={[{ required: true }]}>
           <Select
             options={[

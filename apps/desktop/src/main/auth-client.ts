@@ -25,6 +25,35 @@ interface DesktopTokenPair {
   refreshToken: string;
 }
 
+function toDesktopAuthError(error: unknown): Error {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object'
+  ) {
+    const response = error.response as {
+      status?: number;
+      data?: {
+        error?: {
+          message?: string;
+        };
+      };
+    };
+
+    if (response.status === 401) {
+      return new Error('로그인 정보가 올바르지 않습니다. 로그인 ID, 내선, 비밀번호를 확인하세요.');
+    }
+
+    if (response.data?.error?.message) {
+      return new Error(response.data.error.message);
+    }
+  }
+
+  return error instanceof Error ? error : new Error('로그인에 실패했습니다.');
+}
+
 export class DesktopAuthClient {
   private readonly http: AxiosInstance;
 
@@ -91,7 +120,11 @@ export class DesktopAuthClient {
     path: '/auth/handoff/exchange' | '/auth/refresh' | '/auth/login',
     body: { handoffToken?: string; refreshToken?: string; loginId?: string; password?: string; extension?: string },
   ): Promise<DesktopTokenPair> {
-    const response = await this.http.post(path, body);
-    return response.data.data as DesktopTokenPair;
+    try {
+      const response = await this.http.post(path, body);
+      return response.data.data as DesktopTokenPair;
+    } catch (error) {
+      throw toDesktopAuthError(error);
+    }
   }
 }

@@ -154,6 +154,19 @@ describe('useDesktopStore audio settings', () => {
     expect(useDesktopStore.getState().audioDevices.inputs[0]?.deviceId).toBe('mic-1');
   });
 
+  it('refreshAudioDevices 는 권한 미확인 상태에서 먼저 마이크 권한을 확보한다', async () => {
+    await useDesktopStore.getState().refreshAudioDevices();
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+    });
+    expect(useDesktopStore.getState().audioPermission).toBe('granted');
+    expect(useDesktopStore.getState().audioDevices.inputs[0]?.label).toBe('USB Headset Mic');
+  });
+
   it('updateAudioPreferences 는 선택값을 저장하고 상태를 갱신한다', async () => {
     await useDesktopStore.getState().initialize();
 

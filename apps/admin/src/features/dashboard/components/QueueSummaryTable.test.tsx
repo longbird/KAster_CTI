@@ -26,7 +26,10 @@ describe('QueueSummaryTable', () => {
     expect(html).toContain('queue-summary-table');
     expect(html).toContain('queue-summary-table__table');
     expect(html).toContain('ant-table-cell-ellipsis');
-    expect(html).toContain('width:156px');
+    expect(html).not.toContain('width:156px');
+    expect(html).toContain('width:160px');
+    expect(html).toContain('width:40px');
+    expect(html).toContain('width:58px');
     expect(html).toContain('>큐<');
     expect(html).toContain('>대기<');
     expect(html).toContain('>통화<');

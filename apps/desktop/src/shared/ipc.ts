@@ -76,6 +76,10 @@ export interface DesktopApi {
   refreshSession(): Promise<DesktopSessionSummary | null>;
   connectWithProtocol(payload: DesktopProtocolConnectPayload): Promise<DesktopSessionSummary>;
   connectRuntime(): Promise<void>;
+  changeAgentStatus(
+    agentId: string,
+    statusCode: import('./cti').AgentStatusCode,
+  ): Promise<{ statusCode: import('./cti').AgentStatusCode }>;
   mute(
     callId: string,
     state: 'on' | 'off',

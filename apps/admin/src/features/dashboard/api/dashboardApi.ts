@@ -1,6 +1,7 @@
 import { apiClient } from '../../../shared/lib/apiClient';
 import type {
   ActiveCallItem,
+  AgentStatusSummaryItem,
   AgentTeamSummaryItem,
   AlertItem,
   DashboardData,
@@ -9,16 +10,28 @@ import type {
   QueueSummaryItem,
 } from '../types/dashboard';
 
-// ---- Real path: /admin/dashboard + /calls/active ---------------------------
-async function fetchReal(branchId?: string): Promise<DashboardData> {
-  const [dashboardRes, activeCallsRes] = await Promise.all([
-    apiClient.get('/admin/dashboard', { params: { branchId } }),
-    apiClient.get('/calls/active', { params: { branchId } }),
-  ]);
+const AGENT_STATUS_LABELS: Record<string, string> = {
+  AVAILABLE: '대기',
+  RINGING: '호출',
+  TALKING: '통화',
+  AFTER_CALL_WORK: '후처리',
+  BREAK: '휴식',
+  MEAL: '식사',
+  TRAINING: '교육',
+  MANUAL_PAUSED: '중지',
+};
+const AGENT_STATUS_ORDER = [
+  'AVAILABLE',
+  'RINGING',
+  'TALKING',
+  'AFTER_CALL_WORK',
+  'BREAK',
+  'MEAL',
+  'TRAINING',
+  'MANUAL_PAUSED',
+];
 
-  const dashboard = dashboardRes.data?.data;
-  const rawActive: any[] = activeCallsRes.data?.data ?? [];
-
+export function mapDashboardPayload(dashboard: any, rawActive: any[]): DashboardData {
   // ── 큐 요약 ─────────────────────────────────────────────────────────────
   const queues: QueueSummaryItem[] = (dashboard?.queues ?? []).map((q: any) => ({
     queueName: q.queueDisplayName ?? q.queueName,
@@ -39,15 +52,21 @@ async function fetchReal(branchId?: string): Promise<DashboardData> {
     (acc, q) => ({
       waiting: acc.waiting + q.waiting,
       talking: acc.talking + q.talking,
-      available: acc.available + q.availableAgents,
     }),
-    { waiting: 0, talking: 0, available: 0 },
+    { waiting: 0, talking: 0 },
   );
+  const idleAgents = dashboard?.agentStatusDistribution?.AVAILABLE ?? 0;
+  const statusDistribution = dashboard?.agentStatusDistribution ?? {};
+  const agentStatuses: AgentStatusSummaryItem[] = AGENT_STATUS_ORDER.map((statusCode) => ({
+    statusCode,
+    label: AGENT_STATUS_LABELS[statusCode] ?? statusCode,
+    count: statusDistribution[statusCode] ?? 0,
+  })).filter((item) => item.count > 0 || ['AVAILABLE', 'TALKING', 'AFTER_CALL_WORK', 'BREAK'].includes(item.statusCode));
 
   const kpis: KpiItem[] = [
-    { key: 'waiting', label: '대기 중', value: String(totals.waiting), delta: '', trend: 'flat' },
+    { key: 'waiting', label: '대기 콜', value: String(totals.waiting), delta: '', trend: 'flat' },
     { key: 'live', label: '통화 중', value: String(totals.talking), delta: '', trend: 'flat' },
-    { key: 'agents', label: '가용 상담원', value: String(totals.available), delta: '', trend: 'flat' },
+    { key: 'idle-agents', label: '대기 상담원', value: String(idleAgents), delta: '', trend: 'flat' },
     { key: 'today', label: '오늘 응답', value: String(dashboard?.today?.answered ?? 0), delta: '', trend: 'flat' },
     { key: 'abandon', label: '오늘 포기', value: String(dashboard?.today?.abandoned ?? 0), delta: '', trend: 'flat' },
   ];
@@ -95,10 +114,21 @@ async function fetchReal(branchId?: string): Promise<DashboardData> {
     kpis,
     queues,
     teams,
+    agentStatuses,
     activeCalls,
     alerts,
     traffic,
   };
+}
+
+// ---- Real path: /admin/dashboard + /calls/active ---------------------------
+async function fetchReal(branchId?: string): Promise<DashboardData> {
+  const [dashboardRes, activeCallsRes] = await Promise.all([
+    apiClient.get('/admin/dashboard', { params: { branchId } }),
+    apiClient.get('/calls/active', { params: { branchId } }),
+  ]);
+
+  return mapDashboardPayload(dashboardRes.data?.data, activeCallsRes.data?.data ?? []);
 }
 
 export const fetchDashboardData = fetchReal;

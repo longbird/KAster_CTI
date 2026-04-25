@@ -58,6 +58,7 @@ const desktopApi = {
   transfer: vi.fn(),
   cancelAttendedTransfer: vi.fn(),
   completeAttendedTransfer: vi.fn(),
+  changeAgentStatus: vi.fn().mockResolvedValue({ statusCode: 'BREAK' }),
   hold: vi.fn(),
   resume: vi.fn(),
   checkForUpdates: vi.fn().mockResolvedValue(null),
@@ -137,6 +138,7 @@ describe('useDesktopStore pairing', () => {
       transfer: useDesktopStore.getState().transfer,
       cancelAttendedTransfer: useDesktopStore.getState().cancelAttendedTransfer,
       completeAttendedTransfer: useDesktopStore.getState().completeAttendedTransfer,
+      changeAgentStatus: useDesktopStore.getState().changeAgentStatus,
       checkForUpdates: useDesktopStore.getState().checkForUpdates,
       prepareUpdate: useDesktopStore.getState().prepareUpdate,
       applyPreparedUpdate: useDesktopStore.getState().applyPreparedUpdate,
@@ -154,6 +156,38 @@ describe('useDesktopStore pairing', () => {
       authView: 'login',
       loginPending: false,
     });
+  });
+
+  it('dismissUpdate hides the prepared update banner state', () => {
+    useDesktopStore.setState({
+      updateState: {
+        message: '새 버전이 준비되어 있습니다.',
+        mandatory: false,
+        preparing: false,
+      },
+    });
+
+    useDesktopStore.getState().dismissUpdate();
+
+    expect(useDesktopStore.getState().updateState).toBeNull();
+  });
+
+  it('changeAgentStatus sends the selected status through the desktop runtime', async () => {
+    useDesktopStore.setState({
+      agent: {
+        agentId: 'agent-login',
+        agentName: '직접로그인',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'AVAILABLE',
+      runtimeConnection: 'connected',
+    });
+
+    await useDesktopStore.getState().changeAgentStatus('BREAK');
+
+    expect(desktopApi.changeAgentStatus).toHaveBeenCalledWith('agent-login', 'BREAK');
+    expect(useDesktopStore.getState().agentStatus).toBe('BREAK');
   });
 
   it('initialize 는 저장된 config 와 세션이 없으면 desktop login 경로로 진입한다', async () => {
@@ -333,6 +367,25 @@ describe('useDesktopStore pairing', () => {
     expect(desktopApi.openExternal).toHaveBeenCalledWith(
       'https://cti-center-a.example.com/desktop-handoff?token=web-handoff-1',
     );
+  });
+
+  it('login 은 desktop bridge 가 없으면 원시 JS 예외 대신 안내 메시지를 표시한다', async () => {
+    const originalDesktopApi = window.desktopApi;
+    try {
+      window.desktopApi = undefined as unknown as typeof window.desktopApi;
+
+      await useDesktopStore.getState().login({
+        serverUrl: 'https://cti-center-a.example.com',
+        loginId: 'agent1001',
+        extension: '1001',
+        password: 'Password123!',
+      });
+
+      expect(useDesktopStore.getState().authError).toContain('데스크톱 브리지를 초기화하지 못했습니다');
+      expect(useDesktopStore.getState().authError).not.toContain('Cannot read properties');
+    } finally {
+      window.desktopApi = originalDesktopApi;
+    }
   });
 
   it('connectWithProtocol 은 pairing 으로 되돌리지 않고 auto connect 를 완료한다', async () => {

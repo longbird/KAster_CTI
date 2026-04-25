@@ -28,6 +28,12 @@ export interface AgentTeamSummaryItem {
   break: number;
 }
 
+export interface AgentStatusSummaryItem {
+  statusCode: string;
+  label: string;
+  count: number;
+}
+
 export interface ActiveCallItem {
   id: string;
   queueName: string;
@@ -58,6 +64,7 @@ export interface DashboardData {
   kpis: KpiItem[];
   queues: QueueSummaryItem[];
   teams: AgentTeamSummaryItem[];
+  agentStatuses: AgentStatusSummaryItem[];
   activeCalls: ActiveCallItem[];
   alerts: AlertItem[];
   traffic: HourlyTrafficItem[];

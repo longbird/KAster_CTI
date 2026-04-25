@@ -90,6 +90,7 @@ export function QueueSettingsPage() {
         rowKey="queueId"
         dataSource={rows}
         pagination={false}
+        scroll={{ x: 920 }}
         tableLayout="fixed"
         rowClassName={(r) => (!r.isActive ? 'ant-table-row-disabled' : '')}
         columns={[

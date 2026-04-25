@@ -83,6 +83,7 @@ interface DesktopStore {
   showPairingDiagnostics(): void;
   showLogin(): void;
   reconnectRuntime(): Promise<void>;
+  changeAgentStatus(statusCode: AgentStatusCode): Promise<void>;
   originate(phoneNumber: string): Promise<void>;
   pickup(): Promise<void>;
   mute(): Promise<void>;
@@ -92,6 +93,7 @@ interface DesktopStore {
   cancelAttendedTransfer(): Promise<void>;
   completeAttendedTransfer(): Promise<void>;
   checkForUpdates(): Promise<void>;
+  dismissUpdate(): void;
   prepareUpdate(): Promise<void>;
   applyPreparedUpdate(): Promise<void>;
   refreshAudioDevices(): Promise<void>;
@@ -205,13 +207,14 @@ function getSoftphoneClient() {
         void getSoftphoneMediaController()?.startRingtone();
         if (call.direction === 'incoming' && call.id !== lastIncomingAttentionCallId) {
           lastIncomingAttentionCallId = call.id;
-          void window.desktopApi.notifyIncomingCall({
+          const desktopApi = getDesktopApi();
+          void desktopApi.notifyIncomingCall({
             title: '착신 전화',
             body: call.remoteUri
               ? `${call.remoteDisplayName} / ${call.remoteUri}`
               : call.remoteDisplayName,
           });
-          void window.desktopApi.focusWindow();
+          void desktopApi.focusWindow();
         }
       } else {
         getSoftphoneMediaController()?.stopRingtone();
@@ -323,6 +326,17 @@ function toErrorMessage(error: unknown) {
   }
 
   return '로그인에 실패했습니다.';
+}
+
+function getDesktopApi() {
+  const api = typeof window !== 'undefined' ? window.desktopApi : undefined;
+  if (!api) {
+    throw new Error(
+      '데스크톱 브리지를 초기화하지 못했습니다. KAster Agent Desktop 앱에서 다시 실행해 주세요.',
+    );
+  }
+
+  return api;
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
@@ -465,7 +479,7 @@ function bindRuntimeEvents(
   ) => void,
 ) {
   detachRuntimeListener?.();
-  detachRuntimeListener = window.desktopApi.onEvent((event) => {
+  detachRuntimeListener = getDesktopApi().onEvent((event) => {
     setState((state) => reduceEvent(event, state.activeCall, state.events, state.agentStatus, state.runtimeConnection));
   });
 }
@@ -483,10 +497,11 @@ async function hydrateAuthenticatedDesktopSession(
   },
 ) {
   bindRuntimeEvents(set);
-  await window.desktopApi.connectRuntime();
+  const desktopApi = getDesktopApi();
+  await desktopApi.connectRuntime();
   const [audioPreferences, update] = await Promise.all([
-    window.desktopApi.getAudioPreferences(),
-    window.desktopApi.checkForUpdates(),
+    desktopApi.getAudioPreferences(),
+    desktopApi.checkForUpdates(),
   ]);
   const controller = getAudioController();
   if (controller) {
@@ -553,13 +568,13 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   async initialize() {
     const controller = getAudioController();
     const [configResult, audioPreferencesResult, sessionResult, audioDevicesResult] = await Promise.all([
-      safeBootstrapLoad(() => window.desktopApi.getConfig(), null, 'desktop config'),
+      safeBootstrapLoad(() => getDesktopApi().getConfig(), null, 'desktop config'),
       safeBootstrapLoad(
-        () => window.desktopApi.getAudioPreferences(),
+        () => getDesktopApi().getAudioPreferences(),
         DEFAULT_AUDIO_PREFERENCES,
         'audio preferences',
       ),
-      safeBootstrapLoad(() => window.desktopApi.getSession(), null, 'desktop session'),
+      safeBootstrapLoad(() => getDesktopApi().getSession(), null, 'desktop session'),
       safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, 'audio devices'),
     ]);
     const config = configResult.value;
@@ -598,7 +613,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     let sessionBootstrapError: string | null = null;
     if (storedSession) {
       try {
-        const refreshedSession = await window.desktopApi.refreshSession();
+        const refreshedSession = await getDesktopApi().refreshSession();
         if (refreshedSession) {
           session = refreshedSession;
           sessionBootstrapNote = '저장된 세션을 갱신했습니다.';
@@ -613,8 +628,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     if (session) {
       try {
         bindRuntimeEvents(set);
-        await window.desktopApi.connectRuntime();
-        const update = await window.desktopApi.checkForUpdates();
+        const desktopApi = getDesktopApi();
+        await desktopApi.connectRuntime();
+        const update = await desktopApi.checkForUpdates();
         if (update) {
           set({
             updateState: {
@@ -684,7 +700,8 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     });
 
     try {
-      const result = await window.desktopApi.login({
+      const desktopApi = getDesktopApi();
+      const result = await desktopApi.login({
         serverUrl: params.serverUrl,
         loginId: params.loginId,
         extension: params.extension,
@@ -694,7 +711,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         redirectPath: '/desktop-handoff',
       });
       const config =
-        (await window.desktopApi.getConfig()) ??
+        (await desktopApi.getConfig()) ??
         {
           ...normalizeCenterConfig({ serverUrl: params.serverUrl }),
           deviceId: useDesktopStore.getState().config?.deviceId ?? 'desktop-device',
@@ -708,7 +725,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
 
       if (result.webHandoff?.url) {
         try {
-          await window.desktopApi.openExternal(result.webHandoff.url);
+          await desktopApi.openExternal(result.webHandoff.url);
           set((current) => ({
             events: pushEvent(current.events, '웹 자동 로그인을 시작했습니다.'),
           }));
@@ -729,15 +746,16 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   async pair(params) {
     set({ pairing: true });
 
-    const config = await window.desktopApi.saveConfig({
+    const desktopApi = getDesktopApi();
+    const config = await desktopApi.saveConfig({
       serverUrl: params.serverUrl,
       channel: params.channel,
     });
-    const session = await window.desktopApi.exchangeHandoff(params.handoffToken);
+    const session = await desktopApi.exchangeHandoff(params.handoffToken);
     bindRuntimeEvents(set);
-    await window.desktopApi.connectRuntime();
-    const update = await window.desktopApi.checkForUpdates();
-    const audioPreferences = await window.desktopApi.getAudioPreferences();
+    await desktopApi.connectRuntime();
+    const update = await desktopApi.checkForUpdates();
+    const audioPreferences = await desktopApi.getAudioPreferences();
     const softphone = session.softphoneConfig ? createSoftphoneState(session.softphoneConfig) : null;
 
     set((current) => ({
@@ -777,9 +795,10 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     });
 
     try {
-      const session = await window.desktopApi.connectWithProtocol(payload);
+      const desktopApi = getDesktopApi();
+      const session = await desktopApi.connectWithProtocol(payload);
       const config =
-        (await window.desktopApi.getConfig()) ??
+        (await desktopApi.getConfig()) ??
         {
           ...normalizeCenterConfig({
             serverUrl: payload.serverUrl,
@@ -829,7 +848,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     bindRuntimeEvents(set);
 
     try {
-      await window.desktopApi.connectRuntime();
+      await getDesktopApi().connectRuntime();
       set((state) => ({
         runtimeConnection: resolveRuntimeConnection(true, state.runtimeConnection),
       }));
@@ -841,6 +860,18 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       }));
     }
   },
+  async changeAgentStatus(statusCode) {
+    const agent = useDesktopStore.getState().agent;
+    if (!agent) {
+      return;
+    }
+
+    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode);
+    set((current) => ({
+      agentStatus: result.statusCode,
+      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}`),
+    }));
+  },
   async originate(phoneNumber) {
     const agent = useDesktopStore.getState().agent;
     const normalized = phoneNumber.trim();
@@ -848,7 +879,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.originate({
+    await getDesktopApi().originate({
       agentExtension: agent.extension,
       phoneNumber: normalized,
     });
@@ -862,7 +893,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.pickup(currentCall.callId);
+    await getDesktopApi().pickup(currentCall.callId);
     set((current) => ({
       activeCall: current.activeCall
         ? {
@@ -880,7 +911,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }
 
     const nextState = useDesktopStore.getState().activeCall?.isMuted ? 'off' : 'on';
-    const result = await window.desktopApi.mute(callId, nextState);
+    const result = await getDesktopApi().mute(callId, nextState);
     set((current) => ({
       activeCall: current.activeCall
         ? {
@@ -897,7 +928,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.hangup(callId);
+    await getDesktopApi().hangup(callId);
     set((current) => ({
       activeCall: null,
       events: pushEvent(current.events, `종료 요청 ${callId}`),
@@ -910,7 +941,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }
 
     if (currentCall.sessionStatus === 'HOLD') {
-      await window.desktopApi.resume(currentCall.callId);
+      await getDesktopApi().resume(currentCall.callId);
       set((current) => ({
         activeCall: current.activeCall
           ? {
@@ -923,7 +954,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.hold(currentCall.callId);
+    await getDesktopApi().hold(currentCall.callId);
     set((current) => ({
       activeCall: current.activeCall
         ? {
@@ -941,7 +972,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.transfer(currentCall.callId, {
+    await getDesktopApi().transfer(currentCall.callId, {
       target: target.trim(),
       transferType: mode,
       fromExtension: agent.extension,
@@ -976,7 +1007,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.cancelAttendedTransfer(currentCall.callId);
+    await getDesktopApi().cancelAttendedTransfer(currentCall.callId);
     set((current) => ({
       activeCall: current.activeCall
         ? {
@@ -994,7 +1025,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await window.desktopApi.completeAttendedTransfer(currentCall.callId);
+    await getDesktopApi().completeAttendedTransfer(currentCall.callId);
     set((current) => ({
       activeCall: current.activeCall
         ? {
@@ -1012,7 +1043,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }));
   },
   async checkForUpdates() {
-    const update = await window.desktopApi.checkForUpdates();
+    const update = await getDesktopApi().checkForUpdates();
     if (!update) {
       return;
     }
@@ -1029,6 +1060,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       },
     });
   },
+  dismissUpdate() {
+    set({ updateState: null });
+  },
   async prepareUpdate() {
     const currentUpdate = useDesktopStore.getState().updateState;
     if (!currentUpdate) {
@@ -1042,7 +1076,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       },
     });
 
-    const prepared = await window.desktopApi.prepareUpdate();
+    const prepared = await getDesktopApi().prepareUpdate();
     if (!prepared) {
       set({
         updateState: {
@@ -1096,7 +1130,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       },
     });
 
-    const result = await window.desktopApi.applyPreparedUpdate();
+    const result = await getDesktopApi().applyPreparedUpdate();
     set((current) => ({
       updateState: current.updateState
         ? {
@@ -1124,12 +1158,30 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }
 
     set({ refreshingAudioDevices: true });
-    const audioDevices = await enumerateAudioDevices();
-    set((current) => ({
-      audioDevices,
-      refreshingAudioDevices: false,
-      events: pushEvent(current.events, '오디오 장치 목록을 새로 고쳤습니다.'),
-    }));
+    try {
+      if (useDesktopStore.getState().audioPermission !== 'granted') {
+        const controller = getAudioController();
+        const audioPreferences = useDesktopStore.getState().audioPreferences ?? DEFAULT_AUDIO_PREFERENCES;
+        const stream = await controller?.requestInputAccess(audioPreferences);
+        stream?.getTracks().forEach((track) => track.stop());
+      }
+
+      const audioDevices = await enumerateAudioDevices();
+      set((current) => ({
+        audioDevices,
+        audioPermission: 'granted',
+        refreshingAudioDevices: false,
+        events: pushEvent(current.events, '오디오 장치 목록을 새로 고쳤습니다.'),
+      }));
+    } catch {
+      const audioDevices = await enumerateAudioDevices();
+      set((current) => ({
+        audioDevices,
+        audioPermission: 'denied',
+        refreshingAudioDevices: false,
+        events: pushEvent(current.events, '마이크 권한이 없어 제한된 장치 목록만 표시됩니다.'),
+      }));
+    }
   },
   async requestAudioPermission() {
     const audioPreferences = useDesktopStore.getState().audioPreferences;
@@ -1164,7 +1216,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }
   },
   async updateAudioPreferences(input) {
-    const audioPreferences = await window.desktopApi.saveAudioPreferences(input);
+    const audioPreferences = await getDesktopApi().saveAudioPreferences(input);
     await getAudioController()?.applyPreferences(audioPreferences);
     await getSoftphoneMediaController()?.applyOutputDevice(audioPreferences.outputDeviceId);
     await getSoftphoneMediaController()?.applyRingDevice(audioPreferences.ringDeviceId);

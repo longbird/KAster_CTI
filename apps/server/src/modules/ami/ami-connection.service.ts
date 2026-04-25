@@ -181,6 +181,11 @@ export class AmiConnectionService implements OnModuleInit {
 
     pending.frames.push(frame);
 
+    if (frame.Response === 'Error') {
+      this.finishPendingAction(pendingKey, pending);
+      return true;
+    }
+
     if (!pending.eventList) {
       this.finishPendingAction(pendingKey, pending);
       return true;

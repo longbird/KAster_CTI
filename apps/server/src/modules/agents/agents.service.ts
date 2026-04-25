@@ -6,12 +6,16 @@ import {
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../common/prisma.service';
+import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 
 @Injectable()
 export class AgentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly asteriskReload: AsteriskReloadService,
+  ) {}
 
   async listForTenant(tenantId: string) {
     const agents = await this.prisma.agents.findMany({
@@ -253,6 +257,9 @@ export class AgentsService {
         isActive: true,
       },
     });
+    if (dto.sipPassword !== undefined) {
+      this.asteriskReload.scheduleReload(tenantId);
+    }
     return { success: true, data: updated, error: null };
   }
 

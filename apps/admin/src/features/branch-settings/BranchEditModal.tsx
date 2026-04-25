@@ -4,6 +4,7 @@ import {
   DeleteOutlined,
   IdcardOutlined,
   OrderedListOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   QuestionCircleOutlined,
   ShareAltOutlined,
@@ -89,6 +90,14 @@ interface SmsTemplateOption {
   templateName: string;
   category: 'OPT_OUT_080' | 'GENERAL_NOTICE' | 'RESERVATION_ALERT';
   isActive: boolean;
+}
+
+interface PromptSelectWithPreviewProps {
+  value?: string;
+  onChange?: (value?: string) => void;
+  disabled?: boolean;
+  options: Array<{ value: string; label: string }>;
+  placeholder: string;
 }
 
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
@@ -289,6 +298,77 @@ const BLOCKLIST080_SMART_ACTION_OPTIONS: Array<{ value: Blocklist080SmartActionT
   { value: 'SEND_SMS', label: '안내문자 발송' },
   { value: 'HANGUP', label: '통화 종료' },
 ];
+
+function PromptSelectWithPreview({
+  value,
+  onChange,
+  disabled,
+  options,
+  placeholder,
+}: PromptSelectWithPreviewProps) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => () => {
+    audioRef.current?.pause();
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+  }, []);
+
+  const stopCurrentAudio = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!value) return;
+    try {
+      stopCurrentAudio();
+      setPlaying(true);
+      const res = await apiClient.get(`/asterisk-config/prompts/${value}/stream`, { responseType: 'blob' });
+      const objectUrl = URL.createObjectURL(res.data);
+      objectUrlRef.current = objectUrl;
+      const audio = new Audio(objectUrl);
+      audioRef.current = audio;
+      audio.onended = () => setPlaying(false);
+      audio.onerror = () => {
+        setPlaying(false);
+        message.error('멘트 파일을 재생할 수 없습니다.');
+      };
+      await audio.play();
+    } catch {
+      setPlaying(false);
+      message.error('멘트 파일을 불러오지 못했습니다.');
+    }
+  };
+
+  return (
+    <div className="branch-edit-modal__prompt-preview-control">
+      <Select
+        allowClear
+        showSearch
+        disabled={disabled}
+        options={options}
+        optionFilterProp="label"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+      />
+      <Tooltip title="선택한 멘트 미리듣기">
+        <Button
+          icon={<PlayCircleOutlined />}
+          disabled={disabled || !value}
+          loading={playing}
+          onClick={handlePreview}
+        />
+      </Tooltip>
+    </div>
+  );
+}
 const SMS_TEMPLATE_CATEGORY_LABEL: Record<SmsTemplateOption['category'], string> = {
   OPT_OUT_080: '080 수신거부',
   GENERAL_NOTICE: '일반 안내',
@@ -1310,9 +1390,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                       name="defaultPromptId"
                       rules={[{ required: true, message: '기본 멘트를 선택하세요.' }]}
                     >
-                      <Select
-                        allowClear
-                        showSearch
+                      <PromptSelectWithPreview
                         disabled={!promptsEnabled}
                         placeholder="지사 기본 멘트를 선택하세요"
                         options={promptOptions}
@@ -1447,13 +1525,10 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                           label={renderFieldLabel('시작 멘트', '모든 080 수신거부 흐름 시작 시 재생하는 멘트입니다.')}
                           name="blocklist080BasePromptId"
                         >
-                          <Select
-                            allowClear
+                          <PromptSelectWithPreview
                             disabled={!blocklist080Enabled}
                             options={promptOptions}
                             placeholder="080 수신거부 시작 멘트"
-                            showSearch
-                            optionFilterProp="label"
                           />
                         </Form.Item>
                       </Col>
@@ -1463,13 +1538,10 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                           label={renderFieldLabel('완료 멘트', '즉시 또는 일반 DTMF 모드 완료 시 재생하는 멘트입니다.')}
                           name="blocklist080CompletionPromptId"
                         >
-                          <Select
-                            allowClear
+                          <PromptSelectWithPreview
                             disabled={!blocklist080Enabled}
                             options={promptOptions}
                             placeholder="즉시/DTMF 완료 멘트"
-                            showSearch
-                            optionFilterProp="label"
                           />
                         </Form.Item>
                       </Col>
@@ -1514,13 +1586,10 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                           label={renderFieldLabel('잘못된 입력 멘트', '정의되지 않은 숫자를 입력했을 때 재생합니다.')}
                           name="blocklist080DtmfInvalidPromptId"
                         >
-                          <Select
-                            allowClear
+                          <PromptSelectWithPreview
                             disabled={!blocklist080Enabled}
                             options={promptOptions}
                             placeholder="잘못된 입력 안내 멘트"
-                            showSearch
-                            optionFilterProp="label"
                           />
                         </Form.Item>
                       </Col>
@@ -1530,13 +1599,10 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                           label={renderFieldLabel('입력 지연 멘트', '입력이 없을 때 재생합니다.')}
                           name="blocklist080DtmfTimeoutPromptId"
                         >
-                          <Select
-                            allowClear
+                          <PromptSelectWithPreview
                             disabled={!blocklist080Enabled}
                             options={promptOptions}
                             placeholder="입력 지연 안내 멘트"
-                            showSearch
-                            optionFilterProp="label"
                           />
                         </Form.Item>
                       </Col>
@@ -1676,7 +1742,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('번호 입력 멘트', '번호 입력을 시작할 때 재생합니다.')}
                             name="blocklist080SmartInputPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="번호 입력 안내 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="번호 입력 안내 멘트"
+                            />
                           </Form.Item>
                         </Col>
                         <Col xs={24} lg={12}>
@@ -1685,7 +1755,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('재입력 멘트', '입력 재시도 시 재생합니다.')}
                             name="blocklist080SmartReentryPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="재입력 안내 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="재입력 안내 멘트"
+                            />
                           </Form.Item>
                         </Col>
                         <Col xs={24} lg={12}>
@@ -1694,7 +1768,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('동일번호 안내 멘트', '고객 본인 번호와 동일할 때 재생합니다.')}
                             name="blocklist080SmartSameNumberPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="동일번호 재입력 안내 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="동일번호 재입력 안내 멘트"
+                            />
                           </Form.Item>
                         </Col>
                         <Col xs={24} lg={6}>
@@ -1721,7 +1799,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('실패 멘트', '재시도 초과 후 재생합니다.')}
                             name="blocklist080SmartFailurePromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="재시도 초과 실패 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="재시도 초과 실패 멘트"
+                            />
                           </Form.Item>
                         </Col>
                       </Row>
@@ -1744,7 +1826,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('확인 앞 멘트', '입력한 번호를 읽어주기 전에 재생합니다.')}
                             name="blocklist080SmartConfirmPrefixPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="입력 확인 앞 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="입력 확인 앞 멘트"
+                            />
                           </Form.Item>
                         </Col>
                         <Col xs={24} lg={12}>
@@ -1753,7 +1839,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('확인 뒤 멘트', '입력한 번호를 읽어준 뒤 이어서 재생합니다.')}
                             name="blocklist080SmartConfirmSuffixPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="입력 확인 뒤 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="입력 확인 뒤 멘트"
+                            />
                           </Form.Item>
                         </Col>
                         <Col xs={24} lg={12}>
@@ -1762,7 +1852,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('최종 확인 멘트', '등록, 재입력, 문자발송 선택을 안내합니다.')}
                             name="blocklist080SmartConfirmMenuPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="최종 선택 안내 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="최종 선택 안내 멘트"
+                            />
                           </Form.Item>
                         </Col>
                         <Col xs={24} lg={12}>
@@ -1771,7 +1865,11 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             label={renderFieldLabel('최종 멘트', '마지막 완료 또는 종료 전에 재생합니다.')}
                             name="blocklist080SmartFinalPromptId"
                           >
-                            <Select allowClear disabled={!blocklist080Enabled} options={promptOptions} showSearch optionFilterProp="label" placeholder="최종 완료 멘트" />
+                            <PromptSelectWithPreview
+                              disabled={!blocklist080Enabled}
+                              options={promptOptions}
+                              placeholder="최종 완료 멘트"
+                            />
                           </Form.Item>
                         </Col>
                       </Row>

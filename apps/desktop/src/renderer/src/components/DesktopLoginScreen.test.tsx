@@ -76,4 +76,25 @@ describe('DesktopLoginScreen', () => {
     expect(screen.getByLabelText('서버 URL')).toBeTruthy();
     expect(screen.getByDisplayValue('https://cti-center-a.example.com')).toBeTruthy();
   });
+
+  it('toggles password visibility', () => {
+    render(
+      <DesktopLoginScreen
+        busy={false}
+        serverUrl=""
+        serverUrlRequired
+        onSubmit={vi.fn()}
+        onTogglePairing={vi.fn()}
+      />,
+    );
+
+    const password = screen.getByLabelText('비밀번호') as HTMLInputElement;
+    expect(password.type).toBe('password');
+
+    fireEvent.click(screen.getByRole('button', { name: '비밀번호 보기' }));
+    expect(password.type).toBe('text');
+
+    fireEvent.click(screen.getByRole('button', { name: '비밀번호 감추기' }));
+    expect(password.type).toBe('password');
+  });
 });

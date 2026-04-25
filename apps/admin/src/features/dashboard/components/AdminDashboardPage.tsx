@@ -5,7 +5,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { KpiCards } from './KpiCards';
 import { TrafficChartCard } from './TrafficChartCard';
 import { QueueSummaryTable } from './QueueSummaryTable';
-import { TeamStatusTable } from './TeamStatusTable';
+import { AgentStatusSummaryTable } from './AgentStatusSummaryTable';
 import { ActiveCallsKanban } from './ActiveCallsKanban';
 import { AlertsPanel } from './AlertsPanel';
 import { InfraStatusBar } from '../../monitoring/components/InfraStatusBar';
@@ -60,7 +60,7 @@ export function AdminDashboardPage() {
 
       <div className="dashboard-compact__bottom">
         <QueueSummaryTable items={data.queues} compact />
-        <TeamStatusTable items={data.teams} compact />
+        <AgentStatusSummaryTable items={data.agentStatuses} compact />
         <TrafficChartCard items={data.traffic} compact />
       </div>
     </div>

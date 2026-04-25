@@ -124,14 +124,17 @@ export function AgentSettingsPage() {
         rowKey="agentId"
         dataSource={rows}
         pagination={{ pageSize: 20 }}
+        tableLayout="fixed"
+        scroll={{ x: 880 }}
         rowClassName={(r) => (!r.isActive ? 'ant-table-row-disabled' : '')}
         columns={[
-          { title: '이름', dataIndex: 'agentName' },
-          { title: '로그인 ID', dataIndex: 'loginId' },
-          { title: '내선', dataIndex: 'extension' },
-          { title: '역할', dataIndex: 'role', render: (v: string) => <Tag>{v}</Tag> },
+          { title: '이름', dataIndex: 'agentName', width: 140 },
+          { title: '로그인 ID', dataIndex: 'loginId', width: 150 },
+          { title: '내선', dataIndex: 'extension', width: 100 },
+          { title: '역할', dataIndex: 'role', width: 120, render: (v: string) => <Tag>{v}</Tag> },
           {
             title: '현재 상태',
+            width: 130,
             render: (_: unknown, r: AgentRow) =>
               !r.isActive ? (
                 <Tag color="default">비활성</Tag>

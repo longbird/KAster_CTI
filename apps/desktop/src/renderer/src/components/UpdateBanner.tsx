@@ -6,6 +6,7 @@ export function UpdateBanner({
   readyFileName,
   onPrepare,
   onApply,
+  onDismiss,
 }: {
   message: string;
   canApply: boolean;
@@ -14,6 +15,7 @@ export function UpdateBanner({
   readyFileName?: string | null;
   onPrepare: () => void;
   onApply: () => void;
+  onDismiss: () => void;
 }) {
   return (
     <div className="update-banner">
@@ -28,6 +30,9 @@ export function UpdateBanner({
         </button>
         <button type="button" disabled={!readyFileName || !canApply || busy} onClick={onApply}>
           설치 실행
+        </button>
+        <button type="button" className="icon-button" aria-label="업데이트 알림 숨기기" onClick={onDismiss}>
+          ×
         </button>
       </div>
     </div>

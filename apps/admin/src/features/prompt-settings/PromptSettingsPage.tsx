@@ -82,9 +82,12 @@ export function PromptSettingsPage() {
         rowKey="id"
         dataSource={rows}
         pagination={false}
+        tableLayout="fixed"
+        scroll={{ x: 860 }}
         columns={[
           {
             title: '프롬프트',
+            width: 220,
             render: (_: unknown, row) => (
               <Space direction="vertical" size={0}>
                 <Typography.Text strong>{row.displayName}</Typography.Text>
@@ -106,6 +109,7 @@ export function PromptSettingsPage() {
           {
             title: '설명',
             dataIndex: 'description',
+            width: 220,
             render: (value?: string | null) => value || '-',
           },
           {

@@ -1,0 +1,2148 @@
+[
+  {
+    "route": "/dashboard",
+    "label": "대시보드",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/dashboard",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n콜센터 운영 대시보드\n갱신 01:19:22\n지사 전체\nDB: up\nRedis: up\nAMI: connected\n마지막 갱신: 01:19:21\n대기 콜\n0\n통화 중\n0\n대기 상담원\n2\n오늘 응답\n0\n오늘 포기\n0\n⚠ 경보 (0)\n활성 경보 없음\n🔴 실시간 활성 콜 (총 0건)\n대기\n0\n대기 중인 통화 없음\n벨 울림\n0\n호출 중인 통화 없음\n통화 중\n0\n통화 중 없음\n후처리\n0\n후처리 없음\nQueue 요약\n큐\t대기\t통화\t최장\n\n영업 대표 큐\n\t0\t0\t00:00:00\n\n기본 호 분배룰\n\t0\t0\t00:00:00\n상담원 상태 현황\n상태\t상담원\n대기\t2명\n통화\t0명\n후처리\t0명\n휴식\t0명\n시간대별 유입\n응답 / 포기 (시간당)",
+    "tables": [
+      {
+        "left": 269,
+        "right": 606,
+        "width": 337,
+        "scrollW": 337,
+        "clientW": 337,
+        "text": "큐\t대기\t통화\t최장\n\n영업 대표 큐\n\t0\t0\t00:00:00\n\n기본 호 분배룰\n\t0\t0\t00:00:00"
+      },
+      {
+        "left": 634,
+        "right": 971,
+        "width": 337,
+        "scrollW": 337,
+        "clientW": 337,
+        "text": "상태\t상담원\n대기\t2명\n통화\t0명\n후처리\t0명\n휴식\t0명"
+      }
+    ],
+    "cards": 7,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/live-calls",
+    "label": "통화 현황 조회",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/live-calls",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n통화 현황 조회\n업무 현황 조회\n큐 현황\n상담원 현황\n시스템 모니터링\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n통화 현황 조회\n지사 전체\n오전 1:19:23 기준 3초 갱신\n활성\n0\n대기\n0\n벨 울림\n0\n통화 중\n0\n후처리\n0\n대기\n0\n대기 중인 통화 없음\n벨 울림\n0\n호출 중인 통화 없음\n통화 중\n0\n통화 중 없음\n후처리\n0\n후처리 없음",
+    "tables": [],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/kpi",
+    "label": "업무 현황 조회",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/kpi",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1350,
+    "clientW": 1350,
+    "docH": 1318,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n통화 현황 조회\n업무 현황 조회\n큐 현황\n상담원 현황\n시스템 모니터링\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n업무 현황 조회\n오늘 응답\n0건\n오늘 포기\n0건\n응답률\n0%\n대기 콜\n0건\n현재 통화 중\n0건\n대기 상담원\n2명\n큐별 현황 (최근 30분)\n큐\t대기\t통화 중\t가용\t최장 대기\t응답\t포기\t응답률\n영업 대표 큐\t0\t0\t2\t0s\t0건\t0건\t0%\n기본 호 분배룰\t0\t0\t2\t0s\t0건\t0건\t0%\n시간대별 트래픽\n시간대\t인입\t응답\t포기\t응답률\n00시\t0\t0\t0\t0%\n01시\t0\t0\t0\t0%\n02시\t0\t0\t0\t0%\n03시\t0\t0\t0\t0%\n04시\t0\t0\t0\t0%\n05시\t0\t0\t0\t0%\n06시\t0\t0\t0\t0%\n07시\t0\t0\t0\t0%\n08시\t0\t0\t0\t0%\n09시\t0\t0\t0\t0%\n10시\t0\t0\t0\t0%\n11시\t0\t0\t0\t0%\n12시\t0\t0\t0\t0%\n13시\t0\t0\t0\t0%\n14시\t0\t0\t0\t0%\n15시\t0\t0\t0\t0%\n16시\t0\t0\t0\t0%",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1305,
+        "width": 1020,
+        "scrollW": 1020,
+        "clientW": 1020,
+        "text": "큐\t대기\t통화 중\t가용\t최장 대기\t응답\t포기\t응답률\n영업 대표 큐\t0\t0\t2\t0s\t0건\t0건\t0%\n기본 호 분배룰\t0\t0\t2\t0s\t0건\t0건\t0%"
+      },
+      {
+        "left": 285,
+        "right": 1305,
+        "width": 1020,
+        "scrollW": 1020,
+        "clientW": 1020,
+        "text": "시간대\t인입\t응답\t포기\t응답률\n00시\t0\t0\t0\t0%\n01시\t0\t0\t0\t0%\n02시\t0\t0\t0\t0%\n03시\t0\t0\t0\t0%\n04시\t0\t0\t0\t0%\n05시\t0\t0\t0\t0%\n06시\t0\t0\t0\t0%\n07시\t0\t0\t0\t0%"
+      }
+    ],
+    "cards": 8,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/queues",
+    "label": "큐 현황",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/queues",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n통화 현황 조회\n업무 현황 조회\n큐 현황\n상담원 현황\n시스템 모니터링\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n큐 현황\n5초 주기로 `/api/v1/queues/summary`를 갱신합니다.\nCSV 내보내기\n큐\t대기\t링잉\t통화 중\t가용\t일시정지\t최장 대기\t최근 30분\n영업 대표 큐\t0\t0\t0\t2\t0\t0s\t응답 0포기 0\n기본 호 분배룰\t0\t0\t0\t2\t0\t0s\t응답 0포기 0",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "큐\t대기\t링잉\t통화 중\t가용\t일시정지\t최장 대기\t최근 30분\n영업 대표 큐\t0\t0\t0\t2\t0\t0s\t응답 0포기 0\n기본 호 분배룰\t0\t0\t0\t2\t0\t0s\t응답 0포기 0"
+      }
+    ],
+    "cards": 2,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/agents",
+    "label": "상담원 현황",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/agents",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n통화 현황 조회\n업무 현황 조회\n큐 현황\n상담원 현황\n시스템 모니터링\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n상담원 현황\n5초 주기로 `/api/v1/agents` 폴링\nCSV 내보내기\n이름\t로그인 ID\t내선\t전화기 등록\t역할\t현재 상태\t마지막 로그인\n홍길동\tagent1001\t1001\t등록됨\tagent\t대기\t2026. 4. 24. 오후 5:24:20\n상담원2\tagent1002\t1002\t미등록\tagent\t오프라인\t-\n관리자\tsupervisor1\t2001\t미등록\tsupervisor\t대기\t2026. 4. 25. 오전 1:19:17",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "이름\t로그인 ID\t내선\t전화기 등록\t역할\t현재 상태\t마지막 로그인\n홍길동\tagent1001\t1001\t등록됨\tagent\t대기\t2026. 4. 24. 오후 5:24:20\n상담원2\tagent1002\t1002\t미등록\tage"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/monitoring",
+    "label": "시스템 모니터링",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/monitoring",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1350,
+    "clientW": 1350,
+    "docH": 1128,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n통화 현황 조회\n업무 현황 조회\n큐 현황\n상담원 현황\n시스템 모니터링\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n시스템 모니터링\n인프라 연결 상태와 실시간 콜/에이전트/큐 지표를 확인합니다.\n마지막 갱신: 01:19:31\n새로고침\n다음 갱신: 9초 후\nDB\nup\nUP\nRedis\nup\nUP\nAMI\nconnected\nCONNECTED\n콜 지표\n전체 활성\n0\n대기 중\n0\n링잉\n0\n통화 중\n0\n보류\n0\n전환 중\n0\n스턱 콜\n0\n최장 대기\n0초\n에이전트 지표\n로그인\n2\n수신 가능\n2\n통화 중\n0\n링잉\n0\n휴식/일시정지\n0\n큐 지표\n대기 콜\n0\n링잉\n0\n통화 중\n0\n수신 가능 에이전트\n2\n최장 대기\n0초",
+    "tables": [],
+    "cards": 28,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "새로고침"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/calls",
+    "label": "통화내역 (CDR)",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/reports/calls",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n통화내역 (CDR)\n미연결 콜\n녹취 목록\n호 로그\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n통화내역 조회\n지사 전체\n전체\n조회\nCSV 내보내기\n시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t상태\t전환\t대기(초)\t통화(초)\t포기\t녹취\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t상태\t전환\t대기(초)\t통화(초)\t포기\t녹취\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/missed",
+    "label": "미연결 콜",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/reports/missed",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n통화내역 (CDR)\n미연결 콜\n녹취 목록\n호 로그\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n미연결 콜 조회\n지사 전체\n조회\nCSV 내보내기\n시작\t발신번호\t대표번호 / DID\t분배룰\t최종 상담원\t대기(초)\t결과\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "시작\t발신번호\t대표번호 / DID\t분배룰\t최종 상담원\t대기(초)\t결과\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/recordings",
+    "label": "녹취 목록",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/reports/recordings",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n통화내역 (CDR)\n미연결 콜\n녹취 목록\n호 로그\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n녹취 목록\n지사 전체\n조회\nCSV 내보내기\n시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t파일명\t형식\t길이(초)\t작업\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t파일명\t형식\t길이(초)\t작업\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/logs",
+    "label": "호 로그",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/reports/logs",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n통화내역 (CDR)\n미연결 콜\n녹취 목록\n호 로그\n운영 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n호 로그 (raw AMI)\n지사 전체\n조회\nCSV 내보내기\n시각\t이벤트\tLinkedid\tUniqueid\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "시각\t이벤트\tLinkedid\tUniqueid\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/branches",
+    "label": "지사 관리",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/branches",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1388,
+        "right": 1482,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1388,
+        "right": 1450,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1458,
+        "right": 1482,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1388,
+        "right": 1482,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1388,
+        "right": 1450,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1458,
+        "right": 1482,
+        "width": 24
+      }
+    ],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n지사 설정\n운영 설정의 기준은 지사입니다. 세부 항목 등록은 각 메뉴에서 처리하고, 지사에서는 실제 사용할 기능과 대상을 선택합니다.\n지사 등록\n지사 관리가 운영 설정의 시작점입니다. 지사 등록 시 DID 연결과 운영 항목 선택을 한 화면에서 함께 설정하세요.\n지사 코드\t지사명\t설명\t상태\t사용 기능\t상담원\t큐\tDID\t액션\n\n지사 코드\n\t\n지사명\n\t\n설명\n\t\n상태\n\t\n사용 기능\n\t\n상담원\n\t\n큐\n\t\nDID\n\t\n액션\n\nJ00002\t수신거부\t고객의 수신 거부 등록을 처리하는 지사\t활성\t\n멘트\n080 수신거부\n\t0\t0\t1\t\n설정\n\nJ00011\t테스트지사1\t-\t활성\t\n호 분배룰\n멘트\n녹취\n080 수신거부\n\t0\t1\t1\t\n설정",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "지사 코드\t지사명\t설명\t상태\t사용 기능\t상담원\t큐\tDID\t액션\n\n지사 코드\n\t\n지사명\n\t\n설명\n\t\n상태\n\t\n사용 기능\n\t\n상담원\n\t\n큐\n\t\nDID\n\t\n액션\n\nJ00002\t수신거부\t고객의 수신 거부 등록을 처리하는 지"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "지사 등록",
+      "설정",
+      "설정"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 6,
+    "screenshot": "desktop-settings_branches.png"
+  },
+  {
+    "route": "/settings/agents",
+    "label": "상담원 설정",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/agents",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n상담원 설정\n신규 등록\n이름\t로그인 ID\t내선\t역할\t현재 상태\t액션\n홍길동\tagent1001\t1001\tagent\t대기\t\n수정\nPW 초기화\n비활성화\n\n상담원2\tagent1002\t1002\tagent\t오프라인\t\n수정\nPW 초기화\n비활성화\n\n관리자\tsupervisor1\t2001\tsupervisor\t대기\t\n수정\nPW 초기화\n비활성화\n1",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "이름\t로그인 ID\t내선\t역할\t현재 상태\t액션\n홍길동\tagent1001\t1001\tagent\t대기\t\n수정\nPW 초기화\n비활성화\n\n상담원2\tagent1002\t1002\tagent\t오프라인\t\n수정\nPW 초기화\n비활성화\n\n관리"
+      }
+    ],
+    "cards": 4,
+    "tabs": [],
+    "forms": 1,
+    "buttons": [
+      "로그아웃",
+      "신규 등록",
+      "수정",
+      "PW 초기화",
+      "비활성화",
+      "수정",
+      "PW 초기화",
+      "비활성화",
+      "수정",
+      "PW 초기화",
+      "비활성화",
+      "Close",
+      "취소",
+      "변경사항 저장"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [
+      "[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq) %o"
+    ],
+    "fail": false
+  },
+  {
+    "route": "/settings/queues",
+    "label": "호 분배룰 설정",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/queues",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n호 분배룰 설정\n신규 룰 생성\n큐명\t분배전략\t링\t후처리\t대기\tAuto Pause\t상태\t라우팅 참조\t액션\n\n기본 호 분배룰\n기본 룰\n\t최근 미수신 우선\t15\t30\t45\tON\t활성\t\nDID 1\n\t\n수정\n비활성화\n\n\n영업 대표 큐\n\t최근 미수신 우선\t15\t30\t45\tON\t활성\t\nDID 10\n\t\n수정\n비활성화",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1047,
+        "clientW": 1035,
+        "text": "큐명\t분배전략\t링\t후처리\t대기\tAuto Pause\t상태\t라우팅 참조\t액션\n\n기본 호 분배룰\n기본 룰\n\t최근 미수신 우선\t15\t30\t45\tON\t활성\t\nDID 1\n\t\n수정\n비활성화\n\n\n영업 대표 큐\n\t최근 미수신 우선\t"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "신규 룰 생성",
+      "수정",
+      "비활성화",
+      "수정",
+      "비활성화"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/forwarding",
+    "label": "착신전환 설정",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/forwarding",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n착신전환 설정\nDID별 우선 라우팅 규칙입니다. 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다.\n규칙 등록\nDID\t전환 방식\t전환 대상\t착신 조건\t적용 조건\t설명\t상태\t액션\n\n데이터 없음\n조건형 규칙은 지정된 요일·시간대에만 우선 적용되고, 그 외 시간에는 DID 기본 IVR/큐 설정으로 복귀합니다.",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "DID\t전환 방식\t전환 대상\t착신 조건\t적용 조건\t설명\t상태\t액션\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "규칙 등록"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/prompts",
+    "label": "멘트 관리",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/prompts",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n멘트 관리\nPBX Playback에서 사용하는 멘트 정보와 음성 파일을 관리합니다.\n멘트 등록\n프롬프트\t파일명\t카테고리\t설명\t상태\t액션\n\n수신거부 등록 확인\ncustom/smart080_confirmed\n\tsmart080_confirmed.wav\t수신거부\t수신거부 등록 확인 멘트\t활성\t\n수정\n\n\n동일 번호 안내\ncustom/smart080_same_number\n\tsmart080_same_number.wav\t스마트080\t동일한 번호를 입력했을때, 사용하는 멘트임\t활성\t\n수정\n\n\n스마트080 가이드\ncustom/smart080_guide\n\tsmart080_guide.wav\t스마트080\t-\t활성\t\n수정\n활성 멘트만 IVR 메뉴에서 선택할 수 있습니다.",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "프롬프트\t파일명\t카테고리\t설명\t상태\t액션\n\n수신거부 등록 확인\ncustom/smart080_confirmed\n\tsmart080_confirmed.wav\t수신거부\t수신거부 등록 확인 멘트\t활성\t\n수정\n\n\n동일 번호 안"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 2,
+    "buttons": [
+      "로그아웃",
+      "멘트 등록",
+      "수정",
+      "수정",
+      "수정",
+      "Close",
+      "파일 업로드",
+      "활성비활성",
+      "취소",
+      "저장",
+      "Close",
+      "파일 업로드",
+      "활성비활성",
+      "취소",
+      "저장"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/sms-templates",
+    "label": "문자 템플릿 관리",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/sms-templates",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n문자 템플릿 관리\n080 수신거부, 일반 안내, 예약·알림 템플릿을 독립적으로 관리합니다. 편집기에서 토큰 도움말과 샘플 치환 미리보기, SMS/LMS 예상 길이를 함께 확인할 수 있습니다.\n템플릿 등록\n전체 카테고리\n전체 상태\n필터 초기화\n템플릿 이름\t카테고리\t내용 미리보기\t상태\t수정일\t액션\n일반 문자 템플릿 #1\t일반 안내\t일반 문자 템플릿임.\t활성\t2026-04-24 19:08\t\n수정\n1",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "템플릿 이름\t카테고리\t내용 미리보기\t상태\t수정일\t액션\n일반 문자 템플릿 #1\t일반 안내\t일반 문자 템플릿임.\t활성\t2026-04-24 19:08\t\n수정\n1"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "템플릿 등록",
+      "필터 초기화",
+      "수정"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/permissions",
+    "label": "권한 관리",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/settings/permissions",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1350,
+    "clientW": 1350,
+    "docH": 1807,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n권한 관리\n역할별 기본 권한을 유지하면서, 특정 계정은 기본 권한을 선택한 뒤 개별 메뉴 권한만 추가로 조정할 수 있습니다.\n기본 권한\n개별 계정 권한\n관리자/슈퍼바이저/상담원의 기본 메뉴 권한입니다.\n개별 계정 권한은 이 기본값을 먼저 따르고, 계정 탭에서 필요한 메뉴만 따로 수정합니다.\n역할별 메뉴/액션 권한\n기본 권한 저장\n메뉴\t상담원\t슈퍼바이저\t관리자\n조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\n\n메뉴\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\n대시보드\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n통화 현황 조회\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n업무 현황 조회\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n통화내역 (CDR)\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n미연결 콜\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n녹취 목록\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n호 로그\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n고객 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n공지사항\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n상담원 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n호 분배룰 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n착신전환 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n멘트 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n문자 템플릿 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n지사 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n권한 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1305,
+        "width": 1020,
+        "scrollW": 1020,
+        "clientW": 1020,
+        "text": "메뉴\t상담원\t슈퍼바이저\t관리자\n조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\n\n메뉴\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\t\n조회\n\t\n"
+      }
+    ],
+    "cards": 1,
+    "tabs": [
+      "기본 권한",
+      "개별 계정 권한"
+    ],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "기본 권한 저장"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/announcements",
+    "label": "공지사항",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/announcements",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n공지사항\n공지 등록\n\t제목\t작성자\t등록일\t\n\t\nqa-ui-ann-57960715\n\tcodex\t2026-04-24 00:26\t\n1",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "\t제목\t작성자\t등록일\t\n\t\nqa-ui-ann-57960715\n\tcodex\t2026-04-24 00:26\t\n1"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "공지 등록",
+      "펼치기"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/asterisk",
+    "label": "연동 설정",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/asterisk",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1350,
+    "clientW": 1350,
+    "docH": 992,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\nPBX 연동 설정\n통신사 SIP 트렁크, DID 인입, IVR 라우팅, 상담원 내선(PJSIP) 연동 정보를 관리합니다.\n.conf 미리보기\n트렁크\nDID\nIVR 메뉴\n에이전트 내선\n트렁크\n통신사 SIP 트렁크 또는 타 PBX와의 연동 접속 정보를 등록하고 관리합니다.\n트렁크 추가\n일괄 등록\n트렁크 목록\n표시명\tHost\t포트\t인증\t코덱\t상태\t동작\n070-5234-6380\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6381\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6382\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6383\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6384\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6385\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6386\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6387\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6388\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6389\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제",
+    "tables": [
+      {
+        "left": 310,
+        "right": 1280,
+        "width": 970,
+        "scrollW": 970,
+        "clientW": 970,
+        "text": "표시명\tHost\t포트\t인증\t코덱\t상태\t동작\n070-5234-6380\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6381\t27.255.98.132\t5060\t무인증\ta"
+      }
+    ],
+    "cards": 4,
+    "tabs": [
+      "트렁크",
+      "DID",
+      "IVR 메뉴",
+      "에이전트 내선"
+    ],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      ".conf 미리보기",
+      "트렁크 추가",
+      "일괄 등록",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/system",
+    "label": "시스템 설정",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/system",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1350,
+    "clientW": 1350,
+    "docH": 1178,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n지사 관리\n상담원 설정\n호 분배룰 설정\n착신전환 설정\n멘트 관리\n문자 템플릿 관리\n권한 관리\n공지사항\n연동 설정\n시스템 설정\n고객 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n시스템 설정\n테넌트 기본 운영값입니다. 직접 SIP 발신 허용 여부와 허용 발신번호도 여기서 관리합니다.\n기본 녹취 사용\nON\nOFF\n기본 최대 대기시간(초)\nSIP 전화기 직접 발신 허용\n허용\n차단\n사이트 기본 SIP 비밀번호\n개별 SIP 비밀번호가 비어 있는 내선은 이 값을 사용합니다.\n허용 발신번호 관리\n추가\n07052346380\n07052346381\n07052346382\n07052346383\n07052346384\n07052346385\n07052346386\n07052346387\n07052346388\n07052346389\n기본 발신번호\n07052346380\n현재 1차 구현에서는 Click 2 Call 과 직접 SIP 발신 모두 이 번호를 사용합니다.\n전화기 SIP 등록 포트\n에이전트 전화기가 등록할 PJSIP bind 포트입니다. 변경 후 PJSIP 동기화 또는 reload가 필요합니다.\n기본 타임존\nAsia/Seoul\n기본 날짜 포맷\nYYYY-MM-DD HH:mm:ss\n저장\n다시 불러오기",
+    "tables": [],
+    "cards": 1,
+    "tabs": [],
+    "forms": 1,
+    "buttons": [
+      "로그아웃",
+      "ON\nOFF",
+      "허용\n차단",
+      "추가",
+      "저장",
+      "다시 불러오기"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [
+      "[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq)"
+    ],
+    "fail": false
+  },
+  {
+    "route": "/customers",
+    "label": "고객 관리",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/customers",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 1286,
+        "right": 1380,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1356,
+        "right": 1380,
+        "width": 24
+      }
+    ],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n고객 관리\n블랙리스트 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n고객 목록\n대표 전화번호 1개 필수, 추가 전화번호는 선택 등록입니다.\n파일 가져오기\n내보내기\n고객 등록\n등록일\n조회\n대표전화번호\t성명\t등급\t등록일\t최종통화일\t기본메모\t액션\n\n대표전화번호\n\t\n성명\n\t\n등급\n\t\n등록일\n\t\n최종통화일\n\t\n기본메모\n\t\n액션\n\n\n010-1234-5678\n\t\n김고객\n\tVIP\t2026-04-15\t-\t-\t\n수정\n1",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "대표전화번호\t성명\t등급\t등록일\t최종통화일\t기본메모\t액션\n\n대표전화번호\n\t\n성명\n\t\n등급\n\t\n등록일\n\t\n최종통화일\n\t\n기본메모\n\t\n액션\n\n\n010-1234-5678\n\t\n김고객\n\tVIP\t2026-04-15\t-\t-\t\n수정"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "파일 가져오기",
+      "내보내기",
+      "고객 등록",
+      "조회",
+      "010-1234-5678",
+      "김고객",
+      "수정"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 2,
+    "screenshot": "desktop-customers.png"
+  },
+  {
+    "route": "/blocklist",
+    "label": "블랙리스트 관리",
+    "viewport": "desktop",
+    "url": "http://49.247.46.86:5174/blocklist",
+    "title": "CTI 관리자 대시보드",
+    "docW": 1365,
+    "clientW": 1365,
+    "docH": 900,
+    "clientH": 900,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "CTI Admin\nPBX 운영 대시보드\n대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n고객 관리\n블랙리스트 관리\n관리자 운영 콘솔\n관리자 (supervisor)\n로그아웃\n블랙리스트 관리\n가져오기\n번호 등록\n지사\t대상번호\t사유\t활성 상태\t등록일\t액션\n\n지사\n\t\n대상번호\n\t\n사유\n\t\n활성 상태\n\t\n등록일\n\t\n액션\n\n\n데이터 없음\n접두어 규칙은 동일 패턴으로 시작하는 ANI를 함께 차단합니다. 차단 이력 집계는 아직 후속 범위입니다.",
+    "tables": [
+      {
+        "left": 285,
+        "right": 1320,
+        "width": 1035,
+        "scrollW": 1035,
+        "clientW": 1035,
+        "text": "지사\t대상번호\t사유\t활성 상태\t등록일\t액션\n\n지사\n\t\n대상번호\n\t\n사유\n\t\n활성 상태\n\t\n등록일\n\t\n액션\n\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "가져오기",
+      "번호 등록"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/dashboard",
+    "label": "대시보드",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/dashboard",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 1705,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n콜센터 운영 대시보드\n갱신 01:20:08\n지사 전체\nDB: up\nRedis: up\nAMI: connected\n마지막 갱신: 01:20:08\n대기 콜\n0\n통화 중\n0\n대기 상담원\n2\n오늘 응답\n0\n오늘 포기\n0\n⚠ 경보 (0)\n활성 경보 없음\n🔴 실시간 활성 콜 (총 0건)\n대기\n0\n대기 중인 통화 없음\n벨 울림\n0\n호출 중인 통화 없음\n통화 중\n0\n통화 중 없음\n후처리\n0\n후처리 없음\nQueue 요약\n큐\t대기\t통화\t최장\n\n영업 대표 큐\n\t0\t0\t00:00:00\n\n기본 호 분배룰\n\t0\t0\t00:00:00\n상담원 상태 현황\n상태\t상담원\n대기\t2명\n통화\t0명\n후처리\t0명\n휴식\t0명\n시간대별 유입\n응답 / 포기 (시간당)",
+    "tables": [
+      {
+        "left": 22,
+        "right": 369,
+        "width": 347,
+        "scrollW": 347,
+        "clientW": 347,
+        "text": "큐\t대기\t통화\t최장\n\n영업 대표 큐\n\t0\t0\t00:00:00\n\n기본 호 분배룰\n\t0\t0\t00:00:00"
+      },
+      {
+        "left": 22,
+        "right": 369,
+        "width": 347,
+        "scrollW": 600,
+        "clientW": 347,
+        "text": "상태\t상담원\n대기\t2명\n통화\t0명\n후처리\t0명\n휴식\t0명"
+      }
+    ],
+    "cards": 7,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/live-calls",
+    "label": "통화 현황 조회",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/live-calls",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 848,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n통화 현황 조회\n지사 전체\n오전 1:20:10 기준 3초 갱신\n활성\n0\n대기\n0\n벨 울림\n0\n통화 중\n0\n후처리\n0\n대기\n0\n대기 중인 통화 없음\n벨 울림\n0\n호출 중인 통화 없음\n통화 중\n0\n통화 중 없음\n후처리\n0\n후처리 없음",
+    "tables": [],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/kpi",
+    "label": "업무 현황 조회",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/kpi",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 1830,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n업무 현황 조회\n오늘 응답\n0건\n오늘 포기\n0건\n응답률\n0%\n대기 콜\n0건\n현재 통화 중\n0건\n대기 상담원\n2명\n큐별 현황 (최근 30분)\n큐\t대기\t통화 중\t가용\t최장 대기\t응답\t포기\t응답률\n영업 대표 큐\t0\t0\t2\t0s\t0건\t0건\t0%\n기본 호 분배룰\t0\t0\t2\t0s\t0건\t0건\t0%\n시간대별 트래픽\n시간대\t인입\t응답\t포기\t응답률\n00시\t0\t0\t0\t0%\n01시\t0\t0\t0\t0%\n02시\t0\t0\t0\t0%\n03시\t0\t0\t0\t0%\n04시\t0\t0\t0\t0%\n05시\t0\t0\t0\t0%\n06시\t0\t0\t0\t0%\n07시\t0\t0\t0\t0%\n08시\t0\t0\t0\t0%\n09시\t0\t0\t0\t0%\n10시\t0\t0\t0\t0%\n11시\t0\t0\t0\t0%\n12시\t0\t0\t0\t0%\n13시\t0\t0\t0\t0%\n14시\t0\t0\t0\t0%\n15시\t0\t0\t0\t0%\n16시\t0\t0\t0\t0%",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "큐\t대기\t통화 중\t가용\t최장 대기\t응답\t포기\t응답률\n영업 대표 큐\t0\t0\t2\t0s\t0건\t0건\t0%\n기본 호 분배룰\t0\t0\t2\t0s\t0건\t0건\t0%"
+      },
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "시간대\t인입\t응답\t포기\t응답률\n00시\t0\t0\t0\t0%\n01시\t0\t0\t0\t0%\n02시\t0\t0\t0\t0%\n03시\t0\t0\t0\t0%\n04시\t0\t0\t0\t0%\n05시\t0\t0\t0\t0%\n06시\t0\t0\t0\t0%\n07시\t0\t0\t0\t0%"
+      }
+    ],
+    "cards": 8,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/queues",
+    "label": "큐 현황",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/queues",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n큐 현황\n5초 주기로 `/api/v1/queues/summary`를 갱신합니다.\nCSV 내보내기\n큐\t대기\t링잉\t통화 중\t가용\t일시정지\t최장 대기\t최근 30분\n영업 대표 큐\t0\t0\t0\t2\t0\t0s\t응답 0포기 0\n기본 호 분배룰\t0\t0\t0\t2\t0\t0s\t응답 0포기 0",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "큐\t대기\t링잉\t통화 중\t가용\t일시정지\t최장 대기\t최근 30분\n영업 대표 큐\t0\t0\t0\t2\t0\t0s\t응답 0포기 0\n기본 호 분배룰\t0\t0\t0\t2\t0\t0s\t응답 0포기 0"
+      }
+    ],
+    "cards": 2,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/agents",
+    "label": "상담원 현황",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/agents",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n상담원 현황\n5초 주기로 `/api/v1/agents` 폴링\nCSV 내보내기\n이름\t로그인 ID\t내선\t전화기 등록\t역할\t현재 상태\t마지막 로그인\n홍길동\tagent1001\t1001\t등록됨\tagent\t대기\t2026. 4. 24. 오후 5:24:20\n상담원2\tagent1002\t1002\t미등록\tagent\t오프라인\t-\n관리자\tsupervisor1\t2001\t미등록\tsupervisor\t대기\t2026. 4. 25. 오전 1:19:17",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "이름\t로그인 ID\t내선\t전화기 등록\t역할\t현재 상태\t마지막 로그인\n홍길동\tagent1001\t1001\t등록됨\tagent\t대기\t2026. 4. 24. 오후 5:24:20\n상담원2\tagent1002\t1002\t미등록\tage"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/monitoring",
+    "label": "시스템 모니터링",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/monitoring",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 3085,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n시스템 모니터링\n인프라 연결 상태와 실시간 콜/에이전트/큐 지표를 확인합니다.\n마지막 갱신: 01:20:19\n새로고침\n다음 갱신: 9초 후\nDB\nup\nUP\nRedis\nup\nUP\nAMI\nconnected\nCONNECTED\n콜 지표\n전체 활성\n0\n대기 중\n0\n링잉\n0\n통화 중\n0\n보류\n0\n전환 중\n0\n스턱 콜\n0\n최장 대기\n0초\n에이전트 지표\n로그인\n2\n수신 가능\n2\n통화 중\n0\n링잉\n0\n휴식/일시정지\n0\n큐 지표\n대기 콜\n0\n링잉\n0\n통화 중\n0\n수신 가능 에이전트\n2\n최장 대기\n0초",
+    "tables": [],
+    "cards": 28,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "새로고침"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/calls",
+    "label": "통화내역 (CDR)",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/reports/calls",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n통화내역 조회\n지사 전체\n전체\n조회\nCSV 내보내기\n시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t상태\t전환\t대기(초)\t통화(초)\t포기\t녹취\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t상태\t전환\t대기(초)\t통화(초)\t포기\t녹취\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/missed",
+    "label": "미연결 콜",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/reports/missed",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n미연결 콜 조회\n지사 전체\n조회\nCSV 내보내기\n시작\t발신번호\t대표번호 / DID\t분배룰\t최종 상담원\t대기(초)\t결과\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "시작\t발신번호\t대표번호 / DID\t분배룰\t최종 상담원\t대기(초)\t결과\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/recordings",
+    "label": "녹취 목록",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/reports/recordings",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n녹취 목록\n지사 전체\n조회\nCSV 내보내기\n시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t파일명\t형식\t길이(초)\t작업\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 990,
+        "clientW": 315,
+        "text": "시작\t발신번호\t대표번호 / DID\t분배룰\t상담원\t파일명\t형식\t길이(초)\t작업\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/reports/logs",
+    "label": "호 로그",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/reports/logs",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n호 로그 (raw AMI)\n지사 전체\n조회\nCSV 내보내기\n시각\t이벤트\tLinkedid\tUniqueid\n\n데이터 없음",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 770,
+        "clientW": 315,
+        "text": "시각\t이벤트\tLinkedid\tUniqueid\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "조회",
+      "CSV 내보내기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/branches",
+    "label": "지사 관리",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/branches",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "멘트\n080 수신거부",
+        "left": 662,
+        "right": 801,
+        "width": 139
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1141,
+        "right": 1235,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1141,
+        "right": 1203,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1211,
+        "right": 1235,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "호 분배룰\n멘트\n녹취\n080 수신거부",
+        "left": 662,
+        "right": 871,
+        "width": 209
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1141,
+        "right": 1235,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1141,
+        "right": 1203,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1211,
+        "right": 1235,
+        "width": 24
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n지사 설정\n운영 설정의 기준은 지사입니다. 세부 항목 등록은 각 메뉴에서 처리하고, 지사에서는 실제 사용할 기능과 대상을 선택합니다.\n지사 등록\n지사 관리가 운영 설정의 시작점입니다. 지사 등록 시 DID 연결과 운영 항목 선택을 한 화면에서 함께 설정하세요.\n지사 코드\t지사명\t설명\t상태\t사용 기능\t상담원\t큐\tDID\t액션\n\n지사 코드\n\t\n지사명\n\t\n설명\n\t\n상태\n\t\n사용 기능\n\t\n상담원\n\t\n큐\n\t\nDID\n\t\n액션\n\nJ00002\t수신거부\t고객의 수신 거부 등록을 처리하는 지사\t활성\t\n멘트\n080 수신거부\n\t0\t0\t1\t\n설정\n\nJ00011\t테스트지사1\t-\t활성\t\n호 분배룰\n멘트\n녹취\n080 수신거부\n\t0\t1\t1\t\n설정",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 315,
+        "clientW": 315,
+        "text": "지사 코드\t지사명\t설명\t상태\t사용 기능\t상담원\t큐\tDID\t액션\n\n지사 코드\n\t\n지사명\n\t\n설명\n\t\n상태\n\t\n사용 기능\n\t\n상담원\n\t\n큐\n\t\nDID\n\t\n액션\n\nJ00002\t수신거부\t고객의 수신 거부 등록을 처리하는 지"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "지사 등록",
+      "설정",
+      "설정"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 8,
+    "screenshot": "mobile-settings_branches.png"
+  },
+  {
+    "route": "/settings/agents",
+    "label": "상담원 설정",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/agents",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\nPW 초기화\n비활성화",
+        "left": 475,
+        "right": 739,
+        "width": 264
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 475,
+        "right": 537,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "PW 초기화",
+        "left": 545,
+        "right": 644,
+        "width": 99
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 652,
+        "right": 739,
+        "width": 86
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\nPW 초기화\n비활성화",
+        "left": 475,
+        "right": 739,
+        "width": 264
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 475,
+        "right": 537,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "PW 초기화",
+        "left": 545,
+        "right": 644,
+        "width": 99
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 652,
+        "right": 739,
+        "width": 86
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n상담원 설정\n신규 등록\n이름\t로그인 ID\t내선\t역할\t현재 상태\t액션\n홍길동\tagent1001\t1001\tagent\t대기\t\n수정\nPW 초기화\n비활성화\n\n상담원2\tagent1002\t1002\tagent\t오프라인\t\n수정\nPW 초기화\n비활성화\n\n관리자\tsupervisor1\t2001\tsupervisor\t대기\t\n수정\nPW 초기화\n비활성화\n1",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 717,
+        "clientW": 315,
+        "text": "이름\t로그인 ID\t내선\t역할\t현재 상태\t액션\n홍길동\tagent1001\t1001\tagent\t대기\t\n수정\nPW 초기화\n비활성화\n\n상담원2\tagent1002\t1002\tagent\t오프라인\t\n수정\nPW 초기화\n비활성화\n\n관리"
+      }
+    ],
+    "cards": 4,
+    "tabs": [],
+    "forms": 1,
+    "buttons": [
+      "로그아웃",
+      "신규 등록",
+      "수정",
+      "PW 초기화",
+      "비활성화",
+      "수정",
+      "PW 초기화",
+      "비활성화",
+      "수정",
+      "PW 초기화",
+      "비활성화",
+      "Close",
+      "취소",
+      "변경사항 저장"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [
+      "[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq) %o"
+    ],
+    "fail": 8,
+    "screenshot": "mobile-settings_agents.png"
+  },
+  {
+    "route": "/settings/queues",
+    "label": "호 분배룰 설정",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/queues",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "DID 1",
+        "left": 718,
+        "right": 770,
+        "width": 52
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n비활성화",
+        "left": 868,
+        "right": 1025,
+        "width": 157
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 868,
+        "right": 930,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 938,
+        "right": 1025,
+        "width": 86
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "DID 10",
+        "left": 718,
+        "right": 777,
+        "width": 59
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n비활성화",
+        "left": 868,
+        "right": 1025,
+        "width": 157
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 868,
+        "right": 930,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 938,
+        "right": 1025,
+        "width": 86
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n호 분배룰 설정\n신규 룰 생성\n큐명\t분배전략\t링\t후처리\t대기\tAuto Pause\t상태\t라우팅 참조\t액션\n\n기본 호 분배룰\n기본 룰\n\t최근 미수신 우선\t15\t30\t45\tON\t활성\t\nDID 1\n\t\n수정\n비활성화\n\n\n영업 대표 큐\n\t최근 미수신 우선\t15\t30\t45\tON\t활성\t\nDID 10\n\t\n수정\n비활성화",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 987,
+        "clientW": 315,
+        "text": "큐명\t분배전략\t링\t후처리\t대기\tAuto Pause\t상태\t라우팅 참조\t액션\n\n기본 호 분배룰\n기본 룰\n\t최근 미수신 우선\t15\t30\t45\tON\t활성\t\nDID 1\n\t\n수정\n비활성화\n\n\n영업 대표 큐\n\t최근 미수신 우선\t"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "신규 룰 생성",
+      "수정",
+      "비활성화",
+      "수정",
+      "비활성화"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 8,
+    "screenshot": "mobile-settings_queues.png"
+  },
+  {
+    "route": "/settings/forwarding",
+    "label": "착신전환 설정",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/forwarding",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n착신전환 설정\nDID별 우선 라우팅 규칙입니다. 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다.\n규칙 등록\nDID\t전환 방식\t전환 대상\t착신 조건\t적용 조건\t설명\t상태\t액션\n\n데이터 없음\n조건형 규칙은 지정된 요일·시간대에만 우선 적용되고, 그 외 시간에는 DID 기본 IVR/큐 설정으로 복귀합니다.",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "DID\t전환 방식\t전환 대상\t착신 조건\t적용 조건\t설명\t상태\t액션\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "규칙 등록"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/settings/prompts",
+    "label": "멘트 관리",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/prompts",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 1892,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 549,
+        "right": 643,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 549,
+        "right": 611,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 619,
+        "right": 643,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 549,
+        "right": 643,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 549,
+        "right": 611,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 619,
+        "right": 643,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 549,
+        "right": 643,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 549,
+        "right": 611,
+        "width": 62
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n멘트 관리\nPBX Playback에서 사용하는 멘트 정보와 음성 파일을 관리합니다.\n멘트 등록\n프롬프트\t파일명\t카테고리\t설명\t상태\t액션\n\n수신거부 등록 확인\ncustom/smart080_confirmed\n\tsmart080_confirmed.wav\t수신거부\t수신거부 등록 확인 멘트\t활성\t\n수정\n\n\n동일 번호 안내\ncustom/smart080_same_number\n\tsmart080_same_number.wav\t스마트080\t동일한 번호를 입력했을때, 사용하는 멘트임\t활성\t\n수정\n\n\n스마트080 가이드\ncustom/smart080_guide\n\tsmart080_guide.wav\t스마트080\t-\t활성\t\n수정\n활성 멘트만 IVR 메뉴에서 선택할 수 있습니다.",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 621,
+        "clientW": 315,
+        "text": "프롬프트\t파일명\t카테고리\t설명\t상태\t액션\n\n수신거부 등록 확인\ncustom/smart080_confirmed\n\tsmart080_confirmed.wav\t수신거부\t수신거부 등록 확인 멘트\t활성\t\n수정\n\n\n동일 번호 안"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 2,
+    "buttons": [
+      "로그아웃",
+      "멘트 등록",
+      "수정",
+      "수정",
+      "수정",
+      "Close",
+      "파일 업로드",
+      "활성비활성",
+      "취소",
+      "저장",
+      "Close",
+      "파일 업로드",
+      "활성비활성",
+      "취소",
+      "저장"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 8,
+    "screenshot": "mobile-settings_prompts.png"
+  },
+  {
+    "route": "/settings/sms-templates",
+    "label": "문자 템플릿 관리",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/sms-templates",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 880,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 516,
+        "right": 611,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 516,
+        "right": 579,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 587,
+        "right": 611,
+        "width": 24
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n문자 템플릿 관리\n080 수신거부, 일반 안내, 예약·알림 템플릿을 독립적으로 관리합니다. 편집기에서 토큰 도움말과 샘플 치환 미리보기, SMS/LMS 예상 길이를 함께 확인할 수 있습니다.\n템플릿 등록\n전체 카테고리\n전체 상태\n필터 초기화\n템플릿 이름\t카테고리\t내용 미리보기\t상태\t수정일\t액션\n일반 문자 템플릿 #1\t일반 안내\t일반 문자 템플릿임.\t활성\t2026-04-24 19:08\t\n수정\n1",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "템플릿 이름\t카테고리\t내용 미리보기\t상태\t수정일\t액션\n일반 문자 템플릿 #1\t일반 안내\t일반 문자 템플릿임.\t활성\t2026-04-24 19:08\t\n수정\n1"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "템플릿 등록",
+      "필터 초기화",
+      "수정"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 3,
+    "screenshot": "mobile-settings_sms-templates.png"
+  },
+  {
+    "route": "/settings/permissions",
+    "label": "권한 관리",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/settings/permissions",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 1867,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n권한 관리\n역할별 기본 권한을 유지하면서, 특정 계정은 기본 권한을 선택한 뒤 개별 메뉴 권한만 추가로 조정할 수 있습니다.\n기본 권한\n개별 계정 권한\n관리자/슈퍼바이저/상담원의 기본 메뉴 권한입니다.\n개별 계정 권한은 이 기본값을 먼저 따르고, 계정 탭에서 필요한 메뉴만 따로 수정합니다.\n역할별 메뉴/액션 권한\n기본 권한 저장\n메뉴\t상담원\t슈퍼바이저\t관리자\n조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\n\n메뉴\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\n대시보드\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n통화 현황 조회\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n업무 현황 조회\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n통화내역 (CDR)\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n미연결 콜\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n녹취 목록\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n호 로그\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n고객 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n공지사항\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n상담원 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n호 분배룰 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n착신전환 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n멘트 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n문자 템플릿 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n지사 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n권한 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n블랙리스트 관리\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n시스템 설정\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n큐 현황\t\n\t\n\t\n\t\n\t\n\t\n",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 315,
+        "clientW": 315,
+        "text": "메뉴\t상담원\t슈퍼바이저\t관리자\n조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\t조회\t등록\t수정\t삭제\t실행\t내보내기\n\n메뉴\n\t\n조회\n\t\n등록\n\t\n수정\n\t\n삭제\n\t\n실행\n\t\n내보내기\n\t\n조회\n\t\n"
+      }
+    ],
+    "cards": 1,
+    "tabs": [
+      "기본 권한",
+      "개별 계정 권한"
+    ],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "기본 권한 저장"
+    ],
+    "hasForbidden": true,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  },
+  {
+    "route": "/announcements",
+    "label": "공지사항",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/announcements",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "",
+        "left": 550,
+        "right": 606,
+        "width": 56
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm ant-bt",
+        "text": "",
+        "left": 550,
+        "right": 574,
+        "width": 24
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 582,
+        "right": 606,
+        "width": 24
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n공지사항\n공지 등록\n\t제목\t작성자\t등록일\t\n\t\nqa-ui-ann-57960715\n\tcodex\t2026-04-24 00:26\t\n1",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 600,
+        "clientW": 315,
+        "text": "\t제목\t작성자\t등록일\t\n\t\nqa-ui-ann-57960715\n\tcodex\t2026-04-24 00:26\t\n1"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "공지 등록",
+      "펼치기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 3,
+    "screenshot": "mobile-announcements.png"
+  },
+  {
+    "route": "/asterisk",
+    "label": "연동 설정",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/asterisk",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 1520,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n삭제",
+        "left": 551,
+        "right": 639,
+        "width": 88
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 551,
+        "right": 591,
+        "width": 40
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "삭제",
+        "left": 599,
+        "right": 639,
+        "width": 40
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n삭제",
+        "left": 551,
+        "right": 639,
+        "width": 88
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 551,
+        "right": 591,
+        "width": 40
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "삭제",
+        "left": 599,
+        "right": 639,
+        "width": 40
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n삭제",
+        "left": 551,
+        "right": 639,
+        "width": 88
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 551,
+        "right": 591,
+        "width": 40
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\nPBX 연동 설정\n통신사 SIP 트렁크, DID 인입, IVR 라우팅, 상담원 내선(PJSIP) 연동 정보를 관리합니다.\n.conf 미리보기\n트렁크\nDID\nIVR 메뉴\n에이전트 내선\n트렁크\n통신사 SIP 트렁크 또는 타 PBX와의 연동 접속 정보를 등록하고 관리합니다.\n트렁크 추가\n일괄 등록\n트렁크 목록\n표시명\tHost\t포트\t인증\t코덱\t상태\t동작\n070-5234-6380\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6381\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6382\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6383\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6384\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6385\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6386\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6387\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6388\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6389\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제",
+    "tables": [
+      {
+        "left": 63,
+        "right": 328,
+        "width": 265,
+        "scrollW": 600,
+        "clientW": 265,
+        "text": "표시명\tHost\t포트\t인증\t코덱\t상태\t동작\n070-5234-6380\t27.255.98.132\t5060\t무인증\talaw,ulaw\t활성\t\n수정\n삭제\n\n070-5234-6381\t27.255.98.132\t5060\t무인증\ta"
+      }
+    ],
+    "cards": 4,
+    "tabs": [
+      "트렁크",
+      "DID",
+      "IVR 메뉴",
+      "에이전트 내선"
+    ],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      ".conf 미리보기",
+      "트렁크 추가",
+      "일괄 등록",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제",
+      "수정",
+      "삭제"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 8,
+    "screenshot": "mobile-asterisk.png"
+  },
+  {
+    "route": "/system",
+    "label": "시스템 설정",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/system",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 1334,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n시스템 설정\n테넌트 기본 운영값입니다. 직접 SIP 발신 허용 여부와 허용 발신번호도 여기서 관리합니다.\n기본 녹취 사용\nON\nOFF\n기본 최대 대기시간(초)\nSIP 전화기 직접 발신 허용\n허용\n차단\n사이트 기본 SIP 비밀번호\n개별 SIP 비밀번호가 비어 있는 내선은 이 값을 사용합니다.\n허용 발신번호 관리\n추가\n07052346380\n07052346381\n07052346382\n07052346383\n07052346384\n07052346385\n07052346386\n07052346387\n07052346388\n07052346389\n기본 발신번호\n07052346380\n현재 1차 구현에서는 Click 2 Call 과 직접 SIP 발신 모두 이 번호를 사용합니다.\n전화기 SIP 등록 포트\n에이전트 전화기가 등록할 PJSIP bind 포트입니다. 변경 후 PJSIP 동기화 또는 reload가 필요합니다.\n기본 타임존\nAsia/Seoul\n기본 날짜 포맷\nYYYY-MM-DD HH:mm:ss\n저장\n다시 불러오기",
+    "tables": [],
+    "cards": 1,
+    "tabs": [],
+    "forms": 1,
+    "buttons": [
+      "로그아웃",
+      "ON\nOFF",
+      "허용\n차단",
+      "추가",
+      "저장",
+      "다시 불러오기"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [
+      "[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq)"
+    ],
+    "fail": false
+  },
+  {
+    "route": "/customers",
+    "label": "고객 관리",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/customers",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 1039,
+        "right": 1133,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 1039,
+        "right": 1101,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1109,
+        "right": 1133,
+        "width": 24
+      }
+    ],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n고객 목록\n대표 전화번호 1개 필수, 추가 전화번호는 선택 등록입니다.\n파일 가져오기\n내보내기\n고객 등록\n등록일\n조회\n대표전화번호\t성명\t등급\t등록일\t최종통화일\t기본메모\t액션\n\n대표전화번호\n\t\n성명\n\t\n등급\n\t\n등록일\n\t\n최종통화일\n\t\n기본메모\n\t\n액션\n\n\n010-1234-5678\n\t\n김고객\n\tVIP\t2026-04-15\t-\t-\t\n수정\n1",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 315,
+        "clientW": 315,
+        "text": "대표전화번호\t성명\t등급\t등록일\t최종통화일\t기본메모\t액션\n\n대표전화번호\n\t\n성명\n\t\n등급\n\t\n등록일\n\t\n최종통화일\n\t\n기본메모\n\t\n액션\n\n\n010-1234-5678\n\t\n김고객\n\tVIP\t2026-04-15\t-\t-\t\n수정"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "파일 가져오기",
+      "내보내기",
+      "고객 등록",
+      "조회",
+      "010-1234-5678",
+      "김고객",
+      "수정"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": 3,
+    "screenshot": "mobile-customers.png"
+  },
+  {
+    "route": "/blocklist",
+    "label": "블랙리스트 관리",
+    "viewport": "mobile",
+    "url": "http://49.247.46.86:5174/blocklist",
+    "title": "CTI 관리자 대시보드",
+    "docW": 390,
+    "clientW": 390,
+    "docH": 844,
+    "clientH": 844,
+    "overflowX": false,
+    "bad": [],
+    "visibleText": "대시보드\n실시간 운영\n보고서\n운영 설정\n고객 관리\n관리자 운영 콘솔\n로그아웃\n블랙리스트 관리\n가져오기\n번호 등록\n지사\t대상번호\t사유\t활성 상태\t등록일\t액션\n\n지사\n\t\n대상번호\n\t\n사유\n\t\n활성 상태\n\t\n등록일\n\t\n액션\n\n\n데이터 없음\n접두어 규칙은 동일 패턴으로 시작하는 ANI를 함께 차단합니다. 차단 이력 집계는 아직 후속 범위입니다.",
+    "tables": [
+      {
+        "left": 38,
+        "right": 353,
+        "width": 315,
+        "scrollW": 315,
+        "clientW": 315,
+        "text": "지사\t대상번호\t사유\t활성 상태\t등록일\t액션\n\n지사\n\t\n대상번호\n\t\n사유\n\t\n활성 상태\n\t\n등록일\n\t\n액션\n\n\n데이터 없음"
+      }
+    ],
+    "cards": 1,
+    "tabs": [],
+    "forms": 0,
+    "buttons": [
+      "로그아웃",
+      "가져오기",
+      "번호 등록"
+    ],
+    "hasForbidden": false,
+    "hasError": false,
+    "eventErrors": [],
+    "fail": false
+  }
+]

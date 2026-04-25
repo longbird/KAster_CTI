@@ -1,0 +1,570 @@
+[
+  {
+    "viewport": "desktop",
+    "route": "/settings/branches",
+    "label": "지사 관리",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1388,
+        "right": 1482,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1388,
+        "right": 1450,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1458,
+        "right": 1482,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1388,
+        "right": 1482,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1388,
+        "right": 1450,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1458,
+        "right": 1482,
+        "width": 24
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "desktop-settings_branches.png"
+  },
+  {
+    "viewport": "desktop",
+    "route": "/customers",
+    "label": "고객 관리",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 1286,
+        "right": 1380,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1356,
+        "right": 1380,
+        "width": 24
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "desktop-customers.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/settings/branches",
+    "label": "지사 관리",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "멘트\n080 수신거부",
+        "left": 662,
+        "right": 801,
+        "width": 139
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1141,
+        "right": 1235,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1141,
+        "right": 1203,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1211,
+        "right": 1235,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "호 분배룰\n멘트\n녹취\n080 수신거부",
+        "left": 662,
+        "right": 871,
+        "width": 209
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "설정",
+        "left": 1141,
+        "right": 1235,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "설정",
+        "left": 1141,
+        "right": 1203,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1211,
+        "right": 1235,
+        "width": 24
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-settings_branches.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/settings/agents",
+    "label": "상담원 설정",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\nPW 초기화\n비활성화",
+        "left": 475,
+        "right": 739,
+        "width": 264
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 475,
+        "right": 537,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "PW 초기화",
+        "left": 545,
+        "right": 644,
+        "width": 99
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 652,
+        "right": 739,
+        "width": 86
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\nPW 초기화\n비활성화",
+        "left": 475,
+        "right": 739,
+        "width": 264
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 475,
+        "right": 537,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "PW 초기화",
+        "left": 545,
+        "right": 644,
+        "width": 99
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 652,
+        "right": 739,
+        "width": 86
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [
+      "[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq) %o"
+    ],
+    "screenshot": "mobile-settings_agents.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/settings/queues",
+    "label": "호 분배룰 설정",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "DID 1",
+        "left": 718,
+        "right": 770,
+        "width": 52
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n비활성화",
+        "left": 868,
+        "right": 1025,
+        "width": 157
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 868,
+        "right": 930,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 938,
+        "right": 1025,
+        "width": 86
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center",
+        "text": "DID 10",
+        "left": 718,
+        "right": 777,
+        "width": 59
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n비활성화",
+        "left": 868,
+        "right": 1025,
+        "width": 157
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 868,
+        "right": 930,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "비활성화",
+        "left": 938,
+        "right": 1025,
+        "width": 86
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-settings_queues.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/settings/prompts",
+    "label": "멘트 관리",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 549,
+        "right": 643,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 549,
+        "right": 611,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 619,
+        "right": 643,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 549,
+        "right": 643,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 549,
+        "right": 611,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 619,
+        "right": 643,
+        "width": 24
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 549,
+        "right": 643,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 549,
+        "right": 611,
+        "width": 62
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-settings_prompts.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/settings/sms-templates",
+    "label": "문자 템플릿 관리",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 516,
+        "right": 611,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 516,
+        "right": 579,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 587,
+        "right": 611,
+        "width": 24
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-settings_sms-templates.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/announcements",
+    "label": "공지사항",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "",
+        "left": 550,
+        "right": 606,
+        "width": 56
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm ant-bt",
+        "text": "",
+        "left": 550,
+        "right": 574,
+        "width": 24
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 582,
+        "right": 606,
+        "width": 24
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-announcements.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/asterisk",
+    "label": "연동 설정",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n삭제",
+        "left": 551,
+        "right": 639,
+        "width": 88
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 551,
+        "right": 591,
+        "width": 40
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "삭제",
+        "left": 599,
+        "right": 639,
+        "width": 40
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n삭제",
+        "left": 551,
+        "right": 639,
+        "width": 88
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 551,
+        "right": 591,
+        "width": 40
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "삭제",
+        "left": 599,
+        "right": 639,
+        "width": 40
+      },
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정\n삭제",
+        "left": 551,
+        "right": 639,
+        "width": 88
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 551,
+        "right": 591,
+        "width": 40
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-asterisk.png"
+  },
+  {
+    "viewport": "mobile",
+    "route": "/customers",
+    "label": "고객 관리",
+    "overflowX": false,
+    "bad": [
+      {
+        "tag": "DIV",
+        "cls": "ant-space css-1sl9pxr ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-",
+        "text": "수정",
+        "left": 1039,
+        "right": 1133,
+        "width": 94
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm",
+        "text": "수정",
+        "left": 1039,
+        "right": 1101,
+        "width": 62
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "ant-btn css-1sl9pxr ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlin",
+        "text": "",
+        "left": 1109,
+        "right": 1133,
+        "width": 24
+      }
+    ],
+    "hasError": false,
+    "eventErrors": [],
+    "screenshot": "mobile-customers.png"
+  }
+]

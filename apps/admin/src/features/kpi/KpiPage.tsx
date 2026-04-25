@@ -23,7 +23,25 @@ interface TrafficRow {
 interface DashboardData {
   today?: { answered: number; abandoned: number };
   queues?: QueueKpi[];
+  agentStatusDistribution?: Record<string, number>;
   traffic?: TrafficRow[];
+}
+
+export function buildKpiCards(data: DashboardData) {
+  const queues: QueueKpi[] = data.queues ?? [];
+  const today = data.today ?? { answered: 0, abandoned: 0 };
+  const total = today.answered + today.abandoned;
+  const answerRate = total > 0 ? Math.round((today.answered / total) * 100) : 0;
+  const idleAgents = data.agentStatusDistribution?.AVAILABLE ?? 0;
+
+  return [
+    { title: '오늘 응답', value: today.answered, suffix: '건', color: '#52c41a' },
+    { title: '오늘 포기', value: today.abandoned, suffix: '건', color: '#ff4d4f' },
+    { title: '응답률', value: answerRate, suffix: '%', color: answerRate >= 80 ? '#52c41a' : '#fa8c16' },
+    { title: '대기 콜', value: queues.reduce((s, q) => s + q.waiting, 0), suffix: '건', color: '#1890ff' },
+    { title: '현재 통화 중', value: queues.reduce((s, q) => s + q.talking, 0), suffix: '건', color: '#13c2c2' },
+    { title: '대기 상담원', value: idleAgents, suffix: '명', color: '#722ed1' },
+  ];
 }
 
 export function KpiPage() {
@@ -50,18 +68,7 @@ export function KpiPage() {
   if (!data) return <Skeleton active paragraph={{ rows: 10 }} />;
 
   const queues: QueueKpi[] = data.queues ?? [];
-  const today = data.today ?? { answered: 0, abandoned: 0 };
-  const total = today.answered + today.abandoned;
-  const answerRate = total > 0 ? Math.round((today.answered / total) * 100) : 0;
-
-  const kpiCards = [
-    { title: '오늘 응답', value: today.answered, suffix: '건', color: '#52c41a' },
-    { title: '오늘 포기', value: today.abandoned, suffix: '건', color: '#ff4d4f' },
-    { title: '응답률', value: answerRate, suffix: '%', color: answerRate >= 80 ? '#52c41a' : '#fa8c16' },
-    { title: '현재 대기', value: queues.reduce((s, q) => s + q.waiting, 0), suffix: '건', color: '#1890ff' },
-    { title: '현재 통화 중', value: queues.reduce((s, q) => s + q.talking, 0), suffix: '건', color: '#13c2c2' },
-    { title: '가용 상담원', value: queues.reduce((s, q) => s + q.available, 0), suffix: '명', color: '#722ed1' },
-  ];
+  const kpiCards = buildKpiCards(data);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

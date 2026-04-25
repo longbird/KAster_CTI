@@ -86,6 +86,12 @@ interface UploadedPromptAudioFile {
   size: number;
 }
 
+interface PromptAudioFile {
+  filePath: string;
+  fileName: string;
+  contentType: string;
+}
+
 function parseWavAudio(buffer: Buffer): ParsedWavAudio | null {
   if (buffer.length < 44) {
     return null;
@@ -659,6 +665,7 @@ export class AsteriskConfigService {
       where: { agentId, tenantId },
       data: { sipPassword: sipPassword.trim() || null },
     });
+    this.reload.scheduleReload(tenantId);
     return this.prisma.agents.findFirst({ where: { agentId, tenantId } });
   }
 
@@ -1029,6 +1036,35 @@ export class AsteriskConfigService {
     });
   }
 
+  async getPromptAudioFile(tenantId: string, id: string): Promise<PromptAudioFile> {
+    const prompt = await this.assertPromptBelongs(tenantId, id);
+    const fileName = path.basename(prompt.fileName);
+
+    if (!fileName || fileName !== prompt.fileName) {
+      throw new BadRequestException('Invalid prompt file name.');
+    }
+
+    const candidates = this.resolvePromptTargetDirs(this.resolvePromptSoundsDir())
+      .map((dir) => path.join(dir, fileName));
+    const filePath = candidates.find((candidate) => {
+      try {
+        return fs.statSync(candidate).isFile();
+      } catch {
+        return false;
+      }
+    });
+
+    if (!filePath) {
+      throw new NotFoundException(`Prompt audio file "${fileName}" not found`);
+    }
+
+    return {
+      filePath,
+      fileName,
+      contentType: this.getPromptAudioContentType(fileName),
+    };
+  }
+
   async createPrompt(tenantId: string, dto: CreatePromptDto) {
     return this.prisma.asteriskPrompt.create({
       data: {
@@ -1145,6 +1181,22 @@ export class AsteriskConfigService {
     return [...new Set([soundsDir, languageCustomDir])];
   }
 
+  private getPromptAudioContentType(fileName: string) {
+    switch (path.extname(fileName).toLowerCase()) {
+      case '.mp3':
+        return 'audio/mpeg';
+      case '.wav':
+        return 'audio/wav';
+      case '.ulaw':
+        return 'audio/basic';
+      case '.alaw':
+      case '.gsm':
+        return 'application/octet-stream';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
   private writePromptPlaybackArtifacts(
     soundsDir: string,
     safeBaseName: string,
@@ -1232,11 +1284,13 @@ export class AsteriskConfigService {
   async createBlocklistEntry(tenantId: string, dto: CreateBlocklistEntryDto) {
     const matchType = this.normalizeBlocklistMatchType(dto.matchType);
     const phoneNumber = this.normalizePhoneNumber(dto.phoneNumber, matchType);
+    const branchId = await this.normalizeBlocklistBranchId(tenantId, dto.branchId);
     const entry = await this.prisma.asteriskBlocklistEntry.create({
       data: {
         tenantId,
         matchType,
         phoneNumber,
+        branchId,
         description: dto.description?.trim() || null,
         isActive: dto.isActive ?? true,
       },
@@ -1285,11 +1339,13 @@ export class AsteriskConfigService {
   async updateBlocklistEntry(tenantId: string, id: string, dto: UpdateBlocklistEntryDto) {
     await this.assertBlocklistEntryBelongs(tenantId, id);
     const matchType = this.normalizeBlocklistMatchType(dto.matchType);
+    const branchId = await this.normalizeBlocklistBranchId(tenantId, dto.branchId);
     const entry = await this.prisma.asteriskBlocklistEntry.update({
       where: { id },
       data: {
         matchType,
         phoneNumber: this.normalizePhoneNumber(dto.phoneNumber, matchType),
+        branchId,
         description: dto.description?.trim() || null,
         isActive: dto.isActive ?? true,
       },
@@ -1322,6 +1378,22 @@ export class AsteriskConfigService {
           ? 'phoneNumber must contain 2 to 16 digits for PREFIX matching'
           : 'phoneNumber must contain 8 to 16 digits for EXACT matching',
       );
+    }
+    return normalized;
+  }
+
+  private async normalizeBlocklistBranchId(tenantId: string, branchId?: string | null) {
+    const normalized = branchId?.trim() || null;
+    if (!normalized) {
+      return null;
+    }
+
+    const branch = await this.prisma.branches.findFirst({
+      where: { tenantId, branchId: normalized },
+      select: { branchId: true },
+    });
+    if (!branch) {
+      throw new BadRequestException('지사 정보를 찾을 수 없습니다.');
     }
     return normalized;
   }

@@ -218,4 +218,26 @@ describe('DesktopAuthClient', () => {
     })).rejects.toThrow('invalid credentials');
     expect(get).not.toHaveBeenCalled();
   });
+
+  it('loginWithCredentials 는 401 응답을 로그인 안내 메시지로 변환한다', async () => {
+    post.mockRejectedValueOnce({
+      response: {
+        status: 401,
+        data: {
+          error: {
+            message: 'Invalid credentials',
+          },
+        },
+      },
+    });
+
+    const client = new DesktopAuthClient('https://cti-center-a.example.com');
+
+    await expect(client.loginWithCredentials({
+      loginId: 'agent1001',
+      extension: '1001',
+      password: 'wrong-password',
+    })).rejects.toThrow('로그인 정보가 올바르지 않습니다');
+    expect(get).not.toHaveBeenCalled();
+  });
 });

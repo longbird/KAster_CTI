@@ -40,7 +40,7 @@ export function AppLayout() {
     if (screens.md !== undefined) {
       setCollapsed(isMobile);
     }
-  }, [isMobile]);
+  }, [screens.md, isMobile]);
 
   const allowedPathSet = useMemo(() => new Set(allowedPaths), [allowedPaths]);
   const menuItems = useMemo(
@@ -86,7 +86,7 @@ export function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         width={240}
-        collapsedWidth={60}
+        collapsedWidth={isMobile ? 0 : 60}
         collapsed={collapsed}
         theme="light"
         className={`app-sider${showOverlay ? ' sider-overlay' : ''}`}

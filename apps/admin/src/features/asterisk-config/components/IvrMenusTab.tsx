@@ -80,7 +80,16 @@ export function IvrMenusTab() {
         </Space>
       </Card>
       <Card title="IVR 메뉴 목록">
-        <Table rowKey="id" dataSource={rows} columns={columns} loading={loading} pagination={false} size="small" />
+        <Table
+          rowKey="id"
+          dataSource={rows}
+          columns={columns}
+          loading={loading}
+          pagination={false}
+          size="small"
+          tableLayout="fixed"
+          scroll={{ x: 680 }}
+        />
       </Card>
       <IvrMenuForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
     </Space>

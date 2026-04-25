@@ -14,6 +14,7 @@ const desktopApi: DesktopApi = {
   refreshSession: () => ipcRenderer.invoke('desktop:refresh-session'),
   connectWithProtocol: (payload) => ipcRenderer.invoke('desktop:connect-with-protocol', payload),
   connectRuntime: () => ipcRenderer.invoke('desktop:connect-runtime'),
+  changeAgentStatus: (agentId, statusCode) => ipcRenderer.invoke('desktop:change-agent-status', agentId, statusCode),
   mute: (callId, state) => ipcRenderer.invoke('desktop:mute', callId, state),
   hangup: (callId) => ipcRenderer.invoke('desktop:hangup', callId),
   pickup: (callId) => ipcRenderer.invoke('desktop:pickup', callId),

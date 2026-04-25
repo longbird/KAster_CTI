@@ -8,16 +8,17 @@ export function QueueSummaryTable({ items, compact = false }: { items: QueueSumm
     {
       title: '큐',
       dataIndex: 'queueName',
-      width: 156,
+      width: 160,
       ellipsis: { showTitle: true },
       render: (value: string) => <span className="queue-summary-table__queue-name">{value}</span>,
     },
-    { title: '대기', dataIndex: 'waiting', width: 42 },
-    { title: '통화', dataIndex: 'talking', width: 42 },
+    { title: '대기', dataIndex: 'waiting', width: 40, align: 'center' },
+    { title: '통화', dataIndex: 'talking', width: 40, align: 'center' },
     {
       title: '최장',
       dataIndex: 'longestWaitSec',
-      width: 72,
+      width: 58,
+      align: 'center',
       render: (value: number) => formatSecondsToClock(value),
     },
   ];

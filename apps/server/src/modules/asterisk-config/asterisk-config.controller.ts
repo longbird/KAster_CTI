@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, ServiceUnavailableException, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Res, ServiceUnavailableException, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { CurrentUser } from '../../common/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -116,6 +117,14 @@ export class AsteriskConfigController {
   async uploadPromptAudio(@CurrentUser() u: any, @UploadedFile() file?: UploadedPromptAudioFile) {
     await this.assertPromptWriteAccess(u);
     return this.svc.uploadPromptAudio(u.tenantId, file);
+  }
+  @Get('prompts/:id/stream')
+  async streamPromptAudio(@CurrentUser() u: any, @Param('id') id: string, @Res() res: Response) {
+    await this.assertPromptAccess(u);
+    const audio = await this.svc.getPromptAudioFile(u.tenantId, id);
+    res.setHeader('Content-Type', audio.contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(audio.fileName)}"`);
+    return res.sendFile(audio.filePath);
   }
   @Put('prompts/:id') async updatePrompt(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdatePromptDto) { await this.assertPromptAction(u, 'update'); return this.svc.updatePrompt(u.tenantId, id, dto); }
   @Delete('prompts/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deletePrompt(@CurrentUser() u: any, @Param('id') id: string) { await this.assertPromptAction(u, 'delete'); return this.svc.deletePrompt(u.tenantId, id); }

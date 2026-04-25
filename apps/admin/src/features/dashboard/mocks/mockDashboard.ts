@@ -22,6 +22,13 @@ export const baseDashboardData: DashboardData = {
     { teamName: '예약 전담', available: 7, ringing: 1, talking: 5, acw: 1, break: 1 },
     { teamName: 'VOC', available: 3, ringing: 1, talking: 4, acw: 1, break: 1 },
   ],
+  agentStatuses: [
+    { statusCode: 'AVAILABLE', label: '대기', count: 27 },
+    { statusCode: 'RINGING', label: '호출', count: 5 },
+    { statusCode: 'TALKING', label: '통화', count: 27 },
+    { statusCode: 'AFTER_CALL_WORK', label: '후처리', count: 7 },
+    { statusCode: 'BREAK', label: '휴식', count: 5 },
+  ],
   activeCalls: [
     { id: 'CALL-2401', queueName: '대표', agentName: '김지은', customerPhone: '010-2234-7788', direction: 'inbound', waitingSec: 28, talkingSec: 313, status: 'TALKING' },
     { id: 'CALL-2402', queueName: '예약', agentName: '박민수', customerPhone: '010-8841-1255', direction: 'inbound', waitingSec: 19, talkingSec: 96, status: 'TALKING' },

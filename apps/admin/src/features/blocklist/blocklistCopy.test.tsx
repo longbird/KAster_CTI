@@ -1,8 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { BLOCKLIST_COPY } from './blocklistCopy';
 import { parseBlocklistImportTextRows } from './BlocklistImportModal';
-import { getBlocklistEntryModalTitle } from './BlocklistEntryModal';
+import { buildBlocklistBranchSelectOptions, getBlocklistEntryModalTitle } from './BlocklistEntryModal';
+
+vi.mock('../../shared/branches/useBranchOptions', () => ({
+  useBranchOptions: () => ({
+    loading: false,
+    options: [
+      {
+        branchId: '11111111-1111-4111-8111-111111111111',
+        branchCode: 'SEOUL',
+        branchName: '서울지사',
+      },
+    ],
+  }),
+}));
 
 describe('BLOCKLIST_COPY', () => {
   it('keeps the blocklist page title aligned with the navigation label', () => {
@@ -19,6 +32,23 @@ describe('blocklist feature copy wiring', () => {
   it('derives modal titles from the shared blocklist copy', () => {
     expect(getBlocklistEntryModalTitle()).toBe(BLOCKLIST_COPY.createTitle);
     expect(getBlocklistEntryModalTitle({ id: '1' } as never)).toBe(BLOCKLIST_COPY.editTitle);
+  });
+
+  it('builds branch select labels for the create modal', () => {
+    expect(
+      buildBlocklistBranchSelectOptions([
+        {
+          branchId: '11111111-1111-4111-8111-111111111111',
+          branchCode: 'SEOUL',
+          branchName: '서울지사',
+        },
+      ]),
+    ).toEqual([
+      {
+        value: '11111111-1111-4111-8111-111111111111',
+        label: '서울지사 (SEOUL)',
+      },
+    ]);
   });
 });
 

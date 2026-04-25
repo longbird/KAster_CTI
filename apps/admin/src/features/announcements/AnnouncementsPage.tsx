@@ -102,6 +102,8 @@ export function AnnouncementsPage() {
         dataSource={rows}
         loading={loading}
         size="small"
+        tableLayout="fixed"
+        scroll={{ x: 760 }}
         expandable={{
           expandedRowRender: (row) => (
             <Typography.Paragraph style={{ margin: 0 }}>{row.body}</Typography.Paragraph>
@@ -111,6 +113,7 @@ export function AnnouncementsPage() {
           {
             title: '제목',
             dataIndex: 'title',
+            width: 340,
             render: (value: string, row: Notice) => (
               <Space>
                 {row.pinned && (

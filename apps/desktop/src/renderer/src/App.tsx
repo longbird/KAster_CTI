@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
-import { EventTimeline } from './components/EventTimeline';
 import { PairingScreen } from './components/PairingScreen';
 import { SoftphoneShell } from './components/SoftphoneShell';
 import { UpdateBanner } from './components/UpdateBanner';
@@ -20,7 +19,6 @@ export default function App() {
     runtimeConnection,
     config,
     activeCall,
-    events,
     audioPermission,
     refreshingAudioDevices,
     audioPreferences,
@@ -35,6 +33,7 @@ export default function App() {
     showPairingDiagnostics,
     showLogin,
     reconnectRuntime,
+    changeAgentStatus,
     originate,
     pickup,
     mute,
@@ -44,6 +43,7 @@ export default function App() {
     cancelAttendedTransfer,
     completeAttendedTransfer,
     prepareUpdate,
+    dismissUpdate,
     applyPreparedUpdate,
     refreshAudioDevices,
     requestAudioPermission,
@@ -84,9 +84,8 @@ export default function App() {
       return;
     }
 
-    const mode = !config || !agent ? 'compact' : 'full';
-    void desktopApi.setWindowMode(mode);
-  }, [agent, config, desktopApi]);
+    void desktopApi.setWindowMode('compact');
+  }, [desktopApi]);
 
   if (!bootstrapped) {
     return (
@@ -130,6 +129,7 @@ export default function App() {
             readyFileName={updateState.preparedFileName}
             onPrepare={prepareUpdate}
             onApply={applyPreparedUpdate}
+            onDismiss={dismissUpdate}
           />
         ) : null}
         <SoftphoneShell
@@ -146,6 +146,7 @@ export default function App() {
           audioCapabilities={audioCapabilities}
           softphone={softphone}
           onPickup={pickup}
+          onChangeAgentStatus={changeAgentStatus}
           onReconnectRuntime={reconnectRuntime}
           onOriginate={originate}
           onMute={mute}
@@ -166,7 +167,6 @@ export default function App() {
           onHangupSoftphoneCall={hangupSoftphoneCall}
         />
       </div>
-      <EventTimeline events={events} />
     </main>
   );
 }

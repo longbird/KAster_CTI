@@ -234,6 +234,8 @@ export function SmsTemplatesPage() {
         dataSource={rows}
         loading={loading}
         columns={columns}
+        tableLayout="fixed"
+        scroll={{ x: 900 }}
         pagination={{ pageSize: 10, showSizeChanger: false }}
       />
 

@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString, Matches, MaxLength, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, ValidateNested } from 'class-validator';
 
 const MATCH_TYPES = ['EXACT', 'PREFIX'] as const;
 
@@ -17,6 +17,10 @@ export class CreateBlocklistEntryDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @IsOptional()
+  @IsUUID()
+  branchId?: string;
 
   @IsOptional()
   @IsBoolean()

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, Notification, Tray, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, Notification, Tray, nativeImage, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { AttentionService } from './attention-service';
@@ -124,6 +124,15 @@ function ensureDesktopBridgeServer() {
   });
 }
 
+function allowMediaPermissions() {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'media');
+  });
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === 'media';
+  });
+}
+
 function joinBaseUrlAndPath(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
 }
@@ -153,8 +162,10 @@ function createWindow() {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   });
+  win.setMenuBarVisibility(false);
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) {
@@ -333,7 +344,9 @@ app.on('open-url', (event, url) => {
 });
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   registerProtocolClient();
+  allowMediaPermissions();
   ensureDesktopBridgeServer();
 
   const startupProtocolConnect = resolveProtocolConnect(process.argv);
@@ -451,6 +464,12 @@ app.whenReady().then(() => {
       throw new Error('Runtime is not connected.');
     }
     return runtime.pickup(callId);
+  });
+  ipcMain.handle('desktop:change-agent-status', (_event, agentId: string, statusCode) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.changeAgentStatus(agentId, statusCode);
   });
   ipcMain.handle('desktop:originate', (_event, params: {
     agentExtension: string;

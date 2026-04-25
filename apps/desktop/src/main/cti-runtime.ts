@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { randomUUID } from 'node:crypto';
 import { io, type Socket } from 'socket.io-client';
-import type { CommandAck, CtiEvent } from '../shared/cti';
+import type { AgentStatusCode, CommandAck, CtiEvent } from '../shared/cti';
 
 type RuntimeEventName = CtiEvent['type'];
 
@@ -110,6 +110,15 @@ export class CtiRuntime {
 
   async pickup(callId: string): Promise<CommandAck> {
     return this.sendSimpleCommand(`/calls/${callId}/pickup`);
+  }
+
+  async changeAgentStatus(
+    agentId: string,
+    statusCode: AgentStatusCode,
+  ): Promise<{ statusCode: AgentStatusCode }> {
+    const response = await this.http.post(`/agents/${agentId}/status`, { statusCode });
+
+    return response.data.data as { statusCode: AgentStatusCode };
   }
 
   async originate(params: {
