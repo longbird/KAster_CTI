@@ -140,9 +140,9 @@ reporting: { outputDir: "./reports", consoleRefreshMs: 500, saveFailureDetails: 
 TEST_CASE("scenario parser loads the smoke scenario file", "[scenario]") {
   const auto scenario = loadgen::loadScenarioFromFile(sample_scenario_path().string());
 
-  REQUIRE(scenario.target.host == "127.0.0.1");
+  REQUIRE(scenario.target.host == "49.247.46.86");
   REQUIRE(scenario.load.totalCalls == 1);
-  REQUIRE(scenario.callFlow.holdSecondsMin == 3);
+  REQUIRE(scenario.callFlow.holdSecondsMin == 5);
 }
 
 #if defined(PBX_LOADGEN_HAS_CLI)
@@ -152,6 +152,14 @@ TEST_CASE("run command rejects a missing scenario file", "[scenario]") {
 
 TEST_CASE("report command rejects a missing result file", "[scenario]") {
   REQUIRE(run_cli({"report", "-f", missing_path().string()}) != 0);
+}
+
+TEST_CASE("test-plan command rejects a missing test plan file", "[scenario]") {
+  REQUIRE(run_cli({"test-plan", "validate", "-f", missing_path().string()}) != 0);
+}
+
+TEST_CASE("test-plan inventory rejects a missing openapi file", "[scenario]") {
+  REQUIRE(run_cli({"test-plan", "inventory", "--openapi", missing_path().string()}) != 0);
 }
 #endif
 
