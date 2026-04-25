@@ -36,6 +36,10 @@ add_library(loadgen_report_writer STATIC src/report_writer.cpp)
 target_link_libraries(loadgen_report_writer PUBLIC nlohmann_json::nlohmann_json)
 target_include_directories(loadgen_report_writer PUBLIC include)
 
+add_library(loadgen_feature_inventory STATIC src/feature_inventory.cpp)
+target_link_libraries(loadgen_feature_inventory PUBLIC nlohmann_json::nlohmann_json)
+target_include_directories(loadgen_feature_inventory PUBLIC include)
+
 add_library(loadgen_command_logic STATIC src/command_logic.cpp)
 target_link_libraries(
   loadgen_command_logic
