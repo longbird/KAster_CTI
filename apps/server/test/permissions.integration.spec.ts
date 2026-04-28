@@ -59,7 +59,7 @@ describe('Server permission integration', () => {
         'view',
         undefined,
       );
-      expect(callsService.getActiveCalls).toHaveBeenCalledWith('tenant-1', 'branch-1');
+      expect(callsService.getActiveCalls).toHaveBeenCalledWith('tenant-1', 'branch-1', undefined);
     });
 
     it('agent active calls는 추가 메뉴 권한 검사 없이 조회된다', async () => {
@@ -71,7 +71,7 @@ describe('Server permission integration', () => {
       );
 
       expect(menuPermissionService.assertAnyMenuAccess).not.toHaveBeenCalled();
-      expect(callsService.getActiveCalls).toHaveBeenCalledWith('tenant-1', undefined);
+      expect(callsService.getActiveCalls).toHaveBeenCalledWith('tenant-1', undefined, undefined);
     });
 
     it('history는 reports/calls 권한이 없으면 차단된다', async () => {

@@ -49,7 +49,7 @@ export function LiveCallsPage() {
 
   const load = async () => {
     try {
-      const res = await apiClient.get('/calls/active');
+      const res = await apiClient.get('/calls/active', { params: { limit: 500 } });
       setRows(res.data?.data ?? []);
       setLastUpdated(new Date());
     } catch {

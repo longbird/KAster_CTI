@@ -125,7 +125,7 @@ export function mapDashboardPayload(dashboard: any, rawActive: any[]): Dashboard
 async function fetchReal(branchId?: string): Promise<DashboardData> {
   const [dashboardRes, activeCallsRes] = await Promise.all([
     apiClient.get('/admin/dashboard', { params: { branchId } }),
-    apiClient.get('/calls/active', { params: { branchId } }),
+    apiClient.get('/calls/active', { params: { branchId, limit: 500 } }),
   ]);
 
   return mapDashboardPayload(dashboardRes.data?.data, activeCallsRes.data?.data ?? []);

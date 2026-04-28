@@ -353,8 +353,9 @@ export class CallsService {
     }
   }
 
-  async getActiveCalls(tenantId: string, branchId?: string) {
+  async getActiveCalls(tenantId: string, branchId?: string, limit = 500) {
     const branchScope = await this.getBranchScope(tenantId, branchId);
+    const take = Math.min(Math.max(Math.trunc(limit) || 500, 1), 1000);
     const rows = await this.prisma.callSessions.findMany({
       where: {
         tenantId,
@@ -362,7 +363,7 @@ export class CallsService {
         ...(this.buildBranchCallFilter(branchScope) ?? {}),
       },
       orderBy: { startedAt: 'desc' },
-      take: 100,
+      take,
     });
 
     // 에이전트 이름 일괄 조회

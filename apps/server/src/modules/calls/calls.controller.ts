@@ -31,10 +31,15 @@ export class CallsController {
   ) {}
 
   @Get('active')
-  @ApiOperation({ summary: '활성 콜 목록', description: 'sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션 (최근 100건). agentName·waitSeconds 포함.' })
+  @ApiOperation({ summary: '활성 콜 목록', description: 'sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션. 기본 최근 500건, 최대 1000건. agentName·waitSeconds 포함.' })
   @ApiQuery({ name: 'branchId', required: false })
+  @ApiQuery({ name: 'limit', required: false, description: '반환 건수. 기본 500, 최대 1000' })
   @ApiOkResponse({ type: ApiResponseDto })
-  async getActiveCalls(@Req() req: any, @Query('branchId') branchId?: string) {
+  async getActiveCalls(
+    @Req() req: any,
+    @Query('branchId') branchId?: string,
+    @Query('limit') limit?: string,
+  ) {
     if (req.user.role === 'supervisor' || req.user.role === 'admin') {
       await this.menuPermissionService.assertAnyMenuAction(
         req.user.tenantId,
@@ -44,7 +49,7 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.getActiveCalls(req.user.tenantId, branchId);
+    return this.callsService.getActiveCalls(req.user.tenantId, branchId, limit ? Number(limit) : undefined);
   }
 
   @Get('history')

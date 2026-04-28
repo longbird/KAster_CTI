@@ -141,7 +141,7 @@ describe('CallsService branch filter integration', () => {
         ],
       },
       orderBy: { startedAt: 'desc' },
-      take: 100,
+      take: 500,
     });
     expect(prisma.agents.findMany).toHaveBeenCalledWith({
       where: { agentId: { in: ['agent-1'] }, tenantId: 'tenant-1' },
