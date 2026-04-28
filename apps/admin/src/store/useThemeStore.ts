@@ -11,6 +11,14 @@ function resolve(pref: ThemePref): ThemeResolved {
   return pref;
 }
 
+function applyTheme(resolved: ThemeResolved) {
+  document.documentElement.setAttribute('data-theme', resolved);
+}
+
+function isThemePref(value: unknown): value is ThemePref {
+  return value === 'system' || value === 'light' || value === 'dark';
+}
+
 interface ThemeState {
   pref: ThemePref;
   resolved: ThemeResolved;
@@ -26,6 +34,7 @@ export const useThemeStore = create<ThemeState>()(
       setPref: (p) => {
         const resolved = resolve(p);
         set({ pref: p, resolved });
+        applyTheme(resolved);
       },
       reresolve: () => {
         const pref = get().pref;
@@ -35,9 +44,22 @@ export const useThemeStore = create<ThemeState>()(
     {
       name: 'kaster.admin.theme',
       partialize: (s) => ({ pref: s.pref }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<ThemeState> | undefined;
+        const pref = isThemePref(persisted?.pref) ? persisted.pref : currentState.pref;
+        return {
+          ...currentState,
+          ...persisted,
+          pref,
+          resolved: resolve(pref),
+        };
+      },
       onRehydrateStorage: () => (state) => {
+        const pref = isThemePref(state?.pref) ? state.pref : 'dark';
+        const resolved = resolve(pref);
         if (state) {
-          state.resolved = resolve(state.pref);
+          useThemeStore.setState({ pref, resolved });
+          applyTheme(resolved);
         }
       },
     },
@@ -47,7 +69,7 @@ export const useThemeStore = create<ThemeState>()(
 export function initThemeWatcher() {
   const apply = () => {
     const resolved = useThemeStore.getState().resolved;
-    document.documentElement.setAttribute('data-theme', resolved);
+    applyTheme(resolved);
   };
   apply();
   useThemeStore.subscribe(apply);

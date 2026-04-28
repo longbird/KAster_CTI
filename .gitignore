@@ -13,6 +13,7 @@ coverage/
 .superpowers/
 .agents/
 apps/admin/dev_output*.txt
+reports/
 
 # ChatGPT share 원본 HTML 캐시 (재수집 가능, 레포 크기 관리 위해 제외)
 docs/chatgpt-archive/html/

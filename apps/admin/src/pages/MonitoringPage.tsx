@@ -94,7 +94,14 @@ function InfraCards({ data }: { data: ReturnType<typeof useHealthData>['data'] }
           <Card
             size="small"
             bordered={false}
-            styles={{ body: { padding: 14, background: '#f8fafc', borderRadius: 12 } }}
+            styles={{
+              body: {
+                padding: 14,
+                background: 'var(--bg-2)',
+                border: '1px solid var(--line-1)',
+                borderRadius: 8,
+              },
+            }}
           >
             <Statistic
               value={value.toUpperCase()}
