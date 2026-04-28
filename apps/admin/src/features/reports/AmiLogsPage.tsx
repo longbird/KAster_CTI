@@ -1,7 +1,7 @@
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Card, DatePicker, Descriptions, Drawer, Input, Space, Table, Tag, Timeline, Typography } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
@@ -269,7 +269,7 @@ export function AmiLogsPage() {
   const [callTotal, setCallTotal] = useState(0);
   const [selected, setSelected] = useState<CallLogRow | null>(null);
 
-  const load = async (nextPage = page, nextPageSize = pageSize) => {
+  const load = useCallback(async (nextPage = page, nextPageSize = pageSize) => {
     setLoading(true);
     try {
       const res = await apiClient.get('/admin/reports/ami-logs', {
@@ -296,11 +296,13 @@ export function AmiLogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [branchId, linkedid, page, pageSize, phone, range]);
 
   useEffect(() => {
     void load(1, pageSize);
-  }, []);
+    // 전화번호/Linkedid 검색어 입력이나 페이지 이동은 기존 조회/페이지네이션 동작을 유지한다.
+    // 진입, 기간, 지사 변경 시에만 기본 조회를 자동 실행한다.
+  }, [branchId, pageSize, range]);
 
   const exportRows = () => {
     downloadCsv(
@@ -364,10 +366,13 @@ export function AmiLogsPage() {
       </Space>
 
       <Table<CallLogRow>
+        className="call-log-table"
         rowKey="callId"
         dataSource={calls}
         loading={loading}
         size="small"
+        tableLayout="fixed"
+        scroll={{ x: 1120 }}
         onRow={(record) => ({ onClick: () => setSelected(record) })}
         pagination={{
           current: page,
@@ -399,11 +404,16 @@ export function AmiLogsPage() {
           },
           {
             title: '흐름',
+            width: 360,
             render: (_: unknown, row) => (
-              <Space direction="vertical" size={0}>
-                <Typography.Text>{row.flowSummary || '-'}</Typography.Text>
-                <Typography.Text type="secondary">{row.linkedid}</Typography.Text>
-              </Space>
+              <div className="call-flow-cell">
+                <Typography.Text className="call-flow-summary" ellipsis={{ tooltip: row.flowSummary || '-' }}>
+                  {row.flowSummary || '-'}
+                </Typography.Text>
+                <Typography.Text className="call-flow-linkedid" type="secondary" ellipsis={{ tooltip: row.linkedid || '-' }}>
+                  {row.linkedid || '-'}
+                </Typography.Text>
+              </div>
             ),
           },
           {

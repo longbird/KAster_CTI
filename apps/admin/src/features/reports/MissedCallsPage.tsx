@@ -1,7 +1,7 @@
-import { Button, Card, DatePicker, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, DatePicker, Space, Table, Typography } from 'antd';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
@@ -50,7 +50,7 @@ export function MissedCallsPage() {
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiClient.get('/calls/history', {
@@ -67,12 +67,16 @@ export function MissedCallsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [branchId, range]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const exportRows = () => {
     downloadCsv(
       `missed-calls-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['시작', '발신번호', '대표번호', 'DID', '큐', '최종 상담원', '대기(초)', '결과'],
+      ['시작', '발신번호', '대표번호', 'DID', '큐', '호출 상담원', '대기(초)'],
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
         formatPhoneNumber(row.ani),
@@ -81,7 +85,6 @@ export function MissedCallsPage() {
         getQueueLabel(row),
         row.primaryAgent?.agentName ?? '-',
         row.waitSeconds,
-        '미연결',
       ]),
     );
   };
@@ -142,16 +145,11 @@ export function MissedCallsPage() {
             render: (_: unknown, row: MissedRow) => getQueueLabel(row),
           },
           {
-            title: '최종 상담원',
+            title: '호출 상담원',
             render: (_: unknown, r: MissedRow) => r.primaryAgent?.agentName ?? '-',
             width: 110,
           },
           { title: '대기(초)', dataIndex: 'waitSeconds', width: 90 },
-          {
-            title: '결과',
-            render: () => <Tag color="red">미연결</Tag>,
-            width: 80,
-          },
         ]}
       />
     </Card>

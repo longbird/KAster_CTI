@@ -1,7 +1,7 @@
 import { Button, Card, DatePicker, Modal, Space, Table, Tag, Typography, message } from 'antd';
 import { DownloadOutlined, PlayCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
@@ -82,7 +82,7 @@ export function RecordingsPage() {
     replacePlayerUrl(null);
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiClient.get('/calls/recordings/list', {
@@ -98,7 +98,11 @@ export function RecordingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [branchId, range]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const exportRows = () => {
     downloadCsv(

@@ -1,7 +1,7 @@
 import { Button, DatePicker, Select, Space, Table, Tag, Typography } from 'antd';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
@@ -114,7 +114,7 @@ export function CallsReportPage() {
   const [mode, setMode]       = useState<'all' | 'missed'>('all');
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiClient.get('/calls/history', {
@@ -131,7 +131,11 @@ export function CallsReportPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [branchId, mode, range]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const exportRows = () => {
     downloadCsv(
