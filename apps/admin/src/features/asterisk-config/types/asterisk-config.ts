@@ -148,7 +148,8 @@ export interface AsteriskBlocklistEntry {
 export interface AsteriskBlocklistEntryInput {
   matchType?: 'EXACT' | 'PREFIX';
   phoneNumber: string;
-  description?: string;
+  description?: string | null;
+  branchId?: string | null;
   isActive?: boolean;
 }
 

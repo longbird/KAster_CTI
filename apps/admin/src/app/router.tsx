@@ -9,6 +9,7 @@ import { QueueSettingsPage } from '../features/queue-settings/QueueSettingsPage'
 import { BranchSettingsPage } from '../features/branch-settings/BranchSettingsPage';
 import { CustomersPage } from '../features/customers/CustomersPage';
 import { BlocklistPage } from '../features/blocklist/BlocklistPage';
+import { OptOutCustomersPage } from '../features/opt-out-customers/OptOutCustomersPage';
 import { PermissionSettingsPage } from '../features/permission-settings/PermissionSettingsPage';
 import { PromptSettingsPage } from '../features/prompt-settings/PromptSettingsPage';
 import { SmsTemplatesPage } from '../features/sms-templates/SmsTemplatesPage';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { path: 'settings/branches',    element: <BranchSettingsPage /> },
       { path: 'settings/permissions', element: <PermissionSettingsPage /> },
       { path: 'customers',            element: <CustomersPage /> },
+      { path: 'opt-out-customers',    element: <OptOutCustomersPage /> },
       { path: 'reports/calls',        element: <CallsReportPage /> },
       { path: 'reports/missed',       element: <MissedCallsPage /> },
       { path: 'reports/recordings',   element: <RecordingsPage /> },

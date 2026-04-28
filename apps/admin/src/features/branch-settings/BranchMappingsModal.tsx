@@ -512,7 +512,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                         <Form.Item name="blocklist080Enabled" valuePropName="checked" noStyle>
                           <Switch checkedChildren="사용" unCheckedChildren="미사용" />
                         </Form.Item>
-                        <Button type="link" size="small" onClick={() => moveTo('/blocklist')}>
+                        <Button type="link" size="small" onClick={() => moveTo('/opt-out-customers')}>
                           080 수신거부 관리
                         </Button>
                       </Space>

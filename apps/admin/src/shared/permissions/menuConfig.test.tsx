@@ -19,6 +19,7 @@ const BASELINE_LEAF_KEYS = [
   '/kpi',
   '/live-calls',
   '/monitoring',
+  '/opt-out-customers',
   '/queues',
   '/reports/calls',
   '/reports/logs',
@@ -90,7 +91,7 @@ describe('ADMIN_MENU_CONFIG', () => {
   });
 
   it('groups customer management entries under a non-leaf parent', () => {
-    expect(childKeysOf('customers-group')).toEqual(['/customers', '/blocklist']);
+    expect(childKeysOf('customers-group')).toEqual(['/customers', '/opt-out-customers', '/blocklist']);
   });
 
   it('preserves the pre-regrouping leaf key set', () => {
@@ -128,6 +129,7 @@ describe('openMenuGroupKeysForPath', () => {
 
   it('returns the containing customer group for customer leaf routes', () => {
     expect(openMenuGroupKeysForPath('/customers')).toEqual(['customers-group']);
+    expect(openMenuGroupKeysForPath('/opt-out-customers')).toEqual(['customers-group']);
     expect(openMenuGroupKeysForPath('/blocklist')).toEqual(['customers-group']);
   });
 

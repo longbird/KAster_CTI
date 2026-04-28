@@ -28,7 +28,19 @@ describe('defaultPermissionFlags', () => {
     );
   });
 
-  it('keeps opt-out management as blocklist permission, not customer blacklist submenu', () => {
+  it('adds customer-selected opt-out customers as a separate customer menu', () => {
+    expect(MENU_KEYS).toContain('opt-out-customers');
+    expect(defaultPermissionFlags('supervisor', 'opt-out-customers')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+      }),
+    );
+  });
+
+  it('keeps manual blacklist management as blocklist permission, not customer blacklist submenu', () => {
     expect(MENU_KEYS).toContain('blocklist');
     expect(MENU_KEYS).not.toContain('customers/blacklist');
     expect(defaultPermissionFlags('supervisor', 'blocklist')).toEqual(

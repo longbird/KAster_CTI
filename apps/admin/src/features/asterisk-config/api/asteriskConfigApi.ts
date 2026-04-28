@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../../../config';
-import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskTrunk, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow } from '../types/asterisk-config';
+import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskTrunk, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow } from '../types/asterisk-config';
 
 function headers(): Record<string, string> {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -79,7 +79,7 @@ export const deletePrompt = (id: string) =>
 
 export const getBlocklistEntries = () =>
   axios.get<{ data: AsteriskBlocklistEntry[] }>(`${base}/blocklist`, { headers: headers() }).then(r => r.data.data);
-export const createBlocklistEntry = (dto: Omit<AsteriskBlocklistEntry, 'id' | 'createdAt' | 'updatedAt'>) =>
+export const createBlocklistEntry = (dto: AsteriskBlocklistEntryInput) =>
   axios.post<{ data: AsteriskBlocklistEntry }>(`${base}/blocklist`, dto, { headers: headers() }).then(r => r.data.data);
 export const importBlocklistEntries = (rows: ImportBlocklistEntryRow[]) =>
   axios.post<{ data: { summary: { successCount: number; skippedCount: number; failedCount: number }; failures: Array<{ rowNumber: number; reason: string }> } }>(
@@ -87,7 +87,7 @@ export const importBlocklistEntries = (rows: ImportBlocklistEntryRow[]) =>
     { rows },
     { headers: headers() },
   ).then(r => r.data.data);
-export const updateBlocklistEntry = (id: string, dto: Omit<AsteriskBlocklistEntry, 'id' | 'createdAt' | 'updatedAt'>) =>
+export const updateBlocklistEntry = (id: string, dto: AsteriskBlocklistEntryInput) =>
   axios.put<{ data: AsteriskBlocklistEntry }>(`${base}/blocklist/${id}`, dto, { headers: headers() }).then(r => r.data.data);
 export const deleteBlocklistEntry = (id: string) =>
   axios.delete(`${base}/blocklist/${id}`, { headers: headers() });

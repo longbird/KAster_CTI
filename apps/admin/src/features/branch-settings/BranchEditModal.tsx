@@ -1897,7 +1897,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                   </div>
                   <Space size={8}>
                     {sectionSwitch('blocklist080Enabled')}
-                    <Button type="link" size="small" onClick={() => moveTo('/blocklist')}>수신거부 고객 관리</Button>
+                    <Button type="link" size="small" onClick={() => moveTo('/opt-out-customers')}>수신거부 고객 관리</Button>
                   </Space>
                 </div>
                 <Space direction="vertical" size={12} style={{ width: '100%' }}>

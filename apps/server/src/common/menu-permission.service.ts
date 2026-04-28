@@ -27,6 +27,7 @@ export const MENU_KEYS = [
   'reports/recordings',
   'reports/logs',
   'customers',
+  'opt-out-customers',
   'announcements',
   'settings/agents',
   'settings/queues',

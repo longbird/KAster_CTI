@@ -62,6 +62,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
     label: '고객 관리',
     children: [
       { key: '/customers', label: '고객 관리' },
+      { key: '/opt-out-customers', label: '수신거부 고객 관리' },
       { key: '/blocklist', label: '블랙리스트 관리' },
     ],
   },
