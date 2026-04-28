@@ -24,6 +24,12 @@ struct DisconnectMode {
   int normalPercent;
 };
 
+struct DtmfConfig {
+  std::string sequence;
+  int sendAfterAnswerMs{0};
+  int interDigitMs{0};
+};
+
 struct CallFlowConfig {
   std::vector<std::string> callerIdPool;
   std::vector<std::string> didPool;
@@ -31,6 +37,7 @@ struct CallFlowConfig {
   int holdSecondsMin;
   int holdSecondsMax;
   DisconnectMode disconnectMode;
+  DtmfConfig dtmf;
 };
 
 struct MediaConfig {

@@ -116,6 +116,52 @@ reporting:
   REQUIRE(scenario.callFlow.didPool.front() == "1899");
 }
 
+TEST_CASE("scenario parser loads optional DTMF settings", "[scenario]") {
+  const auto scenario = loadgen::loadScenarioFromString(R"(
+target: { host: 127.0.0.1, port: 5060, transport: udp, requestUriTemplate: "sip:{did}@127.0.0.1:5060" }
+load: { cps: 1, maxConcurrent: 1, totalCalls: 1, rampUpSeconds: 0, callStartJitterMs: 0 }
+callFlow:
+  callerIdPool: ["01011112222"]
+  didPool: ["1899"]
+  answerTimeoutMs: 8000
+  holdSecondsMin: 8
+  holdSecondsMax: 8
+  dtmf:
+    sequence: "1#"
+    sendAfterAnswerMs: 1000
+    interDigitMs: 300
+  disconnectMode: { normalPercent: 100 }
+media: { beepIntervalMs: 800, txGain: 0.8 }
+reporting: { outputDir: "./reports", consoleRefreshMs: 500, saveFailureDetails: true }
+)");
+
+  REQUIRE(scenario.callFlow.dtmf.sequence == "1#");
+  REQUIRE(scenario.callFlow.dtmf.sendAfterAnswerMs == 1000);
+  REQUIRE(scenario.callFlow.dtmf.interDigitMs == 300);
+}
+
+TEST_CASE("scenario validation rejects invalid DTMF digits", "[scenario]") {
+  try {
+    static_cast<void>(loadgen::loadScenarioFromString(R"(
+target: { host: 127.0.0.1, port: 5060, transport: udp, requestUriTemplate: "sip:{did}@127.0.0.1:5060" }
+load: { cps: 1, maxConcurrent: 1, totalCalls: 1, rampUpSeconds: 0, callStartJitterMs: 0 }
+callFlow:
+  callerIdPool: ["01011112222"]
+  didPool: ["1899"]
+  answerTimeoutMs: 8000
+  holdSecondsMin: 8
+  holdSecondsMax: 8
+  dtmf: { sequence: "1A" }
+  disconnectMode: { normalPercent: 100 }
+media: { beepIntervalMs: 800, txGain: 0.8 }
+reporting: { outputDir: "./reports", consoleRefreshMs: 500, saveFailureDetails: true }
+)"));
+    FAIL("expected loadScenarioFromString to throw");
+  } catch (const std::runtime_error& ex) {
+    REQUIRE(std::string{ex.what()} == "dtmf.sequence must contain only 0-9, * or #");
+  }
+}
+
 TEST_CASE("scenario validation rejects hold range inversion", "[scenario]") {
   try {
     static_cast<void>(loadgen::loadScenarioFromString(R"(

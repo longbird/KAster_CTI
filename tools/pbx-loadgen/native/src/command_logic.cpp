@@ -260,6 +260,7 @@ PracticalRunResult executeLiveRun(const Scenario& scenario,
                 scheduledCall.startOffsetMs,
                 scenario.callFlow.answerTimeoutMs,
                 deriveHoldDurationMs(scheduledCall.index, scenario),
+                scenario.callFlow.dtmf,
             };
 
             CallResult result;
