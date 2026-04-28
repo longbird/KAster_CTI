@@ -23,6 +23,9 @@ export interface PjsipInput {
   trunks: TrunkInput[];
   agents: AgentInput[];
   sipRegisterPort?: number | null;
+  externalMediaAddress?: string | null;
+  externalSignalingAddress?: string | null;
+  localNets?: string[];
 }
 
 import { assertNoNewlines, toSlug } from './renderer-utils';
@@ -127,6 +130,10 @@ function renderAgent(agent: AgentInput): string {
 
 export function renderPjsip(input: PjsipInput): string {
   const sipRegisterPort = input.sipRegisterPort && input.sipRegisterPort > 0 ? input.sipRegisterPort : 36070;
+  if (input.externalMediaAddress) assertNoNewlines(input.externalMediaAddress, 'externalMediaAddress');
+  if (input.externalSignalingAddress) assertNoNewlines(input.externalSignalingAddress, 'externalSignalingAddress');
+  const localNets = [...new Set((input.localNets || []).map((item) => item.trim()).filter(Boolean))];
+  localNets.forEach((localNet) => assertNoNewlines(localNet, 'localNet'));
   const header = [
     `[global]`,
     `type=global`,
@@ -136,6 +143,9 @@ export function renderPjsip(input: PjsipInput): string {
     `type=transport`,
     `protocol=udp`,
     `bind=0.0.0.0:${sipRegisterPort}`,
+    ...(input.externalMediaAddress ? [`external_media_address=${input.externalMediaAddress}`] : []),
+    ...(input.externalSignalingAddress ? [`external_signaling_address=${input.externalSignalingAddress}`] : []),
+    ...localNets.map((localNet) => `local_net=${localNet}`),
     ``,
     `[transport-ws]`,
     `type=transport`,

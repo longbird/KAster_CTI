@@ -31,6 +31,17 @@ export function statusRank(status?: string | null) {
 export function computeFingerprint(event: Record<string, any>): string {
   const ts = event.eventTime ? new Date(event.eventTime).getTime() : Date.now();
   const bucket = Math.floor(ts / 1000);
+  const field = (name: string) => event[name] || event.raw?.[name] || '';
+  const userEventParts = (event.eventName || event.Event) === 'UserEvent'
+    ? [
+        field('UserEvent'),
+        field('Stage'),
+        field('Digit'),
+        field('Action'),
+        field('Target'),
+        field('Result'),
+      ]
+    : [];
   const raw = [
     event.nodeId || process.env.ASTERISK_NODE_ID || 'default',
     event.eventName || '',
@@ -38,6 +49,7 @@ export function computeFingerprint(event: Record<string, any>): string {
     event.uniqueid || event.Uniqueid || '',
     event.channel || event.Channel || '',
     event.destChannel || event.DestChannel || '',
+    ...userEventParts,
     bucket,
   ].join('|');
   return createHash('sha256').update(raw).digest('hex');

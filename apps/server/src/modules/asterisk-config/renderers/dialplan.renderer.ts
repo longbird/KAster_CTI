@@ -1034,7 +1034,7 @@ function renderOptOutContexts(): string {
     ' same => n,Goto(080-optout-smart-confirm,s,1)',
     ' same => n(retry),Goto(080-optout-smart-input-retry,s,1)',
     'exten => reenter,1,NoOp(Restart smart opt-out number entry)',
-    ' same => n,Goto(read)',
+    ' same => n,Goto(080-optout-smart-input,s,read)',
     '',
     '[080-optout-smart-same-number]',
     'exten => s,1,NoOp(080 Smart Opt-Out Same Number Reject)',

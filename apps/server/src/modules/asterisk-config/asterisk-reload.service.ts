@@ -89,6 +89,11 @@ function normalizeStringArray(value: unknown): string[] {
   return [...new Set(value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean))];
 }
 
+function parseCommaSeparatedList(value?: string | null): string[] {
+  if (!value) return [];
+  return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
+}
+
 function extractBranchPromptIds(settingsProfile: unknown): string[] {
   if (!settingsProfile || typeof settingsProfile !== 'object' || Array.isArray(settingsProfile)) {
     return [];
@@ -687,6 +692,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     private readonly ami: AmiConnectionService,
   ) {}
 
+  private getPjsipNatConfig() {
+    const externalMediaAddress = this.config.get<string>('ASTERISK_EXTERNAL_MEDIA_ADDRESS')?.trim() || null;
+    const externalSignalingAddress = this.config.get<string>('ASTERISK_EXTERNAL_SIGNALING_ADDRESS')?.trim()
+      || externalMediaAddress;
+    const localNets = parseCommaSeparatedList(this.config.get<string>('ASTERISK_LOCAL_NETS'));
+    return { externalMediaAddress, externalSignalingAddress, localNets };
+  }
+
   onApplicationBootstrap() {
     setTimeout(() => {
       void this.syncAllTenantsOnStartup().catch((error) => {
@@ -778,7 +791,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
 
-    const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort });
+    const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
     const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
@@ -861,7 +874,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
 
-    const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort });
+    const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
     const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({

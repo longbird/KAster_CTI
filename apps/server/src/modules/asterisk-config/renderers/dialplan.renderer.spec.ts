@@ -204,6 +204,7 @@ describe('renderDialplan', () => {
     expect(extensionsQueue).toContain('GotoIf($["${LEN(${OPT_OUT_SELECTED_ACTION})}"="0"]?080-optout-smart-confirm-invalid,s,1)');
     expect(extensionsQueue).toContain('[080-optout-smart-confirm-invalid]');
     expect(extensionsQueue).toContain('GotoIf($["${OPT_OUT_SELECTED_ACTION}"="REENTER_NUMBER"]?080-optout-smart-input,reenter,1)');
+    expect(extensionsQueue).toContain('exten => reenter,1,NoOp(Restart smart opt-out number entry)\n same => n,Goto(080-optout-smart-input,s,read)');
     expect(extensionsQueue).toContain('Set(__OPT_OUT_RESULT_PROMPT=${IF($["${OPT_OUT_MODE}"="SMART_OPT_OUT"]?${OPT_OUT_SMART_FINAL_PROMPT}:${OPT_OUT_COMPLETION_PROMPT})})');
     expect(extensionsQueue).toContain('NoOp(080 Opt-Out Failure / ACTION=${OPT_OUT_SELECTED_ACTION} / STATUS=${SYSTEMSTATUS})');
     expect(extensionsQueue).toContain('Playback(ss-noservice)');

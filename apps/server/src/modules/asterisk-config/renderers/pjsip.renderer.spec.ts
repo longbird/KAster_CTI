@@ -15,6 +15,20 @@ describe('renderPjsip', () => {
     expect(result).toContain('bind=0.0.0.0:36070');
   });
 
+  it('renders external media and signaling addresses for NAT traversal', () => {
+    const result = renderPjsip({
+      trunks: [],
+      agents: [],
+      externalMediaAddress: '49.247.46.86',
+      externalSignalingAddress: '49.247.46.86',
+      localNets: ['10.0.0.0/8', '172.16.0.0/12'],
+    });
+    expect(result).toContain('external_media_address=49.247.46.86');
+    expect(result).toContain('external_signaling_address=49.247.46.86');
+    expect(result).toContain('local_net=10.0.0.0/8');
+    expect(result).toContain('local_net=172.16.0.0/12');
+  });
+
   it('renders enabled trunk sections', () => {
     const result = renderPjsip({
       trunks: [{
