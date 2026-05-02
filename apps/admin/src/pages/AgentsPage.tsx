@@ -1,10 +1,9 @@
-import { DownloadOutlined } from '@ant-design/icons';
 import { Button, Skeleton, Table, Tag } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../config';
 import { getAgentSip } from '../features/asterisk-config/api/asteriskConfigApi';
-import { useAdminRealtimeRefresh } from '../realtime/useAdminRealtimeRefresh';
 import { downloadCsv } from '../shared/lib/csv';
 import { usePermissionStore } from '../store/usePermissionStore';
 
@@ -21,25 +20,29 @@ interface AgentRow {
   sipContactUri?: string | null;
 }
 
+// v2 Operator — map admin agent status to --status-* / accent tokens.
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  AVAILABLE: { label: '대기', color: 'var(--status-available)' },
-  RINGING: { label: '벨 울림', color: 'var(--status-ringing)' },
-  TALKING: { label: '통화 중', color: 'var(--status-talking)' },
-  AFTER_CALL_WORK: { label: '후처리', color: 'var(--status-acw)' },
-  BREAK: { label: '휴식', color: 'var(--status-break)' },
-  MEAL: { label: '식사', color: 'var(--accent-warn)' },
-  TRAINING: { label: '교육', color: 'var(--status-training)' },
-  MANUAL_PAUSED: { label: '일시중지', color: 'var(--status-offline)' },
-  OFFLINE: { label: '오프라인', color: 'var(--status-offline)' },
+  AVAILABLE:       { label: '대기',     color: 'var(--status-available)' },
+  RINGING:         { label: '벨 울림',  color: 'var(--status-ringing)' },
+  TALKING:         { label: '통화 중',  color: 'var(--status-talking)' },
+  AFTER_CALL_WORK: { label: '후처리',   color: 'var(--status-acw)' },
+  BREAK:           { label: '휴식',     color: 'var(--status-break)' },
+  MEAL:            { label: '식사',     color: 'var(--accent-warn)' },
+  TRAINING:        { label: '교육',     color: 'var(--status-training)' },
+  MANUAL_PAUSED:   { label: '일시중지', color: 'var(--status-offline)' },
+  OFFLINE:         { label: '오프라인', color: 'var(--status-offline)' },
 };
 
 function StatusChip({ code }: { code: string }) {
   const meta = STATUS_META[code] ?? STATUS_META.OFFLINE;
   return (
-    <span className="k-chip" style={{ color: meta.color, borderColor: meta.color, background: 'transparent' }}>
+    <span
+      className="k-chip"
+      style={{ color: meta.color, borderColor: meta.color, background: 'transparent' }}
+    >
       <span className="k-dot" style={{ background: meta.color }} />
       {meta.label}
-      <span className="k-mono" style={{ color: meta.color, opacity: 0.7, fontSize: 9 }}>
+      <span className="k-mono" style={{ color: meta.color, opacity: 0.7, fontSize: 9, letterSpacing: '0.14em' }}>
         {code === 'AFTER_CALL_WORK' ? 'ACW' : code}
       </span>
     </span>
@@ -58,37 +61,45 @@ export function AgentsPage() {
   const agentPermission = usePermissionStore((state) => state.permissionsByMenu['agents']);
   const [rows, setRows] = useState<AgentRow[] | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const token = readToken();
-      const [res, sipRows] = await Promise.all([
-        axios.get(`${API_BASE_URL}/agents`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        getAgentSip().catch(() => []),
-      ]);
-      const sipByExtension = new Map(sipRows.map((row) => [row.extension, row]));
-      setRows(
-        (res.data?.data ?? []).map((row: AgentRow) => {
-          const sip = sipByExtension.get(row.extension);
-          return {
-            ...row,
-            sipRegistrationStatus: sip?.registrationStatus ?? 'UNREGISTERED',
-            sipContactUri: sip?.contactUri ?? null,
-          };
-        }),
-      );
-    } catch {
-      setRows([]);
-    }
-  }, []);
-
   useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      try {
+        const token = readToken();
+        const [res, sipRows] = await Promise.all([
+          axios.get(`${API_BASE_URL}/agents`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }),
+          getAgentSip().catch(() => []),
+        ]);
+        if (!active) return;
+        const sipByExtension = new Map(
+          sipRows.map((row) => [row.extension, row]),
+        );
+        setRows(
+          (res.data?.data ?? []).map((row: AgentRow) => {
+            const sip = sipByExtension.get(row.extension);
+            return {
+              ...row,
+              sipRegistrationStatus: sip?.registrationStatus ?? 'UNREGISTERED',
+              sipContactUri: sip?.contactUri ?? null,
+            };
+          }),
+        );
+      } catch {
+        if (!active) return;
+        setRows([]);
+      }
+    };
+
     void load();
-    const timer = window.setInterval(() => void load(), 5000);
-    return () => window.clearInterval(timer);
-  }, [load]);
-  useAdminRealtimeRefresh(() => void load(), ['agent.status.changed', 'call.updated', 'call.ended']);
+    const timer = window.setInterval(load, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   if (!rows) return <Skeleton active paragraph={{ rows: 8 }} />;
 
@@ -113,10 +124,15 @@ export function AgentsPage() {
       <div className="adm-page-head">
         <div>
           <h1 className="adm-page-title">상담원 현황</h1>
-          <div className="adm-page-sub">이벤트 즉시 갱신 / 5초 보정 · /api/v1/agents</div>
+          <div className="adm-page-sub">5초 주기 폴링 · /api/v1/agents</div>
         </div>
         {agentPermission?.canExport ? (
-          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0} className="k-btn k-btn-sm">
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={exportRows}
+            disabled={rows.length === 0}
+            className="k-btn k-btn-sm"
+          >
             CSV 내보내기
           </Button>
         ) : null}
@@ -139,8 +155,15 @@ export function AgentsPage() {
                 return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
               },
             },
-            { title: '역할', dataIndex: 'role', render: (v: string) => <Tag>{v}</Tag> },
-            { title: '현재 상태', render: (_, r) => <StatusChip code={r.currentStatus?.statusCode ?? 'OFFLINE'} /> },
+            {
+              title: '역할',
+              dataIndex: 'role',
+              render: (v: string) => <Tag>{v}</Tag>,
+            },
+            {
+              title: '현재 상태',
+              render: (_, r) => <StatusChip code={r.currentStatus?.statusCode ?? 'OFFLINE'} />,
+            },
             {
               title: '마지막 로그인',
               dataIndex: 'lastLoginAt',

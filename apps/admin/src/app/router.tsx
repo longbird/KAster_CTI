@@ -23,6 +23,9 @@ import { AgentsPage } from '../pages/AgentsPage';
 import { AsteriskConfigPage } from '../pages/AsteriskConfigPage';
 import { MonitoringPage } from '../pages/MonitoringPage';
 import { QueuesPage } from '../pages/QueuesPage';
+import { NumbersPage } from '../features/numbers/NumbersPage';
+import { HistoryPage } from '../features/history/HistoryPage';
+import { IntegrationsPage } from '../features/integrations/IntegrationsPage';
 
 export const router = createBrowserRouter([
   {
@@ -52,8 +55,10 @@ export const router = createBrowserRouter([
       { path: 'queues',               element: <QueuesPage /> },
       { path: 'agents',               element: <AgentsPage /> },
       { path: 'monitoring',           element: <MonitoringPage /> },
-      { path: 'integrations',         element: <Navigate to="/asterisk" replace /> },
       { path: 'asterisk',             element: <AsteriskConfigPage /> },
+      { path: 'numbers',              element: <NumbersPage /> },
+      { path: 'history',              element: <HistoryPage /> },
+      { path: 'integrations',         element: <IntegrationsPage /> },
     ],
   },
 ]);

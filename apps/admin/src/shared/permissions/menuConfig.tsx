@@ -1,7 +1,10 @@
 import {
+  ApiOutlined,
   DashboardOutlined,
   FileTextOutlined,
+  HistoryOutlined,
   MonitorOutlined,
+  NumberOutlined,
   SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
@@ -37,6 +40,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/reports/missed', label: '미연결 콜' },
       { key: '/reports/recordings', label: '녹취 목록' },
       { key: '/reports/logs', label: '호 로그' },
+      { key: '/history', icon: <HistoryOutlined />, label: '통화 이력' },
     ],
   },
   {
@@ -52,7 +56,9 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/settings/sms-templates', label: '문자 템플릿 관리' },
       { key: '/settings/permissions', label: '권한 관리' },
       { key: '/announcements', label: '공지사항' },
-      { key: '/asterisk', label: '연동 설정' },
+      { key: '/numbers', icon: <NumberOutlined />, label: 'DID / 내선' },
+      { key: '/integrations', icon: <ApiOutlined />, label: '연동' },
+      { key: '/asterisk', label: 'PBX 설정' },
       { key: '/system', label: '시스템 설정' },
     ],
   },

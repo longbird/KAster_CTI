@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { ActiveCall } from '../types/cti';
-import { formatPhoneNumber } from '../utils/format';
 
 interface Props {
   call?: ActiveCall;
@@ -82,7 +81,7 @@ export function CurrentCallPanel({
             </h3>
             <p className="mt-1 flex items-center gap-2 text-xs text-[var(--fg-3)]">
               <span className="material-symbols-outlined text-sm">call</span>
-              <span className="k-mono text-[var(--fg-2)]">{formatPhoneNumber(call.ani)}</span>
+              <span className="k-mono text-[var(--fg-2)]">{call.ani ?? '-'}</span>
               {customer?.companyName && <span>· {customer.companyName}</span>}
               {customer?.grade && (
                 <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--fg-1)]">

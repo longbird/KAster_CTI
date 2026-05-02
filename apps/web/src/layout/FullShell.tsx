@@ -9,7 +9,6 @@ import { StatusPanel } from '../components/StatusPanel';
 import { TopAppBar } from '../components/TopAppBar';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
-import { formatPhoneNumber } from '../utils/format';
 
 function formatTime(value?: string) {
   if (!value) return '-';
@@ -208,7 +207,7 @@ export function FullShell() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="font-semibold text-[var(--fg-1)]">
-                            {call.customer?.customerName ?? (call.ani ? formatPhoneNumber(call.ani) : '미식별 고객')}
+                            {call.customer?.customerName ?? call.ani ?? '미식별 고객'}
                           </p>
                           <p className="mt-1 text-[11px] text-[var(--fg-3)]">{call.queueName || '-'}</p>
                         </div>
@@ -441,7 +440,7 @@ export function FullShell() {
                         <div>
                           <p className="font-semibold text-[var(--fg-1)]">{item.customerName}</p>
                           <p className="mt-1 text-[11px] text-[var(--fg-3)]">
-                            {formatPhoneNumber(item.phoneNumber)} · {item.queueName}
+                            {item.phoneNumber} · {item.queueName}
                           </p>
                         </div>
                         <div className="text-right">

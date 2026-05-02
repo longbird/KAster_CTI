@@ -1,27 +1,16 @@
-import { FormEvent, useState } from 'react';
-import { createDesktopHandoff, login, logout } from '../api';
-import { API_BASE_URL } from '../config';
+import { useState } from 'react';
+import { login } from '../api';
 import { extractErrorMessage } from '../utils/errorMessage';
-import {
-  buildDesktopConnectUrl,
-  deriveCenterServerUrl,
-  ensureDesktopAgentReady,
-  launchDesktopProtocol,
-  waitForDesktopHandoff,
-} from '../utils/desktopBridge';
-
-type TelephonyMode = 'softphone' | 'deskphone';
 
 // v2 Operator — kc-login. Dark card over dotted radial mask.
 export function LoginPage() {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [extension, setExtension] = useState('');
-  const [telephonyMode, setTelephonyMode] = useState<TelephonyMode>('softphone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async (e: FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginId || !password || !extension) {
       setError('로그인 ID, 비밀번호, 내선 번호를 모두 입력하세요.');
@@ -30,33 +19,7 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      if (telephonyMode === 'softphone') {
-        const desktopReady = await ensureDesktopAgentReady();
-        if (!desktopReady.ready) {
-          throw new Error(desktopReady.message);
-        }
-      }
-
-      await login({ loginId, password, extension, telephonyMode });
-
-      if (telephonyMode === 'softphone') {
-        try {
-          const handoff = await createDesktopHandoff();
-          const connectUrl = buildDesktopConnectUrl({
-            serverUrl: deriveCenterServerUrl(API_BASE_URL),
-            handoffToken: handoff.handoffToken,
-            channel: 'stable',
-          });
-          launchDesktopProtocol(connectUrl);
-          const handoffResult = await waitForDesktopHandoff(handoff.handoffToken);
-          if (!handoffResult.connected) {
-            throw new Error(handoffResult.message);
-          }
-        } catch (err: unknown) {
-          await logout();
-          throw err;
-        }
-      }
+      await login({ loginId, password, extension });
     } catch (err) {
       setError(extractErrorMessage(err, '로그인 실패'));
     } finally {
@@ -79,32 +42,8 @@ export function LoginPage() {
 
         {error && <div className="kc-login-error">{error}</div>}
 
-        <fieldset className="kc-login-field kc-login-mode">
-          <legend>통화 방식</legend>
-          <label>
-            <input
-              type="radio"
-              name="telephonyMode"
-              value="softphone"
-              checked={telephonyMode === 'softphone'}
-              onChange={() => setTelephonyMode('softphone')}
-            />
-            <span>소프트폰 사용</span>
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="telephonyMode"
-              value="deskphone"
-              checked={telephonyMode === 'deskphone'}
-              onChange={() => setTelephonyMode('deskphone')}
-            />
-            <span>SIP Phone 사용</span>
-          </label>
-        </fieldset>
-
         <div className="kc-login-field">
-          <label htmlFor="kc-login-id">로그인 ID</label>
+          <label htmlFor="kc-login-id">LOGIN ID</label>
           <input
             id="kc-login-id"
             className="k-input"
@@ -117,7 +56,7 @@ export function LoginPage() {
         </div>
 
         <div className="kc-login-field">
-          <label htmlFor="kc-login-pw">비밀번호</label>
+          <label htmlFor="kc-login-pw">PASSWORD</label>
           <input
             id="kc-login-pw"
             className="k-input"
@@ -130,7 +69,7 @@ export function LoginPage() {
         </div>
 
         <div className="kc-login-field">
-          <label htmlFor="kc-login-ext">내선 번호</label>
+          <label htmlFor="kc-login-ext">EXTENSION</label>
           <input
             id="kc-login-ext"
             className="k-input"

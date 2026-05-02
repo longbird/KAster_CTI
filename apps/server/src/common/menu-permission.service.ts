@@ -26,6 +26,7 @@ export const MENU_KEYS = [
   'reports/missed',
   'reports/recordings',
   'reports/logs',
+  'history',
   'customers',
   'opt-out-customers',
   'announcements',
@@ -42,6 +43,8 @@ export const MENU_KEYS = [
   'agents',
   'monitoring',
   'asterisk',
+  'numbers',
+  'integrations',
 ] as const;
 
 export const ROLE_CODES = ['agent', 'supervisor', 'admin'] as const;
@@ -66,6 +69,8 @@ const MUTABLE_MENU_KEYS = new Set([
   'blocklist',
   'system',
   'asterisk',
+  'numbers',
+  'integrations',
 ]);
 const OPERABLE_MENU_KEYS = new Set([
   'dashboard',

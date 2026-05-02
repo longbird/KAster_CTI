@@ -4,7 +4,6 @@ import { logout } from '../api';
 import { AgentStatusTag } from '../components/AgentStatusTag';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
-import { formatPhoneNumber } from '../utils/format';
 
 // "The Precision Curator" Mini 모드.
 // 440px 슬림 패널. 대리운전 관리 프로그램과 함께 띄우는 전제.
@@ -163,7 +162,7 @@ export function MiniShell() {
                   {selectedCall!.customer?.customerName ?? '미식별 고객'}
                 </h3>
                 <p className="truncate text-[11px] text-[var(--fg-3)]">
-                  <span className="k-mono text-[var(--fg-2)]">{formatPhoneNumber(selectedCall!.ani)}</span>
+                  <span className="k-mono text-[var(--fg-2)]">{selectedCall!.ani ?? '-'}</span>
                   {selectedCall!.customer?.grade && (
                     <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--fg-1)]">
                       {selectedCall!.customer.grade}
