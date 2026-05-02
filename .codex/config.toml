@@ -2,7 +2,7 @@
 # GSD codex_hooks ownership: section
 
 [features]
-codex_hooks = true
+codex_hooks = false
 
 [agents.gsd-advisor-researcher]
 description = "Researches a single gray area decision and returns a structured comparison table with rationale. Spawned by discuss-phase advisor mode."
@@ -136,8 +136,3 @@ config_file = "D:/Work/AI_Projects/KAster_CTI/.codex/agents/gsd-user-profiler.to
 description = "Verifies phase goal achievement through goal-backward analysis. Checks codebase delivers what phase promised, not just that tasks completed. Creates VERIFICATION.md report."
 config_file = "D:/Work/AI_Projects/KAster_CTI/.codex/agents/gsd-verifier.toml"
 
-
-# GSD Hooks
-[[hooks]]
-event = "SessionStart"
-command = "node D:/Work/AI_Projects/KAster_CTI/.codex/hooks/gsd-check-update.js"
