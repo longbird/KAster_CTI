@@ -12732,6 +12732,17 @@ const AGENT_STATUS_OPTIONS = [
   { value: "MANUAL_PAUSED", label: "중지" },
   { value: "AFTER_CALL_WORK", label: "후처리" }
 ];
+const STATUS_LABELS = {
+  AVAILABLE: "상담대기",
+  BREAK: "휴식",
+  MEAL: "식사",
+  TRAINING: "교육",
+  MANUAL_PAUSED: "업무정지",
+  AFTER_CALL_WORK: "업무처리"
+};
+function today() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
 function SoftphoneShell({
   config,
   agentName,
@@ -12767,10 +12778,12 @@ function SoftphoneShell({
   onHangupSoftphoneCall
 }) {
   const [view, setView] = reactExports.useState("call");
+  const [settingsTab, setSettingsTab] = reactExports.useState("audio");
   const [showDiagnostics, setShowDiagnostics] = reactExports.useState(false);
   const [transferTarget, setTransferTarget] = reactExports.useState("");
   const [transferMode, setTransferMode] = reactExports.useState("blind");
   const [dialNumber, setDialNumber] = reactExports.useState("");
+  const [callerId, setCallerId] = reactExports.useState("1577-7893");
   const [audioDraft, setAudioDraft] = reactExports.useState(() => ({
     inputDeviceId: audioPreferences?.inputDeviceId ?? null,
     outputDeviceId: audioPreferences?.outputDeviceId ?? null,
@@ -12801,150 +12814,571 @@ function SoftphoneShell({
     softphone
   });
   const callStatus = activeCall ? `${activeCall.ani} / ${activeCall.sessionStatus}` : "진행 중인 통화 없음";
-  if (view === "settings") {
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "softphone-shell", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-console-header panel", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "설정" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "오디오 장치와 필요한 진단 기능을 관리합니다." })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "secondary-button", onClick: () => setView("call"), children: "통화 화면" })
+  const statusLabel = STATUS_LABELS[agentStatus ?? "MANUAL_PAUSED"] ?? "업무정지";
+  const historyRows = reactExports.useMemo(() => activeCall ? [activeCall] : [], [activeCall]);
+  const navItems = [
+    { key: "call", label: "상담대기" },
+    { key: "call", label: "업무처리" },
+    { key: "history", label: "통화내역" },
+    { key: "outbound", label: "발신" },
+    { key: "transfer", label: "호전환" },
+    { key: "agents", label: "상담원" }
+  ];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "legacy-desktop-shell", "aria-label": "상담원 데스크톱", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "legacy-topbar", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-brand-panel", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "legacy-brand-mark", "aria-hidden": "true", children: "☁" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "맑은하늘" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "잔여: 0원" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "인센티브: 0원" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel placeholder-card", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "section-header", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "오디오 장치" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "section-copy", children: "장치가 기본 장치만 보이면 권한 요청 또는 장치 새로고침을 먼저 실행하세요." })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "placeholder-actions compact-actions", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onRequestAudioPermission, children: "권한 요청" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onRefreshAudioDevices, disabled: refreshingAudioDevices, children: refreshingAudioDevices ? "새로고침 중" : "장치 새로고침" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "audio-permission", children: [
-          "권한 상태: ",
-          audioPermission
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "audio-permission", children: [
-          "출력 장치 라우팅: ",
-          audioCapabilities.sinkSelectionSupported ? "지원" : "미지원"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "audio-grid", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "마이크" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "select",
-              {
-                value: audioDraft.inputDeviceId ?? "",
-                onChange: (event) => syncAudioDraft({
-                  inputDeviceId: event.target.value || null
-                }),
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "기본 장치" }),
-                  audioDevices.inputs.map((device) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: device.deviceId, children: device.label }, device.deviceId))
-                ]
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "스피커" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "select",
-              {
-                value: audioDraft.outputDeviceId ?? "",
-                onChange: (event) => syncAudioDraft({
-                  outputDeviceId: event.target.value || null
-                }),
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "기본 장치" }),
-                  audioDevices.outputs.map((device) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: device.deviceId, children: device.label }, device.deviceId))
-                ]
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "벨소리 출력" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "select",
-              {
-                value: audioDraft.ringDeviceId ?? "",
-                onChange: (event) => syncAudioDraft({
-                  ringDeviceId: event.target.value || null
-                }),
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "기본 장치" }),
-                  audioDevices.outputs.map((device) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: device.deviceId, children: device.label }, device.deviceId))
-                ]
-              }
-            )
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "audio-toggle-grid", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-topbar-main", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-status-row", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "legacy-status-select", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sr-only", children: "상담원 상태" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
+              "select",
               {
-                type: "checkbox",
-                checked: audioDraft.echoCancellation,
-                onChange: (event) => syncAudioDraft({
-                  echoCancellation: event.target.checked
-                })
+                "aria-label": "상담원 상태",
+                value: agentStatus ?? "MANUAL_PAUSED",
+                onChange: (event) => onChangeAgentStatus(event.target.value),
+                children: AGENT_STATUS_OPTIONS.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: option.value, children: option.label }, option.value))
               }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Echo Cancellation" })
+            )
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: audioDraft.noiseSuppression,
-                onChange: (event) => syncAudioDraft({
-                  noiseSuppression: event.target.checked
-                })
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Noise Suppression" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "placeholder-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
-              disabled: !audioCapabilities.sinkSelectionSupported,
-              onClick: onPlayOutputPreview,
-              children: "스피커 테스트"
+              className: "legacy-primary-call",
+              disabled: !dialNumber.trim() || !runtimeReady,
+              onClick: () => onOriginate(dialNumber),
+              children: "전화걸기"
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
-              disabled: !audioCapabilities.sinkSelectionSupported,
-              onClick: onPlayRingPreview,
-              children: "벨소리 테스트"
+              className: "legacy-secondary-call",
+              disabled: !runtimeReady || !activeCall || !["QUEUED", "RINGING_AGENT"].includes(activeCall.sessionStatus),
+              onClick: onPickup,
+              children: "당겨받기"
             }
           )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel placeholder-card", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "section-header", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "진단" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "section-copy", children: "상담원이 평소에 볼 필요 없는 연결 점검 기능입니다." })
-          ] }),
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-nav-row", role: "tablist", "aria-label": "상담원 기능", children: [
+          navItems.map((item, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              className: view === item.key ? "legacy-nav-button is-active" : "legacy-nav-button",
+              onClick: () => setView(item.key),
+              children: item.label
+            },
+            `${item.key}-${index}`
+          )),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
-              className: "secondary-button",
-              onClick: () => setShowDiagnostics((current) => !current),
-              children: showDiagnostics ? "진단 숨기기" : "진단 보기"
+              className: view === "settings" ? "legacy-nav-button is-active" : "legacy-nav-button",
+              "aria-label": "설정",
+              onClick: () => setView("settings"),
+              children: "설정"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-agent-panel", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: runtimeReady ? "원격" : "오프라인" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: agentName }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("em", { children: [
+          "Ext. ",
+          extension
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: statusLabel })
+      ] })
+    ] }),
+    view === "call" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CallConsole,
+      {
+        activeCall,
+        callStatus,
+        runtimeReady,
+        softphone,
+        dialNumber,
+        onDialNumber: setDialNumber,
+        onOriginate,
+        onPickup,
+        onHangup,
+        onMute,
+        onToggleHold,
+        onAnswerSoftphoneCall,
+        onRejectSoftphoneCall,
+        onHangupSoftphoneCall
+      }
+    ) : null,
+    view === "history" ? /* @__PURE__ */ jsxRuntimeExports.jsx(HistoryPanel, { rows: historyRows, agentName, extension }) : null,
+    view === "outbound" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      OutboundPanel,
+      {
+        dialNumber,
+        callerId,
+        extension,
+        runtimeReady,
+        onCallerId: setCallerId,
+        onDialNumber: setDialNumber,
+        onOriginate
+      }
+    ) : null,
+    view === "transfer" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      TransferPanel,
+      {
+        activeCall,
+        runtimeReady,
+        transferMode,
+        transferTarget,
+        agentName,
+        extension,
+        onTransferMode: setTransferMode,
+        onTransferTarget: setTransferTarget,
+        onTransfer,
+        onCancelAttendedTransfer,
+        onCompleteAttendedTransfer
+      }
+    ) : null,
+    view === "agents" ? /* @__PURE__ */ jsxRuntimeExports.jsx(AgentListPanel, { agentName, extension, statusLabel }) : null,
+    view === "settings" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      SettingsPanel,
+      {
+        config,
+        tab: settingsTab,
+        readiness,
+        showDiagnostics,
+        audioPermission,
+        refreshingAudioDevices,
+        audioDraft,
+        audioDevices,
+        audioCapabilities,
+        softphone,
+        runtimeConnection,
+        onTab: setSettingsTab,
+        onShowDiagnostics: setShowDiagnostics,
+        onBack: () => setView("call"),
+        onRequestAudioPermission,
+        onRefreshAudioDevices,
+        onChangeAudioPreferences: syncAudioDraft,
+        onPlayOutputPreview,
+        onPlayRingPreview,
+        onReconnectRuntime,
+        onStartSoftphone,
+        onStopSoftphone
+      }
+    ) : null
+  ] });
+}
+function CallConsole({
+  activeCall,
+  callStatus,
+  runtimeReady,
+  softphone,
+  dialNumber,
+  onDialNumber,
+  onOriginate,
+  onPickup,
+  onHangup,
+  onMute,
+  onToggleHold,
+  onAnswerSoftphoneCall,
+  onRejectSoftphoneCall,
+  onHangupSoftphoneCall
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "legacy-workspace", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "legacy-card legacy-current-call", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "현재 통화" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: callStatus }),
+      softphone?.session ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        softphone.session.remoteDisplayName,
+        softphone.session.remoteUri ? ` / ${softphone.session.remoteUri}` : ""
+      ] }) : null
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "legacy-card", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-command-grid", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            disabled: !runtimeReady || !activeCall || !["QUEUED", "RINGING_AGENT"].includes(activeCall.sessionStatus),
+            onClick: onPickup,
+            children: "수신"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall, onClick: onHangup, children: "전화끊기" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall, onClick: onMute, children: activeCall?.isMuted ? "음소거 해제" : "음소거" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall, onClick: onToggleHold, children: activeCall?.sessionStatus === "HOLD" ? "재개" : "홀드" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-inline-form", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: dialNumber,
+            onChange: (event) => onDialNumber(event.target.value),
+            placeholder: "전화번호 입력",
+            "aria-label": "전화번호 입력"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            disabled: !dialNumber.trim() || !runtimeReady,
+            onClick: () => onOriginate(dialNumber),
+            children: "발신 요청"
+          }
+        )
+      ] })
+    ] }),
+    softphone?.session?.phase === "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "legacy-card legacy-command-grid", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onAnswerSoftphoneCall, children: "Softphone 수락" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onRejectSoftphoneCall, children: "Softphone 거절" })
+    ] }) : null,
+    softphone?.session && softphone.session.phase !== "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "legacy-card legacy-command-grid", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onHangupSoftphoneCall, children: "Softphone 종료" }) }) : null
+  ] });
+}
+function HistoryPanel({
+  rows,
+  agentName,
+  extension
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "legacy-window-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "통화 내역" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-filter-grid", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "조회시작일" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "조회시작일", type: "date", defaultValue: today() })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "조회종료일" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "조회종료일", type: "date", defaultValue: today() })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "상담그룹" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "상담그룹", defaultValue: "all", children: /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "전체" }) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "검색" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "검색 구분", defaultValue: "phone", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "phone", children: "전화번호검색" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "agent", children: "상담원" })
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "legacy-table-wrap", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "상태" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "지사" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "대표번호" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "발신번호" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "수신번호" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "날짜/시간" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "통화시간" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "상담원" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "내선" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "녹취" })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rows.length > 0 ? rows.map((row) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "legacy-pill", children: "수신" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: "맑은하늘" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.dnis || "1577-7893" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.ani }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.dnis }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: new Date(row.startedAt).toLocaleString() }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: "진행중" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: agentName }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: extension }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: "녹취 없음" })
+      ] }, row.callId)) : /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 10, className: "legacy-empty-cell", children: "표시할 통화이력이 없습니다." }) }) })
+    ] }) })
+  ] });
+}
+function OutboundPanel({
+  dialNumber,
+  callerId,
+  extension,
+  runtimeReady,
+  onCallerId,
+  onDialNumber,
+  onOriginate
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "legacy-window-panel legacy-cid-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "CID 발신" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "수신전화번호" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "수신전화번호", value: dialNumber, onChange: (event) => onDialNumber(event.target.value) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "발신전화번호" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "발신전화번호", value: callerId, onChange: (event) => onCallerId(event.target.value) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "지사명" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "지사명", defaultValue: "branch-1", children: /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "branch-1", children: "맑은하늘11" }) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        type: "button",
+        className: "legacy-large-command",
+        disabled: !dialNumber.trim() || !runtimeReady,
+        onClick: () => onOriginate(dialNumber),
+        children: "전화 걸기"
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "legacy-branch-list", children: Array.from({ length: 8 }, (_, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+        "맑은하늘",
+        index + 11
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: callerId }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("em", { children: [
+        "Ext.",
+        extension
+      ] })
+    ] }, index)) })
+  ] });
+}
+function TransferPanel({
+  activeCall,
+  runtimeReady,
+  transferMode,
+  transferTarget,
+  agentName,
+  extension,
+  onTransferMode,
+  onTransferTarget,
+  onTransfer,
+  onCancelAttendedTransfer,
+  onCompleteAttendedTransfer
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "legacy-window-panel legacy-transfer-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "호 전환" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "전화번호 입력" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: transferTarget, onChange: (event) => onTransferTarget(event.target.value) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-agent-tree", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "전체" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", onClick: () => onTransferTarget(extension), children: [
+        agentName,
+        " (",
+        activeCall ? "상담중" : "상담대기",
+        ")"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => onTransferTarget("2000"), children: "오토콜2000 [오프라인]" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "select",
+      {
+        "aria-label": "전환 방식",
+        value: transferMode,
+        onChange: (event) => onTransferMode(event.target.value),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "attended", children: "상담원과 통화 후 돌려주기" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "blind", children: "상대방 수락 시 바로 돌려주기" })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-transfer-actions", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          disabled: !runtimeReady || !activeCall || !transferTarget.trim(),
+          onClick: () => onTransfer(transferTarget, transferMode),
+          children: "돌려주기 시도"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall?.latestTransfer, onClick: onCompleteAttendedTransfer, children: "상담 전환 완료" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall?.latestTransfer, onClick: onCancelAttendedTransfer, children: "돌려주기 취소" })
+    ] })
+  ] });
+}
+function AgentListPanel({
+  agentName,
+  extension,
+  statusLabel
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "legacy-window-panel legacy-agent-list-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "상담원 리스트" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-filter-grid", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "상담원" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "상담원" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "상태" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "상태", defaultValue: "wait", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "wait", children: "상담대기" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "전체" })
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-agent-tree", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "전체" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", children: [
+        agentName,
+        "@ (",
+        statusLabel,
+        ")"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", children: [
+        "내선 ",
+        extension
+      ] })
+    ] })
+  ] });
+}
+function SettingsPanel({
+  config,
+  tab,
+  readiness,
+  showDiagnostics,
+  audioPermission,
+  refreshingAudioDevices,
+  audioDraft,
+  audioDevices,
+  audioCapabilities,
+  softphone,
+  runtimeConnection,
+  onTab,
+  onShowDiagnostics,
+  onBack,
+  onRequestAudioPermission,
+  onRefreshAudioDevices,
+  onChangeAudioPreferences,
+  onPlayOutputPreview,
+  onPlayRingPreview,
+  onReconnectRuntime,
+  onStartSoftphone,
+  onStopSoftphone
+}) {
+  const tabs = [
+    { key: "call", label: "통화" },
+    { key: "ring", label: "벨소리" },
+    { key: "general", label: "일반" },
+    { key: "quickTransfer", label: "간편 호 전환" },
+    { key: "audio", label: "음성/코덱" },
+    { key: "recording", label: "녹취분석" }
+  ];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "legacy-window-panel legacy-settings-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-panel-title-row", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "환경설정" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onBack, children: "통화 화면" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "legacy-settings-tabs", children: tabs.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        type: "button",
+        className: tab === item.key ? "is-active" : "",
+        onClick: () => onTab(item.key),
+        children: item.label
+      },
+      item.key
+    )) }),
+    tab === "audio" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "legacy-settings-body", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "오디오 입/출력" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "오디오 장치" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-setting-actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onRequestAudioPermission, children: "권한 요청" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onRefreshAudioDevices, disabled: refreshingAudioDevices, children: refreshingAudioDevices ? "새로고침 중" : "장치 새로고침" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "legacy-muted", children: [
+        "권한 상태: ",
+        audioPermission
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "legacy-muted", children: [
+        "출력 장치 라우팅: ",
+        audioCapabilities.sinkSelectionSupported ? "지원" : "미지원"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-audio-grid", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "마이크" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              "aria-label": "마이크",
+              value: audioDraft.inputDeviceId ?? "",
+              onChange: (event) => onChangeAudioPreferences({ inputDeviceId: event.target.value || null }),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "기본 장치" }),
+                audioDevices.inputs.map((device) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: device.deviceId, children: device.label }, device.deviceId))
+              ]
             }
           )
         ] }),
-        showDiagnostics ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "스피커" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              "aria-label": "스피커",
+              value: audioDraft.outputDeviceId ?? "",
+              onChange: (event) => onChangeAudioPreferences({ outputDeviceId: event.target.value || null }),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "기본 장치" }),
+                audioDevices.outputs.map((device) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: device.deviceId, children: device.label }, device.deviceId))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "벨소리 출력" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              "aria-label": "벨소리 출력",
+              value: audioDraft.ringDeviceId ?? "",
+              onChange: (event) => onChangeAudioPreferences({ ringDeviceId: event.target.value || null }),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "기본 장치" }),
+                audioDevices.outputs.map((device) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: device.deviceId, children: device.label }, device.deviceId))
+              ]
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-check-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: audioDraft.echoCancellation,
+              onChange: (event) => onChangeAudioPreferences({ echoCancellation: event.target.checked })
+            }
+          ),
+          "Echo Cancellation"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: audioDraft.noiseSuppression,
+              onChange: (event) => onChangeAudioPreferences({ noiseSuppression: event.target.checked })
+            }
+          ),
+          "Noise Suppression"
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-setting-actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !audioCapabilities.sinkSelectionSupported, onClick: onPlayOutputPreview, children: "스피커 테스트" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !audioCapabilities.sinkSelectionSupported, onClick: onPlayRingPreview, children: "벨소리 테스트" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-diagnostics", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => onShowDiagnostics((current) => !current), children: showDiagnostics ? "진단 숨기기" : "진단 보기" }),
+        showDiagnostics ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: `readiness-summary readiness-${readiness.overall}`, children: [
             "준비 상태: ",
             readiness.overall
@@ -12957,145 +13391,39 @@ function SoftphoneShell({
             ] }),
             item.hint ? /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: item.hint }) : null
           ] }, item.key)) }),
-          softphone?.lastError ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "section-copy", children: [
+          softphone?.lastError ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "legacy-muted", children: [
             "오류: ",
             softphone.lastError
           ] }) : null,
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "placeholder-actions", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                disabled: runtimeConnection === "reconnecting",
-                onClick: onReconnectRuntime,
-                children: "Runtime 재연결"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                disabled: !softphone?.config.enabled || !softphone.config.authorizationPassword,
-                onClick: onStartSoftphone,
-                children: "Softphone 등록"
-              }
-            ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-setting-actions", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: runtimeConnection === "reconnecting", onClick: onReconnectRuntime, children: "Runtime 재연결" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !softphone?.config.enabled || !softphone.config.authorizationPassword, onClick: onStartSoftphone, children: "Softphone 등록" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !softphone?.config.enabled, onClick: onStopSoftphone, children: "Softphone 중지" })
           ] })
         ] }) : null
       ] })
-    ] });
-  }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "softphone-shell compact-agent-console", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-console-header panel", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "agent-identity-block", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-identity-row", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("h1", { children: [
-          agentName,
-          " (",
-          extension,
-          ")"
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "legacy-settings-body", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: tabs.find((item) => item.key === tab)?.label }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "legacy-check-column", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", defaultChecked: true }),
+          " CID 수신창 표시"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "status-select-label", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sr-only", children: "상담원 상태" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "select",
-            {
-              className: "agent-status-select",
-              "aria-label": "상담원 상태",
-              value: agentStatus ?? "MANUAL_PAUSED",
-              onChange: (event) => onChangeAgentStatus(event.target.value),
-              children: AGENT_STATUS_OPTIONS.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: option.value, children: option.label }, option.value))
-            }
-          )
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", defaultChecked: true }),
+          " 통화 종료 후 상태 자동 변경"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox" }),
+          " 실시간 수/발신 목록 표시"
         ] })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "icon-button settings-button", "aria-label": "설정", onClick: () => setView("settings"), children: "설정" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel current-call-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "metric-label", children: "현재 통화" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: callStatus }),
-      softphone?.session ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "section-copy", children: [
-        softphone.session.remoteDisplayName,
-        softphone.session.remoteUri ? ` / ${softphone.session.remoteUri}` : ""
-      ] }) : null
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-action-grid", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          disabled: !runtimeReady || !activeCall || !["QUEUED", "RINGING_AGENT"].includes(activeCall.sessionStatus),
-          onClick: onPickup,
-          children: "수신"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall, onClick: onHangup, children: "종료" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall, onClick: onMute, children: activeCall?.isMuted ? "음소거 해제" : "음소거" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady || !activeCall, onClick: onToggleHold, children: activeCall?.sessionStatus === "HOLD" ? "재개" : "보류" })
-    ] }),
-    softphone?.session?.phase === "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-action-grid", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onAnswerSoftphoneCall, children: "Softphone 수락" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onRejectSoftphoneCall, children: "Softphone 거절" })
-    ] }) : null,
-    softphone?.session && softphone.session.phase !== "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "agent-action-grid", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onHangupSoftphoneCall, children: "Softphone 종료" }) }) : null,
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel placeholder-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "발신" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "transfer-panel", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: dialNumber,
-            onChange: (event) => setDialNumber(event.target.value),
-            placeholder: "외부 발신 번호"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            disabled: !dialNumber.trim() || !runtimeReady,
-            onClick: () => onOriginate(dialNumber),
-            children: "발신"
-          }
-        )
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "panel placeholder-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "전환" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "transfer-panel", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: transferTarget,
-            onChange: (event) => setTransferTarget(event.target.value),
-            placeholder: "전환 대상 내선 또는 번호"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: transferMode,
-            onChange: (event) => setTransferMode(event.target.value),
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "blind", children: "바로 전환" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "attended", children: "상담 전환" })
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            disabled: !runtimeReady || !activeCall || !transferTarget.trim(),
-            onClick: () => onTransfer(transferTarget, transferMode),
-            children: "전환"
-          }
-        )
       ] }),
-      activeCall?.latestTransfer ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "placeholder-actions", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady, onClick: onCompleteAttendedTransfer, children: "상담 전환 완료" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !runtimeReady, onClick: onCancelAttendedTransfer, children: "상담 전환 취소" })
-      ] }) : null
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "legacy-muted", children: [
+        "센터: ",
+        config.serverUrl,
+        " / 채널: ",
+        config.channel
+      ] })
     ] })
   ] });
 }
