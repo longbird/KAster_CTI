@@ -1,4 +1,4 @@
-import { Button, Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Skeleton, Table, Tag } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
@@ -20,16 +20,34 @@ interface AgentRow {
   sipContactUri?: string | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: 'green',
-  RINGING: 'gold',
-  TALKING: 'blue',
-  AFTER_CALL_WORK: 'purple',
-  BREAK: 'red',
-  MEAL: 'orange',
-  TRAINING: 'cyan',
-  MANUAL_PAUSED: 'default',
+// v2 Operator — map admin agent status to --status-* / accent tokens.
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  AVAILABLE:       { label: '대기',     color: 'var(--status-available)' },
+  RINGING:         { label: '벨 울림',  color: 'var(--status-ringing)' },
+  TALKING:         { label: '통화 중',  color: 'var(--status-talking)' },
+  AFTER_CALL_WORK: { label: '후처리',   color: 'var(--status-acw)' },
+  BREAK:           { label: '휴식',     color: 'var(--status-break)' },
+  MEAL:            { label: '식사',     color: 'var(--accent-warn)' },
+  TRAINING:        { label: '교육',     color: 'var(--status-training)' },
+  MANUAL_PAUSED:   { label: '일시중지', color: 'var(--status-offline)' },
+  OFFLINE:         { label: '오프라인', color: 'var(--status-offline)' },
 };
+
+function StatusChip({ code }: { code: string }) {
+  const meta = STATUS_META[code] ?? STATUS_META.OFFLINE;
+  return (
+    <span
+      className="k-chip"
+      style={{ color: meta.color, borderColor: meta.color, background: 'transparent' }}
+    >
+      <span className="k-dot" style={{ background: meta.color }} />
+      {meta.label}
+      <span className="k-mono" style={{ color: meta.color, opacity: 0.7, fontSize: 9, letterSpacing: '0.14em' }}>
+        {code === 'AFTER_CALL_WORK' ? 'ACW' : code}
+      </span>
+    </span>
+  );
+}
 
 function readToken(): string | null {
   try {
@@ -102,58 +120,58 @@ export function AgentsPage() {
   };
 
   return (
-    <Card>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        상담원 현황
-      </Typography.Title>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-        <Typography.Text type="secondary">5초 주기로 `/api/v1/agents` 폴링</Typography.Text>
+    <>
+      <div className="adm-page-head">
+        <div>
+          <h1 className="adm-page-title">상담원 현황</h1>
+          <div className="adm-page-sub">5초 주기 폴링 · /api/v1/agents</div>
+        </div>
         {agentPermission?.canExport ? (
-          <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={exportRows}
+            disabled={rows.length === 0}
+            className="k-btn k-btn-sm"
+          >
             CSV 내보내기
           </Button>
         ) : null}
       </div>
-      <Table<AgentRow>
-        rowKey="agentId"
-        dataSource={rows}
-        pagination={false}
-        columns={[
-          { title: '이름', dataIndex: 'agentName' },
-          { title: '로그인 ID', dataIndex: 'loginId' },
-          { title: '내선', dataIndex: 'extension' },
-          {
-            title: '전화기 등록',
-            render: (_, r) => {
-              const status = r.sipRegistrationStatus ?? 'UNREGISTERED';
-              if (/Avail|Reachable|NonQual|NonQualified/i.test(status)) return <Tag color="green">등록됨</Tag>;
-              if (/Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="orange">{status}</Tag>;
-              return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
+      <section className="adm-card">
+        <Table<AgentRow>
+          rowKey="agentId"
+          dataSource={rows}
+          pagination={false}
+          columns={[
+            { title: '이름', dataIndex: 'agentName' },
+            { title: '로그인 ID', dataIndex: 'loginId' },
+            { title: '내선', dataIndex: 'extension' },
+            {
+              title: '전화기 등록',
+              render: (_, r) => {
+                const status = r.sipRegistrationStatus ?? 'UNREGISTERED';
+                if (/Avail|Reachable|NonQual|NonQualified/i.test(status)) return <Tag color="green">등록됨</Tag>;
+                if (/Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="orange">{status}</Tag>;
+                return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
+              },
             },
-          },
-          {
-            title: '역할',
-            dataIndex: 'role',
-            render: (v: string) => <Tag>{v}</Tag>,
-          },
-          {
-            title: '현재 상태',
-            render: (_, r) =>
-              r.currentStatus ? (
-                <Tag color={STATUS_COLORS[r.currentStatus.statusCode] ?? 'default'}>
-                  {r.currentStatus.statusCode}
-                </Tag>
-              ) : (
-                <Tag>OFFLINE</Tag>
-              ),
-          },
-          {
-            title: '마지막 로그인',
-            dataIndex: 'lastLoginAt',
-            render: (v: string | null) => (v ? new Date(v).toLocaleString() : '-'),
-          },
-        ]}
-      />
-    </Card>
+            {
+              title: '역할',
+              dataIndex: 'role',
+              render: (v: string) => <Tag>{v}</Tag>,
+            },
+            {
+              title: '현재 상태',
+              render: (_, r) => <StatusChip code={r.currentStatus?.statusCode ?? 'OFFLINE'} />,
+            },
+            {
+              title: '마지막 로그인',
+              dataIndex: 'lastLoginAt',
+              render: (v: string | null) => (v ? new Date(v).toLocaleString() : '-'),
+            },
+          ]}
+        />
+      </section>
+    </>
   );
 }

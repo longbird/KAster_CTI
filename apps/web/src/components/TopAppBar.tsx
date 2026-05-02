@@ -3,8 +3,7 @@ import { logout } from '../api';
 import { useCtiStore } from '../store/useCtiStore';
 import { AgentStatusTag } from './AgentStatusTag';
 
-// "The Precision Curator" 디자인 시스템의 TopAppBar.
-// 로고 + 브랜드 + 에이전트 식별자 + 상태 + 로그아웃.
+// v2 Operator TopAppBar — hairline bottom, mono brand, signal accent.
 export function TopAppBar() {
   const agentSession = useCtiStore((s) => s.agentSession);
   const changeStatus = useCtiStore((s) => s.changeStatus);
@@ -16,35 +15,41 @@ export function TopAppBar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between bg-surface-container-lowest px-8 shadow-panel">
-      <div className="flex items-center gap-6">
-        <span className="font-headline text-lg font-extrabold uppercase tracking-widest text-primary">
+    <header
+      className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between px-6"
+      style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--line-1)' }}
+    >
+      <div className="flex items-center gap-5">
+        <span className="k-mono text-[14px] font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
           KAster CTI
         </span>
-        <div className="h-6 w-px bg-outline-variant/30" />
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary-fixed">
-            <span className="material-symbols-outlined text-base text-primary">person</span>
+        <span className="k-hr-v" />
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-sm"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)' }}
+          >
+            <span className="material-symbols-outlined text-base" style={{ color: 'var(--fg-2)' }}>person</span>
           </div>
           <div>
-            <p className="font-headline text-sm font-bold leading-none text-on-surface">
+            <p className="text-[13px] font-semibold leading-none text-[var(--fg-1)]">
               {agentSession?.agentName ?? '-'}
             </p>
-            <p className="mt-0.5 text-[10px] font-medium tracking-wide text-on-surface-variant">
-              내선 {agentSession?.extension ?? '-'}
+            <p className="k-mono mt-1 text-[10px] tracking-wide text-[var(--fg-3)]">
+              EXT <span className="text-[var(--fg-2)]">{agentSession?.extension ?? '-'}</span>
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
-        <div className="h-6 w-px bg-outline-variant/30" />
+        <span className="k-hr-v" />
         <button
           onClick={() => {
             void onLogout();
           }}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-error transition-all hover:bg-error-container/20 active:scale-95"
+          className="k-btn k-btn-danger k-btn-sm"
         >
           <LogoutOutlined />
           로그아웃

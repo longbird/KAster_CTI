@@ -1,7 +1,66 @@
-import { Button, Card, Form, Input, InputNumber, Select, Space, Switch, Tag, Typography, message } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Skeleton, Space, Switch, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { AdmPageHead } from '../../shared/ui/AdmPageHead';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useThemeStore, type ThemePref } from '../../store/useThemeStore';
+
+function ThemeCard() {
+  const pref = useThemeStore((s) => s.pref);
+  const resolved = useThemeStore((s) => s.resolved);
+  const setPref = useThemeStore((s) => s.setPref);
+  const opts: Array<{ code: ThemePref; label: string; desc: string }> = [
+    { code: 'system', label: '시스템', desc: '운영체제 설정에 맞춤' },
+    { code: 'light',  label: '라이트', desc: '주간 / 밝은 환경' },
+    { code: 'dark',   label: '다크',   desc: '야간 / NOC' },
+  ];
+  return (
+    <section className="adm-card" style={{ marginBottom: 16 }}>
+      <div className="adm-card-head" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <strong style={{ fontSize: 13 }}>테마</strong>
+          <span className="k-mono" style={{ fontSize: 10, color: 'var(--fg-3)', marginLeft: 8, letterSpacing: '0.1em' }}>
+            APPEARANCE
+          </span>
+        </div>
+        <span className="k-mono" style={{ fontSize: 11, color: 'var(--fg-3)', letterSpacing: '0.1em' }}>
+          현재: {resolved.toUpperCase()}{pref === 'system' ? ' · SYSTEM' : ''}
+        </span>
+      </div>
+      <div style={{ padding: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        {opts.map((o) => {
+          const active = pref === o.code;
+          return (
+            <button
+              key={o.code}
+              type="button"
+              onClick={() => setPref(o.code)}
+              style={{
+                padding: 14,
+                background: active ? 'var(--signal-soft)' : 'var(--bg-2)',
+                border: `1px solid ${active ? 'var(--signal-dim)' : 'var(--line-1)'}`,
+                borderRadius: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 6,
+                color: 'var(--fg-1)',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: active ? 'var(--signal)' : 'var(--fg-1)' }}>
+                {o.label}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--fg-3)' }}>{o.desc}</div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 interface SystemSettingsFormValue {
   recordingEnabled: boolean;
@@ -132,17 +191,35 @@ export function SystemSettingsPage() {
     }
   };
 
+  if (loading) return <Skeleton active paragraph={{ rows: 12 }} />;
+
+  const agent = useAuthStore.getState().agent;
   return (
-    <Card loading={loading}>
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            시스템 설정
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            테넌트 기본 운영값입니다. 직접 SIP 발신 허용 여부와 허용 발신번호도 여기서 관리합니다.
-          </Typography.Text>
+    <>
+      <AdmPageHead
+        title="설정"
+        sub="테넌트 기본 운영값 · 외관 · 발신/녹취/타임존"
+      />
+
+      <ThemeCard />
+
+      <section className="adm-card">
+        <div className="adm-card-head" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-1)' }}>
+          <strong style={{ fontSize: 13 }}>계정</strong>
         </div>
+        <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '160px 1fr', rowGap: 10, columnGap: 14, fontSize: 13 }}>
+          <div style={{ color: 'var(--fg-3)' }}>로그인 ID</div>
+          <div className="k-mono">{agent?.loginId ?? '-'}</div>
+          <div style={{ color: 'var(--fg-3)' }}>권한</div>
+          <div>{(agent?.role ?? '').toUpperCase()}</div>
+          <div style={{ color: 'var(--fg-3)' }}>내선</div>
+          <div className="k-mono">{agent?.extension ?? '-'}</div>
+        </div>
+      </section>
+
+      <section className="adm-card" style={{ marginTop: 16 }}>
+      <div style={{ padding: 14 }}>
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
 
         <Form form={form} layout="vertical">
           <Form.Item name="recordingEnabled" label="기본 녹취 사용" valuePropName="checked">
@@ -260,6 +337,8 @@ export function SystemSettingsPage() {
           </Button>
         </Space>
       </Space>
-    </Card>
+      </div>
+      </section>
+    </>
   );
 }

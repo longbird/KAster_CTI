@@ -1,8 +1,9 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
+import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import {
   createForwardingRule,
   deleteForwardingRule,
@@ -117,23 +118,24 @@ export function ForwardingSettingsPage() {
   if (!rows) return <Skeleton active paragraph={{ rows: 6 }} />;
 
   return (
-    <Card>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-        <div>
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
-            착신전환 설정
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            DID별 우선 라우팅 규칙입니다. 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다.
-          </Typography.Text>
-        </div>
-        {forwardingPermission?.canCreate !== false ? (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-            규칙 등록
-          </Button>
-        ) : null}
-      </Space>
-
+    <>
+      <AdmPageHead
+        title="라우팅 룰"
+        sub="DID별 우선 라우팅 규칙 · 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다."
+        right={
+          forwardingPermission?.canCreate !== false ? (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateOpen(true)}
+              className="k-btn k-btn-primary k-btn-sm"
+            >
+              규칙 등록
+            </Button>
+          ) : null
+        }
+      />
+      <section className="adm-card">
       <Table<AsteriskForwardingRule>
         rowKey="id"
         dataSource={rows}
@@ -198,14 +200,15 @@ export function ForwardingSettingsPage() {
         ]}
       />
 
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16, padding: '12px 14px', borderTop: '1px solid var(--line-1)' }}>
         <Space>
-          <SwapOutlined />
-          <Typography.Text type="secondary">
+          <SwapOutlined style={{ color: 'var(--fg-3)' }} />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             현재 1차 범위는 DID 기준 무조건 전환만 지원합니다. 시간대/조건부 전환은 후속 범위입니다.
           </Typography.Text>
         </Space>
       </div>
+      </section>
 
       {forwardingPermission?.canCreate !== false ? (
         <ForwardingRuleModal
@@ -228,6 +231,6 @@ export function ForwardingSettingsPage() {
           onSave={save}
         />
       ) : null}
-    </Card>
+    </>
   );
 }

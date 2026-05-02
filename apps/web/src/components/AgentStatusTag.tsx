@@ -2,8 +2,6 @@ import { Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import type { AgentStatusCode } from '../types/cti';
 
-// 상담원이 직접 변경 가능한 상태만 노출. RINGING/TALKING/AFTER_CALL_WORK 는
-// 시스템(AMI 이벤트)이 유도하는 상태라 수동 선택 금지.
 const SELECTABLE_STATUSES: AgentStatusCode[] = [
   'AVAILABLE',
   'BREAK',
@@ -12,27 +10,27 @@ const SELECTABLE_STATUSES: AgentStatusCode[] = [
   'MANUAL_PAUSED',
 ];
 
-const LABEL: Record<AgentStatusCode, string> = {
-  AVAILABLE: '대기',
-  RINGING: '벨 울림',
-  TALKING: '통화 중',
-  AFTER_CALL_WORK: '후처리',
-  BREAK: '휴식',
-  MEAL: '식사',
-  TRAINING: '교육',
-  MANUAL_PAUSED: '일시중지',
+const LABEL: Record<AgentStatusCode, { ko: string; en: string }> = {
+  AVAILABLE:       { ko: '대기',      en: 'AVAILABLE' },
+  RINGING:         { ko: '벨 울림',   en: 'RINGING' },
+  TALKING:         { ko: '통화 중',   en: 'TALKING' },
+  AFTER_CALL_WORK: { ko: '후처리',    en: 'ACW' },
+  BREAK:           { ko: '휴식',      en: 'BREAK' },
+  MEAL:            { ko: '식사',      en: 'MEAL' },
+  TRAINING:        { ko: '교육',      en: 'TRAINING' },
+  MANUAL_PAUSED:   { ko: '일시중지',  en: 'PAUSED' },
 };
 
-// 디자인 시스템의 색 매핑. dot + text color + bg tint.
-const TONE: Record<AgentStatusCode, { dot: string; text: string; bg: string; pulse?: string }> = {
-  AVAILABLE: { dot: 'bg-tertiary', text: 'text-tertiary', bg: 'bg-tertiary/10', pulse: 'pulse-available' },
-  RINGING: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-  TALKING: { dot: 'bg-primary', text: 'text-primary', bg: 'bg-primary/10' },
-  AFTER_CALL_WORK: { dot: 'bg-secondary', text: 'text-secondary', bg: 'bg-surface-container-low' },
-  BREAK: { dot: 'bg-error', text: 'text-error', bg: 'bg-error-container/30', pulse: 'pulse-busy' },
-  MEAL: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-  TRAINING: { dot: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50' },
-  MANUAL_PAUSED: { dot: 'bg-outline', text: 'text-on-surface-variant', bg: 'bg-surface-container' },
+// v2 Operator — map each status to a --status-* token.
+const TONE: Record<AgentStatusCode, { token: string; live?: boolean }> = {
+  AVAILABLE:       { token: 'var(--status-available)', live: true },
+  RINGING:         { token: 'var(--status-ringing)',   live: true },
+  TALKING:         { token: 'var(--status-talking)',   live: true },
+  AFTER_CALL_WORK: { token: 'var(--status-acw)' },
+  BREAK:           { token: 'var(--status-break)' },
+  MEAL:            { token: 'var(--accent-warn)' },
+  TRAINING:        { token: 'var(--status-training)' },
+  MANUAL_PAUSED:   { token: 'var(--status-offline)' },
 };
 
 interface Props {
@@ -48,7 +46,7 @@ export function AgentStatusTag({ status, onChange }: Props) {
   const menu: MenuProps = {
     items: SELECTABLE_STATUSES.map((s) => ({
       key: s,
-      label: LABEL[s],
+      label: `${LABEL[s].ko} · ${LABEL[s].en}`,
       disabled: s === current,
     })),
     onClick: ({ key }) => {
@@ -59,17 +57,24 @@ export function AgentStatusTag({ status, onChange }: Props) {
   const body = (
     <button
       type="button"
-      className={`inline-flex items-center gap-2 rounded-full border border-outline-variant/20 px-3 py-1.5 ${tone.bg} ${
-        onChange ? 'cursor-pointer transition-transform hover:scale-105 active:scale-95' : 'cursor-default'
-      }`}
+      className={`k-chip ${onChange ? 'cursor-pointer' : 'cursor-default'}`}
+      style={{
+        borderColor: tone.token,
+        color: tone.token,
+        background: 'transparent',
+      }}
     >
-      <span className={`relative h-2 w-2 rounded-full ${tone.dot} ${tone.pulse ?? ''}`} />
-      <span className={`font-label text-[11px] font-bold uppercase tracking-wider ${tone.text}`}>
-        {label}
+      <span
+        className={`k-dot ${tone.live ? 'k-dot-live' : ''}`}
+        style={{ background: tone.token }}
+      />
+      <span className="text-[11px] font-semibold text-[var(--fg-1)]">{label.ko}</span>
+      <span className="k-mono text-[9px] tracking-widest" style={{ color: tone.token }}>
+        {label.en}
       </span>
       {onChange && (
         <span
-          className="material-symbols-outlined text-[14px]"
+          className="material-symbols-outlined text-[14px] text-[var(--fg-3)]"
           style={{ fontVariationSettings: "'wght' 500" }}
         >
           expand_more

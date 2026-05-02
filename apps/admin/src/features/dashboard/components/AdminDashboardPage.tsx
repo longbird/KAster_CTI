@@ -1,4 +1,4 @@
-import { Card, Col, Row, Skeleton, Space, Spin, Tag, Typography } from 'antd';
+import { Card, Col, Row, Skeleton, Space, Spin, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -31,21 +31,35 @@ export function AdminDashboardPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card>
-        <Space align="center" size="middle" wrap>
-          <div>
-            <Typography.Title level={3} style={{ margin: 0 }}>콜센터 운영 대시보드</Typography.Title>
-            <Typography.Text type="secondary">
-              마지막 갱신 {dayjs(data.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
-            </Typography.Text>
+      <div className="adm-page-head">
+        <div>
+          <h1 className="adm-page-title">콜센터 운영 대시보드</h1>
+          <div className="adm-page-sub">
+            {dayjs(data.updatedAt).format('YYYY-MM-DD HH:mm:ss')} 기준
+            {refreshing ? ' · 갱신 중' : ''}
           </div>
+        </div>
+        <Space>
           <BranchFilterSelect value={branchId} onChange={setBranchId} />
-          <Tag color="blue">/admin/dashboard 기준 UI</Tag>
-          <Tag color="geekblue">queue.summary.updated / agent.status.changed / call.updated</Tag>
           {refreshing ? <Spin size="small" /> : null}
-          {error ? <Tag color="warning">{error}</Tag> : null}
+          {error ? (
+            <span
+              className="k-chip"
+              style={{
+                color: 'var(--accent-warn)',
+                borderColor: 'rgba(251,191,36,0.35)',
+                background: 'var(--accent-warn-soft)',
+              }}
+            >
+              <span
+                className="k-dot"
+                style={{ background: 'var(--accent-warn)' }}
+              />
+              {error}
+            </span>
+          ) : null}
         </Space>
-      </Card>
+      </div>
 
       <InfraStatusBar />
 

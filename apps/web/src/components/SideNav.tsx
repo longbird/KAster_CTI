@@ -3,18 +3,18 @@ import { useUiStore, type FullWorkspaceSection } from '../store/useUiStore';
 interface NavItem {
   key: FullWorkspaceSection;
   label: string;
+  code: string;
   icon: string;
 }
 
 const ITEMS: NavItem[] = [
-  { key: 'overview', label: '개요', icon: 'dashboard' },
-  { key: 'call', label: '콜 센터', icon: 'headset_mic' },
-  { key: 'queues', label: '큐 현황', icon: 'stacked_line_chart' },
-  { key: 'history', label: '이력', icon: 'history' },
+  { key: 'overview', label: '개요',    code: 'OVERVIEW', icon: 'dashboard' },
+  { key: 'call',     label: '콜 센터', code: 'CALL',     icon: 'headset_mic' },
+  { key: 'queues',   label: '큐 현황', code: 'QUEUES',   icon: 'stacked_line_chart' },
+  { key: 'history',  label: '이력',    code: 'HISTORY',  icon: 'history' },
 ];
 
-// 좌측 영구 사이드바. 현재 프로젝트는 single-page 라 실제 라우팅은 없지만
-// 디자인 시스템을 맞추기 위해 active 상태만 overview 로 표시.
+// v2 Operator — dark sider, hairline right border, signal accent on active.
 export function SideNav() {
   const mode = useUiStore((s) => s.mode);
   const fullSection = useUiStore((s) => s.fullSection);
@@ -22,17 +22,22 @@ export function SideNav() {
   const setFullSection = useUiStore((s) => s.setFullSection);
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-surface-container-low pb-8 pt-20">
-      <div className="mb-10 px-8">
-        <h2 className="font-headline text-xl font-extrabold tracking-tight text-primary">
-          상담원 포털
-        </h2>
-        <p className="mt-1 font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+    <aside
+      className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col pb-6 pt-20"
+      style={{ background: 'var(--bg-1)', borderRight: '1px solid var(--line-1)' }}
+    >
+      <div className="mb-6 px-6">
+        <p className="k-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
           KAster CTI
         </p>
+        <h2 className="mt-1 text-[15px] font-semibold text-[var(--fg-1)]">상담원 포털</h2>
       </div>
 
-      <nav className="flex-1 space-y-1">
+      <div className="px-5 pb-2">
+        <span className="k-eyebrow">Workspace</span>
+      </div>
+
+      <nav className="flex-1 space-y-0.5 px-3">
         {ITEMS.map((item) => {
           const isActive = item.key === fullSection;
           return (
@@ -40,44 +45,61 @@ export function SideNav() {
               key={item.key}
               type="button"
               onClick={() => setFullSection(item.key)}
-              className={
+              className="group flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors"
+              style={
                 isActive
-                  ? 'ml-4 flex w-[calc(100%-1rem)] items-center gap-3 rounded-l-full bg-surface-container-lowest px-6 py-3 text-left font-bold text-primary shadow-sm transition-all duration-300 ease-in-out'
-                  : 'ml-4 flex w-[calc(100%-1rem)] items-center gap-3 px-6 py-3 text-left text-on-surface-variant transition-all duration-300 ease-in-out hover:text-primary'
+                  ? {
+                      background: 'var(--signal-soft)',
+                      borderLeft: '2px solid var(--signal)',
+                      color: 'var(--signal)',
+                    }
+                  : {
+                      borderLeft: '2px solid transparent',
+                      color: 'var(--fg-2)',
+                    }
               }
             >
-              <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="font-label text-sm">{item.label}</span>
+              <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
+              <span className="flex-1 text-[13px] font-semibold">{item.label}</span>
+              <span
+                className="k-mono text-[9px] tracking-widest"
+                style={{ color: isActive ? 'var(--signal)' : 'var(--fg-3)' }}
+              >
+                {item.code}
+              </span>
             </button>
           );
         })}
       </nav>
 
-      <div className="mt-auto px-6">
-        <div className="rounded-lg bg-surface-container p-3">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-            화면 모드
-          </p>
-          <div className="flex rounded-full bg-surface-container-high p-1">
+      <div className="mt-auto px-4">
+        <div className="k-panel p-3">
+          <span className="k-eyebrow mb-2 block">화면 모드</span>
+          <div
+            className="flex rounded-sm p-0.5"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
+          >
             <button
               onClick={() => setMode('full')}
-              className={
+              className="k-mono flex-1 rounded-sm px-3 py-1 text-[10px] font-bold tracking-widest transition-colors"
+              style={
                 mode === 'full'
-                  ? 'flex-1 rounded-full bg-surface-container-lowest px-3 py-1 text-[11px] font-bold text-primary shadow-sm'
-                  : 'flex-1 rounded-full px-3 py-1 text-[11px] font-bold text-on-surface-variant'
+                  ? { background: 'var(--signal)', color: 'var(--on-signal)' }
+                  : { color: 'var(--fg-3)' }
               }
             >
-              전체
+              FULL
             </button>
             <button
               onClick={() => setMode('mini')}
-              className={
+              className="k-mono flex-1 rounded-sm px-3 py-1 text-[10px] font-bold tracking-widest transition-colors"
+              style={
                 mode === 'mini'
-                  ? 'flex-1 rounded-full bg-surface-container-lowest px-3 py-1 text-[11px] font-bold text-primary shadow-sm'
-                  : 'flex-1 rounded-full px-3 py-1 text-[11px] font-bold text-on-surface-variant'
+                  ? { background: 'var(--signal)', color: 'var(--on-signal)' }
+                  : { color: 'var(--fg-3)' }
               }
             >
-              미니
+              MINI
             </button>
           </div>
         </div>

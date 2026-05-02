@@ -1,5 +1,6 @@
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, Card, DatePicker, Drawer, Input, Space, Table, Tag, Typography } from 'antd';
+import { Button, DatePicker, Drawer, Input, Space, Table, Tag, Typography } from 'antd';
+import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -85,10 +86,12 @@ export function AmiLogsPage() {
   };
 
   return (
-    <Card>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        호 로그 (raw AMI)
-      </Typography.Title>
+    <>
+      <AdmPageHead
+        title="감사 로그"
+        sub={`Raw AMI 이벤트 · 총 ${total.toLocaleString()}건`}
+      />
+      <section className="adm-card" style={{ padding: 14 }}>
       <Space style={{ marginBottom: 16 }} wrap>
         <DatePicker.RangePicker
           showTime
@@ -208,6 +211,7 @@ export function AmiLogsPage() {
           </Space>
         )}
       </Drawer>
-    </Card>
+      </section>
+    </>
   );
 }

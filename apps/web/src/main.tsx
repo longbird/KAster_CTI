@@ -10,11 +10,37 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ConfigProvider
       locale={koKR}
       theme={{
-        algorithm: theme.defaultAlgorithm,
+        algorithm: theme.darkAlgorithm,
         token: {
-          colorPrimary: '#2563eb',
-          borderRadius: 12,
-          fontSize: 14,
+          colorPrimary: '#4ade80',
+          colorInfo: '#60a5fa',
+          colorSuccess: '#4ade80',
+          colorWarning: '#fbbf24',
+          colorError: '#f87171',
+          colorBgBase: '#0a0b0d',
+          colorBgLayout: '#0a0b0d',
+          colorBgContainer: '#0f1013',
+          colorBgElevated: '#14161a',
+          colorBorder: 'rgba(255,255,255,0.10)',
+          colorBorderSecondary: 'rgba(255,255,255,0.06)',
+          colorText: '#f5f6f7',
+          colorTextSecondary: '#b7bcc4',
+          colorTextTertiary: '#7b8290',
+          colorTextQuaternary: '#4a5060',
+          borderRadius: 8,
+          borderRadiusSM: 4,
+          borderRadiusLG: 8,
+          borderRadiusXS: 4,
+          fontSize: 13,
+          fontFamily: '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+          controlHeight: 30,
+          controlHeightSM: 24,
+          wireframe: true,
+        },
+        components: {
+          Button: { primaryShadow: 'none', defaultShadow: 'none' },
+          Card: { headerBg: 'transparent' },
+          Table: { headerBg: '#14161a' },
         },
       }}
     >

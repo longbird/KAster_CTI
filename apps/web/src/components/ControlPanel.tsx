@@ -206,7 +206,8 @@ export function ControlPanel({
             </div>
             <button
               type="submit"
-              className="btn-primary-gradient rounded-xl px-12 py-3 font-headline text-sm font-bold shadow-lg shadow-primary/20"
+              className="k-btn k-btn-primary"
+              style={{ height: 36, paddingInline: 24 }}
             >
               메모 저장
             </button>

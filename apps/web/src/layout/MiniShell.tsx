@@ -85,7 +85,7 @@ export function MiniShell() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg-0)' }}>
         <Spin />
       </div>
     );
@@ -97,20 +97,20 @@ export function MiniShell() {
     && ['REQUESTED', 'CONSULT_RINGING', 'CONSULT_TALKING', 'REBRIDGING'].includes(selectedCall.latestTransfer.phase);
 
   return (
-    <div className="min-h-screen bg-surface p-3 font-body text-on-background">
+    <div className="min-h-screen p-3 font-body" style={{ background: 'var(--bg-0)', color: 'var(--fg-1)' }}>
       <div className="mx-auto max-w-[440px] space-y-3">
         {/* Header: 로고 + 에이전트 + 액션 */}
-        <div className="flex items-center justify-between rounded-lg bg-surface-container-lowest p-3 shadow-panel">
+        <div className="k-panel flex items-center justify-between p-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <span className="material-symbols-outlined text-base text-primary">headset_mic</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-[var(--signal-dim)] bg-[var(--signal-soft)]">
+              <span className="material-symbols-outlined text-base" style={{ color: 'var(--signal)' }}>headset_mic</span>
             </div>
             <div className="min-w-0">
-              <p className="font-headline text-[11px] font-extrabold uppercase tracking-widest text-primary">
+              <p className="k-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
                 KAster CTI
               </p>
-              <p className="truncate text-[10px] font-medium text-on-surface-variant">
-                {agentSession?.agentName ?? '-'} · 내선 {agentSession?.extension ?? '-'}
+              <p className="truncate text-[10px]" style={{ color: 'var(--fg-3)' }}>
+                {agentSession?.agentName ?? '-'} · 내선 <span className="k-mono">{agentSession?.extension ?? '-'}</span>
               </p>
             </div>
           </div>
@@ -118,91 +118,79 @@ export function MiniShell() {
             <button
               onClick={() => setMode('full')}
               title="Full 모드로 전환"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-all hover:bg-surface-container-low active:scale-95"
+              className="k-btn k-btn-icon k-btn-sm"
             >
-              <span className="material-symbols-outlined text-[18px]">open_in_full</span>
+              <span className="material-symbols-outlined text-[16px]">open_in_full</span>
             </button>
             <button
               onClick={() => {
                 void onLogout();
               }}
               title="로그아웃"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-error transition-all hover:bg-error-container/20 active:scale-95"
+              className="k-btn k-btn-danger k-btn-icon k-btn-sm"
             >
-              <span className="material-symbols-outlined text-[18px]">logout</span>
+              <span className="material-symbols-outlined text-[16px]">logout</span>
             </button>
           </div>
         </div>
 
         {/* Status row */}
-        <div className="flex items-center justify-between rounded-lg bg-surface-container-lowest p-3 shadow-panel">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-            현재 상태
-          </span>
+        <div className="k-panel flex items-center justify-between p-3">
+          <span className="k-eyebrow">현재 상태</span>
           <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
         </div>
 
-        {/* 현재 콜 — hero 그라디언트 (active) 또는 회색 empty */}
+        {/* 현재 콜 — v2 panel with live dot */}
         {isActive ? (
-          <div
-            className="relative overflow-hidden rounded-xl p-5 text-white shadow-panel"
-            style={{ background: 'linear-gradient(135deg, #003fb1 0%, #1a56db 100%)' }}
-          >
-            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 backdrop-blur-md">
-                  <span className="material-symbols-outlined text-2xl">person</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-headline text-lg font-bold">
-                    {selectedCall!.customer?.customerName ?? '미식별 고객'}
-                  </h3>
-                  <p className="truncate text-xs text-blue-100">
-                    {selectedCall!.ani ?? '-'}
-                    {selectedCall!.customer?.grade && (
-                      <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-bold">
-                        {selectedCall!.customer.grade}
-                      </span>
-                    )}
-                  </p>
-                </div>
+          <div className="k-panel p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="k-dot k-dot-live" style={{ background: 'var(--signal)' }} />
+                <span className="k-eyebrow">LIVE</span>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="rounded-full bg-tertiary-fixed px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-tertiary">
-                  진행 중
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-headline text-base font-bold">{duration}</span>
-                  <div className="flex h-4 items-end gap-0.5">
-                    <div
-                      className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed"
-                      style={{ animationDelay: '0s' }}
-                    />
-                    <div
-                      className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed"
-                      style={{ animationDelay: '0.15s' }}
-                    />
-                    <div
-                      className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed"
-                      style={{ animationDelay: '0.3s' }}
-                    />
-                    <div
-                      className="waveform-bar w-0.5 rounded-full bg-tertiary-fixed"
-                      style={{ animationDelay: '0.45s' }}
-                    />
-                  </div>
+              <span className="k-chip is-talking">
+                <span className="k-chip-dot" style={{ background: 'var(--accent-info)' }} />
+                통화 중<span className="k-chip-code">TALKING</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--line-2)] bg-[var(--bg-2)]">
+                <span className="material-symbols-outlined text-xl text-[var(--fg-2)]">person</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-base font-bold text-[var(--fg-1)]">
+                  {selectedCall!.customer?.customerName ?? '미식별 고객'}
+                </h3>
+                <p className="truncate text-[11px] text-[var(--fg-3)]">
+                  <span className="k-mono text-[var(--fg-2)]">{selectedCall!.ani ?? '-'}</span>
+                  {selectedCall!.customer?.grade && (
+                    <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--fg-1)]">
+                      {selectedCall!.customer.grade}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="k-eyebrow">DURATION</span>
+              <div className="flex items-center gap-2">
+                <span className="k-num text-lg text-[var(--signal)]">{duration}</span>
+                <div className="flex h-4 items-end gap-0.5">
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0s' }} />
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.15s' }} />
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.3s' }} />
+                  <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.45s' }} />
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-container-lowest p-8 text-center shadow-panel">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container">
-              <span className="material-symbols-outlined text-xl text-outline">call</span>
+          <div className="k-panel flex flex-col items-center gap-2 p-8 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-[var(--line-2)] bg-[var(--bg-2)]">
+              <span className="material-symbols-outlined text-xl text-[var(--fg-3)]">call</span>
             </div>
-            <p className="font-headline text-sm font-semibold text-on-surface">통화 없음</p>
-            <p className="text-[11px] text-outline">새 콜이 배정되면 여기에 표시됩니다</p>
+            <p className="text-sm font-semibold text-[var(--fg-1)]">통화 없음</p>
+            <p className="text-[11px] text-[var(--fg-3)]">새 콜이 배정되면 여기에 표시됩니다</p>
           </div>
         )}
 
@@ -289,7 +277,7 @@ export function MiniShell() {
         ) : null}
 
         {/* 메모 / 후처리 */}
-        <div className="rounded-lg bg-surface-container-lowest p-5 shadow-panel">
+        <div className="k-panel p-5">
           <Form
             form={form}
             layout="vertical"
@@ -324,7 +312,8 @@ export function MiniShell() {
             </Form.Item>
             <button
               type="submit"
-              className="btn-primary-gradient w-full rounded-xl py-2.5 font-headline text-sm font-bold shadow shadow-primary/20"
+              className="k-btn k-btn-primary w-full"
+              style={{ height: 36 }}
             >
               저장
             </button>
@@ -349,23 +338,19 @@ function MiniCtrlButton({
   tone?: 'neutral' | 'danger';
 }) {
   const base =
-    'flex flex-col items-center justify-center gap-1 rounded-lg py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40';
+    'flex flex-col items-center justify-center gap-1 rounded-sm py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 border';
   const toneClass =
     tone === 'danger'
-      ? 'bg-error text-white hover:opacity-90 shadow-lg shadow-error/20'
-      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container-low shadow-panel';
+      ? 'border-[rgba(248,113,113,0.35)] bg-transparent text-[var(--accent-danger)] hover:bg-[var(--accent-danger-soft)]'
+      : 'border-[var(--line-1)] bg-[var(--bg-1)] text-[var(--fg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--line-3)]';
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${toneClass}`}>
       <span className="material-symbols-outlined text-[20px]">{icon}</span>
-      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      <span className="k-mono text-[10px] font-bold uppercase tracking-wider">{label}</span>
     </button>
   );
 }
 
 function MiniLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-      {children}
-    </span>
-  );
+  return <span className="k-eyebrow">{children}</span>;
 }

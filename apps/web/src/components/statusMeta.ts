@@ -33,15 +33,15 @@ export const AGENT_META: Record<AgentStatusCode, StatusMeta> = {
   MANUAL_PAUSED: { label: '일시정지', color: 'default', tone: 'neutral' },
 };
 
-// hero 카드 border / 배경 틴트. Tailwind 클래스 그룹.
+// hero 카드 border / 배경 틴트. v2 Operator — hairline + soft tint.
 export const TONE_CLASS: Record<StatusMeta['tone'], string> = {
-  info: 'border-blue-200 bg-blue-50/40',
-  warn: 'border-amber-200 bg-amber-50/40',
-  ok: 'border-emerald-200 bg-emerald-50/40',
-  danger: 'border-rose-200 bg-rose-50/40',
-  neutral: 'border-slate-200 bg-white',
+  info: 'border-[rgba(96,165,250,0.35)] bg-[var(--accent-info-soft)]',
+  warn: 'border-[rgba(251,191,36,0.35)] bg-[var(--accent-warn-soft)]',
+  ok: 'border-[var(--signal-dim)] bg-[var(--signal-soft)]',
+  danger: 'border-[rgba(248,113,113,0.35)] bg-[var(--accent-danger-soft)]',
+  neutral: 'border-[var(--line-1)] bg-[var(--bg-1)]',
 };
 
-// 공통 카드 외곽 클래스. Antd Card 의 기본 테두리/그림자보다 더 현대적.
+// 공통 카드 외곽 클래스 — v2 panel
 export const PANEL_CLASS =
-  'rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)]';
+  'rounded-md border border-[var(--line-1)] bg-[var(--bg-1)]';
