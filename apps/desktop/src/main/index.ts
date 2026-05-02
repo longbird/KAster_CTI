@@ -12,7 +12,7 @@ import { RuntimeSupervisor } from './runtime-supervisor';
 import { TokenVault } from './token-vault';
 import { TrayService } from './tray-service';
 import { UpdateClient } from './update-client';
-import type { DesktopProtocolConnectPayload } from '../shared/ipc';
+import type { DesktopProtocolConnectPayload, DesktopWindowMode } from '../shared/ipc';
 import { normalizeCenterConfig } from '../shared/center-config';
 
 const configStore = new DesktopConfigStore(app.getPath('userData'));
@@ -41,19 +41,26 @@ let preparedUpdate:
     }
   | null = null;
 
-const COMPACT_WINDOW_BOUNDS = {
-  width: 520,
-  height: 760,
-  minWidth: 440,
-  minHeight: 660,
-};
+const DESKTOP_WINDOW_BOUNDS = {
+  idle: { width: 420, height: 360, minWidth: 380, minHeight: 320 },
+  ringing: { width: 440, height: 420, minWidth: 400, minHeight: 380 },
+  talking: { width: 460, height: 620, minWidth: 420, minHeight: 540 },
+  transferring: { width: 500, height: 640, minWidth: 440, minHeight: 560 },
+  afterCall: { width: 460, height: 520, minWidth: 420, minHeight: 460 },
+  settings: { width: 560, height: 720, minWidth: 500, minHeight: 640 },
+} as const;
 
-const FULL_WINDOW_BOUNDS = {
-  width: 1360,
-  height: 860,
-  minWidth: 1100,
-  minHeight: 700,
-};
+function normalizeDesktopWindowMode(mode: DesktopWindowMode): keyof typeof DESKTOP_WINDOW_BOUNDS {
+  if (mode === 'compact') {
+    return 'idle';
+  }
+
+  if (mode === 'full') {
+    return 'settings';
+  }
+
+  return mode;
+}
 
 function getPrimaryWindow() {
   return BrowserWindow.getAllWindows()[0] ?? null;
@@ -152,11 +159,12 @@ function createWindow() {
   ensureDesktopBridgeServer();
   protocolConnectInbox.reset();
   const trayIcon = createTrayIcon();
+  const initialBounds = DESKTOP_WINDOW_BOUNDS.idle;
   const win = new BrowserWindow({
-    width: COMPACT_WINDOW_BOUNDS.width,
-    height: COMPACT_WINDOW_BOUNDS.height,
-    minWidth: COMPACT_WINDOW_BOUNDS.minWidth,
-    minHeight: COMPACT_WINDOW_BOUNDS.minHeight,
+    width: initialBounds.width,
+    height: initialBounds.height,
+    minWidth: initialBounds.minWidth,
+    minHeight: initialBounds.minHeight,
     icon: trayIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -186,13 +194,13 @@ function createWindow() {
   attachTrayBehavior(win);
 }
 
-function applyWindowMode(mode: 'compact' | 'full') {
+function applyWindowMode(mode: DesktopWindowMode) {
   const win = getPrimaryWindow();
   if (!win) {
     return;
   }
 
-  const bounds = mode === 'full' ? FULL_WINDOW_BOUNDS : COMPACT_WINDOW_BOUNDS;
+  const bounds = DESKTOP_WINDOW_BOUNDS[normalizeDesktopWindowMode(mode)];
   win.setMinimumSize(bounds.minWidth, bounds.minHeight);
   win.setSize(bounds.width, bounds.height);
   win.center();
@@ -355,7 +363,7 @@ app.whenReady().then(() => {
   }
 
   ipcMain.handle('desktop:get-config', () => configStore.load());
-  ipcMain.handle('desktop:set-window-mode', (_event, mode: 'compact' | 'full') => {
+  ipcMain.handle('desktop:set-window-mode', (_event, mode: DesktopWindowMode) => {
     applyWindowMode(mode);
   });
   ipcMain.handle('desktop:save-config', (_event, input) => configStore.save(input));

@@ -4,6 +4,16 @@ export interface DesktopConfig {
   deviceId: string;
 }
 
+export type DesktopWindowMode =
+  | 'compact'
+  | 'full'
+  | 'idle'
+  | 'ringing'
+  | 'talking'
+  | 'transferring'
+  | 'afterCall'
+  | 'settings';
+
 export interface DesktopAudioPreferences {
   inputDeviceId: string | null;
   outputDeviceId: string | null;
@@ -56,7 +66,7 @@ export interface DesktopDirectLoginResult {
 }
 
 export interface DesktopApi {
-  setWindowMode(mode: 'compact' | 'full'): Promise<void>;
+  setWindowMode(mode: DesktopWindowMode): Promise<void>;
   getConfig(): Promise<DesktopConfig | null>;
   saveConfig(input: { serverUrl: string; channel?: string }): Promise<DesktopConfig>;
   getAudioPreferences(): Promise<DesktopAudioPreferences>;
