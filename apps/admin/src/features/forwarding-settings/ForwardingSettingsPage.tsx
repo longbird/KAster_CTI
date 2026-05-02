@@ -62,6 +62,7 @@ export function ForwardingSettingsPage() {
     () => dids.map((did) => ({
       value: did.id,
       label: did.description ? `${did.did} (${did.description})` : did.did,
+      directQueue: did.directQueue,
     })),
     [dids],
   );
@@ -95,6 +96,10 @@ export function ForwardingSettingsPage() {
   const save = async (values: ForwardingRuleFormValue) => {
     const payload = {
       ...values,
+      conditionType: values.schedules[0]?.conditionType ?? 'ALWAYS',
+      timeStart: values.schedules[0]?.timeStart ?? null,
+      timeEnd: values.schedules[0]?.timeEnd ?? null,
+      daysOfWeek: values.schedules[0]?.daysOfWeek ?? [],
       description: values.description?.trim() ? values.description : null,
     };
 

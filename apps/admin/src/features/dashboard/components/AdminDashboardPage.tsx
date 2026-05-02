@@ -6,7 +6,7 @@ import { KpiCards } from './KpiCards';
 import { TrafficChartCard } from './TrafficChartCard';
 import { QueueSummaryTable } from './QueueSummaryTable';
 import { TeamStatusTable } from './TeamStatusTable';
-import { ActiveCallsTable } from './ActiveCallsTable';
+import { ActiveCallsKanban } from './ActiveCallsKanban';
 import { AlertsPanel } from './AlertsPanel';
 import { InfraStatusBar } from '../../monitoring/components/InfraStatusBar';
 import { BranchFilterSelect } from '../../../shared/branches/BranchFilterSelect';
@@ -83,7 +83,7 @@ export function AdminDashboardPage() {
         </Col>
       </Row>
 
-      <ActiveCallsTable items={data.activeCalls} />
+      <ActiveCallsKanban items={data.activeCalls} />
     </Space>
   );
 }

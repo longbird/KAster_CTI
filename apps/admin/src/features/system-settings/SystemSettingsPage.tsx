@@ -209,7 +209,7 @@ export function SystemSettingsPage() {
         </div>
         <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '160px 1fr', rowGap: 10, columnGap: 14, fontSize: 13 }}>
           <div style={{ color: 'var(--fg-3)' }}>로그인 ID</div>
-          <div className="k-mono">{agent?.loginId ?? '-'}</div>
+          <div className="k-mono">{agent?.agentName ?? '-'}</div>
           <div style={{ color: 'var(--fg-3)' }}>권한</div>
           <div>{(agent?.role ?? '').toUpperCase()}</div>
           <div style={{ color: 'var(--fg-3)' }}>내선</div>
