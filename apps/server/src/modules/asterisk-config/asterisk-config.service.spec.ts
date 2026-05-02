@@ -1,6 +1,34 @@
 import { AsteriskConfigService } from './asterisk-config.service';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 describe('AsteriskConfigService blocklist import', () => {
+  it('reports prompt file deployment status with playback artifacts', async () => {
+    const soundsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kaster-prompts-'));
+    fs.writeFileSync(path.join(soundsDir, 'hello.wav'), Buffer.from('wav'));
+    fs.writeFileSync(path.join(soundsDir, 'ready.ulaw'), Buffer.from([0xff]));
+    const prisma = {
+      asteriskPrompt: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'p1', tenantId: 'tenant-1', promptKey: 'custom/hello', displayName: 'Hello', fileName: 'hello.wav', category: 'ivr', description: null, isActive: true },
+          { id: 'p2', tenantId: 'tenant-1', promptKey: 'custom/ready', displayName: 'Ready', fileName: 'ready.wav', category: 'ivr', description: null, isActive: true },
+          { id: 'p3', tenantId: 'tenant-1', promptKey: 'custom/missing', displayName: 'Missing', fileName: 'missing.wav', category: 'ivr', description: null, isActive: true },
+        ]),
+      },
+    } as any;
+    const config = { get: jest.fn((key: string, fallback?: string) => key === 'ASTERISK_SOUNDS_DIR' ? soundsDir : fallback) } as any;
+    const service = new AsteriskConfigService(prisma, {} as any, {} as any, config);
+
+    const result = await service.getPrompts('tenant-1');
+
+    expect(result.map((item: any) => [item.promptKey, item.fileStatus.status])).toEqual([
+      ['custom/hello', 'UPLOADED'],
+      ['custom/ready', 'PLAYBACK_READY'],
+      ['custom/missing', 'METADATA_ONLY'],
+    ]);
+  });
+
   it('schedules an Asterisk reload when an agent SIP password is cleared', async () => {
     const prisma = {
       agents: {

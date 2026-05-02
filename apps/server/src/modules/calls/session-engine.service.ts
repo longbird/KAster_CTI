@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { normalizePhone } from '../customers/customers.service';
+import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { TransferDetectorService } from './transfer-detector.service';
 
 // conv 44 SESSION_PRECEDENCE: 역순 도착 이벤트로 인한 상태 역행 차단.
@@ -23,6 +24,19 @@ export const SESSION_PRECEDENCE: Record<string, number> = {
 export function statusRank(status?: string | null) {
   if (!status) return -1;
   return SESSION_PRECEDENCE[status] ?? -1;
+}
+
+function parseNonNegativeSeconds(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? Math.floor(value) : undefined;
+  }
+
+  if (typeof value !== 'string' || value.trim() === '') {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 // conv 44 + share 69de045b: AMI 이벤트 중복 처리 방지.
@@ -233,9 +247,36 @@ export class SessionEngineService {
       case 'Hangup':
         await this.finalizeHangup(linkedid, event.tenantId);
         break;
-      case 'AgentComplete':
-        await this.upsertSession(linkedid, { sessionStatus: 'AFTER_CALL_WORK' }, event.tenantId);
+      case 'AgentComplete': {
+        const eventAt = event.eventTime ? new Date(event.eventTime) : new Date();
+        const raw = event.raw ?? {};
+        const talkSeconds = parseNonNegativeSeconds(raw.TalkTime ?? event.talkSeconds);
+        const holdSeconds = parseNonNegativeSeconds(raw.HoldTime ?? event.holdSeconds);
+        const answeredAt = talkSeconds !== undefined
+          ? new Date(eventAt.getTime() - talkSeconds * 1000)
+          : undefined;
+        const queuedAt = talkSeconds !== undefined && holdSeconds !== undefined
+          ? new Date(eventAt.getTime() - (talkSeconds + holdSeconds) * 1000)
+          : undefined;
+
+        await this.upsertSession(
+          linkedid,
+          {
+            sessionStatus: 'AFTER_CALL_WORK',
+            queueName: event.queueName,
+            answeredAt,
+            queuedAt,
+            talkSeconds,
+            holdSeconds,
+            primaryAgentId: await this.resolvePrimaryAgentId(
+              event.agentId ?? raw.Interface ?? raw.MemberName,
+              event.tenantId,
+            ),
+          },
+          event.tenantId,
+        );
         break;
+      }
       case 'BlindTransfer':
       case 'AttendedTransfer':
         // Transfer Detector 에 위임. 세션 상태는 API 요청 시점에 이미
@@ -279,7 +320,7 @@ export class SessionEngineService {
           },
         });
 
-        await this.enqueueOutbox(tx, tenantId, 'call.created', created);
+        await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_CREATED, created);
         return;
       }
 
@@ -308,7 +349,7 @@ export class SessionEngineService {
         data,
       });
 
-      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
+      await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_UPDATED, updated);
     });
   }
 
@@ -338,11 +379,13 @@ export class SessionEngineService {
               queuedAt: patch.queuedAt,
               ringingAt: patch.ringingAt,
               answeredAt: patch.answeredAt,
+              talkSeconds: patch.talkSeconds,
+              holdSeconds: patch.holdSeconds,
               primaryAgentId: patch.primaryAgentId,
             },
           });
 
-          await this.enqueueOutbox(tx, tenantId, 'call.created', created);
+          await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_CREATED, created);
           return;
         } catch (err) {
           if (
@@ -364,8 +407,14 @@ export class SessionEngineService {
 
       // conv 44 역행 가드: 이미 더 진행된 상태면 sessionStatus 필드만 떨어뜨리고
       // timestamps/agent 같은 보조 필드는 그대로 덮어쓴다.
-      const { sessionStatus, ...rest } = patch;
+      const { sessionStatus, ani, dnis, ...rest } = patch;
       const data: Prisma.callSessionsUpdateInput = { ...rest };
+      if (!found.ani && ani) {
+        data.ani = ani;
+      }
+      if (!found.dnis && dnis) {
+        data.dnis = dnis;
+      }
       if (!found.customerId && customerId) {
         data.customer = {
           connect: {
@@ -389,7 +438,7 @@ export class SessionEngineService {
         data,
       });
 
-      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
+      await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_UPDATED, updated);
     });
   }
 
@@ -425,7 +474,7 @@ export class SessionEngineService {
         });
       }
 
-      await this.enqueueOutbox(tx, tenantId, 'call.ended', updated);
+      await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_ENDED, updated);
     });
   }
 
@@ -443,7 +492,7 @@ export class SessionEngineService {
         },
       });
 
-      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
+      await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_UPDATED, updated);
     });
   }
 
@@ -466,7 +515,7 @@ export class SessionEngineService {
         },
       });
 
-      await this.enqueueOutbox(tx, tenantId, 'call.updated', updated);
+      await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_UPDATED, updated);
     });
   }
 

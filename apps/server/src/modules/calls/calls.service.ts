@@ -15,6 +15,7 @@ import { OriginateDto } from './dto/originate.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { TransferDetectorService } from './transfer-detector.service';
 import { normalizePhone } from '../customers/customers.service';
+import { REALTIME_EVENTS } from '../realtime/realtime-events';
 
 @Injectable()
 export class CallsService {
@@ -514,7 +515,7 @@ export class CallsService {
     await this.eventBus.publish('ami.command.originate.requested', {
       ...dto,
       ...meta,
-    });
+    }, tenantId);
 
     return {
       success: true,
@@ -566,7 +567,7 @@ export class CallsService {
       targetExtension: targetAgent.extension,
       ...meta,
     };
-    await this.eventBus.publish('ami.command.originate.internal.requested', payload);
+    await this.eventBus.publish('ami.command.originate.internal.requested', payload, tenantId);
 
     return {
       success: true,
@@ -604,7 +605,7 @@ export class CallsService {
       },
     });
 
-    await this.prisma.callSessions.update({
+    const updatedCall = await this.prisma.callSessions.update({
       where: { callId },
       data: { transferFlag: true, sessionStatus: 'TRANSFERRING' },
     });
@@ -639,7 +640,8 @@ export class CallsService {
       );
     }
 
-    await this.eventBus.publish('ami.command.transfer.requested', { callId, ...dto, ...meta });
+    await this.eventBus.publish(REALTIME_EVENTS.CALL_UPDATED, updatedCall, call.tenantId);
+    await this.eventBus.publish('ami.command.transfer.requested', { callId, ...dto, ...meta }, call.tenantId);
 
     return {
       success: true,
@@ -724,7 +726,7 @@ export class CallsService {
       linkedid: call.linkedid,
       candidateId: candidate.candidateId,
       ...meta,
-    });
+    }, call.tenantId);
 
     return {
       success: true,
@@ -784,7 +786,7 @@ export class CallsService {
       linkedid: call.linkedid,
       candidateId: candidate.candidateId,
       ...meta,
-    });
+    }, call.tenantId);
 
     return {
       success: true,
@@ -840,7 +842,7 @@ export class CallsService {
       agentId: params.agentId,
       extension: params.extension,
       ...meta,
-    });
+    }, call.tenantId);
 
     return {
       success: true,
@@ -873,6 +875,7 @@ export class CallsService {
     const direction = dto.direction ?? 'all';
     this.asteriskManager.muteAudio(agentLeg.channelName, state, direction);
     await this.redis.getClient().set(this.muteStateKey(callId), state === 'on' ? '1' : '0', 'EX', 86_400);
+    const { callLegs: _callLegs, ...callPayload } = call;
 
     await this.eventBus.publish('ami.command.mute.requested', {
       callId,
@@ -881,7 +884,15 @@ export class CallsService {
       state,
       direction,
       ...meta,
-    });
+    }, call.tenantId);
+    await this.eventBus.publish(
+      REALTIME_EVENTS.CALL_UPDATED,
+      {
+        ...callPayload,
+        isMuted: state === 'on',
+      },
+      call.tenantId,
+    );
 
     return {
       success: true,
@@ -941,7 +952,7 @@ export class CallsService {
       channel: agentLeg.channelName,
       action,
       ...meta,
-    });
+    }, call.tenantId);
 
     return {
       success: true,
@@ -1000,7 +1011,7 @@ export class CallsService {
       callId,
       linkedid: call.linkedid,
       ...meta,
-    });
+    }, call.tenantId);
 
     return {
       success: true,

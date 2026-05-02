@@ -75,7 +75,10 @@ export class DesktopAuthClient {
   }
 
   async loginWithCredentials(input: DesktopCredentialLoginInput): Promise<DesktopAuthSession> {
-    const tokens = await this.requestTokens('/auth/login', input);
+    const tokens = await this.requestTokens('/auth/login', {
+      ...input,
+      clientType: 'desktop',
+    });
     return this.hydrateDesktopSession(tokens);
   }
 
@@ -118,7 +121,14 @@ export class DesktopAuthClient {
 
   private async requestTokens(
     path: '/auth/handoff/exchange' | '/auth/refresh' | '/auth/login',
-    body: { handoffToken?: string; refreshToken?: string; loginId?: string; password?: string; extension?: string },
+    body: {
+      handoffToken?: string;
+      refreshToken?: string;
+      loginId?: string;
+      password?: string;
+      extension?: string;
+      clientType?: 'desktop';
+    },
   ): Promise<DesktopTokenPair> {
     try {
       const response = await this.http.post(path, body);

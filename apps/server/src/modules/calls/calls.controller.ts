@@ -233,6 +233,22 @@ export class CallsController {
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      return this.menuPermissionService
+        .assertAnyMenuAction(
+          req.user.tenantId,
+          req.user.role,
+          ['dashboard', 'live-calls'],
+          'operate',
+          req.user.sub,
+        )
+        .then(() => this.callsService.originateInternal(req.user.tenantId, {
+          agentId: req.user.sub,
+          agentExtension: req.user.extension,
+          targetExtension: dto.targetExtension,
+          targetAgentId: dto.targetAgentId,
+        }, { correlationId, idempotencyKey }));
+    }
     return this.callsService.originateInternal(req.user.tenantId, {
       agentId: req.user.sub,
       agentExtension: req.user.extension,
@@ -338,6 +354,15 @@ export class CallsController {
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+        req.user.sub,
+      );
+    }
     return this.callsService.pickup(req.user.tenantId, callId, {
       agentId: req.user.sub,
       extension: req.user.extension,

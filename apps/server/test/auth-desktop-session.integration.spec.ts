@@ -14,6 +14,9 @@ describe('AuthService desktop session', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
     },
+    tenantSystemSettings: {
+      findUnique: jest.fn(),
+    },
   };
   const configValues: Record<string, string> = {
     JWT_SECRET: 'change_me',
@@ -36,12 +39,15 @@ describe('AuthService desktop session', () => {
     });
     prisma.agents.findFirst.mockResolvedValue({
       agentId: 'agent-1',
+      tenantId: 'tenant-1',
       agentName: '상담원1',
       extension: '1001',
       role: 'agent',
-      tenantId: 'tenant-1',
       isActive: true,
       sipPassword: 'sip-secret-1001',
+    });
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      defaultSipPassword: 'site-default-secret',
     });
 
     const module: TestingModule = await Test.createTestingModule({
@@ -98,5 +104,29 @@ describe('AuthService desktop session', () => {
         iceServers: [],
       },
     });
+  });
+
+  it('getDesktopSession 은 상담원 SIP 비밀번호가 없으면 사이트 기본 비밀번호를 포함한다', async () => {
+    prisma.agents.findFirst.mockResolvedValueOnce({
+      agentId: 'agent-1',
+      tenantId: 'tenant-1',
+      agentName: '상담원1',
+      extension: '1001',
+      role: 'agent',
+      isActive: true,
+      sipPassword: null,
+    });
+
+    const response = await service.getDesktopSession({
+      sub: 'agent-1',
+      tenantId: 'tenant-1',
+      extension: '1001',
+    });
+
+    expect(prisma.tenantSystemSettings.findUnique).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1' },
+      select: { defaultSipPassword: true },
+    });
+    expect(response.data.softphoneConfig.authorizationPassword).toBe('site-default-secret');
   });
 });

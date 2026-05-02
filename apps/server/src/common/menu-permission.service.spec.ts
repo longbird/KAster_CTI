@@ -52,4 +52,17 @@ describe('defaultPermissionFlags', () => {
       }),
     );
   });
+
+  it('keeps forwarding settings as an independently operable settings permission', () => {
+    expect(MENU_KEYS).toContain('settings/forwarding');
+    expect(defaultPermissionFlags('supervisor', 'settings/forwarding')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+        canOperate: true,
+      }),
+    );
+  });
 });

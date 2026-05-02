@@ -1,7 +1,11 @@
-# KAster CTI 운영 배포 절차
+# KAster CTI 공유 개발 서버 배포 절차
 
 작성일: 2026-04-16  
-최종 업데이트: 2026-04-17
+최종 업데이트: 2026-05-01
+
+> 이 문서는 `blueadm@49.247.46.86` 공유 개발 서버용 절차다.
+> 정식 운영 배포는 `docs/design/production-deployment-standard.md`,
+> `docs/design/db-migration-runbook.md`, `scripts/deploy-prod.sh`를 따른다.
 
 ## 운영 환경 정보
 

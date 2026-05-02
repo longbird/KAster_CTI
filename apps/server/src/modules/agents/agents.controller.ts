@@ -130,6 +130,15 @@ export class AgentsController {
     if (user.sub !== agentId && !SUPERVISORY_ROLES.has(user.role)) {
       throw new ForbiddenException('본인 또는 supervisor/admin 만 허용');
     }
+    if (user.sub !== agentId) {
+      await this.menuPermissionService.assertAnyMenuAction(
+        user.tenantId,
+        user.role,
+        ['settings/agents', 'agents'],
+        'operate',
+        user.sub,
+      );
+    }
     const row = await this.agentStateService.changeStatus(
       agentId,
       dto.statusCode,

@@ -12,12 +12,18 @@ describe('SessionEngineService hold/unhold handling', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    customerPhones: {
+      findFirst: jest.fn(),
+    },
     eventOutbox: {
       create: jest.fn(),
     },
   };
 
   const prisma = {
+    agents: {
+      findFirst: jest.fn(),
+    },
     rawAmiEvents: {
       create: jest.fn(),
     },
@@ -36,6 +42,7 @@ describe('SessionEngineService hold/unhold handling', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    tx.customerPhones.findFirst.mockResolvedValue(null);
     service = new SessionEngineService(
       prisma as unknown as PrismaService,
       redis as unknown as RedisService,
@@ -131,6 +138,78 @@ describe('SessionEngineService hold/unhold handling', () => {
         holdSeconds: 12,
         updatedAt: resumeAt,
       },
+    });
+  });
+
+  it('AgentComplete 이벤트는 큐명, 상담원, 통화시간을 세션에 반영한다', async () => {
+    const completedAt = new Date('2026-05-02T06:00:08.000Z');
+    const answeredAt = new Date('2026-05-02T06:00:00.000Z');
+    const queuedAt = new Date('2026-05-02T05:59:57.000Z');
+    const updated = {
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      sessionStatus: 'AFTER_CALL_WORK',
+      queueName: 'sales',
+      primaryAgentId: 'agent-1001',
+      answeredAt,
+      queuedAt,
+      talkSeconds: 8,
+      holdSeconds: 3,
+    };
+
+    tx.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      sessionStatus: 'NEW',
+      answeredAt: null,
+      updatedAt: new Date('2026-05-02T05:59:56.000Z'),
+      holdSeconds: 0,
+    });
+    tx.callSessions.update.mockResolvedValue(updated);
+    prisma.rawAmiEvents.create.mockResolvedValue({});
+    prisma.agents.findFirst.mockResolvedValue({ agentId: 'agent-1001' });
+
+    await service.processNormalizedEvent({
+      eventName: 'AgentComplete',
+      tenantId: 'tenant-1',
+      linkedid: 'L-1',
+      uniqueid: 'U-1',
+      eventTime: completedAt.toISOString(),
+      queueName: 'sales',
+      agentId: 'PJSIP/1001',
+      raw: {
+        TalkTime: '8',
+        HoldTime: '3',
+        Interface: 'PJSIP/1001',
+      },
+    });
+
+    expect(prisma.agents.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        OR: [{ extension: '1001' }],
+      },
+      select: { agentId: true },
+    });
+    expect(tx.callSessions.update).toHaveBeenCalledWith({
+      where: { callId: 'call-1' },
+      data: {
+        sessionStatus: 'AFTER_CALL_WORK',
+        queueName: 'sales',
+        answeredAt,
+        queuedAt,
+        talkSeconds: 8,
+        holdSeconds: 3,
+        primaryAgentId: 'agent-1001',
+      },
+    });
+    expect(tx.eventOutbox.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        eventType: 'call.updated',
+      }),
     });
   });
 });

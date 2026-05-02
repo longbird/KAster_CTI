@@ -9,6 +9,7 @@ import { EventBusService } from '../events/event-bus.service';
 import { QueuesService } from '../queues/queues.service';
 import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
 import { RedisService } from '../redis/redis.service';
+import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { LoginDto } from './login.dto';
 
 // share 69de045b: access 는 짧게, refresh 는 길게. refresh token 은 평문 저장 금지
@@ -117,15 +118,16 @@ export class AuthService {
       },
     });
 
-    await this.eventBus.publish('agent.status.changed', {
+    await this.eventBus.publish(REALTIME_EVENTS.AGENT_STATUS_CHANGED, {
       agentId: agent.agentId,
       statusCode: 'AVAILABLE',
       reasonCode: null,
-    });
+    }, agent.tenantId);
     const queueSummary = await this.queuesService.getSummary(agent.tenantId);
     await this.eventBus.publish(
-      'queue.summary.updated',
+      REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+      agent.tenantId,
     );
 
     const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, meta);
@@ -146,7 +148,9 @@ export class AuthService {
           extension: agent.extension,
           role: agent.role,
         },
-        softphoneConfig: this.buildSoftphoneConfig(agent),
+        softphoneConfig: dto.clientType === 'desktop'
+          ? await this.buildDesktopSoftphoneConfig(agent)
+          : this.buildSoftphoneConfig(agent),
       },
       error: null,
     };
@@ -227,8 +231,9 @@ export class AuthService {
       });
       const queueSummary = await this.queuesService.getSummary(row.tenantId);
       await this.eventBus.publish(
-        'queue.summary.updated',
+        REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
         toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+        row.tenantId,
       );
     }
     return { success: true, data: { loggedOut: true }, error: null };
@@ -419,6 +424,7 @@ export class AuthService {
       },
       select: {
         agentId: true,
+        tenantId: true,
         agentName: true,
         extension: true,
         role: true,
@@ -439,7 +445,7 @@ export class AuthService {
           extension: agent.extension,
           role: agent.role,
         },
-        softphoneConfig: this.buildSoftphoneConfig(agent, { includeCredential: true }),
+        softphoneConfig: await this.buildDesktopSoftphoneConfig(agent),
       },
       error: null,
     };
@@ -533,6 +539,30 @@ export class AuthService {
       displayName,
       iceServers: this.parseIceServers(),
     };
+  }
+
+  private async buildDesktopSoftphoneConfig(
+    agent?: {
+      tenantId?: string | null;
+      extension?: string | null;
+      agentName?: string | null;
+      sipPassword?: string | null;
+    } | null,
+  ): Promise<SoftphoneConfigPayload> {
+    const defaultSipPassword = agent?.tenantId
+      ? (await this.prisma.tenantSystemSettings.findUnique({
+          where: { tenantId: agent.tenantId },
+          select: { defaultSipPassword: true },
+        }))?.defaultSipPassword ?? null
+      : null;
+
+    return this.buildSoftphoneConfig(
+      {
+        ...agent,
+        sipPassword: agent?.sipPassword?.trim() || defaultSipPassword,
+      },
+      { includeCredential: true },
+    );
   }
 
   private parseIceServers(): SoftphoneIceServer[] {

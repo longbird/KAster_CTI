@@ -421,6 +421,7 @@ function reduceEvent(
   currentEvents: string[],
   currentAgentStatus: AgentStatusCode | null,
   currentRuntimeConnection: DesktopStore['runtimeConnection'],
+  currentAgentId?: string | null,
 ): Pick<DesktopStore, 'activeCall' | 'events' | 'agentStatus' | 'runtimeConnection'> {
   switch (event.type) {
     case 'call.created':
@@ -444,10 +445,24 @@ function reduceEvent(
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`),
       };
+    case 'screenpop.customer':
+      return {
+        activeCall: currentCall?.callId === event.payload.callId
+          ? {
+              ...currentCall,
+              customer: event.payload.customer,
+            }
+          : currentCall,
+        agentStatus: currentAgentStatus,
+        runtimeConnection: currentRuntimeConnection,
+        events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`),
+      };
     case 'agent.status.changed':
       return {
         activeCall: currentCall,
-        agentStatus: event.payload.statusCode,
+        agentStatus: !currentAgentId || currentAgentId === event.payload.agentId
+          ? event.payload.statusCode
+          : currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`),
       };
@@ -480,7 +495,14 @@ function bindRuntimeEvents(
 ) {
   detachRuntimeListener?.();
   detachRuntimeListener = getDesktopApi().onEvent((event) => {
-    setState((state) => reduceEvent(event, state.activeCall, state.events, state.agentStatus, state.runtimeConnection));
+    setState((state) => reduceEvent(
+      event,
+      state.activeCall,
+      state.events,
+      state.agentStatus,
+      state.runtimeConnection,
+      state.agent?.agentId,
+    ));
   });
 }
 
@@ -930,7 +952,6 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
 
     await getDesktopApi().hangup(callId);
     set((current) => ({
-      activeCall: null,
       events: pushEvent(current.events, `종료 요청 ${callId}`),
     }));
   },
@@ -943,12 +964,6 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     if (currentCall.sessionStatus === 'HOLD') {
       await getDesktopApi().resume(currentCall.callId);
       set((current) => ({
-        activeCall: current.activeCall
-          ? {
-              ...current.activeCall,
-              sessionStatus: 'TALKING',
-            }
-          : current.activeCall,
         events: pushEvent(current.events, `보류 해제 요청 ${currentCall.callId}`),
       }));
       return;
@@ -956,12 +971,6 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
 
     await getDesktopApi().hold(currentCall.callId);
     set((current) => ({
-      activeCall: current.activeCall
-        ? {
-            ...current.activeCall,
-            sessionStatus: 'HOLD',
-          }
-        : current.activeCall,
       events: pushEvent(current.events, `보류 요청 ${currentCall.callId}`),
     }));
   },

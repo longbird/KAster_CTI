@@ -4,6 +4,7 @@ describe('renderPjsip', () => {
   it('renders global and transport sections', () => {
     const result = renderPjsip({ trunks: [], agents: [] });
     expect(result).toContain('[global]');
+    expect(result).toContain('endpoint_identifier_order=auth_username,username,ip,anonymous');
     expect(result).toContain('[transport-udp]');
     expect(result).toContain('[transport-ws]');
     expect(result).toContain('bind=0.0.0.0:36070');
@@ -81,12 +82,15 @@ describe('renderPjsip', () => {
       }],
     });
     expect(result).toContain('[1001-auth]');
+    expect(result).toContain('auth_type=userpass');
+    expect(result).toContain('realm=asterisk');
     expect(result).toContain('password=sip123');
     expect(result).toContain('[1001]');
     expect(result).toContain('callerid=Agent1 <1001>');
     expect(result).toContain('context=agent-phone-1001');
     expect(result).toContain('max_contacts=2');
-    expect(result).toContain('allow=opus,alaw,ulaw');
+    expect(result).toContain('allow=alaw,ulaw');
+    expect(result).toContain('webrtc=yes');
     expect(result).toContain('callerid_privacy=prohib');
     expect(result).toContain('named_call_group=queue-sales');
     expect(result).toContain('named_pickup_group=queue-sales,all-agents');

@@ -5,6 +5,7 @@ import { EventBusService } from '../src/modules/events/event-bus.service';
 import { AsteriskManagerService } from '../src/modules/calls/asterisk-manager.service';
 import { TransferDetectorService } from '../src/modules/calls/transfer-detector.service';
 import { RedisService } from '../src/modules/redis/redis.service';
+import { REALTIME_EVENTS } from '../src/modules/realtime/realtime-events';
 
 describe('CallsService branch filter integration', () => {
   let service: CallsService;
@@ -485,6 +486,7 @@ describe('CallsService branch filter integration', () => {
         targetAgentId: 'agent-2',
         targetExtension: '1002',
       }),
+      'tenant-1',
     );
     expect(result).toMatchObject({
       success: true,
@@ -515,7 +517,12 @@ describe('CallsService branch filter integration', () => {
       ],
     });
     prisma.callTransfers.create.mockResolvedValue({ transferId: 'transfer-1' });
-    prisma.callSessions.update.mockResolvedValue({ callId: 'call-1' });
+    prisma.callSessions.update.mockResolvedValue({
+      callId: 'call-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-100',
+      sessionStatus: 'TRANSFERRING',
+    });
 
     const result = await service.transfer('tenant-1', 'call-1', {
       transferType: 'attended',
@@ -545,6 +552,16 @@ describe('CallsService branch filter integration', () => {
     expect(asteriskManager.attendedTransfer).toHaveBeenCalledWith(
       'PJSIP/1001-00000010',
       '2001',
+    );
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      REALTIME_EVENTS.CALL_UPDATED,
+      expect.objectContaining({
+        callId: 'call-1',
+        tenantId: 'tenant-1',
+        linkedid: 'L-100',
+        sessionStatus: 'TRANSFERRING',
+      }),
+      'tenant-1',
     );
     expect(result).toMatchObject({
       success: true,
@@ -686,6 +703,7 @@ describe('CallsService branch filter integration', () => {
         linkedid: 'L-1000',
         candidateId: 'candidate-10',
       }),
+      'tenant-1',
     );
     expect(result).toMatchObject({
       success: true,
@@ -737,6 +755,7 @@ describe('CallsService branch filter integration', () => {
         agentId: 'agent-3',
         extension: '1003',
       }),
+      'tenant-1',
     );
     expect(result).toMatchObject({
       success: true,
@@ -808,6 +827,17 @@ describe('CallsService branch filter integration', () => {
         state: 'on',
         direction: 'all',
       }),
+      'tenant-1',
+    );
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      REALTIME_EVENTS.CALL_UPDATED,
+      expect.objectContaining({
+        callId: 'call-mute-1',
+        tenantId: 'tenant-1',
+        linkedid: 'L-mute-1',
+        isMuted: true,
+      }),
+      'tenant-1',
     );
     expect(result).toMatchObject({
       success: true,
@@ -860,6 +890,7 @@ describe('CallsService branch filter integration', () => {
         correlationId: 'corr-123',
         idempotencyKey: 'idem-123',
       }),
+      'tenant-1',
     );
   });
 

@@ -55,9 +55,16 @@ describe('CtiRuntime', () => {
       auth: { token: 'access-1' },
       transports: ['websocket'],
     });
-    expect(socketOn).toHaveBeenCalledWith('call.created', expect.any(Function));
-    expect(socketOn).toHaveBeenCalledWith('call.updated', expect.any(Function));
-    expect(socketOn).toHaveBeenCalledWith('call.ended', expect.any(Function));
+    [
+      'call.created',
+      'call.updated',
+      'call.ended',
+      'screenpop.customer',
+      'agent.status.changed',
+      'queue.summary.updated',
+    ].forEach((eventName) => {
+      expect(socketOn).toHaveBeenCalledWith(eventName, expect.any(Function));
+    });
   });
 
   it('connect 는 socket lifecycle 이벤트를 connection state callback 으로 전달한다', () => {

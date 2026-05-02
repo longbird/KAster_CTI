@@ -13,3 +13,9 @@ Current feature mappings:
 - `asterisk-config.blocklist.api`: blocklist API smoke assertion.
 
 Generated plans must keep `source.generatorVersion` so they can be refreshed safely after feature changes.
+
+P1 operating standard:
+
+- `smoke-regression-standard.md`: pre/post deployment smoke and regression evidence policy.
+- `p1-standard-smoke.yaml`: single-call site template for inbound smoke.
+- `p1-standard-regression.yaml`: low-volume repeated-call regression template. Replace only site host, port, DID, and caller allowlist values before running.

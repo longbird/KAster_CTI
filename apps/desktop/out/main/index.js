@@ -102,7 +102,10 @@ class DesktopAuthClient {
     return this.hydrateDesktopSession(tokens);
   }
   async loginWithCredentials(input) {
-    const tokens = await this.requestTokens("/auth/login", input);
+    const tokens = await this.requestTokens("/auth/login", {
+      ...input,
+      clientType: "desktop"
+    });
     return this.hydrateDesktopSession(tokens);
   }
   async createWebHandoff(accessToken, input) {
@@ -311,6 +314,7 @@ const EVENT_NAMES = [
   "call.created",
   "call.updated",
   "call.ended",
+  "screenpop.customer",
   "agent.status.changed",
   "queue.summary.updated"
 ];

@@ -15,6 +15,12 @@ cd deploy/sites/acme-callcenter
 docker compose -f compose.prod.yml --env-file .env up -d --build
 ```
 
+운영 반영은 루트의 표준 스크립트를 우선 사용한다.
+
+```bash
+scripts/deploy-prod.sh --site-dir deploy/sites/acme-callcenter
+```
+
 ## 기본 가정
 
 - Asterisk는 외부 또는 별도 서버에 이미 존재한다.
@@ -27,3 +33,22 @@ docker compose -f compose.prod.yml --env-file .env up -d --build
 - `.env.example`: 사이트별 환경변수 템플릿
 - `compose.prod.yml`: 운영 compose
 - `nginx/default.conf.template`: 상담원/관리자/API 라우팅용 gateway 템플릿
+
+## 운영 게이트
+
+배포 전:
+
+- `docs/design/db-migration-runbook.md` 기준으로 DB 백업과 migration 상태를 확인한다.
+- schema 변경이 있으면 `npx prisma migrate status` 결과를 보관한다.
+
+배포 후:
+
+- `GET /api/v1/health`를 확인한다.
+- 관리자 앱에서 PBX dry-run을 확인한다.
+- 대표 DID smoke test 결과를 `docs/qa/deploy-YYYYMMDD-<site>.md`에 남긴다.
+
+실패 시:
+
+- 앱 장애는 직전 이미지로 rollback한다.
+- DB 변경은 백업 복원 또는 forward-fix migration으로 처리한다.
+- PBX 설정 장애는 `docs/design/pbx-config-apply-runbook.md`의 복구 절차를 따른다.

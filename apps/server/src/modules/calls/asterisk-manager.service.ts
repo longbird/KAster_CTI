@@ -21,17 +21,21 @@ export class AsteriskManagerService {
     actionId?: string;
   }): { channel: string; actionId?: string } {
     const channel = `PJSIP/${params.agentExtension}`;
+    const outboundContextBase = process.env.ASTERISK_OUTBOUND_CONTEXT || 'outbound-main';
+    const context =
+      params.context
+      || `${outboundContextBase}-${params.agentExtension}`;
     this.ami.sendAction({
       Action: 'Originate',
       ...(params.actionId ? { ActionID: params.actionId } : {}),
       Channel: channel,
-      Context: params.context || process.env.ASTERISK_OUTBOUND_CONTEXT || 'outbound-main',
+      Context: context,
       Exten: params.phoneNumber,
       Priority: 1,
       CallerID: params.callerId || params.agentExtension,
       Async: 'true',
     });
-    this.logger.log(`Originate requested: ${channel} -> ${params.phoneNumber}`);
+    this.logger.log(`Originate requested: ${channel} -> ${params.phoneNumber}@${context}`);
     return { channel, actionId: params.actionId };
   }
 
