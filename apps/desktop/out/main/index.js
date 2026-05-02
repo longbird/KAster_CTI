@@ -409,6 +409,61 @@ class CtiRuntime {
     );
     return response.data.data;
   }
+  async originateInternal(input) {
+    const correlationId = randomUUID();
+    const response = await this.http.post(
+      "/calls/originate/internal",
+      input,
+      {
+        headers: {
+          "x-correlation-id": correlationId
+        }
+      }
+    );
+    return response.data.data;
+  }
+  async getCallerIds() {
+    const response = await this.http.get("/me/session");
+    const outboundDialOptions = response.data?.data?.outboundDialOptions;
+    const callerIds = Array.isArray(outboundDialOptions?.allowedCallerIds) ? outboundDialOptions.allowedCallerIds.filter((value) => typeof value === "string") : [];
+    const defaultCallerId = typeof outboundDialOptions?.defaultCallerId === "string" ? outboundDialOptions.defaultCallerId : null;
+    return {
+      callerIds,
+      defaultCallerId: defaultCallerId && callerIds.includes(defaultCallerId) ? defaultCallerId : callerIds[0] ?? null
+    };
+  }
+  async getAgentDirectory() {
+    const response = await this.http.get("/agents");
+    const raw = response.data?.data;
+    const rows = Array.isArray(raw?.agents) ? raw.agents : Array.isArray(raw) ? raw : [];
+    return rows.map((agent) => ({
+      agentId: agent.agentId ?? "",
+      agentName: agent.agentName ?? "",
+      extension: agent.extension ?? "",
+      role: agent.role ?? "agent",
+      isActive: agent.isActive !== false,
+      currentStatus: agent.currentStatus?.statusCode ? { statusCode: agent.currentStatus.statusCode } : null
+    }));
+  }
+  async getCallHistory() {
+    const response = await this.http.get("/calls/history");
+    const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+    return rows.map((row) => ({
+      callId: row.callId ?? "",
+      ani: row.ani ?? null,
+      dnis: row.dnis ?? null,
+      queueName: row.queueName ?? null,
+      sessionStatus: row.sessionStatus ?? "",
+      direction: row.direction ?? null,
+      startedAt: String(row.startedAt ?? ""),
+      answeredAt: row.answeredAt ? String(row.answeredAt) : null,
+      endedAt: row.endedAt ? String(row.endedAt) : null,
+      talkSeconds: typeof row.talkSeconds === "number" ? row.talkSeconds : null,
+      waitSeconds: typeof row.waitSeconds === "number" ? row.waitSeconds : null,
+      primaryAgent: row.primaryAgent?.agentName ? { agentName: row.primaryAgent.agentName } : null,
+      customer: row.customer?.customerName ? { customerName: row.customer.customerName } : null
+    }));
+  }
   async hold(callId) {
     return this.sendSimpleCommand(`/calls/${callId}/hold`);
   }
@@ -805,20 +860,60 @@ let isQuitting = false;
 let trayService = null;
 let runtimeSupervisor = null;
 let preparedUpdate = null;
-const COMPACT_WINDOW_BOUNDS = {
-  width: 520,
-  height: 760,
-  minWidth: 440,
-  minHeight: 660
+const DESKTOP_WINDOW_BOUNDS = {
+  idle: { width: 420, height: 360, minWidth: 380, minHeight: 320 },
+  ringing: { width: 440, height: 420, minWidth: 400, minHeight: 380 },
+  talking: { width: 460, height: 620, minWidth: 420, minHeight: 540 },
+  transferring: { width: 500, height: 640, minWidth: 440, minHeight: 560 },
+  afterCall: { width: 460, height: 520, minWidth: 420, minHeight: 460 },
+  settings: { width: 560, height: 720, minWidth: 500, minHeight: 640 }
 };
-const FULL_WINDOW_BOUNDS = {
-  width: 1360,
-  height: 860,
-  minWidth: 1100,
-  minHeight: 700
-};
+function normalizeDesktopWindowMode(mode) {
+  if (mode === "compact") {
+    return "idle";
+  }
+  if (mode === "full") {
+    return "settings";
+  }
+  return mode;
+}
 function getPrimaryWindow() {
   return BrowserWindow.getAllWindows()[0] ?? null;
+}
+function getUtilityWindowTitle(kind) {
+  return kind === "history" ? "KAster 통화내역" : "KAster 상담원 리스트";
+}
+function openUtilityWindow(kind) {
+  const title = getUtilityWindowTitle(kind);
+  const existing = BrowserWindow.getAllWindows().find((win2) => win2.getTitle() === title);
+  if (existing) {
+    existing.show();
+    existing.focus();
+    return;
+  }
+  const bounds = kind === "history" ? { width: 920, height: 640, minWidth: 760, minHeight: 520 } : { width: 440, height: 560, minWidth: 380, minHeight: 460 };
+  const win = new BrowserWindow({
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: bounds.minWidth,
+    minHeight: bounds.minHeight,
+    parent: getPrimaryWindow() ?? void 0,
+    webPreferences: {
+      preload: join(__dirname, "../preload/index.mjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+  win.setTitle(title);
+  win.setMenuBarVisibility(false);
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  const route = kind === "history" ? "#/history-popup" : "#/agent-list-popup";
+  if (rendererUrl) {
+    void win.loadURL(`${rendererUrl}${route}`);
+    return;
+  }
+  void win.loadFile(join(__dirname, "../renderer/index.html"), { hash: route.slice(1) });
 }
 function getProtocolArg(argv) {
   return argv.find((value) => value.startsWith("kaster-agent://")) ?? null;
@@ -896,11 +991,12 @@ function createWindow() {
   ensureDesktopBridgeServer();
   protocolConnectInbox.reset();
   const trayIcon = createTrayIcon();
+  const initialBounds = DESKTOP_WINDOW_BOUNDS.idle;
   const win = new BrowserWindow({
-    width: COMPACT_WINDOW_BOUNDS.width,
-    height: COMPACT_WINDOW_BOUNDS.height,
-    minWidth: COMPACT_WINDOW_BOUNDS.minWidth,
-    minHeight: COMPACT_WINDOW_BOUNDS.minHeight,
+    width: initialBounds.width,
+    height: initialBounds.height,
+    minWidth: initialBounds.minWidth,
+    minHeight: initialBounds.minHeight,
     icon: trayIcon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
@@ -932,7 +1028,7 @@ function applyWindowMode(mode) {
   if (!win) {
     return;
   }
-  const bounds = mode === "full" ? FULL_WINDOW_BOUNDS : COMPACT_WINDOW_BOUNDS;
+  const bounds = DESKTOP_WINDOW_BOUNDS[normalizeDesktopWindowMode(mode)];
   win.setMinimumSize(bounds.minWidth, bounds.minHeight);
   win.setSize(bounds.width, bounds.height);
   win.center();
@@ -1171,6 +1267,36 @@ app.whenReady().then(() => {
       throw new Error("Runtime is not connected.");
     }
     return runtime.originate(params);
+  });
+  ipcMain.handle("desktop:originate-internal", (_event, input) => {
+    if (!runtime) {
+      throw new Error("Runtime is not connected.");
+    }
+    return runtime.originateInternal(input);
+  });
+  ipcMain.handle("desktop:get-caller-ids", () => {
+    if (!runtime) {
+      return { callerIds: [], defaultCallerId: null };
+    }
+    return runtime.getCallerIds();
+  });
+  ipcMain.handle("desktop:get-agent-directory", () => {
+    if (!runtime) {
+      return [];
+    }
+    return runtime.getAgentDirectory();
+  });
+  ipcMain.handle("desktop:get-call-history", () => {
+    if (!runtime) {
+      return [];
+    }
+    return runtime.getCallHistory();
+  });
+  ipcMain.handle("desktop:open-call-history-popup", () => {
+    openUtilityWindow("history");
+  });
+  ipcMain.handle("desktop:open-agent-list-popup", () => {
+    openUtilityWindow("agents");
   });
   ipcMain.handle("desktop:transfer", (_event, callId, params) => {
     if (!runtime) {

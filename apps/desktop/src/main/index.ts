@@ -66,6 +66,48 @@ function getPrimaryWindow() {
   return BrowserWindow.getAllWindows()[0] ?? null;
 }
 
+function getUtilityWindowTitle(kind: 'history' | 'agents') {
+  return kind === 'history' ? 'KAster 통화내역' : 'KAster 상담원 리스트';
+}
+
+function openUtilityWindow(kind: 'history' | 'agents') {
+  const title = getUtilityWindowTitle(kind);
+  const existing = BrowserWindow.getAllWindows().find((win) => win.getTitle() === title);
+  if (existing) {
+    existing.show();
+    existing.focus();
+    return;
+  }
+
+  const bounds = kind === 'history'
+    ? { width: 920, height: 640, minWidth: 760, minHeight: 520 }
+    : { width: 440, height: 560, minWidth: 380, minHeight: 460 };
+  const win = new BrowserWindow({
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: bounds.minWidth,
+    minHeight: bounds.minHeight,
+    parent: getPrimaryWindow() ?? undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.mjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+  win.setTitle(title);
+  win.setMenuBarVisibility(false);
+
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  const route = kind === 'history' ? '#/history-popup' : '#/agent-list-popup';
+  if (rendererUrl) {
+    void win.loadURL(`${rendererUrl}${route}`);
+    return;
+  }
+
+  void win.loadFile(join(__dirname, '../renderer/index.html'), { hash: route.slice(1) });
+}
+
 function getProtocolArg(argv: string[]) {
   return argv.find((value) => value.startsWith('kaster-agent://')) ?? null;
 }
@@ -510,11 +552,17 @@ app.whenReady().then(() => {
     }
     return runtime.getAgentDirectory();
   });
+  ipcMain.handle('desktop:get-call-history', () => {
+    if (!runtime) {
+      return [];
+    }
+    return runtime.getCallHistory();
+  });
   ipcMain.handle('desktop:open-call-history-popup', () => {
-    // Popup rendering is wired in the utility-window task. Keep the bridge stable now.
+    openUtilityWindow('history');
   });
   ipcMain.handle('desktop:open-agent-list-popup', () => {
-    // Popup rendering is wired in the utility-window task. Keep the bridge stable now.
+    openUtilityWindow('agents');
   });
   ipcMain.handle('desktop:transfer', (_event, callId: string, params: {
     target: string;

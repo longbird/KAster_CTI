@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { AgentListPopup } from './components/AgentListPopup';
+import { CallHistoryPopup } from './components/CallHistoryPopup';
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { PairingScreen } from './components/PairingScreen';
 import { SoftphoneShell } from './components/SoftphoneShell';
@@ -6,6 +8,14 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { useDesktopStore } from './store/useDesktopStore';
 
 export default function App() {
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  if (hash === '#/history-popup') {
+    return <CallHistoryPopup />;
+  }
+  if (hash === '#/agent-list-popup') {
+    return <AgentListPopup />;
+  }
+
   const desktopApi =
     typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
   const {
@@ -25,6 +35,9 @@ export default function App() {
     audioDevices,
     audioCapabilities,
     softphone,
+    callerIds,
+    defaultCallerId,
+    agentDirectory,
     updateState,
     initialize,
     login,
@@ -35,6 +48,9 @@ export default function App() {
     reconnectRuntime,
     changeAgentStatus,
     originate,
+    originateInternal,
+    openCallHistoryPopup,
+    openAgentListPopup,
     pickup,
     mute,
     hangup,
@@ -78,14 +94,6 @@ export default function App() {
       void connectWithProtocol(payload);
     });
   }, [connectWithProtocol, desktopApi]);
-
-  useEffect(() => {
-    if (!desktopApi?.setWindowMode) {
-      return;
-    }
-
-    void desktopApi.setWindowMode('compact');
-  }, [desktopApi]);
 
   if (!bootstrapped) {
     return (
@@ -145,10 +153,16 @@ export default function App() {
           audioDevices={audioDevices}
           audioCapabilities={audioCapabilities}
           softphone={softphone}
+          callerIds={callerIds}
+          defaultCallerId={defaultCallerId}
+          agentDirectory={agentDirectory}
           onPickup={pickup}
           onChangeAgentStatus={changeAgentStatus}
           onReconnectRuntime={reconnectRuntime}
           onOriginate={originate}
+          onOriginateInternal={originateInternal}
+          onOpenCallHistoryPopup={openCallHistoryPopup}
+          onOpenAgentListPopup={openAgentListPopup}
           onMute={mute}
           onHangup={hangup}
           onToggleHold={toggleHold}

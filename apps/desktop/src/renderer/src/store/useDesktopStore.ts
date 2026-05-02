@@ -351,6 +351,20 @@ function getDesktopApi() {
   return api;
 }
 
+function loadCallerIdConfig() {
+  const desktopApi = getDesktopApi();
+  return desktopApi.getCallerIds
+    ? desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG)
+    : Promise.resolve(EMPTY_CALLER_ID_CONFIG);
+}
+
+function loadAgentDirectory() {
+  const desktopApi = getDesktopApi();
+  return desktopApi.getAgentDirectory
+    ? desktopApi.getAgentDirectory().catch(() => [])
+    : Promise.resolve([]);
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -536,8 +550,8 @@ async function hydrateAuthenticatedDesktopSession(
   const [audioPreferences, update, callerIdConfig, agentDirectory] = await Promise.all([
     desktopApi.getAudioPreferences(),
     desktopApi.checkForUpdates(),
-    desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG),
-    desktopApi.getAgentDirectory().catch(() => []),
+    loadCallerIdConfig(),
+    loadAgentDirectory(),
   ]);
   const controller = getAudioController();
   if (controller) {
@@ -677,8 +691,8 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         await desktopApi.connectRuntime();
         const [update, callerIdConfig, agentDirectory] = await Promise.all([
           desktopApi.checkForUpdates(),
-          desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG),
-          desktopApi.getAgentDirectory().catch(() => []),
+          loadCallerIdConfig(),
+          loadAgentDirectory(),
         ]);
         if (update) {
           set({
@@ -818,8 +832,8 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     const [update, audioPreferences, callerIdConfig, agentDirectory] = await Promise.all([
       desktopApi.checkForUpdates(),
       desktopApi.getAudioPreferences(),
-      desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG),
-      desktopApi.getAgentDirectory().catch(() => []),
+      loadCallerIdConfig(),
+      loadAgentDirectory(),
     ]);
     const softphone = session.softphoneConfig ? createSoftphoneState(session.softphoneConfig) : null;
 

@@ -56,6 +56,7 @@ const desktopApi = {
     defaultCallerId: null,
   }),
   getAgentDirectory: vi.fn().mockResolvedValue([]),
+  getCallHistory: vi.fn().mockResolvedValue([]),
   mute: vi.fn(),
   hangup: vi.fn(),
   pickup: vi.fn(),

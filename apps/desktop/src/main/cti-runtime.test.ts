@@ -407,6 +407,46 @@ describe('CtiRuntime', () => {
     expect(get).toHaveBeenCalledWith('/agents');
   });
 
+  it('getCallHistory 는 통화내역을 데스크톱 타입으로 정규화한다', async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        data: [
+          {
+            callId: 'call-1',
+            ani: '01012345678',
+            dnis: '15777893',
+            queueName: '대표',
+            sessionStatus: 'ENDED',
+            direction: 'INBOUND',
+            startedAt: '2026-05-02T12:00:00.000Z',
+            answeredAt: '2026-05-02T12:00:05.000Z',
+            endedAt: '2026-05-02T12:03:00.000Z',
+            talkSeconds: 175,
+            primaryAgent: { agentName: '상담원1' },
+            customer: { customerName: '홍길동' },
+          },
+        ],
+      },
+    });
+
+    const runtime = new CtiRuntime({
+      baseUrl: 'https://cti-center-a.example.com',
+      accessToken: 'access-1',
+    });
+
+    await expect(runtime.getCallHistory()).resolves.toEqual([
+      expect.objectContaining({
+        callId: 'call-1',
+        ani: '01012345678',
+        sessionStatus: 'ENDED',
+        talkSeconds: 175,
+        primaryAgent: { agentName: '상담원1' },
+        customer: { customerName: '홍길동' },
+      }),
+    ]);
+    expect(get).toHaveBeenCalledWith('/calls/history');
+  });
+
   it('상담 전환 취소와 완료 endpoint 를 호출한다', async () => {
     post
       .mockResolvedValueOnce({

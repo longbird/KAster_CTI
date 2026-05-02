@@ -2,7 +2,11 @@ import axios, { type AxiosInstance } from 'axios';
 import { randomUUID } from 'node:crypto';
 import { io, type Socket } from 'socket.io-client';
 import type { AgentStatusCode, CommandAck, CtiEvent } from '../shared/cti';
-import type { DesktopAgentDirectoryItem, DesktopCallerIdConfig } from '../shared/ipc';
+import type {
+  DesktopAgentDirectoryItem,
+  DesktopCallerIdConfig,
+  DesktopCallHistoryItem,
+} from '../shared/ipc';
 
 type RuntimeEventName = CtiEvent['type'];
 
@@ -203,6 +207,41 @@ export class CtiRuntime {
       currentStatus: agent.currentStatus?.statusCode
         ? { statusCode: agent.currentStatus.statusCode }
         : null,
+    }));
+  }
+
+  async getCallHistory(): Promise<DesktopCallHistoryItem[]> {
+    const response = await this.http.get('/calls/history');
+    const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+
+    return rows.map((row: {
+      callId?: string;
+      ani?: string | null;
+      dnis?: string | null;
+      queueName?: string | null;
+      sessionStatus?: string;
+      direction?: string | null;
+      startedAt?: string | Date;
+      answeredAt?: string | Date | null;
+      endedAt?: string | Date | null;
+      talkSeconds?: number | null;
+      waitSeconds?: number | null;
+      primaryAgent?: { agentName?: string } | null;
+      customer?: { customerName?: string } | null;
+    }) => ({
+      callId: row.callId ?? '',
+      ani: row.ani ?? null,
+      dnis: row.dnis ?? null,
+      queueName: row.queueName ?? null,
+      sessionStatus: row.sessionStatus ?? '',
+      direction: row.direction ?? null,
+      startedAt: String(row.startedAt ?? ''),
+      answeredAt: row.answeredAt ? String(row.answeredAt) : null,
+      endedAt: row.endedAt ? String(row.endedAt) : null,
+      talkSeconds: typeof row.talkSeconds === 'number' ? row.talkSeconds : null,
+      waitSeconds: typeof row.waitSeconds === 'number' ? row.waitSeconds : null,
+      primaryAgent: row.primaryAgent?.agentName ? { agentName: row.primaryAgent.agentName } : null,
+      customer: row.customer?.customerName ? { customerName: row.customer.customerName } : null,
     }));
   }
 

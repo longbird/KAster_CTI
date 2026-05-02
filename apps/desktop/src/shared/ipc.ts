@@ -45,6 +45,26 @@ export interface DesktopCallerIdConfig {
   defaultCallerId: string | null;
 }
 
+export interface DesktopCallHistoryItem {
+  callId: string;
+  ani: string | null;
+  dnis: string | null;
+  queueName: string | null;
+  sessionStatus: string;
+  direction: string | null;
+  startedAt: string;
+  answeredAt: string | null;
+  endedAt: string | null;
+  talkSeconds: number | null;
+  waitSeconds?: number | null;
+  primaryAgent?: {
+    agentName: string;
+  } | null;
+  customer?: {
+    customerName: string;
+  } | null;
+}
+
 export interface DesktopSoftphoneConfig {
   enabled: boolean;
   sipUri: string | null;
@@ -123,6 +143,7 @@ export interface DesktopApi {
   }): Promise<import('./cti').CommandAck>;
   getCallerIds(): Promise<DesktopCallerIdConfig>;
   getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]>;
+  getCallHistory(): Promise<DesktopCallHistoryItem[]>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
   transfer(
