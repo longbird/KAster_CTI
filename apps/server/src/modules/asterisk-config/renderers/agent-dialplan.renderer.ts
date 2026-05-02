@@ -133,11 +133,18 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
     ' same => n,Hangup()',
   ].join('\n');
 
+  const sipHeaderHook = [
+    '[func-set-sipheaders]',
+    'exten => s,1,NoOp(Outbound SIP header hook)',
+    ' same => n,Return()',
+  ].join('\n');
+
   return [
     header,
     ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial)),
     ...input.agents.map((agent) => renderAgentOutboundRoute(agent, primaryTrunkEndpoint, input.defaultOutboundCallerId)),
     fromQueue,
+    sipHeaderHook,
     renderPreBridgeDispatcher(input.agents),
     ...input.agents.map(renderPreBridgeAgentBranch),
   ].join('\n\n');

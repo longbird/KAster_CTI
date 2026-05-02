@@ -37,6 +37,7 @@ export interface ActiveCall {
     completedAt?: string | null;
     expiredAt?: string | null;
   } | null;
+  customer?: Customer;
   resultCode?: string;
   isMuted?: boolean;
 }
@@ -50,10 +51,26 @@ export interface QueueSummary {
   longestWaitSeconds: number;
 }
 
+export interface Customer {
+  customerId: string;
+  customerName: string;
+  grade: 'VIP' | 'GOLD' | 'NORMAL';
+  phoneNumber: string;
+  companyName?: string;
+  memo?: string;
+  recentOrders?: string[];
+}
+
+export interface ScreenPopPayload {
+  callId: string;
+  customer: Customer;
+}
+
 export type CtiEvent =
   | { type: 'call.created'; payload: ActiveCall }
   | { type: 'call.updated'; payload: ActiveCall }
   | { type: 'call.ended'; payload: { callId: string; endedAt: string; talkSeconds: number } }
+  | { type: 'screenpop.customer'; payload: ScreenPopPayload }
   | { type: 'agent.status.changed'; payload: { agentId: string; statusCode: AgentStatusCode } }
   | { type: 'queue.summary.updated'; payload: QueueSummary[] }
   | {

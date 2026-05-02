@@ -162,6 +162,7 @@ describe('DesktopAuthClient', () => {
       loginId: 'supervisor1',
       extension: '2001',
       password: 'Password123!',
+      clientType: 'desktop',
     });
     expect(get).toHaveBeenCalledWith('/auth/desktop/session', {
       headers: {

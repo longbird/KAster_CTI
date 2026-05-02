@@ -457,7 +457,63 @@ describe('useDesktopStore pairing', () => {
     expect(useDesktopStore.getState().events[0]).toContain('runtime connected');
   });
 
-  it('toggleHold 는 HOLD 상태에 따라 hold 또는 resume 을 호출한다', async () => {
+  it('agent.status.changed 는 현재 상담원 이벤트만 자기 상태로 반영한다', async () => {
+    useDesktopStore.setState({
+      bootstrapped: true,
+      pairing: false,
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'AVAILABLE',
+      runtimeConnection: 'disconnected',
+      config: {
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      },
+      activeCall: null,
+      events: [],
+      audioPermission: 'unknown',
+      refreshingAudioDevices: false,
+      audioPreferences: null,
+      audioDevices: {
+        inputs: [],
+        outputs: [],
+      },
+      audioCapabilities: {
+        sinkSelectionSupported: false,
+      },
+      softphone: null,
+      updateState: null,
+    });
+    desktopApi.onEvent.mockImplementationOnce((listener) => {
+      listener({
+        type: 'agent.status.changed',
+        payload: {
+          agentId: 'agent-2',
+          statusCode: 'BREAK',
+        },
+      });
+      expect(useDesktopStore.getState().agentStatus).toBe('AVAILABLE');
+      listener({
+        type: 'agent.status.changed',
+        payload: {
+          agentId: 'agent-1',
+          statusCode: 'TALKING',
+        },
+      });
+      return () => undefined;
+    });
+
+    await useDesktopStore.getState().reconnectRuntime();
+
+    expect(useDesktopStore.getState().agentStatus).toBe('TALKING');
+  });
+
+  it('toggleHold 는 hold/resume 요청 후 PBX 이벤트 전까지 통화 상태를 확정하지 않는다', async () => {
     useDesktopStore.setState({
       bootstrapped: true,
       pairing: false,
@@ -519,11 +575,67 @@ describe('useDesktopStore pairing', () => {
 
     await useDesktopStore.getState().toggleHold();
     expect(desktopApi.hold).toHaveBeenCalledWith('call-1');
-    expect(useDesktopStore.getState().activeCall?.sessionStatus).toBe('HOLD');
+    expect(useDesktopStore.getState().activeCall?.sessionStatus).toBe('TALKING');
 
+    useDesktopStore.setState((state) => ({
+      activeCall: state.activeCall
+        ? {
+            ...state.activeCall,
+            sessionStatus: 'HOLD',
+          }
+        : state.activeCall,
+    }));
     await useDesktopStore.getState().toggleHold();
     expect(desktopApi.resume).toHaveBeenCalledWith('call-1');
-    expect(useDesktopStore.getState().activeCall?.sessionStatus).toBe('TALKING');
+    expect(useDesktopStore.getState().activeCall?.sessionStatus).toBe('HOLD');
+  });
+
+  it('hangup 은 요청 후 PBX 종료 이벤트 전까지 activeCall 을 제거하지 않는다', async () => {
+    useDesktopStore.setState({
+      bootstrapped: true,
+      pairing: false,
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'TALKING',
+      config: {
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      },
+      activeCall: {
+        callId: 'call-1',
+        linkedid: 'linked-1',
+        ani: '01012345678',
+        dnis: '15880000',
+        queueName: '대표',
+        sessionStatus: 'TALKING',
+        startedAt: '2026-04-22T12:00:00.000Z',
+      },
+      events: [],
+      audioPermission: 'unknown',
+      refreshingAudioDevices: false,
+      audioPreferences: null,
+      audioDevices: {
+        inputs: [],
+        outputs: [],
+      },
+      audioCapabilities: {
+        sinkSelectionSupported: false,
+      },
+      softphone: null,
+      updateState: null,
+      hangup: useDesktopStore.getState().hangup,
+    });
+
+    await useDesktopStore.getState().hangup();
+
+    expect(desktopApi.hangup).toHaveBeenCalledWith('call-1');
+    expect(useDesktopStore.getState().activeCall?.callId).toBe('call-1');
+    expect(useDesktopStore.getState().events[0]).toContain('종료 요청 call-1');
   });
 
   it('pickup 과 transfer 는 active call 기준으로 desktop api 를 호출한다', async () => {

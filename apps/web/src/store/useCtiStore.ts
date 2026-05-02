@@ -349,15 +349,12 @@ export const useCtiStore = create<CtiState>((set, get) => ({
 
     const ack = await hangupCall(callId);
     const msg = enrichCommandMessage(
-      '통화 종료 요청이 처리되었습니다.',
+      '통화 종료 요청이 접수되었습니다. 실제 종료는 PBX 이벤트를 기다립니다.',
       ack.data,
     );
     set((state) => ({
-      activeCalls: state.activeCalls.map((call) =>
-        call.callId === callId ? { ...call, sessionStatus: 'ENDED' } : call,
-      ),
       notifications: [msg, ...state.notifications].slice(0, 5),
-      eventLog: pushLog(state, 'call.ended', msg),
+      eventLog: pushLog(state, 'info', msg),
     }));
   },
   applyEvent: (event) => {
@@ -417,9 +414,9 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       case 'agent.status.changed': {
         const msg = `상담원 상태 변경: ${event.payload.statusCode}`;
         set((state) => ({
-          agentSession: state.agentSession
+          agentSession: state.agentSession?.agentId === event.payload.agentId
             ? { ...state.agentSession, statusCode: event.payload.statusCode }
-            : null,
+            : state.agentSession,
           eventLog: pushLog(state, 'agent.status.changed', msg),
         }));
         break;

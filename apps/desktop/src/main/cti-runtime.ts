@@ -9,6 +9,7 @@ const EVENT_NAMES: RuntimeEventName[] = [
   'call.created',
   'call.updated',
   'call.ended',
+  'screenpop.customer',
   'agent.status.changed',
   'queue.summary.updated',
 ];

@@ -180,8 +180,13 @@ deploy/
 
 ## 후속 권장 작업
 
-1. `deploy-prod.sh`를 추가해 사이트 디렉터리 기준 배포 자동화
-2. CI에서 이미지 빌드와 registry push 자동화
-3. 프론트 runtime config 도입
-4. PostgreSQL 백업/복구 runbook 추가
-5. Redis Sentinel 또는 Cluster 표준화
+1. CI에서 이미지 빌드와 registry push 자동화
+2. 프론트 runtime config 도입
+3. Redis Sentinel 또는 Cluster 표준화
+
+## 현재 제공되는 운영 산출물
+
+- 운영 배포 게이트: `scripts/deploy-prod.sh`
+- DB migration runbook: `docs/design/db-migration-runbook.md`
+- 사이트 템플릿 운영 절차: `deploy/sites/_template/README.md`
+- PBX 설정 반영 runbook: `docs/design/pbx-config-apply-runbook.md`

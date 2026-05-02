@@ -12523,7 +12523,7 @@ function DesktopLoginScreen({
   return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "auth-screen", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "form",
     {
-      className: "login-card panel",
+      className: "desktop-login-card",
       onSubmit: (event) => {
         event.preventDefault();
         onSubmit({
@@ -12534,19 +12534,28 @@ function DesktopLoginScreen({
         });
       },
       children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "login-card-header", onDoubleClick: onTogglePairing, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "KAster Agent Desktop" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "desktop-login-brand", onDoubleClick: onTogglePairing, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "desktop-brand-box", children: "K" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "desktop-brand-wordmark", children: [
+            "KASTER",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: " / CTI" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "desktop-login-heading", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "상담원 로그인" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "데스크톱 소프트폰 런타임이 자동으로 연결됩니다." }),
           !serverUrlRequired ? /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
-              className: "text-button",
+              className: "desktop-login-advanced",
               type: "button",
               onClick: () => setShowAdvanced((current) => !current),
               children: "고급 옵션"
             }
           ) : null
         ] }),
-        serverFieldVisible ? /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field compact-field", children: [
+        error ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "desktop-login-error", children: error }) : null,
+        serverFieldVisible ? /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "desktop-login-field", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "서버 URL" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
@@ -12559,7 +12568,7 @@ function DesktopLoginScreen({
             }
           )
         ] }) : null,
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field compact-field", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "desktop-login-field", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "로그인 ID" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
@@ -12571,8 +12580,8 @@ function DesktopLoginScreen({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field compact-field", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "내선" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "desktop-login-field", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "내선 번호" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
             {
@@ -12583,7 +12592,7 @@ function DesktopLoginScreen({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field compact-field", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "desktop-login-field", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "비밀번호" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "password-input-shell", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -12609,8 +12618,11 @@ function DesktopLoginScreen({
             )
           ] })
         ] }),
-        error ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "login-error", children: error }) : null,
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "primary-button", disabled: busy, type: "submit", children: busy ? "로그인 중..." : "로그인" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "desktop-login-submit", disabled: busy, type: "submit", children: busy ? "로그인 중..." : "로그인" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "desktop-login-footer", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "desktop" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "softphone · kaster-cti" })
+        ] })
       ]
     }
   ) });
@@ -26240,7 +26252,7 @@ function resolveRuntimeConnection(hasSession, currentRuntimeConnection) {
   }
   return currentRuntimeConnection === "idle" ? "connected" : currentRuntimeConnection;
 }
-function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, currentRuntimeConnection) {
+function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, currentRuntimeConnection, currentAgentId) {
   switch (event.type) {
     case "call.created":
       return {
@@ -26263,10 +26275,20 @@ function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, curr
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`)
       };
+    case "screenpop.customer":
+      return {
+        activeCall: currentCall?.callId === event.payload.callId ? {
+          ...currentCall,
+          customer: event.payload.customer
+        } : currentCall,
+        agentStatus: currentAgentStatus,
+        runtimeConnection: currentRuntimeConnection,
+        events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`)
+      };
     case "agent.status.changed":
       return {
         activeCall: currentCall,
-        agentStatus: event.payload.statusCode,
+        agentStatus: !currentAgentId || currentAgentId === event.payload.agentId ? event.payload.statusCode : currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`)
       };
@@ -26292,7 +26314,14 @@ function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, curr
 function bindRuntimeEvents(setState) {
   detachRuntimeListener?.();
   detachRuntimeListener = getDesktopApi().onEvent((event) => {
-    setState((state) => reduceEvent(event, state.activeCall, state.events, state.agentStatus, state.runtimeConnection));
+    setState((state) => reduceEvent(
+      event,
+      state.activeCall,
+      state.events,
+      state.agentStatus,
+      state.runtimeConnection,
+      state.agent?.agentId
+    ));
   });
 }
 async function hydrateAuthenticatedDesktopSession(set, input) {
@@ -26681,7 +26710,6 @@ const useDesktopStore = create((set) => ({
     }
     await getDesktopApi().hangup(callId);
     set((current) => ({
-      activeCall: null,
       events: pushEvent(current.events, `종료 요청 ${callId}`)
     }));
   },
@@ -26693,20 +26721,12 @@ const useDesktopStore = create((set) => ({
     if (currentCall.sessionStatus === "HOLD") {
       await getDesktopApi().resume(currentCall.callId);
       set((current) => ({
-        activeCall: current.activeCall ? {
-          ...current.activeCall,
-          sessionStatus: "TALKING"
-        } : current.activeCall,
         events: pushEvent(current.events, `보류 해제 요청 ${currentCall.callId}`)
       }));
       return;
     }
     await getDesktopApi().hold(currentCall.callId);
     set((current) => ({
-      activeCall: current.activeCall ? {
-        ...current.activeCall,
-        sessionStatus: "HOLD"
-      } : current.activeCall,
       events: pushEvent(current.events, `보류 요청 ${currentCall.callId}`)
     }));
   },

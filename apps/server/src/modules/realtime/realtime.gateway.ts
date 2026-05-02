@@ -48,6 +48,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       client.data.sub = payload.sub;
       client.data.tenantId = payload.tenantId;
       client.data.role = payload.role;
+      if (payload.tenantId) {
+        client.join(`tenant:${payload.tenantId}`);
+      }
 
       this.logger.log(`WS connected: ${client.id} sub=${payload.sub}`);
     } catch (err) {
@@ -60,8 +63,12 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.logger.log(`WS disconnected: ${client.id}`);
   }
 
-  broadcast(event: string, payload: unknown) {
+  broadcast(event: string, payload: unknown, tenantId?: string) {
     if (this.server) {
+      if (tenantId) {
+        this.server.to(`tenant:${tenantId}`).emit(event, payload);
+        return;
+      }
       this.server.emit(event, payload);
     }
   }

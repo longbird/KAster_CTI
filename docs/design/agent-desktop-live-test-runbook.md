@@ -4,6 +4,8 @@
 - Scope: 실환경에서 `apps/server` 와 `apps/desktop` 을 함께 띄워 빠르게 통합 검증하는 운영자용 런북
 - Audience: 운영사 개발/QA/현장 검증 담당자
 - Related: [agent-desktop-server-integration-checklist.md](/D:/Work/AI_Projects/KAster_CTI/docs/design/agent-desktop-server-integration-checklist.md)
+- Evidence template: [desktop-live-test-template.md](/D:/Work/AI_Projects/KAster_CTI/docs/qa/desktop-live-test-template.md)
+- Update artifact helper: [desktop-update-artifact-prepare.ps1](/D:/Work/AI_Projects/KAster_CTI/scripts/desktop-update-artifact-prepare.ps1)
 
 ## Purpose
 
@@ -161,6 +163,15 @@ npm run dist:win
 - getUserMedia / setSinkId 경로 오류 없음
 
 ## Step 7: Update Hub Quick Check
+
+테스트 artifact 준비:
+
+```powershell
+D:\Work\AI_Projects\KAster_CTI\scripts\desktop-update-artifact-prepare.ps1 `
+  -ArtifactPath "D:\path\to\KAster-Desktop-Setup.exe" `
+  -Version "0.1.0-test.1" `
+  -Channel "stable"
+```
 
 ### Actions
 

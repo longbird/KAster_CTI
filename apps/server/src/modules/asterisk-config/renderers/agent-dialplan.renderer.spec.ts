@@ -38,6 +38,8 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('Set(CALLERID(num)=07052346380)');
     expect(rendered).toContain('Set(CALLERID(pres)=prohib)');
     expect(rendered).toContain('Dial(PJSIP/${EXTEN}@trunk-carrier-main,60');
+    expect(rendered).toContain('[func-set-sipheaders]');
+    expect(rendered).toContain('Return()');
     expect(rendered).toContain('U(agent-pre-bridge)');
     expect(rendered).toContain('[agent-pre-bridge-1001]');
     expect(rendered).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},b)');

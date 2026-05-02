@@ -3,6 +3,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
 import { QueuesService } from '../queues/queues.service';
 import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
+import { REALTIME_EVENTS } from '../realtime/realtime-events';
 
 @Injectable()
 export class AgentStateService {
@@ -31,16 +32,17 @@ export class AgentStateService {
       },
     });
 
-    await this.eventBus.publish('agent.status.changed', {
+    await this.eventBus.publish(REALTIME_EVENTS.AGENT_STATUS_CHANGED, {
       agentId,
       statusCode,
       reasonCode: reasonCode ?? null,
-    });
+    }, agent.tenantId);
 
     const queueSummary = await this.queuesService.getSummary(agent.tenantId);
     await this.eventBus.publish(
-      'queue.summary.updated',
+      REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+      agent.tenantId,
     );
 
     return row;

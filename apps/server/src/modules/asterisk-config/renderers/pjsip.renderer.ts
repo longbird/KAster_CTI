@@ -31,6 +31,7 @@ export interface PjsipInput {
 import { assertNoNewlines, toSlug } from './renderer-utils';
 
 const SIP_WS_PORT = 8088;
+const ASTERISK_AUTH_REALM = 'asterisk';
 
 function renderTrunk(trunk: TrunkInput): string {
   const slug = toSlug(trunk.name);
@@ -102,6 +103,7 @@ function renderAgent(agent: AgentInput): string {
     `type=auth`,
     `auth_type=userpass`,
     `username=${agent.extension}`,
+    `realm=${ASTERISK_AUTH_REALM}`,
     `password=${agent.sipPassword}`,
     ``,
     // Many desk phones REGISTER to sip:<host> while authenticating as the extension.
@@ -114,7 +116,7 @@ function renderAgent(agent: AgentInput): string {
     `type=endpoint`,
     `context=${agent.context || `agent-phone-${agent.extension}`}`,
     `disallow=all`,
-    `allow=opus,alaw,ulaw`,
+    `allow=alaw,ulaw`,
     `auth=${agent.extension}-auth`,
     `aors=${agent.extension}`,
     `callerid=${agent.agentName} <${agent.extension}>`,
@@ -125,6 +127,7 @@ function renderAgent(agent: AgentInput): string {
     `rtp_symmetric=yes`,
     `force_rport=yes`,
     `rewrite_contact=yes`,
+    `webrtc=yes`,
   ].join('\n');
 }
 
@@ -138,6 +141,7 @@ export function renderPjsip(input: PjsipInput): string {
     `[global]`,
     `type=global`,
     `user_agent=KAster_CTI`,
+    `endpoint_identifier_order=auth_username,username,ip,anonymous`,
     ``,
     `[transport-udp]`,
     `type=transport`,

@@ -8,13 +8,19 @@ import { RedisService } from '../redis/redis.service';
 // 가능하고, 각 노드의 subscriber 가 로컬 WS 클라이언트에 broadcast 한다.
 //
 // 채널: kaster:cti:events (단일)
-// 메시지: { event, payload, sourceNode }
-// 필요하면 tenantId 로 채널을 쪼갤 수 있지만, 단일 테넌트 운용에서는 과잉.
+// 메시지: { event, payload, sourceNode, tenantId? }
 
 const CHANNEL = 'kaster:cti:events';
 
 const safeReplacer = (_key: string, value: unknown) =>
   typeof value === 'bigint' ? value.toString() : value;
+
+interface EventBusMessage {
+  event: string;
+  payload: unknown;
+  sourceNode: string;
+  tenantId?: string;
+}
 
 @Injectable()
 export class EventBusService implements OnModuleInit, OnModuleDestroy {
@@ -32,8 +38,8 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
     await this.subClient.subscribe(CHANNEL);
     this.subClient.on('message', (_channel, raw) => {
       try {
-        const { event, payload } = JSON.parse(raw);
-        this.realtimeGateway.broadcast(event, payload);
+        const { event, payload, tenantId } = JSON.parse(raw) as EventBusMessage;
+        this.realtimeGateway.broadcast(event, payload, tenantId);
       } catch (err) {
         this.logger.warn(`bad pubsub message: ${(err as Error).message}`);
       }
@@ -51,14 +57,14 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async publish(event: string, payload: unknown) {
-    const message = JSON.stringify({ event, payload, sourceNode: this.nodeId }, safeReplacer);
+  async publish(event: string, payload: unknown, tenantId?: string) {
+    const message = JSON.stringify({ event, payload, sourceNode: this.nodeId, tenantId }, safeReplacer);
     try {
       await this.redis.getClient().publish(CHANNEL, message);
     } catch (err) {
       // Redis 장애 시에도 최소한 현재 노드의 WS 클라이언트는 받게 한다.
       this.logger.error(`redis publish failed, local fallback: ${(err as Error).message}`);
-      this.realtimeGateway.broadcast(event, payload);
+      this.realtimeGateway.broadcast(event, payload, tenantId);
     }
   }
 }

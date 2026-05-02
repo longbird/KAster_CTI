@@ -11,11 +11,26 @@ import { renderDialplan } from './renderers/dialplan.renderer';
 import { renderMusiconholdConf } from './renderers/musiconhold.renderer';
 import { renderPjsip } from './renderers/pjsip.renderer';
 import { renderQueuesConf } from './renderers/queues.renderer';
+import {
+  diffRenderedConfFiles,
+  RENDERED_CONF_FILE_NAMES,
+  RenderedConfFiles,
+  validateRenderedConfFiles,
+} from './asterisk-config-validation';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh';
 const OPT_OUT_GUARDED_DIGIT_AGI_PATH = '/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi';
 const SMART_ARS_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-smart-ars-hook.sh';
+const RELOAD_COMMANDS = [
+  'module load res_http_websocket.so',
+  'module load res_pjsip_transport_websocket.so',
+  'http reload',
+  'module reload res_pjsip',
+  'moh reload',
+  'dialplan reload',
+  'queue reload all',
+];
 
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
 type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
@@ -746,14 +761,40 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       return;
     }
     this.logger.debug(`Sending AMI reload commands for tenant ${tenantId}`);
-    this.ami.sendAction({ Action: 'Command', Command: 'module load res_http_websocket.so' });
-    this.ami.sendAction({ Action: 'Command', Command: 'module load res_pjsip_transport_websocket.so' });
-    this.ami.sendAction({ Action: 'Command', Command: 'http reload' });
-    this.ami.sendAction({ Action: 'Command', Command: 'module reload res_pjsip' });
-    this.ami.sendAction({ Action: 'Command', Command: 'moh reload' });
-    this.ami.sendAction({ Action: 'Command', Command: 'dialplan reload' });
-    this.ami.sendAction({ Action: 'Command', Command: 'queue reload all' });
+    for (const command of RELOAD_COMMANDS) {
+      this.ami.sendAction({ Action: 'Command', Command: command });
+    }
     this.logger.log(`Asterisk reload triggered for tenant ${tenantId}`);
+  }
+
+  async dryRunConfFiles(tenantId: string) {
+    const preview = await this.previewConfFiles(tenantId);
+    const rendered: RenderedConfFiles = {
+      pjsip: preview.pjsip,
+      extensionsInbound: preview.extensionsInbound,
+      extensionsQueue: preview.extensionsQueue,
+      extensionsAgent: preview.extensionsAgent,
+      queues: preview.queues,
+    };
+    const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
+    const currentFiles: Partial<Record<string, string>> = {};
+
+    if (path.isAbsolute(confDir) && fs.existsSync(confDir)) {
+      for (const item of RENDERED_CONF_FILE_NAMES) {
+        const filePath = path.join(confDir, item.fileName);
+        if (fs.existsSync(filePath)) {
+          currentFiles[item.fileName] = fs.readFileSync(filePath, 'utf8');
+        }
+      }
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      files: preview,
+      validation: validateRenderedConfFiles(rendered),
+      diff: diffRenderedConfFiles(rendered, currentFiles),
+      reloadCommands: [...RELOAD_COMMANDS],
+    };
   }
 
   async writeConfFiles(tenantId: string): Promise<boolean> {
@@ -852,13 +893,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     return true;
   }
 
-  async previewConfFiles(tenantId: string): Promise<{
-    pjsip: string;
-    extensionsInbound: string;
-    extensionsQueue: string;
-    extensionsAgent: string;
-    queues: string;
-  }> {
+  async previewConfFiles(tenantId: string): Promise<RenderedConfFiles> {
     const {
       trunks,
       agents,
@@ -920,7 +955,9 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       directory: item.directory,
     })));
 
-    const maskedPjsip = pjsip.replace(/^(password=).+$/gm, '$1***');
+    const maskedPjsip = pjsip
+      .replace(/^(password=).+$/gm, '$1***')
+      .replace(/^(md5_cred=).+$/gm, '$1***');
 
     return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue, extensionsAgent, queues: `${queues}\n\n${musiconhold}` };
   }
