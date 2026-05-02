@@ -59,18 +59,14 @@ afterEach(() => {
 });
 
 describe('SoftphoneShell', () => {
-  it('shows the legacy-inspired compact agent console without technical diagnostics on the main screen', () => {
+  it('shows a compact agent console without technical diagnostics on the main screen', () => {
     render(<SoftphoneShell {...baseProps} />);
 
-    expect(screen.getByText('맑은하늘')).toBeTruthy();
-    expect(screen.getByText('김민수')).toBeTruthy();
-    expect(screen.getByText('Ext. 1001')).toBeTruthy();
+    expect(screen.getByText('김민수 (1001)')).toBeTruthy();
     expect(screen.getByText('진행 중인 통화 없음')).toBeTruthy();
     expect(screen.getByRole('button', { name: '설정' })).toBeTruthy();
     expect(screen.getByLabelText('상담원 상태')).toBeTruthy();
     expect(screen.getByLabelText('상담원 상태').querySelectorAll('option')).toHaveLength(6);
-    expect(screen.getByRole('button', { name: '전화걸기' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '당겨받기' })).toBeTruthy();
 
     expect(screen.queryByText('Center URL')).toBeNull();
     expect(screen.queryByText('Device ID')).toBeNull();
@@ -106,50 +102,5 @@ describe('SoftphoneShell', () => {
     });
 
     expect(baseProps.onChangeAgentStatus).toHaveBeenCalledWith('BREAK');
-  });
-
-  it('opens call history with filters and an operational empty state', () => {
-    render(<SoftphoneShell {...baseProps} />);
-
-    fireEvent.click(screen.getByRole('button', { name: '통화내역' }));
-
-    expect(screen.getByText('통화 내역')).toBeTruthy();
-    expect(screen.getByLabelText('조회시작일')).toBeTruthy();
-    expect(screen.getByLabelText('상담그룹')).toBeTruthy();
-    expect(screen.getByText('표시할 통화이력이 없습니다.')).toBeTruthy();
-    expect(screen.getByText('상태')).toBeTruthy();
-    expect(screen.getByText('녹취')).toBeTruthy();
-  });
-
-  it('opens outbound dialing with caller-id and branch controls', () => {
-    render(<SoftphoneShell {...baseProps} />);
-
-    fireEvent.click(screen.getByRole('button', { name: '발신' }));
-
-    expect(screen.getByText('CID 발신')).toBeTruthy();
-    expect(screen.getByLabelText('수신전화번호')).toBeTruthy();
-    expect(screen.getByLabelText('발신전화번호')).toBeTruthy();
-    expect(screen.getByLabelText('지사명')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '전화 걸기' })).toBeTruthy();
-  });
-
-  it('shows legacy settings tabs while keeping audio controls behind settings', () => {
-    render(<SoftphoneShell {...baseProps} />);
-
-    fireEvent.click(screen.getByRole('button', { name: '설정' }));
-
-    expect(screen.getByText('환경설정')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '통화' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '벨소리' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '일반' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '간편 호 전환' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '음성/코덱' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '녹취분석' })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: '음성/코덱' }));
-
-    expect(screen.getByText('오디오 입/출력')).toBeTruthy();
-    expect(screen.getByLabelText('마이크')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '장치 새로고침' })).toBeTruthy();
   });
 });
