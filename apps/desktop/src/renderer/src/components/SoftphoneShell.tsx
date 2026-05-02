@@ -22,7 +22,7 @@ const STATUS_LABELS: Partial<Record<AgentStatusCode, string>> = {
   AFTER_CALL_WORK: '업무처리',
 };
 
-type ConsoleView = 'call' | 'history' | 'outbound' | 'transfer' | 'agents' | 'settings';
+type ConsoleView = 'call' | 'work' | 'history' | 'outbound' | 'transfer' | 'agents' | 'settings';
 type SettingsTab = 'call' | 'ring' | 'general' | 'quickTransfer' | 'audio' | 'recording';
 
 interface SoftphoneShellProps {
@@ -150,7 +150,7 @@ export function SoftphoneShell({
 
   const navItems: Array<{ key: ConsoleView; label: string }> = [
     { key: 'call', label: '상담대기' },
-    { key: 'call', label: '업무처리' },
+    { key: 'work', label: '업무처리' },
     { key: 'history', label: '통화내역' },
     { key: 'outbound', label: '발신' },
     { key: 'transfer', label: '호전환' },
@@ -228,7 +228,7 @@ export function SoftphoneShell({
         </div>
       </header>
 
-      {view === 'call' ? (
+      {view === 'call' || view === 'work' ? (
         <CallConsole
           activeCall={activeCall}
           callStatus={callStatus}
