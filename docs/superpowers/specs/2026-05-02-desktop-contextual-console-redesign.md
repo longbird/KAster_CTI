@@ -1,4 +1,4 @@
-# Desktop Contextual Console Redesign
+# 데스크톱 상태 기반 상담 콘솔 재설계
 
 ## 배경
 
