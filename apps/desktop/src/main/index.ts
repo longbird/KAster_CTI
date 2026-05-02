@@ -489,6 +489,33 @@ app.whenReady().then(() => {
     }
     return runtime.originate(params);
   });
+  ipcMain.handle('desktop:originate-internal', (_event, input: {
+    targetAgentId: string;
+    targetExtension: string;
+  }) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.originateInternal(input);
+  });
+  ipcMain.handle('desktop:get-caller-ids', () => {
+    if (!runtime) {
+      return { callerIds: [], defaultCallerId: null };
+    }
+    return runtime.getCallerIds();
+  });
+  ipcMain.handle('desktop:get-agent-directory', () => {
+    if (!runtime) {
+      return [];
+    }
+    return runtime.getAgentDirectory();
+  });
+  ipcMain.handle('desktop:open-call-history-popup', () => {
+    // Popup rendering is wired in the utility-window task. Keep the bridge stable now.
+  });
+  ipcMain.handle('desktop:open-agent-list-popup', () => {
+    // Popup rendering is wired in the utility-window task. Keep the bridge stable now.
+  });
   ipcMain.handle('desktop:transfer', (_event, callId: string, params: {
     target: string;
     transferType: 'blind' | 'attended';

@@ -51,10 +51,16 @@ const desktopApi = {
     },
   }),
   connectRuntime: vi.fn().mockResolvedValue(undefined),
+  getCallerIds: vi.fn().mockResolvedValue({
+    callerIds: [],
+    defaultCallerId: null,
+  }),
+  getAgentDirectory: vi.fn().mockResolvedValue([]),
   mute: vi.fn(),
   hangup: vi.fn(),
   pickup: vi.fn(),
   originate: vi.fn(),
+  originateInternal: vi.fn(),
   transfer: vi.fn(),
   cancelAttendedTransfer: vi.fn(),
   completeAttendedTransfer: vi.fn(),
@@ -68,6 +74,8 @@ const desktopApi = {
   notifyIncomingCall: vi.fn(),
   focusWindow: vi.fn(),
   openExternal: vi.fn().mockResolvedValue(undefined),
+  openCallHistoryPopup: vi.fn().mockResolvedValue(undefined),
+  openAgentListPopup: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.stubGlobal('window', { desktopApi });
@@ -79,6 +87,11 @@ describe('useDesktopStore pairing', () => {
     desktopApi.getSession.mockResolvedValue(null);
     desktopApi.refreshSession.mockResolvedValue(null);
     desktopApi.checkForUpdates.mockResolvedValue(null);
+    desktopApi.getCallerIds.mockResolvedValue({
+      callerIds: [],
+      defaultCallerId: null,
+    });
+    desktopApi.getAgentDirectory.mockResolvedValue([]);
     desktopApi.login.mockResolvedValue({
       session: {
         agent: {
@@ -122,6 +135,9 @@ describe('useDesktopStore pairing', () => {
         sinkSelectionSupported: false,
       },
       softphone: null,
+      callerIds: [],
+      defaultCallerId: null,
+      agentDirectory: [],
       updateState: null,
       initialize: useDesktopStore.getState().initialize,
       login: useDesktopStore.getState().login,
@@ -131,6 +147,9 @@ describe('useDesktopStore pairing', () => {
       showLogin: useDesktopStore.getState().showLogin,
       reconnectRuntime: useDesktopStore.getState().reconnectRuntime,
       originate: useDesktopStore.getState().originate,
+      originateInternal: useDesktopStore.getState().originateInternal,
+      openCallHistoryPopup: useDesktopStore.getState().openCallHistoryPopup,
+      openAgentListPopup: useDesktopStore.getState().openAgentListPopup,
       pickup: useDesktopStore.getState().pickup,
       mute: useDesktopStore.getState().mute,
       hangup: useDesktopStore.getState().hangup,
@@ -221,12 +240,31 @@ describe('useDesktopStore pairing', () => {
         role: 'agent',
       },
     });
+    desktopApi.getCallerIds.mockResolvedValueOnce({
+      callerIds: ['15777893', '07052346380'],
+      defaultCallerId: '15777893',
+    });
+    desktopApi.getAgentDirectory.mockResolvedValueOnce([
+      {
+        agentId: 'agent-2',
+        agentName: '상담원2',
+        extension: '1002',
+        role: 'agent',
+        isActive: true,
+        currentStatus: {
+          statusCode: 'AVAILABLE',
+        },
+      },
+    ]);
 
     await useDesktopStore.getState().initialize();
 
     expect(desktopApi.refreshSession).toHaveBeenCalled();
     expect(useDesktopStore.getState().agent?.agentId).toBe('agent-fresh');
     expect(desktopApi.connectRuntime).toHaveBeenCalled();
+    expect(useDesktopStore.getState().callerIds).toEqual(['15777893', '07052346380']);
+    expect(useDesktopStore.getState().defaultCallerId).toBe('15777893');
+    expect(useDesktopStore.getState().agentDirectory[0]?.extension).toBe('1002');
     expect(useDesktopStore.getState().events[0]).toContain('저장된 세션을 갱신했습니다.');
   });
 
@@ -550,10 +588,16 @@ describe('useDesktopStore pairing', () => {
         sinkSelectionSupported: false,
       },
       softphone: null,
+      callerIds: [],
+      defaultCallerId: null,
+      agentDirectory: [],
       updateState: null,
       initialize: useDesktopStore.getState().initialize,
       pair: useDesktopStore.getState().pair,
       originate: useDesktopStore.getState().originate,
+      originateInternal: useDesktopStore.getState().originateInternal,
+      openCallHistoryPopup: useDesktopStore.getState().openCallHistoryPopup,
+      openAgentListPopup: useDesktopStore.getState().openAgentListPopup,
       pickup: useDesktopStore.getState().pickup,
       mute: useDesktopStore.getState().mute,
       hangup: useDesktopStore.getState().hangup,
@@ -763,11 +807,51 @@ describe('useDesktopStore pairing', () => {
       stopSoftphone: useDesktopStore.getState().stopSoftphone,
     });
 
-    await useDesktopStore.getState().originate('01012345678');
+    await useDesktopStore.getState().originate('01012345678', '15777893');
 
     expect(desktopApi.originate).toHaveBeenCalledWith({
       agentExtension: '1001',
       phoneNumber: '01012345678',
+      callerId: '15777893',
+    });
+  });
+
+  it('originateInternal 은 상담원 디렉터리 대상으로 내선 발신 요청을 보낸다', async () => {
+    useDesktopStore.setState({
+      bootstrapped: true,
+      pairing: false,
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'AVAILABLE',
+      config: {
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      },
+      activeCall: null,
+      events: [],
+      runtimeConnection: 'connected',
+      originateInternal: useDesktopStore.getState().originateInternal,
+    });
+
+    await useDesktopStore.getState().originateInternal({
+      agentId: 'agent-2',
+      agentName: '상담원2',
+      extension: '1002',
+      role: 'agent',
+      isActive: true,
+      currentStatus: {
+        statusCode: 'AVAILABLE',
+      },
+    });
+
+    expect(desktopApi.originateInternal).toHaveBeenCalledWith({
+      targetAgentId: 'agent-2',
+      targetExtension: '1002',
     });
   });
 

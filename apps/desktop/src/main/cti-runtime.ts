@@ -2,6 +2,7 @@ import axios, { type AxiosInstance } from 'axios';
 import { randomUUID } from 'node:crypto';
 import { io, type Socket } from 'socket.io-client';
 import type { AgentStatusCode, CommandAck, CtiEvent } from '../shared/cti';
+import type { DesktopAgentDirectoryItem, DesktopCallerIdConfig } from '../shared/ipc';
 
 type RuntimeEventName = CtiEvent['type'];
 
@@ -139,6 +140,70 @@ export class CtiRuntime {
     );
 
     return response.data.data as CommandAck & { channel?: string };
+  }
+
+  async originateInternal(input: {
+    targetAgentId: string;
+    targetExtension: string;
+  }): Promise<CommandAck> {
+    const correlationId = randomUUID();
+    const response = await this.http.post(
+      '/calls/originate/internal',
+      input,
+      {
+        headers: {
+          'x-correlation-id': correlationId,
+        },
+      },
+    );
+
+    return response.data.data as CommandAck;
+  }
+
+  async getCallerIds(): Promise<DesktopCallerIdConfig> {
+    const response = await this.http.get('/me/session');
+    const outboundDialOptions = response.data?.data?.outboundDialOptions;
+    const callerIds = Array.isArray(outboundDialOptions?.allowedCallerIds)
+      ? outboundDialOptions.allowedCallerIds.filter((value: unknown): value is string => typeof value === 'string')
+      : [];
+    const defaultCallerId = typeof outboundDialOptions?.defaultCallerId === 'string'
+      ? outboundDialOptions.defaultCallerId
+      : null;
+
+    return {
+      callerIds,
+      defaultCallerId: defaultCallerId && callerIds.includes(defaultCallerId)
+        ? defaultCallerId
+        : callerIds[0] ?? null,
+    };
+  }
+
+  async getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]> {
+    const response = await this.http.get('/agents');
+    const raw = response.data?.data;
+    const rows = Array.isArray(raw?.agents)
+      ? raw.agents
+      : Array.isArray(raw)
+        ? raw
+        : [];
+
+    return rows.map((agent: {
+      agentId?: string;
+      agentName?: string;
+      extension?: string;
+      role?: string;
+      isActive?: boolean;
+      currentStatus?: { statusCode?: AgentStatusCode } | null;
+    }) => ({
+      agentId: agent.agentId ?? '',
+      agentName: agent.agentName ?? '',
+      extension: agent.extension ?? '',
+      role: agent.role ?? 'agent',
+      isActive: agent.isActive !== false,
+      currentStatus: agent.currentStatus?.statusCode
+        ? { statusCode: agent.currentStatus.statusCode }
+        : null,
+    }));
   }
 
   async hold(callId: string): Promise<CommandAck> {

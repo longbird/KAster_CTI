@@ -27,16 +27,18 @@ describe('CtiRuntime', () => {
   const create = vi.mocked(axios.create);
   const ioMock = vi.mocked(io);
   let post: ReturnType<typeof vi.fn>;
+  let get: ReturnType<typeof vi.fn>;
   let socketOn: ReturnType<typeof vi.fn>;
   let socketDisconnect: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     post = vi.fn();
+    get = vi.fn();
     socketOn = vi.fn();
     socketDisconnect = vi.fn();
     create.mockReset();
     ioMock.mockReset();
-    create.mockReturnValue({ post } as never);
+    create.mockReturnValue({ post, get } as never);
     ioMock.mockReturnValue({
       on: socketOn,
       disconnect: socketDisconnect,
@@ -310,6 +312,99 @@ describe('CtiRuntime', () => {
       },
     );
     expect(result.channel).toBe('PJSIP/1001');
+  });
+
+  it('originateInternal 은 내선 발신 endpoint 를 호출한다', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        data: {
+          accepted: true,
+          requestedAt: '2026-04-22T12:00:00.000Z',
+          correlationId: 'corr-1',
+        },
+      },
+    });
+
+    const runtime = new CtiRuntime({
+      baseUrl: 'https://cti-center-a.example.com',
+      accessToken: 'access-1',
+    });
+
+    await runtime.originateInternal({
+      targetAgentId: 'agent-2',
+      targetExtension: '1002',
+    });
+
+    expect(post).toHaveBeenCalledWith(
+      '/calls/originate/internal',
+      {
+        targetAgentId: 'agent-2',
+        targetExtension: '1002',
+      },
+      {
+        headers: {
+          'x-correlation-id': 'corr-1',
+        },
+      },
+    );
+  });
+
+  it('getCallerIds 는 me session 의 등록 발신번호를 반환한다', async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        data: {
+          outboundDialOptions: {
+            allowedCallerIds: ['15777893', '07052346380'],
+            defaultCallerId: '07052346380',
+          },
+        },
+      },
+    });
+
+    const runtime = new CtiRuntime({
+      baseUrl: 'https://cti-center-a.example.com',
+      accessToken: 'access-1',
+    });
+
+    await expect(runtime.getCallerIds()).resolves.toEqual({
+      callerIds: ['15777893', '07052346380'],
+      defaultCallerId: '07052346380',
+    });
+    expect(get).toHaveBeenCalledWith('/me/session');
+  });
+
+  it('getAgentDirectory 는 상담원 목록을 데스크톱 타입으로 정규화한다', async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        data: [
+          {
+            agentId: 'agent-2',
+            agentName: 'Agent Two',
+            extension: '1002',
+            role: 'agent',
+            isActive: true,
+            currentStatus: { statusCode: 'AVAILABLE' },
+          },
+        ],
+      },
+    });
+
+    const runtime = new CtiRuntime({
+      baseUrl: 'https://cti-center-a.example.com',
+      accessToken: 'access-1',
+    });
+
+    await expect(runtime.getAgentDirectory()).resolves.toEqual([
+      {
+        agentId: 'agent-2',
+        agentName: 'Agent Two',
+        extension: '1002',
+        role: 'agent',
+        isActive: true,
+        currentStatus: { statusCode: 'AVAILABLE' },
+      },
+    ]);
+    expect(get).toHaveBeenCalledWith('/agents');
   });
 
   it('상담 전환 취소와 완료 endpoint 를 호출한다', async () => {

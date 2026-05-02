@@ -29,6 +29,22 @@ export interface DesktopAgentProfile {
   role: string;
 }
 
+export interface DesktopAgentDirectoryItem {
+  agentId: string;
+  agentName: string;
+  extension: string;
+  role: string;
+  isActive: boolean;
+  currentStatus?: {
+    statusCode: import('./cti').AgentStatusCode;
+  } | null;
+}
+
+export interface DesktopCallerIdConfig {
+  callerIds: string[];
+  defaultCallerId: string | null;
+}
+
 export interface DesktopSoftphoneConfig {
   enabled: boolean;
   sipUri: string | null;
@@ -101,6 +117,14 @@ export interface DesktopApi {
     phoneNumber: string;
     callerId?: string;
   }): Promise<import('./cti').CommandAck & { channel?: string }>;
+  originateInternal(input: {
+    targetAgentId: string;
+    targetExtension: string;
+  }): Promise<import('./cti').CommandAck>;
+  getCallerIds(): Promise<DesktopCallerIdConfig>;
+  getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]>;
+  openCallHistoryPopup(): Promise<void>;
+  openAgentListPopup(): Promise<void>;
   transfer(
     callId: string,
     params: {

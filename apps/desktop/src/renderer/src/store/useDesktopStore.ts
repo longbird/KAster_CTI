@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import type { ActiveCall, AgentStatusCode, CtiEvent } from '../../../shared/cti';
 import type {
+  DesktopAgentDirectoryItem,
   DesktopAgentProfile,
   DesktopAudioPreferences,
+  DesktopCallerIdConfig,
   DesktopConfig,
   DesktopProtocolConnectPayload,
   DesktopSessionSummary,
@@ -67,6 +69,9 @@ interface DesktopStore {
   audioDevices: AudioDeviceCatalog;
   audioCapabilities: AudioCapabilities;
   softphone: SoftphoneState | null;
+  callerIds: string[];
+  defaultCallerId: string | null;
+  agentDirectory: DesktopAgentDirectoryItem[];
   updateState: {
     message: string;
     mandatory: boolean;
@@ -84,7 +89,10 @@ interface DesktopStore {
   showLogin(): void;
   reconnectRuntime(): Promise<void>;
   changeAgentStatus(statusCode: AgentStatusCode): Promise<void>;
-  originate(phoneNumber: string): Promise<void>;
+  originate(phoneNumber: string, callerId?: string): Promise<void>;
+  originateInternal(target: DesktopAgentDirectoryItem): Promise<void>;
+  openCallHistoryPopup(): Promise<void>;
+  openAgentListPopup(): Promise<void>;
   pickup(): Promise<void>;
   mute(): Promise<void>;
   hangup(): Promise<void>;
@@ -126,6 +134,10 @@ const DEFAULT_AUDIO_PREFERENCES: DesktopAudioPreferences = {
 };
 const DEFAULT_AUDIO_CAPABILITIES: AudioCapabilities = {
   sinkSelectionSupported: false,
+};
+const EMPTY_CALLER_ID_CONFIG: DesktopCallerIdConfig = {
+  callerIds: [],
+  defaultCallerId: null,
 };
 
 function getMediaDevices() {
@@ -521,9 +533,11 @@ async function hydrateAuthenticatedDesktopSession(
   bindRuntimeEvents(set);
   const desktopApi = getDesktopApi();
   await desktopApi.connectRuntime();
-  const [audioPreferences, update] = await Promise.all([
+  const [audioPreferences, update, callerIdConfig, agentDirectory] = await Promise.all([
     desktopApi.getAudioPreferences(),
     desktopApi.checkForUpdates(),
+    desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG),
+    desktopApi.getAgentDirectory().catch(() => []),
   ]);
   const controller = getAudioController();
   if (controller) {
@@ -549,6 +563,9 @@ async function hydrateAuthenticatedDesktopSession(
     audioPermission: getMediaDevices()?.enumerateDevices ? current.audioPermission : 'unsupported',
     audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
     softphone,
+    callerIds: callerIdConfig.callerIds,
+    defaultCallerId: callerIdConfig.defaultCallerId,
+    agentDirectory,
     events: pushEvent(current.events, input.eventMessage),
     updateState: update
       ? {
@@ -586,6 +603,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   audioDevices: EMPTY_AUDIO_DEVICES,
   audioCapabilities: DEFAULT_AUDIO_CAPABILITIES,
   softphone: null,
+  callerIds: [],
+  defaultCallerId: null,
+  agentDirectory: [],
   updateState: null,
   async initialize() {
     const controller = getAudioController();
@@ -625,6 +645,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
         audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
         softphone: storedSession?.softphoneConfig ? createSoftphoneState(storedSession.softphoneConfig) : null,
+        callerIds: [],
+        defaultCallerId: null,
+        agentDirectory: [],
         events: bootstrapError ? [`초기 로딩 실패 / ${bootstrapError}`] : [],
       });
       return;
@@ -652,7 +675,11 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         bindRuntimeEvents(set);
         const desktopApi = getDesktopApi();
         await desktopApi.connectRuntime();
-        const update = await desktopApi.checkForUpdates();
+        const [update, callerIdConfig, agentDirectory] = await Promise.all([
+          desktopApi.checkForUpdates(),
+          desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG),
+          desktopApi.getAgentDirectory().catch(() => []),
+        ]);
         if (update) {
           set({
             updateState: {
@@ -664,6 +691,15 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
               verified: false,
               applying: false,
             },
+            callerIds: callerIdConfig.callerIds,
+            defaultCallerId: callerIdConfig.defaultCallerId,
+            agentDirectory,
+          });
+        } else {
+          set({
+            callerIds: callerIdConfig.callerIds,
+            defaultCallerId: callerIdConfig.defaultCallerId,
+            agentDirectory,
           });
         }
       } catch (error) {
@@ -692,6 +728,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
       audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
       softphone,
+      callerIds: session ? current.callerIds : [],
+      defaultCallerId: session ? current.defaultCallerId : null,
+      agentDirectory: session ? current.agentDirectory : [],
       events: appendEvents(
         current.events,
         sessionBootstrapError
@@ -776,8 +815,12 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     const session = await desktopApi.exchangeHandoff(params.handoffToken);
     bindRuntimeEvents(set);
     await desktopApi.connectRuntime();
-    const update = await desktopApi.checkForUpdates();
-    const audioPreferences = await desktopApi.getAudioPreferences();
+    const [update, audioPreferences, callerIdConfig, agentDirectory] = await Promise.all([
+      desktopApi.checkForUpdates(),
+      desktopApi.getAudioPreferences(),
+      desktopApi.getCallerIds().catch(() => EMPTY_CALLER_ID_CONFIG),
+      desktopApi.getAgentDirectory().catch(() => []),
+    ]);
     const softphone = session.softphoneConfig ? createSoftphoneState(session.softphoneConfig) : null;
 
     set((current) => ({
@@ -790,6 +833,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       audioPreferences,
       audioCapabilities: getAudioController()?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
       softphone,
+      callerIds: callerIdConfig.callerIds,
+      defaultCallerId: callerIdConfig.defaultCallerId,
+      agentDirectory,
       events: appendEvents(current.events, [`센터 설정 저장 완료: ${config.serverUrl}`]),
       updateState: update
         ? {
@@ -894,7 +940,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}`),
     }));
   },
-  async originate(phoneNumber) {
+  async originate(phoneNumber, callerId) {
     const agent = useDesktopStore.getState().agent;
     const normalized = phoneNumber.trim();
     if (!agent || !normalized) {
@@ -904,10 +950,34 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     await getDesktopApi().originate({
       agentExtension: agent.extension,
       phoneNumber: normalized,
+      callerId: callerId?.trim() || undefined,
     });
     set((current) => ({
-      events: pushEvent(current.events, `외부 발신 요청 ${normalized}`),
+      events: pushEvent(
+        current.events,
+        `외부 발신 요청 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`,
+      ),
     }));
+  },
+  async originateInternal(target) {
+    const normalizedExtension = target.extension.trim();
+    if (!target.agentId || !normalizedExtension) {
+      return;
+    }
+
+    await getDesktopApi().originateInternal({
+      targetAgentId: target.agentId,
+      targetExtension: normalizedExtension,
+    });
+    set((current) => ({
+      events: pushEvent(current.events, `내선 발신 요청 ${target.agentName} ${normalizedExtension}`),
+    }));
+  },
+  async openCallHistoryPopup() {
+    await getDesktopApi().openCallHistoryPopup();
+  },
+  async openAgentListPopup() {
+    await getDesktopApi().openAgentListPopup();
   },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
