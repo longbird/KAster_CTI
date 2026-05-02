@@ -12818,7 +12818,7 @@ function SoftphoneShell({
   const historyRows = reactExports.useMemo(() => activeCall ? [activeCall] : [], [activeCall]);
   const navItems = [
     { key: "call", label: "상담대기" },
-    { key: "work", label: "업무처리" },
+    { key: "call", label: "업무처리" },
     { key: "history", label: "통화내역" },
     { key: "outbound", label: "발신" },
     { key: "transfer", label: "호전환" },
@@ -12900,7 +12900,7 @@ function SoftphoneShell({
         /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: statusLabel })
       ] })
     ] }),
-    view === "call" || view === "work" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+    view === "call" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
       CallConsole,
       {
         activeCall,

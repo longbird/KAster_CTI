@@ -42,9 +42,7 @@ button {
 .desktop-layout {
   display: block;
   width: min(560px, 100%);
-  height: 100vh;
   margin: 0 auto;
-  overflow: auto;
 }
 
 .desktop-main {
@@ -1350,12 +1348,6 @@ button:disabled {
 @media (max-width: 620px) {
   .legacy-topbar {
     grid-template-columns: 72px minmax(0, 1fr);
-    min-height: 0;
-  }
-
-  .legacy-topbar-main {
-    grid-template-rows: auto auto;
-    gap: 6px;
   }
 
   .legacy-agent-panel {
@@ -1372,22 +1364,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .legacy-status-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .legacy-status-row select,
-  .legacy-status-row button {
-    font-size: 12px;
-  }
-
   .legacy-nav-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .legacy-nav-button {
-    min-height: 30px;
-    line-height: 1.15;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .legacy-cid-panel,
