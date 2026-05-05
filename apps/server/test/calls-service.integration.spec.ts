@@ -42,6 +42,9 @@ describe('CallsService branch filter integration', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
+    callRecordingAccessAuditLogs: {
+      create: jest.fn(),
+    },
     agents: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -247,7 +250,7 @@ describe('CallsService branch filter integration', () => {
         linkedid: 'L-1',
         fileName: 'rec-1.wav',
         fileFormat: 'wav',
-        fileSizeBytes: 1024,
+        fileSizeBytes: BigInt(1024),
         durationSeconds: 45,
         recordingStartedAt: new Date('2026-04-16T10:00:00.000Z'),
         session: {
@@ -312,6 +315,7 @@ describe('CallsService branch filter integration', () => {
         {
           recordingId: 'rec-1',
           fileName: 'rec-1.wav',
+          fileSizeBytes: '1024',
           session: {
             representativeNumber: '1577-1577',
           },
@@ -354,6 +358,8 @@ describe('CallsService branch filter integration', () => {
         fileFormat: true,
         fileSizeBytes: true,
         storageProvider: true,
+        callId: true,
+        linkedid: true,
       },
     });
   });
@@ -374,6 +380,34 @@ describe('CallsService branch filter integration', () => {
     );
   });
 
+  it('recordRecordingDownloadAudit 은 다운로드 감사 로그를 남긴다', async () => {
+    await service.recordRecordingDownloadAudit('tenant-1', {
+      recordingId: 'rec-local-1',
+      callId: 'call-1',
+      linkedid: 'L-1',
+    }, {
+      agentId: 'agent-1',
+      userRole: 'supervisor',
+      clientIp: '203.0.113.10',
+      userAgent: 'vitest',
+    });
+
+    expect(prisma.callRecordingAccessAuditLogs.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: 'tenant-1',
+        recordingId: 'rec-local-1',
+        callId: 'call-1',
+        linkedid: 'L-1',
+        agentId: 'agent-1',
+        userRole: 'supervisor',
+        action: 'DOWNLOAD',
+        clientIp: '203.0.113.10',
+        userAgent: 'vitest',
+        success: true,
+      },
+    });
+  });
+
   it('branchId 가 없으면 branch mapping 조회 없이 기본 범위로 history 를 조회한다', async () => {
     prisma.callSessions.findMany.mockResolvedValue([]);
 
@@ -392,6 +426,110 @@ describe('CallsService branch filter integration', () => {
       }),
     );
     expect(prisma.attendedTransferCandidates.findMany).not.toHaveBeenCalled();
+  });
+
+  it('listHistory 는 운영 리포트용 결과/큐/포기 필터를 적용한다', async () => {
+    prisma.callSessions.findMany.mockResolvedValue([]);
+
+    await service.listHistory('tenant-1', {
+      resultCode: 'QUEUE_TIMEOUT',
+      queueName: 'support-q',
+      abandon: 'true',
+      recording: 'false',
+    } as any);
+
+    expect(prisma.callSessions.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          resultCode: 'QUEUE_TIMEOUT',
+          queueName: 'support-q',
+          abandonFlag: true,
+          recordingFlag: false,
+        }),
+      }),
+    );
+  });
+
+  it('listHistory 는 미연결 원인을 계산해 반환한다', async () => {
+    prisma.callSessions.findMany.mockResolvedValue([
+      {
+        callId: 'call-timeout',
+        linkedid: 'L-timeout',
+        ani: '01011112222',
+        dnis: '15771577',
+        didNumber: '15771577',
+        queueName: 'support-q',
+        sessionStatus: 'ENDED',
+        direction: 'inbound',
+        resultCode: 'QUEUE_TIMEOUT',
+        startedAt: new Date('2026-05-05T00:00:00.000Z'),
+        answeredAt: null,
+        endedAt: new Date('2026-05-05T00:01:00.000Z'),
+        waitSeconds: 60,
+        talkSeconds: 0,
+        abandonFlag: false,
+        recordingFlag: false,
+        customer: null,
+        callMemos: [],
+        primaryAgent: null,
+      },
+      {
+        callId: 'call-abandon',
+        linkedid: 'L-abandon',
+        ani: '01033334444',
+        dnis: '15771577',
+        didNumber: '15771577',
+        queueName: 'support-q',
+        sessionStatus: 'ENDED',
+        direction: 'inbound',
+        resultCode: null,
+        startedAt: new Date('2026-05-05T00:02:00.000Z'),
+        answeredAt: null,
+        endedAt: new Date('2026-05-05T00:02:20.000Z'),
+        waitSeconds: 20,
+        talkSeconds: 0,
+        abandonFlag: true,
+        recordingFlag: false,
+        customer: null,
+        callMemos: [],
+        primaryAgent: null,
+      },
+      {
+        callId: 'call-recovery',
+        linkedid: 'L-recovery',
+        ani: '01055556666',
+        dnis: '15771577',
+        didNumber: '15771577',
+        queueName: null,
+        sessionStatus: 'ENDED',
+        direction: 'inbound',
+        resultCode: 'RECOVERY_TIMEOUT',
+        startedAt: new Date('2026-05-05T00:03:00.000Z'),
+        answeredAt: null,
+        endedAt: new Date('2026-05-05T00:13:00.000Z'),
+        waitSeconds: 0,
+        talkSeconds: 0,
+        abandonFlag: false,
+        recordingFlag: false,
+        customer: null,
+        callMemos: [],
+        primaryAgent: null,
+      },
+    ]);
+    prisma.attendedTransferCandidates.findMany.mockResolvedValue([]);
+
+    const result = await service.listHistory('tenant-1', {
+      mode: 'missed',
+    });
+
+    expect(result.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ callId: 'call-timeout', missedReason: 'QUEUE_TIMEOUT' }),
+        expect.objectContaining({ callId: 'call-abandon', missedReason: 'CUSTOMER_ABANDONED' }),
+        expect.objectContaining({ callId: 'call-recovery', missedReason: 'SYSTEM_RECOVERY' }),
+      ]),
+    );
   });
 
   it('originate 는 기본 발신번호를 사용하고 허용 목록 밖 번호는 차단한다', async () => {

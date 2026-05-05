@@ -2,9 +2,32 @@
 import { Alert, Button, Card, Space, Statistic, Tag, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useCallback, useEffect, useState } from 'react';
 import { useHealthData } from '../features/monitoring/hooks/useHealthData';
+import { apiClient } from '../shared/lib/apiClient';
 
 const { Title, Text } = Typography;
+
+interface OperationalMonitoring {
+  status: 'ok' | 'warning' | 'critical';
+  timestamp: string;
+  outbox: {
+    pending: number;
+    oldestCreatedAt: string | null;
+    status: 'ok' | 'warning' | 'critical';
+    thresholds: { warning: number; critical: number };
+  };
+  recovery: {
+    lastHour: number;
+    status: 'ok' | 'warning' | 'critical';
+    thresholds: { warning: number; critical: number };
+  };
+  websocket: {
+    clients: number;
+    status: 'ok' | 'warning' | 'critical';
+  };
+  alerts: Array<{ key: string; severity: 'warning' | 'critical'; message: string }>;
+}
 
 // ----- Alert banners -----
 function AlertBanners({ data }: { data: ReturnType<typeof useHealthData>['data'] }) {
@@ -152,10 +175,97 @@ function MetricGrid({ title, items }: { title: string; items: MetricItem[] }) {
   );
 }
 
+function statusColor(status: 'ok' | 'warning' | 'critical') {
+  if (status === 'ok') return 'success';
+  if (status === 'warning') return 'warning';
+  return 'error';
+}
+
+function OperationalStatus({ data }: { data: OperationalMonitoring | null }) {
+  if (!data) return null;
+
+  const items = [
+    {
+      label: 'Outbox backlog',
+      value: data.outbox.pending,
+      status: data.outbox.status,
+      detail: data.outbox.oldestCreatedAt
+        ? `최오래 미발행 ${dayjs(data.outbox.oldestCreatedAt).format('HH:mm:ss')}`
+        : '미발행 없음',
+    },
+    {
+      label: '복구 종료(1시간)',
+      value: data.recovery.lastHour,
+      status: data.recovery.status,
+      detail: `주의 ${data.recovery.thresholds.warning}건 / 장애 ${data.recovery.thresholds.critical}건`,
+    },
+    {
+      label: 'WebSocket 연결',
+      value: data.websocket.clients,
+      status: data.websocket.status,
+      detail: '현재 연결 클라이언트',
+    },
+  ];
+
+  return (
+    <Card title="운영 지표">
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Space wrap>
+          <Text type="secondary">종합 상태</Text>
+          <Tag color={statusColor(data.status)}>{data.status}</Tag>
+          <Text type="secondary">기준 시각 {dayjs(data.timestamp).format('HH:mm:ss')}</Text>
+        </Space>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 16,
+          }}
+        >
+          {items.map((item) => (
+            <Card key={item.label} size="small" styles={{ body: { padding: 16 } }}>
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text type="secondary">{item.label}</Text>
+                  <Tag color={statusColor(item.status)}>{item.status}</Tag>
+                </Space>
+                <Statistic value={item.value} />
+                <Text type="secondary">{item.detail}</Text>
+              </Space>
+            </Card>
+          ))}
+        </div>
+      </Space>
+    </Card>
+  );
+}
+
 // ----- Main page -----
 export function MonitoringPage() {
   const { data, lastUpdated, isLoading, error, secondsUntilRefresh, refetch } =
     useHealthData({ intervalMs: 10_000 });
+  const [opsData, setOpsData] = useState<OperationalMonitoring | null>(null);
+  const [opsLoading, setOpsLoading] = useState(false);
+  const [opsError, setOpsError] = useState<string | null>(null);
+
+  const loadOperationalMonitoring = useCallback(async () => {
+    setOpsLoading(true);
+    try {
+      const res = await apiClient.get('/admin/monitoring/operations');
+      setOpsData((res.data?.data ?? res.data) as OperationalMonitoring);
+      setOpsError(null);
+    } catch (err) {
+      setOpsError(err instanceof Error ? err.message : '운영 지표 조회 실패');
+    } finally {
+      setOpsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOperationalMonitoring();
+    const id = setInterval(() => void loadOperationalMonitoring(), 10_000);
+    return () => clearInterval(id);
+  }, [loadOperationalMonitoring]);
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -172,8 +282,11 @@ export function MonitoringPage() {
             {error && !data && <Tag color="error">오류</Tag>}
             <Button
               icon={<ReloadOutlined />}
-              onClick={refetch}
-              loading={isLoading}
+              onClick={() => {
+                refetch();
+                void loadOperationalMonitoring();
+              }}
+              loading={isLoading || opsLoading}
             >
               새로고침
             </Button>
@@ -183,7 +296,12 @@ export function MonitoringPage() {
       </Card>
 
       {data && <AlertBanners data={data} />}
+      {opsData?.alerts.map((alert) => (
+        <Alert key={alert.key} type={alert.severity === 'critical' ? 'error' : 'warning'} message={alert.message} showIcon />
+      ))}
+      {opsError ? <Alert type="warning" message={`운영 지표 조회 실패: ${opsError}`} showIcon /> : null}
       {data && <InfraCards data={data} />}
+      <OperationalStatus data={opsData} />
       {data && (
         <MetricGrid
           title="콜 지표"

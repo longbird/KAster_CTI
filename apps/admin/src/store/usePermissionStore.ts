@@ -68,9 +68,8 @@ export const usePermissionStore = create<PermissionState>((set) => ({
       const permissionsByMenu = Object.fromEntries(
         (data.permissions ?? []).map((item) => [item.menuKey, item]),
       );
-      const paths = allowedMenuKeys.map(menuKeyToPath);
       set({
-        allowedPaths: paths,
+        allowedPaths: allowedMenuKeys.map(menuKeyToPath),
         permissionsByMenu,
         loaded: true,
         loading: false,

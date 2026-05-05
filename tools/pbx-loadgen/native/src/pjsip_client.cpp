@@ -11,7 +11,6 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <utility>
 
 #include <pj/os.h>
@@ -114,7 +113,6 @@ struct CallContext {
   bool hangupTimerScheduled{false};
   bool answered{false};
   bool mediaConnected{false};
-  bool dtmfStarted{false};
   bool done{false};
   bool timeoutBeforeAnswer{false};
   bool hasMediaIndex{false};
@@ -122,7 +120,6 @@ struct CallContext {
   pj_pool_t* tonePool{nullptr};
   pjmedia_port* tonePort{nullptr};
   pjsua_conf_port_id toneSlot{PJSUA_INVALID_ID};
-  std::thread dtmfThread;
 
   explicit CallContext(const LiveCallRequest& liveRequest,
                        const MediaConfig& mediaConfig)
@@ -131,16 +128,7 @@ struct CallContext {
         result{liveRequest.callRunId},
         startedAt(std::chrono::steady_clock::now()) {}
 
-  ~CallContext() {
-    {
-      std::lock_guard<std::mutex> lock(mutex);
-      done = true;
-    }
-    if (dtmfThread.joinable()) {
-      dtmfThread.join();
-    }
-    cleanupTone();
-  }
+  ~CallContext() { cleanupTone(); }
 
   void cleanupTone() {
     if (toneSlot != PJSUA_INVALID_ID) {
@@ -154,46 +142,6 @@ struct CallContext {
     }
   }
 };
-
-void sendDtmfSequence(CallContext& context) {
-  registerCurrentThread("loadgen-dtmf");
-  const auto sequence = context.request.dtmf.sequence;
-  if (sequence.empty()) {
-    return;
-  }
-
-  std::this_thread::sleep_for(
-      std::chrono::milliseconds(context.request.dtmf.sendAfterAnswerMs));
-
-  for (char digit : sequence) {
-    {
-      std::lock_guard<std::mutex> lock(context.mutex);
-      if (context.done || context.callId == PJSUA_INVALID_ID) {
-        return;
-      }
-    }
-
-    std::string digitText(1, digit);
-    pj_str_t pjDigit = pjStr(digitText);
-    pjsua_call_dial_dtmf(context.callId, &pjDigit);
-
-    if (context.request.dtmf.interDigitMs > 0) {
-      std::this_thread::sleep_for(
-          std::chrono::milliseconds(context.request.dtmf.interDigitMs));
-    }
-  }
-}
-
-void maybeStartDtmf(CallContext& context) {
-  if (context.request.dtmf.sequence.empty()) {
-    return;
-  }
-  if (context.dtmfStarted || context.done) {
-    return;
-  }
-  context.dtmfStarted = true;
-  context.dtmfThread = std::thread([&context] { sendDtmfSequence(context); });
-}
 
 void cancelTimerIfRunning(pj_timer_entry& timerEntry, bool& scheduled) {
   if (scheduled && pj_timer_entry_running(&timerEntry)) {
@@ -450,7 +398,6 @@ void onCallMediaState(pjsua_call_id callId) {
 
   context->result.finalSipCode = 200;
   context->result.state = CallState::MEDIA_ACTIVE;
-  maybeStartDtmf(*context);
   context->cv.notify_all();
 }
 

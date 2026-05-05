@@ -115,22 +115,9 @@ export function PromptSettingsPage() {
           {
             title: '상태',
             dataIndex: 'isActive',
-            width: 170,
-            render: (value: boolean, row) => (
-              <Space direction="vertical" size={2}>
-                <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>
-                <Tag
-                  color={
-                    row.fileStatus?.status === 'PLAYBACK_READY'
-                      ? 'green'
-                      : row.fileStatus?.status === 'UPLOADED'
-                        ? 'blue'
-                        : 'orange'
-                  }
-                >
-                  {row.fileStatus?.status ?? 'UNKNOWN'}
-                </Tag>
-              </Space>
+            width: 90,
+            render: (value: boolean) => (
+              <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>
             ),
           },
           {

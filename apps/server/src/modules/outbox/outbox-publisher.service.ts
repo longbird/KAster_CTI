@@ -6,7 +6,6 @@ import { RedisService } from '../redis/redis.service';
 import { QueuesService } from '../queues/queues.service';
 import { normalizePhone } from '../customers/customers.service';
 import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
-import { REALTIME_EVENTS } from '../realtime/realtime-events';
 
 @Injectable()
 export class OutboxPublisherService implements OnModuleInit {
@@ -35,21 +34,17 @@ export class OutboxPublisherService implements OnModuleInit {
 
     for (const row of pending) {
       const payload = await this.enrichPayload(row.eventType, row.tenantId, row.payload as any);
-      await this.eventBus.publish(row.eventType, payload, row.tenantId);
-      if (row.eventType === REALTIME_EVENTS.CALL_CREATED && payload?.customer) {
-        await this.eventBus.publish(REALTIME_EVENTS.SCREENPOP_CUSTOMER, {
+      await this.eventBus.publish(row.eventType, payload);
+      if (row.eventType === 'call.created' && payload?.customer) {
+        await this.eventBus.publish('screenpop.customer', {
           callId: payload.callId,
           customer: payload.customer,
-        }, row.tenantId);
+        });
       }
-      if (
-        row.eventType === REALTIME_EVENTS.CALL_CREATED ||
-        row.eventType === REALTIME_EVENTS.CALL_UPDATED ||
-        row.eventType === REALTIME_EVENTS.CALL_ENDED
-      ) {
+      if (row.eventType === 'call.created' || row.eventType === 'call.updated' || row.eventType === 'call.ended') {
         await this.publishQueueSummary(row.tenantId);
       }
-      if (row.eventType === REALTIME_EVENTS.CALL_ENDED && payload?.callId) {
+      if (row.eventType === 'call.ended' && payload?.callId) {
         await this.redis.getClient().del(this.muteStateKey(payload.callId));
       }
       await this.prisma.eventOutbox.update({
@@ -66,9 +61,8 @@ export class OutboxPublisherService implements OnModuleInit {
   private async publishQueueSummary(tenantId: string) {
     const queueSummary = await this.queuesService.getSummary(tenantId);
     await this.eventBus.publish(
-      REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
+      'queue.summary.updated',
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
-      tenantId,
     );
   }
 
@@ -77,10 +71,7 @@ export class OutboxPublisherService implements OnModuleInit {
     tenantId: string,
     payload: Record<string, any>,
   ): Promise<Record<string, any>> {
-    if (
-      eventType !== REALTIME_EVENTS.CALL_CREATED &&
-      eventType !== REALTIME_EVENTS.CALL_UPDATED
-    ) {
+    if (eventType !== 'call.created' && eventType !== 'call.updated') {
       return payload;
     }
 

@@ -2,6 +2,7 @@ import { Form, Input, Select, Spin, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api';
 import { AgentStatusTag } from '../components/AgentStatusTag';
+import { AnnouncementsPanel } from '../components/AnnouncementsPanel';
 import { useCtiStore } from '../store/useCtiStore';
 import { useUiStore } from '../store/useUiStore';
 
@@ -29,6 +30,7 @@ export function MiniShell() {
   const {
     loading,
     agentSession,
+    announcements,
     activeCalls,
     selectedCallId,
     init,
@@ -139,6 +141,8 @@ export function MiniShell() {
           <span className="k-eyebrow">현재 상태</span>
           <AgentStatusTag status={agentSession?.statusCode} onChange={changeStatus} />
         </div>
+
+        <AnnouncementsPanel announcements={announcements} compact />
 
         {/* 현재 콜 — v2 panel with live dot */}
         {isActive ? (

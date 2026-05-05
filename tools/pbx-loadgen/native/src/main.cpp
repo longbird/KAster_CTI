@@ -1,20 +1,14 @@
 #include <CLI/CLI.hpp>
 
-#include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#include <sstream>
 
 #include "loadgen/command_logic.hpp"
 #include "loadgen/live_run.hpp"
-#if defined(PBX_LOADGEN_HAS_PJSIP)
 #include "loadgen/pjsip_client.hpp"
-#endif
 #include "loadgen/report_writer.hpp"
 #include "loadgen/scenario.hpp"
-#include "loadgen/test_result.hpp"
 
 namespace {
 
@@ -23,31 +17,6 @@ int printValidatedScenario(const loadgen::Scenario& scenario) {
             << " maxConcurrent=" << scenario.load.maxConcurrent
             << " totalCalls=" << scenario.load.totalCalls << '\n';
   return 0;
-}
-
-std::string readTextFile(const std::string& path) {
-  std::ifstream file(path);
-  if (!file) {
-    throw std::runtime_error("unable to open file: " + path);
-  }
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  return buffer.str();
-}
-
-void writeTextFile(const std::string& path, const std::string& content) {
-  const auto parent = std::filesystem::path(path).parent_path();
-  if (!parent.empty()) {
-    std::filesystem::create_directories(parent);
-  }
-  std::ofstream file(path, std::ios::trunc);
-  if (!file) {
-    throw std::runtime_error("unable to open file for writing: " + path);
-  }
-  file << content;
-  if (!file) {
-    throw std::runtime_error("unable to write file: " + path);
-  }
 }
 
 }  // namespace
@@ -64,45 +33,6 @@ int main(int argc, char** argv) {
   run->add_option("-f,--file", file, "Scenario file")->required();
   auto* report = app.add_subcommand("report", "Replay a saved result file");
   report->add_option("-f,--file", file, "Result file")->required();
-
-  std::string openapiFile;
-  std::string outputFile;
-  std::string featureId;
-  std::string feedbackOutputFile;
-
-  auto* testPlan =
-      app.add_subcommand("test-plan", "Generate and run CTI feature test plans");
-
-  auto* tpInventory =
-      testPlan->add_subcommand("inventory", "Build CTI feature inventory");
-  tpInventory->add_option("--openapi", openapiFile, "OpenAPI json file")
-      ->required();
-  tpInventory->add_option("--out", outputFile, "Output inventory json file");
-
-  auto* tpGenerate =
-      testPlan->add_subcommand("generate", "Generate a CTI test plan");
-  tpGenerate->add_option("--openapi", openapiFile, "OpenAPI json file")
-      ->required();
-  tpGenerate->add_option("--feature", featureId, "Feature id")->required();
-  tpGenerate->add_option("--out", outputFile, "Output test plan yaml file");
-
-  auto* tpValidate =
-      testPlan->add_subcommand("validate", "Validate a CTI test plan");
-  tpValidate->add_option("-f,--file", file, "Test plan file")->required();
-
-  auto* tpDryRun =
-      testPlan->add_subcommand("dry-run", "Show CTI test plan steps");
-  tpDryRun->add_option("-f,--file", file, "Test plan file")->required();
-
-  auto* tpReport =
-      testPlan->add_subcommand("report", "Replay a CTI test result file");
-  tpReport->add_option("-f,--file", file, "Test result json file")->required();
-
-  auto* tpFeedback =
-      testPlan->add_subcommand("feedback", "Generate improvement feedback");
-  tpFeedback->add_option("-f,--file", file, "Test result json file")->required();
-  tpFeedback->add_option("--out", feedbackOutputFile,
-                         "Output feedback markdown file");
 
   app.require_subcommand(1);
 
@@ -123,71 +53,16 @@ int main(int argc, char** argv) {
 
     if (*run) {
       const auto scenario = loadgen::loadScenarioFromFile(file);
-#if defined(PBX_LOADGEN_HAS_PJSIP)
       loadgen::PjsipClient client;
       std::cout
           << loadgen::formatRunArtifacts(loadgen::executeLiveRun(scenario, client).artifacts)
           << '\n';
       return 0;
-#else
-      static_cast<void>(scenario);
-      throw std::runtime_error(
-          "run requires a PJSIP-enabled build. Set PJSIP_ROOT and rebuild.");
-#endif
     }
 
     if (*report) {
       const auto summary = loadgen::readSummaryReport(file);
       std::cout << loadgen::formatReportReplay(summary) << '\n';
-      return 0;
-    }
-
-    if (*tpInventory) {
-      const auto text =
-          loadgen::formatFeatureInventoryFromOpenApi(readTextFile(openapiFile));
-      if (!outputFile.empty()) {
-        writeTextFile(outputFile, text);
-      } else {
-        std::cout << text << '\n';
-      }
-      return 0;
-    }
-
-    if (*tpGenerate) {
-      const auto text = loadgen::renderGeneratedTestPlanForFeature(
-          readTextFile(openapiFile), featureId);
-      if (!outputFile.empty()) {
-        writeTextFile(outputFile, text);
-      } else {
-        std::cout << text;
-      }
-      return 0;
-    }
-
-    if (*tpValidate) {
-      std::cout << loadgen::validateTestPlanYaml(readTextFile(file)) << '\n';
-      return 0;
-    }
-
-    if (*tpDryRun) {
-      std::cout << loadgen::formatTestPlanDryRunFromYaml(readTextFile(file))
-                << '\n';
-      return 0;
-    }
-
-    if (*tpReport) {
-      const auto result = loadgen::readTestResult(file);
-      std::cout << loadgen::renderTestResultMarkdown(result);
-      return 0;
-    }
-
-    if (*tpFeedback) {
-      const auto text = loadgen::renderFeedbackFromTestResultFile(file);
-      if (!feedbackOutputFile.empty()) {
-        writeTextFile(feedbackOutputFile, text);
-      } else {
-        std::cout << text;
-      }
       return 0;
     }
   } catch (const std::exception& ex) {

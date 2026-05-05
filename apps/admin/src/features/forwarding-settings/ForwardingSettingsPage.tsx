@@ -1,9 +1,9 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
-import { AdmPageHead } from '../../shared/ui/AdmPageHead';
+import { formatPhoneNumber } from '../../shared/lib/format';
 import {
   createForwardingRule,
   deleteForwardingRule,
@@ -26,6 +26,22 @@ interface QueueOption {
   queueDisplayName?: string;
   isActive: boolean;
 }
+
+const WEEKDAY_LABELS: Record<string, string> = {
+  mon: '월',
+  tue: '화',
+  wed: '수',
+  thu: '목',
+  fri: '금',
+  sat: '토',
+  sun: '일',
+};
+
+const FORWARD_TYPE_LABELS: Record<AsteriskForwardingRule['forwardType'], string> = {
+  EXTERNAL_NUMBER: '외부번호',
+  EXTENSION: '내선',
+  QUEUE: '호 분배룰',
+};
 
 export function ForwardingSettingsPage() {
   const forwardingPermission = usePermissionStore((state) => state.permissionsByMenu['settings/forwarding']);
@@ -61,7 +77,7 @@ export function ForwardingSettingsPage() {
   const didOptions = useMemo(
     () => dids.map((did) => ({
       value: did.id,
-      label: did.description ? `${did.did} (${did.description})` : did.did,
+      label: did.description ? `${formatPhoneNumber(did.did)} (${did.description})` : formatPhoneNumber(did.did),
       directQueue: did.directQueue,
     })),
     [dids],
@@ -74,13 +90,21 @@ export function ForwardingSettingsPage() {
     })),
     [agents],
   );
+  const extensionLabelMap = useMemo(
+    () => Object.fromEntries(extensionOptions.map((item) => [item.value, item.label])),
+    [extensionOptions],
+  );
 
   const queueOptions = useMemo(
     () => queues.map((queue) => ({
       value: queue.queueName,
-      label: `${queue.queueDisplayName ?? queue.queueName} (${queue.queueName})`,
+      label: queue.queueDisplayName ?? queue.queueName,
     })),
     [queues],
+  );
+  const queueLabelMap = useMemo(
+    () => Object.fromEntries(queueOptions.map((item) => [item.value, item.label])),
+    [queueOptions],
   );
 
   const remove = async (id: string) => {
@@ -94,12 +118,17 @@ export function ForwardingSettingsPage() {
   };
 
   const save = async (values: ForwardingRuleFormValue) => {
+    const conditionType: 'ALWAYS' | 'TIME_RANGE' =
+      values.schedules.some((item) => item.conditionType === 'TIME_RANGE') ? 'TIME_RANGE' : 'ALWAYS';
     const payload = {
       ...values,
-      conditionType: values.schedules[0]?.conditionType ?? 'ALWAYS',
-      timeStart: values.schedules[0]?.timeStart ?? null,
-      timeEnd: values.schedules[0]?.timeEnd ?? null,
-      daysOfWeek: values.schedules[0]?.daysOfWeek ?? [],
+      conditionType,
+      forwardTriggerMode: values.forwardTriggerMode,
+      queueWaitSeconds: values.forwardTriggerMode === 'AFTER_QUEUE_WAIT' ? values.queueWaitSeconds : null,
+      stickyCallbackWindowMinutes: values.stickyCallbackWindowMinutes,
+      timeStart: values.schedules[0]?.conditionType === 'TIME_RANGE' ? values.schedules[0].timeStart : null,
+      timeEnd: values.schedules[0]?.conditionType === 'TIME_RANGE' ? values.schedules[0].timeEnd : null,
+      daysOfWeek: values.schedules[0]?.conditionType === 'TIME_RANGE' ? values.schedules[0].daysOfWeek : [],
       description: values.description?.trim() ? values.description : null,
     };
 
@@ -123,24 +152,23 @@ export function ForwardingSettingsPage() {
   if (!rows) return <Skeleton active paragraph={{ rows: 6 }} />;
 
   return (
-    <>
-      <AdmPageHead
-        title="라우팅 룰"
-        sub="DID별 우선 라우팅 규칙 · 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다."
-        right={
-          forwardingPermission?.canCreate !== false ? (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
-              className="k-btn k-btn-primary k-btn-sm"
-            >
-              규칙 등록
-            </Button>
-          ) : null
-        }
-      />
-      <section className="adm-card">
+    <Card>
+      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+        <div>
+          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
+            착신전환 설정
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            DID별 우선 라우팅 규칙입니다. 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다.
+          </Typography.Text>
+        </div>
+        {forwardingPermission?.canCreate !== false ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            규칙 등록
+          </Button>
+        ) : null}
+      </Space>
+
       <Table<AsteriskForwardingRule>
         rowKey="id"
         dataSource={rows}
@@ -151,7 +179,7 @@ export function ForwardingSettingsPage() {
             width: 220,
             render: (_: unknown, row) => (
               <Space direction="vertical" size={0}>
-                <Typography.Text strong>{row.did.did}</Typography.Text>
+                <Typography.Text strong>{formatPhoneNumber(row.did.did)}</Typography.Text>
                 <Typography.Text type="secondary">{row.did.description || '-'}</Typography.Text>
               </Space>
             ),
@@ -159,22 +187,73 @@ export function ForwardingSettingsPage() {
           {
             title: '전환 방식',
             dataIndex: 'forwardType',
-            width: 110,
+            width: 120,
             render: (value: string) => (
-              <Tag color={value === 'QUEUE' ? 'blue' : 'green'}>
-                {value === 'QUEUE' ? '큐' : '내선'}
+              <Tag color={value === 'QUEUE' ? 'blue' : value === 'EXTENSION' ? 'green' : 'orange'}>
+                {FORWARD_TYPE_LABELS[value as AsteriskForwardingRule['forwardType']]}
               </Tag>
             ),
           },
           {
             title: '전환 대상',
-            dataIndex: 'targetValue',
-            width: 180,
+            width: 220,
+            render: (_: unknown, row) => {
+              const label =
+                row.forwardType === 'QUEUE'
+                  ? queueLabelMap[row.targetValue] ?? row.targetValue
+                  : row.forwardType === 'EXTENSION'
+                    ? extensionLabelMap[row.targetValue] ?? row.targetValue
+                    : formatPhoneNumber(row.targetValue);
+              return <Typography.Text>{label}</Typography.Text>;
+            },
+          },
+          {
+            title: '착신 조건',
+            width: 220,
+            render: (_: unknown, row) => {
+              if (row.forwardTriggerMode === 'AFTER_QUEUE_WAIT') {
+                return (
+                  <Space direction="vertical" size={0}>
+                    <Typography.Text>대기 후 착신</Typography.Text>
+                    <Typography.Text type="secondary">{row.queueWaitSeconds ?? '-'}초 후 전환</Typography.Text>
+                  </Space>
+                );
+              }
+              if (row.forwardTriggerMode === 'SMART_NO_READY') {
+                return <Tag color="purple">대기 상담원 없을 때 착신</Tag>;
+              }
+              return <Tag color="green">즉시 착신</Tag>;
+            },
+          },
+          {
+            title: '적용 조건',
+            width: 260,
+            render: (_: unknown, row) => {
+              const schedules = row.schedules?.filter((item) => item.conditionType === 'TIME_RANGE') ?? [];
+              if (schedules.length > 0) {
+                return (
+                  <Space direction="vertical" size={0}>
+                    {schedules.map((schedule, index) => (
+                      <Typography.Text key={`${row.id}-schedule-${index}`}>
+                        {schedule.daysOfWeek.map((day) => WEEKDAY_LABELS[day] ?? day).join(', ')} {schedule.timeStart}-{schedule.timeEnd}
+                      </Typography.Text>
+                    ))}
+                  </Space>
+                );
+              }
+              return <Tag color="green">항상 적용</Tag>;
+            },
           },
           {
             title: '설명',
-            dataIndex: 'description',
-            render: (value?: string | null) => value || '-',
+            render: (_: unknown, row) => {
+              const notes = [];
+              if (row.description) notes.push(row.description);
+              if (row.stickyCallbackWindowMinutes) {
+                notes.push(`동일 고객 ${row.stickyCallbackWindowMinutes}분 내 재착신 즉시 연결`);
+              }
+              return notes.length > 0 ? notes.join(' / ') : '-';
+            },
           },
           {
             title: '상태',
@@ -205,15 +284,14 @@ export function ForwardingSettingsPage() {
         ]}
       />
 
-      <div style={{ marginTop: 16, padding: '12px 14px', borderTop: '1px solid var(--line-1)' }}>
+      <div style={{ marginTop: 16 }}>
         <Space>
-          <SwapOutlined style={{ color: 'var(--fg-3)' }} />
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            현재 1차 범위는 DID 기준 무조건 전환만 지원합니다. 시간대/조건부 전환은 후속 범위입니다.
+          <SwapOutlined />
+          <Typography.Text type="secondary">
+            조건형 규칙은 지정된 요일·시간대에만 우선 적용되고, 그 외 시간에는 DID 기본 IVR/큐 설정으로 복귀합니다.
           </Typography.Text>
         </Space>
       </div>
-      </section>
 
       {forwardingPermission?.canCreate !== false ? (
         <ForwardingRuleModal
@@ -236,6 +314,6 @@ export function ForwardingSettingsPage() {
           onSave={save}
         />
       ) : null}
-    </>
+    </Card>
   );
 }

@@ -5,6 +5,8 @@ import { MenuPermissionService } from '../src/common/menu-permission.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AdminService } from '../src/modules/admin/admin.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
+import { HealthSummaryService } from '../src/modules/health/health-summary.service';
+import { RealtimeGateway } from '../src/modules/realtime/realtime.gateway';
 
 describe('Admin/Permission service integration', () => {
   describe('MenuPermissionService', () => {
@@ -116,12 +118,29 @@ describe('Admin/Permission service integration', () => {
         count: jest.fn(),
         findMany: jest.fn(),
       },
+      callRecordingAccessAuditLogs: {
+        count: jest.fn(),
+        findMany: jest.fn(),
+      },
+      agents: {
+        findMany: jest.fn(),
+      },
+      eventOutbox: {
+        count: jest.fn(),
+        findFirst: jest.fn(),
+      },
     };
     const queuesService = {
       getSummary: jest.fn(),
     };
     const reloadService = {
       executeReload: jest.fn(),
+    };
+    const healthSummary = {
+      getHealth: jest.fn(),
+    };
+    const realtimeGateway = {
+      getClientCount: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -132,6 +151,8 @@ describe('Admin/Permission service integration', () => {
           { provide: PrismaService, useValue: prisma },
           { provide: QueuesService, useValue: queuesService },
           { provide: AsteriskReloadService, useValue: reloadService },
+          { provide: HealthSummaryService, useValue: healthSummary },
+          { provide: RealtimeGateway, useValue: realtimeGateway },
         ],
       }).compile();
 
@@ -243,6 +264,240 @@ describe('Admin/Permission service integration', () => {
         where: expect.objectContaining({
           tenantId: 'tenant-1',
         }),
+      });
+    });
+
+    it('IVR 실패 리포트는 Smart ARS UserEvent 를 실패 원인으로 분류한다', async () => {
+      prisma.rawAmiEvents.findMany.mockResolvedValue([
+        {
+          eventId: 'evt-timeout',
+          eventName: 'UserEvent',
+          eventTime: new Date('2026-05-05T00:00:00.000Z'),
+          linkedid: 'L-timeout',
+          uniqueid: 'U-timeout',
+          payload: {
+            raw: {
+              UserEvent: 'KasterSmartArs',
+              Stage: 'selection',
+              Result: 'timeout',
+              Digit: 'timeout',
+              Caller: '01011112222',
+              EntryDid: '07052346380',
+              BranchId: 'branch-1',
+            },
+          },
+        },
+        {
+          eventId: 'evt-success',
+          eventName: 'UserEvent',
+          eventTime: new Date('2026-05-05T00:01:00.000Z'),
+          linkedid: 'L-success',
+          uniqueid: 'U-success',
+          payload: {
+            raw: {
+              UserEvent: 'KasterSmartArs',
+              Stage: 'result',
+              Result: 'SUCCESS',
+              Action: 'OPT_OUT',
+              Caller: '01033334444',
+              EntryDid: '07052346380',
+              BranchId: 'branch-1',
+            },
+          },
+        },
+      ]);
+      prisma.callSessions.findMany.mockResolvedValue([
+        {
+          callId: 'call-timeout',
+          linkedid: 'L-timeout',
+          sessionStatus: 'ENDED',
+          queueName: 'support-q',
+          primaryAgent: { agentName: '상담원1' },
+        },
+      ]);
+
+      const result = await service.listIvrFailures('tenant-1', {
+        from: '2026-05-05T00:00:00.000Z',
+        to: '2026-05-05T23:59:59.999Z',
+        reason: 'INPUT_TIMEOUT',
+      } as any);
+
+      expect(prisma.rawAmiEvents.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: 'tenant-1',
+          eventName: 'UserEvent',
+          eventTime: {
+            gte: new Date('2026-05-05T00:00:00.000Z'),
+            lte: new Date('2026-05-05T23:59:59.999Z'),
+          },
+        },
+        orderBy: { eventTime: 'desc' },
+        take: 1000,
+        select: {
+          eventId: true,
+          eventName: true,
+          eventTime: true,
+          linkedid: true,
+          uniqueid: true,
+          payload: true,
+        },
+      });
+      expect(result).toMatchObject({
+        success: true,
+        data: {
+          total: 1,
+          rows: [
+            {
+              eventId: 'evt-timeout',
+              linkedid: 'L-timeout',
+              caller: '01011112222',
+              entryDid: '07052346380',
+              branchId: 'branch-1',
+              stage: 'selection',
+              digit: 'timeout',
+              result: 'timeout',
+              failureReason: 'INPUT_TIMEOUT',
+              callId: 'call-timeout',
+              queueName: 'support-q',
+              primaryAgentName: '상담원1',
+            },
+          ],
+        },
+        error: null,
+      });
+    });
+
+    it('녹취 다운로드 감사 조회는 개인정보를 마스킹해 반환한다', async () => {
+      prisma.callRecordingAccessAuditLogs.count.mockResolvedValue(1);
+      prisma.callRecordingAccessAuditLogs.findMany.mockResolvedValue([
+        {
+          auditLogId: 'audit-1',
+          recordingId: 'rec-1',
+          callId: 'call-1',
+          linkedid: 'L-1',
+          agentId: 'agent-1',
+          userRole: 'supervisor',
+          action: 'DOWNLOAD',
+          clientIp: '203.0.113.10',
+          userAgent: 'Mozilla/5.0',
+          success: true,
+          createdAt: new Date('2026-05-05T02:31:24.931Z'),
+        },
+      ]);
+      prisma.callSessions.findMany.mockResolvedValue([
+        {
+          callId: 'call-1',
+          linkedid: 'L-1',
+          ani: '01011112222',
+          dnis: '07052346380',
+          didNumber: '07052346380',
+          queueName: 'support-q',
+        },
+      ]);
+      prisma.agents.findMany.mockResolvedValue([
+        { agentId: 'agent-1', agentName: '관리자', extension: '2001' },
+      ]);
+
+      const result = await service.listRecordingDownloadAudits('tenant-1', {
+        from: '2026-05-05T00:00:00.000Z',
+        to: '2026-05-05T23:59:59.999Z',
+        agentId: 'agent-1',
+        linkedid: 'L-',
+        page: 1,
+        pageSize: 20,
+      } as any);
+
+      expect(prisma.callRecordingAccessAuditLogs.count).toHaveBeenCalledWith({
+        where: {
+          tenantId: 'tenant-1',
+          action: 'DOWNLOAD',
+          createdAt: {
+            gte: new Date('2026-05-05T00:00:00.000Z'),
+            lte: new Date('2026-05-05T23:59:59.999Z'),
+          },
+          agentId: 'agent-1',
+          linkedid: { contains: 'L-', mode: 'insensitive' },
+        },
+      });
+      expect(result).toMatchObject({
+        success: true,
+        data: {
+          page: 1,
+          pageSize: 20,
+          total: 1,
+          rows: [
+            {
+              auditLogId: 'audit-1',
+              recordingId: 'rec-1',
+              callId: 'call-1',
+              linkedid: 'L-1',
+              agentName: '관리자',
+              agentExtension: '2001',
+              callerMasked: '010-****-2222',
+              dnisMasked: '070-****-6380',
+              clientIpMasked: '203.0.113.xxx',
+              userRole: 'supervisor',
+              action: 'DOWNLOAD',
+              success: true,
+            },
+          ],
+        },
+        error: null,
+      });
+      expect((result.data as any).rows[0].caller).toBeUndefined();
+      expect((result.data as any).rows[0].clientIp).toBeUndefined();
+    });
+
+    it('운영 모니터링 상세는 health, outbox, recovery, websocket 지표와 판정을 반환한다', async () => {
+      healthSummary.getHealth.mockResolvedValue({
+        status: 'ok',
+        timestamp: '2026-05-05T04:00:00.000Z',
+        instanceId: 'node-1',
+        leader: true,
+        checks: { db: 'up', redis: 'up', ami: 'connected' },
+        call: { stuck: 0, longestWaitingSeconds: 40 },
+        agent: {},
+        queue: {},
+      });
+      prisma.eventOutbox.count.mockResolvedValue(12);
+      prisma.eventOutbox.findFirst.mockResolvedValue({
+        createdAt: new Date('2026-05-05T03:55:00.000Z'),
+      });
+      prisma.callSessions.count.mockResolvedValue(2);
+      realtimeGateway.getClientCount.mockReturnValue(7);
+
+      const result = await service.getOperationalMonitoring('tenant-1');
+
+      expect(healthSummary.getHealth).toHaveBeenCalledWith('tenant-1');
+      expect(prisma.eventOutbox.count).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1', publishedAt: null },
+      });
+      expect(prisma.eventOutbox.findFirst).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1', publishedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      });
+      expect(prisma.callSessions.count).toHaveBeenCalledWith({
+        where: {
+          tenantId: 'tenant-1',
+          resultCode: 'RECOVERY_TIMEOUT',
+          endedAt: { gte: expect.any(Date) },
+        },
+      });
+      expect(result).toMatchObject({
+        success: true,
+        data: {
+          status: 'warning',
+          checks: { db: 'up', redis: 'up', ami: 'connected' },
+          outbox: { pending: 12, status: 'warning' },
+          recovery: { lastHour: 2, status: 'warning' },
+          websocket: { clients: 7, status: 'ok' },
+          alerts: expect.arrayContaining([
+            expect.objectContaining({ key: 'outbox-backlog', severity: 'warning' }),
+            expect.objectContaining({ key: 'recovery-timeout', severity: 'warning' }),
+          ]),
+        },
+        error: null,
       });
     });
 

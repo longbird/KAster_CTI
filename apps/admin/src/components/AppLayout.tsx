@@ -1,20 +1,23 @@
-import { Menu, Result, Spin } from 'antd';
+import { Button, Grid, Layout, Menu, Result, Space, Spin, Tag, Typography } from 'antd';
 import type { MenuProps } from 'antd';
+import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api/authApi';
 import { USE_MOCK } from '../config';
+import brandImage from '../assets/kaster-admin-brand.webp';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionStore } from '../store/usePermissionStore';
 import {
   ADMIN_MENU_CONFIG,
+  allGroupMenuKeys,
   filterMenuByAllowedPaths,
+  openMenuGroupKeysForPath,
   pathToMenuKey,
 } from '../shared/permissions/menuConfig';
 
-// v2 Operator — adm-app shell (top / side / main / status). Side uses Antd Menu
-// to preserve existing grouped navigation + permissions, re-skinned via .ant-menu
-// overrides in styles.css.
+const { Header, Sider, Content } = Layout;
+
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -28,6 +31,17 @@ export function AppLayout() {
     void loadForAgent(agent);
   }, [agent, loadForAgent]);
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
+  const showOverlay = isMobile && !collapsed;
+
+  useEffect(() => {
+    if (screens.md !== undefined) {
+      setCollapsed(isMobile);
+    }
+  }, [screens.md, isMobile]);
+
   const allowedPathSet = useMemo(() => new Set(allowedPaths), [allowedPaths]);
   const menuItems = useMemo(
     () => filterMenuByAllowedPaths(ADMIN_MENU_CONFIG, allowedPathSet),
@@ -37,112 +51,109 @@ export function AppLayout() {
 
   const pathname = location.pathname || '/dashboard';
   const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
-  const isAllowed = USE_MOCK || allowedPathSet.has(normalizedPath);
+  const canonicalPath = normalizedPath === '/integrations' ? '/asterisk' : normalizedPath;
+  const isAllowed = USE_MOCK || allowedPathSet.has(canonicalPath);
+  const activeGroupKeys = useMemo(() => openMenuGroupKeysForPath(canonicalPath), [canonicalPath]);
+  const visibleGroupKeys = useMemo(
+    () => new Set(allGroupMenuKeys(menuItems)),
+    [menuItems],
+  );
+  const [userOpenKeys, setUserOpenKeys] = useState<string[]>([]);
+  const openKeys = useMemo(
+    () =>
+      Array.from(new Set([...activeGroupKeys, ...userOpenKeys])).filter((key) => visibleGroupKeys.has(key)),
+    [activeGroupKeys, userOpenKeys, visibleGroupKeys],
+  );
+
+  useEffect(() => {
+    setUserOpenKeys((current) => {
+      const next = current.filter((key) => visibleGroupKeys.has(key));
+      return next.length === current.length && next.every((key, index) => key === current[index])
+        ? current
+        : next;
+    });
+  }, [visibleGroupKeys]);
 
   if (!USE_MOCK && (!loaded || loading)) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-0)',
-        }}
-      >
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Spin size="large" />
       </div>
     );
   }
 
-  const role = (agent?.role ?? 'admin').toUpperCase();
-  const initial = agent?.agentName?.charAt(0) ?? '관';
-  const now = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-
   return (
-    <div className="adm-app">
-      <div className="adm-top">
-        <div className="adm-brand">
-          <div className="adm-brand-box">K</div>
-          <div className="adm-brand-wm">
-            KASTER<span> / CTI</span>
-            <em>ADMIN</em>
-          </div>
-        </div>
-        <div className="adm-top-meta">
-          <span className="seg">
-            <span
-              className="k-dot k-dot-live"
-              style={{ background: 'var(--signal)', width: 6, height: 6 }}
-            />
-            <strong>{USE_MOCK ? 'MOCK' : 'AMI'}</strong> CONNECTED
-          </span>
-          <span className="sep" />
-          <span className="seg">
-            <strong>tenant</strong> kaster-prod
-          </span>
-        </div>
-        <div className="adm-top-right">
-          <div className="adm-admin-pill">
-            <div className="adm-avatar" style={{ width: 18, height: 18 }}>
-              {initial}
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        width={240}
+        collapsedWidth={isMobile ? 0 : 60}
+        collapsed={collapsed}
+        theme="light"
+        className={`app-sider${showOverlay ? ' sider-overlay' : ''}`}
+        >
+        <div className={`brand-block${collapsed ? ' brand-block--collapsed' : ''}`}>
+          <img src={brandImage} alt="KAster Admin" className="brand-mark" />
+          {!collapsed ? (
+            <div className="brand-copy">
+              <div className="brand-title">CTI Admin</div>
+              <div className="brand-subtitle">PBX 운영 대시보드</div>
             </div>
-            <span>{agent?.agentName ?? '관리자'}</span>
-            <span className="role">{role}</span>
-          </div>
-          <button
-            type="button"
-            className="k-btn k-btn-sm k-btn-danger"
-            onClick={() => {
-              void logout();
-            }}
-          >
-            로그아웃
-          </button>
+          ) : null}
         </div>
-      </div>
-
-      <aside className="adm-side">
-        <Menu
-          mode="inline"
-          selectedKeys={[normalizedPath]}
-          items={antdMenuItems}
-          onClick={({ key }) => navigate(key as string)}
-          style={{ background: 'transparent', borderRight: 0 }}
-        />
-      </aside>
-
-      <main className="adm-main">
-        <div className="adm-main-inner">
+        <div className="app-sider-menu">
+          <Menu
+            mode="inline"
+            inlineCollapsed={collapsed}
+            selectedKeys={[canonicalPath]}
+            openKeys={collapsed ? [] : openKeys}
+            items={antdMenuItems}
+            onOpenChange={(nextOpenKeys) => setUserOpenKeys(nextOpenKeys as string[])}
+            onClick={({ key }) => {
+              navigate(key as string);
+              if (isMobile) setCollapsed(true);
+            }}
+          />
+        </div>
+      </Sider>
+      <Layout className="app-main-layout">
+        <Header className="app-header" style={{ justifyContent: 'space-between' }}>
+          <Space size="middle" align="center">
+            <Button
+              className="header-menu-toggle"
+              type="text"
+              icon={!collapsed ? <CloseOutlined /> : <MenuOutlined />}
+              onClick={() => setCollapsed((c) => !c)}
+              style={{ marginRight: 8 }}
+            />
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              관리자 운영 콘솔
+            </Typography.Title>
+            {USE_MOCK && <Tag color="processing">Mock Feed</Tag>}
+          </Space>
+          <Space>
+            {agent && (
+              <Typography.Text type="secondary" className="header-agent-info">
+                {agent.agentName} ({agent.role})
+              </Typography.Text>
+            )}
+            <Button icon={<LogoutOutlined />} onClick={logout}>
+              로그아웃
+            </Button>
+          </Space>
+        </Header>
+        <Content className="app-content">
           {isAllowed ? (
             <Outlet />
           ) : (
             <Result
               status="403"
               title="메뉴 접근 권한 없음"
-              subTitle={`${pathToMenuKey(normalizedPath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
+              subTitle={`${pathToMenuKey(canonicalPath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
             />
           )}
-        </div>
-      </main>
-
-      <footer className="adm-status">
-        <span className="seg">
-          <span
-            className="k-dot k-dot-live"
-            style={{ background: 'var(--signal)', width: 6, height: 6 }}
-          />
-          <strong>WS</strong> 12ms
-        </span>
-        <span className="seg">
-          <strong>DB</strong> OK
-        </span>
-        <span className="seg">
-          <strong>API</strong> {USE_MOCK ? 'MOCK' : 'LIVE'}
-        </span>
-        <span className="spacer" />
-        <span>build 2.0.0 · {now}</span>
-      </footer>
-    </div>
+        </Content>
+      </Layout>
+      {showOverlay && <div className="sider-backdrop" onClick={() => setCollapsed(true)} />}
+    </Layout>
   );
 }

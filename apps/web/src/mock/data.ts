@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import type { ActiveCall, AgentDirectoryItem, AgentSession, CallHistoryItem, QueueSummary } from '../types/cti';
+import type { ActiveCall, AgentDirectoryItem, AgentSession, Announcement, CallHistoryItem, QueueSummary } from '../types/cti';
 
 export const initialAgentSession: AgentSession = {
   agentId: 'agent-1001',
@@ -58,6 +58,18 @@ export const initialQueues: QueueSummary[] = [
     talkingCount: 3,
     availableAgents: 2,
     longestWaitSeconds: 9,
+  },
+];
+
+export const initialAnnouncements: Announcement[] = [
+  {
+    announcementId: 'notice-1',
+    title: '긴급 배차 지연',
+    body: '우선 안내 후 콜백 처리',
+    authorName: '관리자',
+    pinned: true,
+    createdAt: dayjs().subtract(5, 'minute').toISOString(),
+    updatedAt: dayjs().subtract(5, 'minute').toISOString(),
   },
 ];
 

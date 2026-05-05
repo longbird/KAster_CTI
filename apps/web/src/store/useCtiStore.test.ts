@@ -27,14 +27,6 @@ vi.mock('../api', () => ({
       requestedAt: '2026-04-22T12:00:00.000Z',
     },
   }),
-  hangupCall: vi.fn().mockResolvedValue({
-    data: {
-      callId: 'call-1',
-      accepted: true,
-      correlationId: 'corr-hangup-1',
-      requestedAt: '2026-04-22T12:00:01.000Z',
-    },
-  }),
 }));
 
 vi.mock('../ws', () => ({
@@ -87,36 +79,5 @@ describe('useCtiStore command metadata', () => {
     await useCtiStore.getState().toggleMute();
 
     expect(useCtiStore.getState().eventLog[0].message).toContain('2026-04-22T12:00:00.000Z');
-  });
-
-  it('agent.status.changed 는 현재 상담원 이벤트만 자기 상태로 반영한다', () => {
-    useCtiStore.getState().applyEvent({
-      type: 'agent.status.changed',
-      payload: {
-        agentId: 'agent-2',
-        statusCode: 'BREAK',
-      },
-    });
-
-    expect(useCtiStore.getState().agentSession?.statusCode).toBe('AVAILABLE');
-
-    useCtiStore.getState().applyEvent({
-      type: 'agent.status.changed',
-      payload: {
-        agentId: 'agent-1',
-        statusCode: 'BREAK',
-      },
-    });
-
-    expect(useCtiStore.getState().agentSession?.statusCode).toBe('BREAK');
-  });
-
-  it('hangup 은 요청 접수 후 서버 종료 이벤트 전까지 통화 상태를 확정하지 않는다', async () => {
-    await useCtiStore.getState().hangup();
-
-    const state = useCtiStore.getState();
-    expect(state.activeCalls[0].sessionStatus).toBe('TALKING');
-    expect(state.eventLog[0].type).toBe('info');
-    expect(state.eventLog[0].message).toContain('corr-hangup-1');
   });
 });

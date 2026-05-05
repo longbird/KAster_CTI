@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Drawer, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createIvrMenu, deleteIvrMenu, getIvrMenus, updateIvrMenu } from '../api/asteriskConfigApi';
 import type { AsteriskIvrMenu } from '../types/asterisk-config';
@@ -10,7 +10,6 @@ export function IvrMenusTab() {
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AsteriskIvrMenu | null>(null);
-  const [summary, setSummary] = useState<AsteriskIvrMenu | null>(null);
   const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
   const canCreate = permission?.canCreate ?? true;
   const canUpdate = permission?.canUpdate ?? true;
@@ -51,21 +50,9 @@ export function IvrMenusTab() {
     { title: '항목 수', render: (_: unknown, row: AsteriskIvrMenu) => <Tag>{row.entries.length}개</Tag> },
     { title: '대기(초)', dataIndex: 'timeoutSecs', width: 80 },
     {
-      title: '흐름',
-      render: (_: unknown, row: AsteriskIvrMenu) => (
-        <Space wrap size={4}>
-          {row.entries.map((entry) => (
-            <Tag key={`${row.id}-${entry.digit}`}>{entry.digit} &rarr; {entry.queueName}</Tag>
-          ))}
-          {row.entries.length === 0 ? <Tag color="red">연결 없음</Tag> : null}
-        </Space>
-      ),
-    },
-    {
-      title: '동작', width: 200,
+      title: '동작', width: 140,
       render: (_: unknown, row: AsteriskIvrMenu) => (
         <Space>
-          <Button size="small" onClick={() => setSummary(row)}>요약</Button>
           {canUpdate ? <Button size="small" onClick={() => { setEditing(row); setFormOpen(true); }}>수정</Button> : null}
           {canDelete ? (
             <Popconfirm title="삭제할까요?" onConfirm={() => handleDelete(row.id)}>
@@ -105,38 +92,6 @@ export function IvrMenusTab() {
         />
       </Card>
       <IvrMenuForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
-      <Drawer
-        title="IVR 흐름 요약"
-        open={!!summary}
-        onClose={() => setSummary(null)}
-        width={560}
-      >
-        {summary ? (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="메뉴">{summary.name}</Descriptions.Item>
-              <Descriptions.Item label="안내 멘트">{summary.welcomePrompt || '-'}</Descriptions.Item>
-              <Descriptions.Item label="메뉴 멘트">{summary.menuPrompt || '-'}</Descriptions.Item>
-              <Descriptions.Item label="Timeout">{summary.timeoutSecs}s</Descriptions.Item>
-            </Descriptions>
-            <Table
-              size="small"
-              rowKey={(row) => `${row.digit}-${row.queueName}`}
-              pagination={false}
-              dataSource={summary.entries}
-              columns={[
-                { title: 'DTMF', dataIndex: 'digit', width: 80 },
-                { title: '표시명', dataIndex: 'label' },
-                { title: '연결 큐', dataIndex: 'queueName' },
-              ]}
-              locale={{ emptyText: '연결된 DTMF 경로가 없습니다.' }}
-            />
-            {summary.entries.length === 0 ? (
-              <Typography.Text type="danger">활성화 전 최소 1개 이상의 DTMF 경로가 필요합니다.</Typography.Text>
-            ) : null}
-          </Space>
-        ) : null}
-      </Drawer>
     </Space>
   );
 }

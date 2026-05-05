@@ -73,6 +73,10 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
+  getClientCount() {
+    return this.server?.engine?.clientsCount ?? 0;
+  }
+
   private parseBearer(header?: string): string | undefined {
     if (!header) return undefined;
     const m = /^Bearer\s+(.+)$/i.exec(header);

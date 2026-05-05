@@ -1,0 +1,21 @@
+{
+  "startedAt": "2026-05-04T14:34:57.830Z",
+  "endedAt": "2026-05-04T14:36:47.975Z",
+  "registered": true,
+  "inviteSeen": false,
+  "ackSeen": false,
+  "byeSeen": false,
+  "completed": false,
+  "extension": "3999",
+  "hostAddress": "172.20.0.1",
+  "port": 36070,
+  "events": [
+    {
+      "type": "REGISTER_OK",
+      "at": "2026-05-04T14:34:57.836Z",
+      "local": "172.20.0.7:50826"
+    }
+  ],
+  "errors": [],
+  "contactHost": "172.20.0.7"
+}

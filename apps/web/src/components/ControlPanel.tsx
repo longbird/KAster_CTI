@@ -98,7 +98,7 @@ export function ControlPanel({
   return (
     <div className="flex h-full flex-col rounded-lg bg-surface-container-lowest p-8 shadow-panel">
       {/* 탭 */}
-      <div className="mb-8 flex items-center gap-8 border-b border-outline-variant/15">
+      <div className="mb-8 flex items-center gap-8" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <TabButton active={tab === 'memo'} onClick={() => setTab('memo')}>
           메모 / 후처리
         </TabButton>
@@ -153,7 +153,7 @@ export function ControlPanel({
                 rows={8}
                 placeholder="상담 메모를 입력하세요..."
                 className="!min-h-[200px] !resize-none !rounded-lg"
-                style={{ background: '#e1e3e4' }}
+                style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
               />
             </Form.Item>
           </div>
@@ -206,8 +206,12 @@ export function ControlPanel({
             </div>
             <button
               type="submit"
-              className="k-btn k-btn-primary"
-              style={{ height: 36, paddingInline: 24 }}
+              className="rounded-xl px-12 py-3 font-headline text-sm font-bold"
+              style={{
+                background: 'var(--accent-dim)',
+                color: 'var(--accent)',
+                border: '1px solid var(--accent-border)',
+              }}
             >
               메모 저장
             </button>
@@ -317,11 +321,12 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`pb-4 text-sm font-bold transition-colors ${
-        active
-          ? 'border-b-2 border-primary text-primary'
-          : 'text-on-surface-variant hover:text-on-surface'
-      }`}
+      className="-mb-px pb-4 text-sm transition-colors"
+      style={{
+        color: active ? 'var(--accent)' : 'var(--text-secondary)',
+        fontWeight: active ? 600 : 400,
+        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+      }}
     >
       {children}
     </button>

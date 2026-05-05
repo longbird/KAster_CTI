@@ -1,0 +1,34 @@
+{
+  "startedAt": "2026-05-04T14:39:07.658Z",
+  "endedAt": "2026-05-04T14:39:10.866Z",
+  "registered": true,
+  "inviteSeen": true,
+  "ackSeen": true,
+  "byeSeen": false,
+  "completed": true,
+  "extension": "3999",
+  "hostAddress": "172.20.0.1",
+  "port": 36070,
+  "events": [
+    {
+      "type": "REGISTER_OK",
+      "at": "2026-05-04T14:39:07.665Z",
+      "local": "172.20.0.7:37616"
+    },
+    {
+      "type": "INVITE_IN",
+      "at": "2026-05-04T14:39:09.287Z",
+      "from": "172.20.0.1:36070"
+    },
+    {
+      "type": "INVITE_ANSWERED_200",
+      "at": "2026-05-04T14:39:09.289Z"
+    },
+    {
+      "type": "ACK_IN",
+      "at": "2026-05-04T14:39:09.292Z"
+    }
+  ],
+  "errors": [],
+  "contactHost": "172.20.0.7"
+}

@@ -26,6 +26,7 @@ export const MENU_KEYS = [
   'reports/missed',
   'reports/recordings',
   'reports/logs',
+  'reports/ivr-failures',
   'history',
   'customers',
   'opt-out-customers',

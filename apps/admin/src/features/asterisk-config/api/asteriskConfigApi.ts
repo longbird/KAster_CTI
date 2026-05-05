@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../../../config';
-import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskTrunk, AsteriskTrunkInput, ConfDryRun, ConfPreview, ImportBlocklistEntryRow } from '../types/asterisk-config';
+import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskTrunk, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow } from '../types/asterisk-config';
 
 function headers(): Record<string, string> {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -96,5 +96,3 @@ export const manualReload = () =>
   axios.post(`${base}/reload`, {}, { headers: headers() });
 export const getPreview = () =>
   axios.get<{ data: ConfPreview }>(`${base}/preview`, { headers: headers() }).then(r => r.data.data);
-export const getDryRun = () =>
-  axios.get<{ data: ConfDryRun }>(`${base}/dry-run`, { headers: headers() }).then(r => r.data.data);

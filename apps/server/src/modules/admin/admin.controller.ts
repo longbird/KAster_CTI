@@ -9,6 +9,8 @@ import { AdminService } from './admin.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
+import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
+import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
 import { UpdateAgentPermissionsDto } from './dto/update-agent-permissions.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
@@ -38,6 +40,27 @@ export class AdminController {
   async listAmiLogs(@CurrentUser() user: any, @Query() q: ListAmiLogsQueryDto) {
     await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'reports/logs', 'view', user.sub);
     return this.adminService.listAmiLogs(user.tenantId, q);
+  }
+
+  @Get('reports/ivr-failures')
+  @Roles('supervisor', 'admin')
+  async listIvrFailures(@CurrentUser() user: any, @Query() q: ListIvrFailuresQueryDto) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'reports/ivr-failures', 'view', user.sub);
+    return this.adminService.listIvrFailures(user.tenantId, q);
+  }
+
+  @Get('reports/recording-download-audits')
+  @Roles('supervisor', 'admin')
+  async listRecordingDownloadAudits(@CurrentUser() user: any, @Query() q: ListRecordingDownloadAuditsQueryDto) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'reports/recordings', 'view', user.sub);
+    return this.adminService.listRecordingDownloadAudits(user.tenantId, q);
+  }
+
+  @Get('monitoring/operations')
+  @Roles('supervisor', 'admin')
+  async getOperationalMonitoring(@CurrentUser() user: any) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'monitoring', 'view', user.sub);
+    return this.adminService.getOperationalMonitoring(user.tenantId);
   }
 
   @Get('announcements')

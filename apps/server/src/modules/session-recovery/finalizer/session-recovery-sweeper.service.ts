@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma.service';
 import { EventBusService } from '../../events/event-bus.service';
 import { AmiLeaderElectionService } from '../../redis/ami-leader-election.service';
-import { REALTIME_EVENTS } from '../../realtime/realtime-events';
 
 @Injectable()
 export class SessionRecoverySweeperService implements OnModuleInit {
@@ -41,7 +40,7 @@ export class SessionRecoverySweeperService implements OnModuleInit {
         },
       });
 
-      await this.eventBus.publish(REALTIME_EVENTS.CALL_ENDED, ended, ended.tenantId);
+      await this.eventBus.publish('call.ended', ended);
     }
 
     if (staleSessions.length) {

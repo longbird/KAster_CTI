@@ -50,9 +50,6 @@ describe('AuthService desktop handoff', () => {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
     },
-    tenantSystemSettings: {
-      findUnique: jest.fn(),
-    },
   };
 
   beforeEach(async () => {
@@ -212,9 +209,6 @@ describe('AuthController web handoff HTTP integration', () => {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
     },
-    tenantSystemSettings: {
-      findUnique: jest.fn(),
-    },
   };
   const redisClient = {
     set: jest.fn(async (key: string, value: string) => {
@@ -237,10 +231,6 @@ describe('AuthController web handoff HTTP integration', () => {
   };
   const configValues: Record<string, string> = {
     JWT_SECRET: 'change_me',
-    SOFTPHONE_ENABLED: 'true',
-    SOFTPHONE_SIP_DOMAIN: 'pbx.example.com',
-    SOFTPHONE_WS_SERVER: 'wss://pbx.example.com:8089/ws',
-    SOFTPHONE_ICE_SERVERS_JSON: '[]',
   };
 
   beforeEach(async () => {
@@ -257,7 +247,6 @@ describe('AuthController web handoff HTTP integration', () => {
       isActive: true,
       loginPasswordHash: agentPasswordHash,
       defaultQueue: null,
-      sipPassword: 'sip-secret-1001',
     });
     prisma.agents.findUnique.mockResolvedValue({
       agentId: 'agent-1',
@@ -296,9 +285,6 @@ describe('AuthController web handoff HTTP integration', () => {
       };
     });
     prisma.refreshTokens.updateMany.mockResolvedValue({ count: 1 });
-    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
-      defaultSipPassword: 'site-default-secret',
-    });
 
     const module: TestingModule = await Test.createTestingModule({
       imports: [PassportModule],
@@ -338,47 +324,6 @@ describe('AuthController web handoff HTTP integration', () => {
 
   afterEach(async () => {
     await app?.close();
-  });
-
-  it('desktop client login response includes SIP credential but web login response does not', async () => {
-    const baseUrl = await app.getUrl();
-
-    const desktopLoginResponse = await fetch(new URL('/api/v1/auth/login', baseUrl), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        loginId: 'agent1001',
-        extension: '1001',
-        password: 'Password123!',
-        clientType: 'desktop',
-      }),
-    });
-
-    expect(desktopLoginResponse.status).toBe(201);
-    const desktopLoginBody = await desktopLoginResponse.json();
-    expect(desktopLoginBody.data.softphoneConfig).toEqual({
-      enabled: true,
-      sipUri: 'sip:1001@pbx.example.com',
-      wsServer: 'wss://pbx.example.com:8089/ws',
-      authorizationUsername: '1001',
-      authorizationPassword: 'sip-secret-1001',
-      displayName: '상담원1',
-      iceServers: [],
-    });
-
-    const webLoginResponse = await fetch(new URL('/api/v1/auth/login', baseUrl), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        loginId: 'agent1001',
-        extension: '1001',
-        password: 'Password123!',
-      }),
-    });
-
-    expect(webLoginResponse.status).toBe(201);
-    const webLoginBody = await webLoginResponse.json();
-    expect(webLoginBody.data.softphoneConfig.authorizationPassword).toBeUndefined();
   });
 
   it('issues a web handoff token for a desktop-authenticated session and rejects replay', async () => {

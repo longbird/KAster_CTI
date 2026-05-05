@@ -1,4 +1,4 @@
-import { Button, Card, DatePicker, Space, Table, Typography } from 'antd';
+import { Button, Card, DatePicker, Input, Select, Space, Table, Tag, Typography } from 'antd';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,9 +16,35 @@ interface MissedRow {
   representativeNumber?: string | null;
   queueName: string;
   queueDisplayName?: string | null;
+  resultCode?: string | null;
+  missedReason?: string | null;
+  abandonFlag?: boolean;
   startedAt: string;
   waitSeconds: number;
   primaryAgent: { agentName: string } | null;
+}
+
+const MISSED_REASON_COLOR: Record<string, string> = {
+  CUSTOMER_ABANDONED: 'red',
+  QUEUE_TIMEOUT: 'orange',
+  QUEUE_NO_ANSWER: 'gold',
+  AGENT_NO_ANSWER: 'volcano',
+  SYSTEM_RECOVERY: 'purple',
+  NO_ANSWER: 'default',
+};
+
+const MISSED_REASON_LABEL: Record<string, string> = {
+  CUSTOMER_ABANDONED: '고객 포기',
+  QUEUE_TIMEOUT: '큐 timeout',
+  QUEUE_NO_ANSWER: '큐 미응답',
+  AGENT_NO_ANSWER: '상담원 미응답',
+  SYSTEM_RECOVERY: '복구 종료',
+  NO_ANSWER: '미응답',
+};
+
+function getMissedReasonLabel(value?: string | null) {
+  if (!value) return '-';
+  return MISSED_REASON_LABEL[value] ?? value;
 }
 
 function getDisplayDid(row: MissedRow) {
@@ -49,6 +75,9 @@ export function MissedCallsPage() {
   const [loading, setLoading] = useState(false);
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
+  const [resultCode, setResultCode] = useState('');
+  const [queueName, setQueueName] = useState('');
+  const [abandon, setAbandon] = useState<string | undefined>(undefined);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +88,9 @@ export function MissedCallsPage() {
           to:   range[1].toISOString(),
           mode: 'missed',
           branchId,
+          resultCode: resultCode.trim() || undefined,
+          queueName: queueName.trim() || undefined,
+          abandon,
         },
       });
       setRows(res.data?.data ?? []);
@@ -67,7 +99,7 @@ export function MissedCallsPage() {
     } finally {
       setLoading(false);
     }
-  }, [branchId, range]);
+  }, [abandon, branchId, queueName, range, resultCode]);
 
   useEffect(() => {
     void load();
@@ -76,13 +108,15 @@ export function MissedCallsPage() {
   const exportRows = () => {
     downloadCsv(
       `missed-calls-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['시작', '발신번호', '대표번호', 'DID', '큐', '호출 상담원', '대기(초)'],
+      ['시작', '발신번호', '대표번호', 'DID', '큐', '미연결 원인', '결과코드', '호출 상담원', '대기(초)'],
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
         formatPhoneNumber(row.ani),
         formatPhoneNumber(row.representativeNumber ?? row.didNumber),
         formatPhoneNumber(row.didNumber),
         getQueueLabel(row),
+        getMissedReasonLabel(row.missedReason),
+        row.resultCode ?? '',
         row.primaryAgent?.agentName ?? '-',
         row.waitSeconds,
       ]),
@@ -101,6 +135,29 @@ export function MissedCallsPage() {
           }}
         />
         <BranchFilterSelect value={branchId} onChange={setBranchId} />
+        <Input
+          placeholder="결과코드"
+          value={resultCode}
+          onChange={(event) => setResultCode(event.target.value)}
+          style={{ width: 140 }}
+        />
+        <Input
+          placeholder="큐명"
+          value={queueName}
+          onChange={(event) => setQueueName(event.target.value)}
+          style={{ width: 120 }}
+        />
+        <Select
+          allowClear
+          placeholder="포기"
+          value={abandon}
+          onChange={setAbandon}
+          options={[
+            { value: 'true', label: '포기' },
+            { value: 'false', label: '정상' },
+          ]}
+          style={{ width: 100 }}
+        />
         <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
           조회
         </Button>
@@ -143,6 +200,20 @@ export function MissedCallsPage() {
             title: '분배룰',
             width: 140,
             render: (_: unknown, row: MissedRow) => getQueueLabel(row),
+          },
+          {
+            title: '미연결 원인',
+            dataIndex: 'missedReason',
+            render: (value: string | null) =>
+              value ? <Tag color={MISSED_REASON_COLOR[value] ?? 'default'}>{getMissedReasonLabel(value)}</Tag> : '-',
+            width: 120,
+          },
+          { title: '결과코드', dataIndex: 'resultCode', width: 120, render: (value: string | null) => value || '-' },
+          {
+            title: '포기',
+            dataIndex: 'abandonFlag',
+            render: (value: boolean) => (value ? <Tag color="red">포기</Tag> : '-'),
+            width: 70,
           },
           {
             title: '호출 상담원',

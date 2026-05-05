@@ -38,34 +38,12 @@ double requireDouble(const YAML::Node& parent, const char* key) {
   return requireNode(parent, key).as<double>();
 }
 
-int optionalInt(const YAML::Node& parent, const char* key, int fallback) {
-  const auto node = parent[key];
-  return node ? node.as<int>() : fallback;
-}
-
-std::string optionalString(const YAML::Node& parent, const char* key) {
-  const auto node = parent[key];
-  return node ? node.as<std::string>() : "";
-}
-
 std::vector<std::string> requireStringList(const YAML::Node& parent, const char* key) {
   const auto values = requireNode(parent, key).as<std::vector<std::string>>();
   if (values.empty()) {
     throw std::runtime_error(std::string(key) + " must not be empty");
   }
   return values;
-}
-
-DtmfConfig parseDtmfConfig(const YAML::Node& callFlow) {
-  const auto dtmf = callFlow["dtmf"];
-  if (!dtmf) {
-    return {};
-  }
-  return {
-      optionalString(dtmf, "sequence"),
-      optionalInt(dtmf, "sendAfterAnswerMs", 0),
-      optionalInt(dtmf, "interDigitMs", 250),
-  };
 }
 
 Scenario parseScenarioNode(const YAML::Node& root) {
@@ -90,8 +68,7 @@ Scenario parseScenarioNode(const YAML::Node& root) {
        requireInt(callFlow, "answerTimeoutMs"),
        requireInt(callFlow, "holdSecondsMin"),
        requireInt(callFlow, "holdSecondsMax"),
-       {requireInt(requireNode(callFlow, "disconnectMode"), "normalPercent")},
-       parseDtmfConfig(callFlow)},
+       {requireInt(requireNode(callFlow, "disconnectMode"), "normalPercent")}},
       {requireInt(media, "beepIntervalMs"), requireDouble(media, "txGain")},
       {requireString(reporting, "outputDir"),
        requireInt(reporting, "consoleRefreshMs"),
@@ -144,18 +121,6 @@ void validateScenario(const Scenario& scenario) {
   if (scenario.callFlow.disconnectMode.normalPercent < 0 ||
       scenario.callFlow.disconnectMode.normalPercent > 100) {
     throw std::runtime_error("disconnectMode.normalPercent must be between 0 and 100");
-  }
-  if (!scenario.callFlow.dtmf.sequence.empty()) {
-    for (char ch : scenario.callFlow.dtmf.sequence) {
-      const bool validDigit = (ch >= '0' && ch <= '9') || ch == '*' || ch == '#';
-      if (!validDigit) {
-        throw std::runtime_error("dtmf.sequence must contain only 0-9, * or #");
-      }
-    }
-  }
-  if (scenario.callFlow.dtmf.sendAfterAnswerMs < 0 ||
-      scenario.callFlow.dtmf.interDigitMs < 0) {
-    throw std::runtime_error("dtmf timings must be >= 0");
   }
 
   if (scenario.media.beepIntervalMs <= 0) {

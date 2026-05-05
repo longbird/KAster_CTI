@@ -1029,16 +1029,11 @@ export class AsteriskConfigService {
 
   // ─── Prompts ───────────────────────────────────────────────────────────────
 
-  async getPrompts(tenantId: string) {
-    const prompts = await this.prisma.asteriskPrompt.findMany({
+  getPrompts(tenantId: string) {
+    return this.prisma.asteriskPrompt.findMany({
       where: { tenantId },
       orderBy: [{ category: 'asc' }, { displayName: 'asc' }],
     });
-
-    return prompts.map((prompt) => ({
-      ...prompt,
-      fileStatus: this.resolvePromptFileStatus(prompt.fileName),
-    }));
   }
 
   async getPromptAudioFile(tenantId: string, id: string): Promise<PromptAudioFile> {
@@ -1200,47 +1195,6 @@ export class AsteriskConfigService {
       default:
         return 'application/octet-stream';
     }
-  }
-
-  private resolvePromptFileStatus(fileName: string) {
-    const safeFileName = path.basename(fileName);
-    if (!safeFileName || safeFileName !== fileName) {
-      return {
-        status: 'INVALID_FILE_NAME',
-        uploaded: false,
-        playbackReady: false,
-        checkedAt: new Date().toISOString(),
-      };
-    }
-
-    const ext = path.extname(safeFileName).toLowerCase();
-    const baseName = path.basename(safeFileName, ext);
-    let uploaded = false;
-    let playbackReady = false;
-
-    try {
-      for (const targetDir of this.resolvePromptTargetDirs(this.resolvePromptSoundsDir())) {
-        const originalPath = path.join(targetDir, safeFileName);
-        const ulawPath = path.join(targetDir, `${baseName}.ulaw`);
-        const alawPath = path.join(targetDir, `${baseName}.alaw`);
-        uploaded = uploaded || fs.existsSync(originalPath);
-        playbackReady = playbackReady || fs.existsSync(ulawPath) || fs.existsSync(alawPath);
-      }
-    } catch {
-      return {
-        status: 'CHECK_FAILED',
-        uploaded: false,
-        playbackReady: false,
-        checkedAt: new Date().toISOString(),
-      };
-    }
-
-    return {
-      status: playbackReady ? 'PLAYBACK_READY' : uploaded ? 'UPLOADED' : 'METADATA_ONLY',
-      uploaded,
-      playbackReady,
-      checkedAt: new Date().toISOString(),
-    };
   }
 
   private writePromptPlaybackArtifacts(

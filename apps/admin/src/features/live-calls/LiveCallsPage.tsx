@@ -1,6 +1,5 @@
 import { Space, Table, Tag, Typography } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
-import { useAdminRealtimeRefresh } from '../../realtime/useAdminRealtimeRefresh';
+import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { CallDetailDrawer, type CallRow } from './CallDetailDrawer';
@@ -48,7 +47,7 @@ export function LiveCallsPage() {
   const [selected, setSelected] = useState<CallRow | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const load = useCallback(async () => {
+  const load = async () => {
     try {
       const res = await apiClient.get('/calls/active', { params: { limit: 500 } });
       setRows(res.data?.data ?? []);
@@ -56,20 +55,19 @@ export function LiveCallsPage() {
     } catch {
       // keep previous data on error
     }
-  }, []);
+  };
 
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), 3000);
     return () => window.clearInterval(timer);
-  }, [load]);
-  useAdminRealtimeRefresh(() => void load(), ['call.created', 'call.updated', 'call.ended']);
+  }, []);
 
   return (
     <>
       <AdmPageHead
         title="실시간 콜"
-        sub={`${lastUpdated ? lastUpdated.toLocaleTimeString() + ' 기준' : '로딩 중'} · 이벤트 즉시 갱신 / 3초 보정 · ${rows.length}건`}
+        sub={`${lastUpdated ? lastUpdated.toLocaleTimeString() + ' 기준' : '로딩 중'} · 3초 갱신 · ${rows.length}건`}
         right={
           <span
             className="k-chip"

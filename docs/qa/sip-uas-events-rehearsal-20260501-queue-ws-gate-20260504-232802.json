@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-05-04T14:28:08.886Z",
+  "endedAt": "2026-05-04T14:29:58.955Z",
+  "registered": false,
+  "inviteSeen": false,
+  "ackSeen": false,
+  "byeSeen": false,
+  "completed": false,
+  "extension": "3999",
+  "hostAddress": "172.20.0.1",
+  "port": 36070,
+  "events": [],
+  "errors": [],
+  "contactHost": "172.20.0.7"
+}

@@ -51,6 +51,16 @@ export interface AgentDirectoryItem {
   } | null;
 }
 
+export interface Announcement {
+  announcementId: string;
+  title: string;
+  body: string;
+  authorName: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface QueueSummary {
   queueId: string;
   queueName: string;

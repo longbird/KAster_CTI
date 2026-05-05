@@ -322,6 +322,25 @@ model callRecordings {
   tenant              tenants @relation(fields: [tenantId], references: [tenantId])
 }
 
+model callRecordingAccessAuditLogs {
+  auditLogId   String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  recordingId  String   @db.Uuid
+  callId       String?  @db.Uuid
+  linkedid     String?  @db.VarChar(32)
+  agentId      String?  @db.Uuid
+  userRole     String?  @db.VarChar(32)
+  action       String   @db.VarChar(32)
+  clientIp     String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(255)
+  success      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, recordingId, createdAt(sort: Desc)])
+  @@index([tenantId, agentId, createdAt(sort: Desc)])
+}
+
 model callMemos {
   memoId          String    @id @default(uuid()) @db.Uuid
   callId          String    @db.Uuid
