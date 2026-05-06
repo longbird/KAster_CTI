@@ -315,6 +315,7 @@ export function RecordingsPage() {
                 loading={loading}
                 size="small"
                 pagination={{ pageSize: 50 }}
+                scroll={{ x: 1250 }}
                 columns={[
                   {
                     title: '시작',
@@ -361,9 +362,10 @@ export function RecordingsPage() {
                   },
                   { title: '길이(초)', dataIndex: 'durationSeconds', width: 80 },
                   {
-                    title: '작업',
+                    title: '관리',
                     key: 'actions',
                     width: 170,
+                    fixed: 'right',
                     render: (_: unknown, row: RecRow) => (
                       <Space size="small">
                         <Button

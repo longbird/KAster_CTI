@@ -121,8 +121,9 @@ export function PromptSettingsPage() {
             ),
           },
           {
-            title: '액션',
+            title: '관리',
             width: 180,
+            fixed: 'right',
             render: (_: unknown, row) => (
               <Space>
                 {promptPermission?.canUpdate !== false ? (

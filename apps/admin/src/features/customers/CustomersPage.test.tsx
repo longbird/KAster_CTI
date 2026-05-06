@@ -38,6 +38,9 @@ describe('CustomersPage layout', () => {
   it('separates the page header and filter toolbar into distinct blocks', () => {
     const html = renderToStaticMarkup(<CustomersPage />);
 
+    expect(html).toContain('admin-workbench');
+    expect(html).toContain('admin-workbench__filters');
+    expect(html).toContain('admin-workbench__table');
     expect(html).toContain('customers-page__header');
     expect(html).toContain('customers-page__heading');
     expect(html).toContain('customers-page__toolbar');

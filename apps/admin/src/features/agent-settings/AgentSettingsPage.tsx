@@ -147,8 +147,9 @@ export function AgentSettingsPage() {
               ),
           },
           {
-            title: '액션',
+            title: '관리',
             width: 220,
+            fixed: 'right',
             render: (_: unknown, r: AgentRow) => (
               <Space size="small">
                 <Button

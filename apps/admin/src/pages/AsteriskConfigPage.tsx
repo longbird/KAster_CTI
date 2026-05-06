@@ -13,22 +13,35 @@ export function AsteriskConfigPage() {
   const canView = permission?.canView ?? true;
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card>
+    <div className="settings-portal">
+      <Card className="settings-portal__head">
         <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
           <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>
+            <Typography.Title level={4} style={{ margin: 0, marginBottom: 4 }}>
               PBX 연동 설정
             </Typography.Title>
-            <Typography.Text type="secondary">
-              통신사 SIP 트렁크, DID 인입, IVR 라우팅, 상담원 내선(PJSIP) 연동 정보를 관리합니다.
-            </Typography.Text>
+            <div className="settings-portal__state-line">
+              <span>검증 필요</span>
+              <span>운영 반영 전</span>
+              <span>설정 범위: 트렁크 / DID / IVR / 내선</span>
+            </div>
           </div>
-          {canView ? <Button onClick={() => setPreviewOpen(true)}>.conf 미리보기</Button> : null}
+          <Space wrap>
+            {canView ? <Button onClick={() => setPreviewOpen(true)}>.conf 미리보기</Button> : null}
+            <Button disabled>검증</Button>
+            <Button disabled>적용</Button>
+          </Space>
         </Space>
+        <div className="settings-portal__summary">
+          <div><span>Trunk</span><strong>관리</strong></div>
+          <div><span>DID</span><strong>인입</strong></div>
+          <div><span>IVR</span><strong>라우팅</strong></div>
+          <div><span>Agent</span><strong>내선</strong></div>
+          <div><span>Preview</span><strong>.conf</strong></div>
+        </div>
       </Card>
 
-      <Card>
+      <Card className="settings-portal__body">
         <Tabs
           type="card"
           items={[
@@ -40,6 +53,6 @@ export function AsteriskConfigPage() {
         />
       </Card>
       <ConfigPreviewDrawer open={previewOpen} onClose={() => setPreviewOpen(false)} />
-    </Space>
+    </div>
   );
 }

@@ -200,8 +200,9 @@ export function BlocklistPage() {
             render: (value?: string) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-',
           },
           {
-            title: '액션',
+            title: '관리',
             width: 140,
+            fixed: 'right',
             render: (_: unknown, row) => (
               <Space>
                 {blocklistPermission?.canUpdate !== false ? (

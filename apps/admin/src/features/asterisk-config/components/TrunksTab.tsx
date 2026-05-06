@@ -73,7 +73,7 @@ export function TrunksTab() {
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '활성' : '비활성'}</Tag>,
     },
     {
-      title: '동작', width: 120,
+      title: '관리', width: 120, fixed: 'right' as const,
       render: (_: unknown, row: AsteriskTrunk) => (
         <Space>
           {canUpdate ? <Button size="small" onClick={() => { setEditing(row); setFormOpen(true); }}>수정</Button> : null}

@@ -50,7 +50,7 @@ export function IvrMenusTab() {
     { title: '항목 수', render: (_: unknown, row: AsteriskIvrMenu) => <Tag>{row.entries.length}개</Tag> },
     { title: '대기(초)', dataIndex: 'timeoutSecs', width: 80 },
     {
-      title: '동작', width: 140,
+      title: '관리', width: 140, fixed: 'right' as const,
       render: (_: unknown, row: AsteriskIvrMenu) => (
         <Space>
           {canUpdate ? <Button size="small" onClick={() => { setEditing(row); setFormOpen(true); }}>수정</Button> : null}

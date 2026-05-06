@@ -2,6 +2,11 @@
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
+## 용어 규칙
+
+- 사용자에게 노출되는 관리자/상담원 화면, 메뉴, 버튼, 안내 문구, 운영 문서의 제품 명칭은 `PBX`로 통일합니다.
+- 내부 코드 식별자, API 경로, 파일 경로처럼 이미 계약이 된 구현명에는 `asterisk`/`Asterisk`를 유지할 수 있지만, UI 카피나 외부 설명에는 그대로 노출하지 않습니다.
+
 ## 저장소 레이아웃
 
 모노레포 형태의 단일 트리입니다. 3개 앱은 각각 독립 Vite / Nest 프로젝트이며
@@ -11,7 +16,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 apps/server/          NestJS + Prisma CTI 미들웨어 (백엔드)
 apps/web/             Vite + React + Tailwind + Antd 상담원 앱
 apps/admin/           Vite + React + Antd 관리자 대시보드 (supervisor/admin 전용)
-infra/asterisk/       Asterisk PJSIP / Dialplan / Manager 설정 초안
+infra/asterisk/       PBX PJSIP / Dialplan / Manager 설정 초안
 docs/                 기획·설계 PDF + ChatGPT 세션 분석 + 보조 설계 문서
   docs/design/        보조 설계 MD (SIP Trunk, Hotlink, Ops 아키텍처)
   docs/chatgpt-archive/ 46 세션 transcript + preview + extractor
@@ -92,20 +97,20 @@ npm run dev -- --port 5174   # 기본 5173 은 apps/web 이 쓰므로 다른 포
 - `features/dashboard/api/dashboardApi.ts` 는 mock/real 이중 경로. 실 모드에서 오류 시 mock 폴백 (화면 항상 렌더).
 - 백엔드 `AdminController.dashboard` 는 `@Roles('supervisor','admin')` 가드로 보호됨 (아래 RolesGuard 참고).
 
-### Asterisk 설정
+### PBX 설정
 - `infra/asterisk/` 의 `pjsip.conf`, `extensions*.conf` (inbound/queue/agent/transfer 분리), `queues.conf`, `manager.conf`가 초안입니다.
 - `manager.conf`의 AMI 계정(`cti_middleware` / `STRONG_AMI_PASSWORD`)과 `apps/server/.env.example`의 `AMI_USERNAME` / `AMI_SECRET`이 1:1 매칭됩니다. 한쪽만 바꾸지 마세요.
 - `extensions_transfer.conf` 는 `CallsService.transfer` 가 AMI `Redirect` 로 점프시키는 `transfer-target` context 를 정의.
 
 ## 아키텍처 (빅픽처)
 
-NestJS 미들웨어가 Asterisk AMI의 원시 이벤트를 받아 `linkedid`를 키로 세션 상태를 조립하고, 이를 DB와 WebSocket에 동시에 반영하는 구조입니다. 여러 노드에서 동시에 띄우더라도 AMI는 단일 노드만 처리하도록 Redis 리더 선출이 끼어있습니다.
+NestJS 미들웨어가 PBX AMI의 원시 이벤트를 받아 `linkedid`를 키로 세션 상태를 조립하고, 이를 DB와 WebSocket에 동시에 반영하는 구조입니다. 여러 노드에서 동시에 띄우더라도 AMI는 단일 노드만 처리하도록 Redis 리더 선출이 끼어있습니다.
 
 ### 런타임 조립 순서 (`src/app.module.ts`)
 `ConfigModule → RedisModule → EventsModule → OutboxModule → SessionRecoveryModule → AmiModule → RealtimeModule → AuthModule → CallsModule → AgentsModule → HealthModule`. 이 순서는 의도된 의존성 방향이며, AmiModule은 RealtimeGateway와 EventBus가 먼저 준비된 뒤에 붙도록 되어있습니다.
 
 ### 이벤트 파이프라인 (AMI → UI)
-1. **`AmiConnectionService`** (`modules/ami/ami-connection.service.ts`) — `OnModuleInit`에서 AMI TCP 소켓(`net.Socket`)을 `AMI_HOST:AMI_PORT`로 엽니다. **주의**: TCP `connect` 직후 바로 Login 을 쏘지 않고, Asterisk 가 송신하는 `Asterisk Call Manager/x.y.z` 배너를 먼저 수신한 뒤에 Login 을 전송합니다 (그렇지 않으면 타이밍 충돌 위험). 수신 버퍼를 `\r\n\r\n` 경계로 잘라 한 이벤트씩 꺼냅니다. 소켓 `close` 시 `AMI_RECONNECT_MS` 주기로 자동 재연결하며 `loggedIn` 플래그도 초기화합니다.
+1. **`AmiConnectionService`** (`modules/ami/ami-connection.service.ts`) — `OnModuleInit`에서 AMI TCP 소켓(`net.Socket`)을 `AMI_HOST:AMI_PORT`로 엽니다. **주의**: TCP `connect` 직후 바로 Login 을 쏘지 않고, PBX가 송신하는 `Asterisk Call Manager/x.y.z` 배너를 먼저 수신한 뒤에 Login 을 전송합니다 (그렇지 않으면 타이밍 충돌 위험). 수신 버퍼를 `\r\n\r\n` 경계로 잘라 한 이벤트씩 꺼냅니다. 소켓 `close` 시 `AMI_RECONNECT_MS` 주기로 자동 재연결하며 `loggedIn` 플래그도 초기화합니다.
 2. **`AmiEventNormalizerService`** — 원시 key/value 라인들을 `{ eventName, tenantId, linkedid, uniqueid, ani, dnis, queueName, agentId, eventTime, raw }` 형태로 정규화합니다. 운영 현장에 따라 AMI 필드가 달라지므로 **이 서비스가 튜닝 포인트**입니다 (README의 "운영 메모"도 이 점을 명시).
 3. **`SessionEngineService`** (`modules/calls/session-engine.service.ts`) — 모든 정규화 이벤트에 대해 먼저 **중복 제거**를 수행합니다: `computeFingerprint()`가 `nodeId + eventName + linkedid + uniqueid + channel + destChannel + 1초 bucket`의 sha256 을 계산 → Redis `SET dedupe:ami:{fp} 1 EX 21600 NX` 로 선점 실패 시 즉시 skip → 성공하면 `rawAmiEvents` 에 insert (unique `(tenantId, eventFingerprint)` 가 최종 방어선). 이후 `eventName` 에 따라 `callSessions`를 upsert합니다. 상태 전이:
    - `QueueCallerJoin` → `QUEUED` (`queuedAt`)
@@ -119,7 +124,7 @@ NestJS 미들웨어가 Asterisk AMI의 원시 이벤트를 받아 `linkedid`를 
 5. **`TransferDetectorService`** (`modules/calls/transfer-detector.service.ts`) — `BlindTransfer`/`AttendedTransfer` 이벤트를 받아 `attendedTransferCandidates` 테이블에 phase 를 기록하고, 연결된 `callTransfers` row 의 `transferResult`를 `COMPLETED` 로 마감합니다. 중간 phase (`CONSULT_RINGING`/`CONSULT_TALKING`/`REBRIDGING`) 추적은 후속 확장.
 6. **`RealtimeGateway`** (`modules/realtime/realtime.gateway.ts`) — `/ws` namespace, CORS `*`. `server` 필드가 `any`로 선언되어 있어 타입 가정 없이 `.emit`을 호출합니다.
 
-**중요한 아키텍처 제약**: `linkedid`는 Asterisk가 통화 전체(트렁크 → IVR → 큐 → 에이전트 → 전환) 동안 유지하는 식별자이므로, 세션을 이어 붙이려면 반드시 이 값을 쓰세요. `uniqueid`는 개별 channel leg용이며 `callLegs` 테이블에서 사용됩니다.
+**중요한 아키텍처 제약**: `linkedid`는 PBX가 통화 전체(트렁크 → IVR → 큐 → 에이전트 → 전환) 동안 유지하는 식별자이므로, 세션을 이어 붙이려면 반드시 이 값을 쓰세요. `uniqueid`는 개별 channel leg용이며 `callLegs` 테이블에서 사용됩니다.
 
 ### 리더 선출과 멀티노드
 - `AmiLeaderElectionService` (`modules/redis/ami-leader-election.service.ts`)는 Redis `SET kaster:ami:leader <nodeId> PX 10000 NX`로 5초마다 리더십을 갱신합니다. `RedisModule`은 `@Global()`이라 어디서든 DI 가능합니다.
@@ -183,10 +188,10 @@ NestJS 미들웨어가 Asterisk AMI의 원시 이벤트를 받아 `linkedid`를 
 ### 기획·설계 원본 PDF
 - `docs/01_project_overview.pdf` — 프로젝트 개요
 - `docs/02_practical_design.pdf` — 실전 개발용 상세 설계서
-- `docs/03_db_api_asterisk_spec.pdf` — DB / API / Asterisk 스펙
+- `docs/03_db_api_asterisk_spec.pdf` — DB / API / PBX 스펙
 
 ### 보조 설계 문서 (ChatGPT 세션 추출)
-- `docs/design/sip-trunk-spec-template.md` — 통신사에 보낼 SIP Trunk 요청 표준 포맷 + Asterisk 매핑 가이드
+- `docs/design/sip-trunk-spec-template.md` — 통신사에 보낼 SIP Trunk 요청 표준 포맷 + PBX 매핑 가이드
 - `docs/design/hotlink-vs-hybrid-proposal.md` — 대리운전 업계의 핫링크 방식 vs Hybrid 방식 비교·권장
 - `docs/design/operations-architecture.md` — 멀티노드·Redis·장애복구 운영 아키텍처 (현재 `modules/redis`, `modules/outbox`, `modules/session-recovery` 의 설계 원전)
 

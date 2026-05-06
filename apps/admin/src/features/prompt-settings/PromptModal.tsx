@@ -197,7 +197,7 @@ export function PromptModal({ open, prompt, onClose, onSave }: Props) {
 
             <div className="prompt-modal__hint">
               <Typography.Text type="secondary">
-                Asterisk에서 `Playback({promptKey?.trim() || 'custom/welcome'})`처럼 호출하는 값입니다.
+                PBX에서 `Playback({promptKey?.trim() || 'custom/welcome'})`처럼 호출하는 값입니다.
               </Typography.Text>
             </div>
           </div>

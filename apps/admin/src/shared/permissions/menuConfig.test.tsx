@@ -142,6 +142,8 @@ describe('openMenuGroupKeysForPath', () => {
   it('returns the containing settings group for settings leaf routes', () => {
     expect(openMenuGroupKeysForPath('/system')).toEqual(['settings']);
     expect(openMenuGroupKeysForPath('/settings/queues')).toEqual(['settings']);
+    expect(openMenuGroupKeysForPath('/integrations')).toEqual(['settings']);
+    expect(openMenuGroupKeysForPath('/asterisk')).toEqual(['settings']);
   });
 
   it('returns the containing customer group for customer leaf routes', () => {

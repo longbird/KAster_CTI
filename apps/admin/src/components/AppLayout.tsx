@@ -8,6 +8,7 @@ import { USE_MOCK } from '../config';
 import brandImage from '../assets/kaster-admin-brand.webp';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionStore } from '../store/usePermissionStore';
+import { ThemeModeSwitch } from './ThemeModeSwitch';
 import {
   ADMIN_MENU_CONFIG,
   allGroupMenuKeys,
@@ -51,9 +52,9 @@ export function AppLayout() {
 
   const pathname = location.pathname || '/dashboard';
   const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
-  const canonicalPath = normalizedPath === '/integrations' ? '/asterisk' : normalizedPath;
-  const isAllowed = USE_MOCK || allowedPathSet.has(canonicalPath);
-  const activeGroupKeys = useMemo(() => openMenuGroupKeysForPath(canonicalPath), [canonicalPath]);
+  const activePath = normalizedPath;
+  const isAllowed = USE_MOCK || allowedPathSet.has(activePath);
+  const activeGroupKeys = useMemo(() => openMenuGroupKeysForPath(activePath), [activePath]);
   const visibleGroupKeys = useMemo(
     () => new Set(allGroupMenuKeys(menuItems)),
     [menuItems],
@@ -104,7 +105,7 @@ export function AppLayout() {
           <Menu
             mode="inline"
             inlineCollapsed={collapsed}
-            selectedKeys={[canonicalPath]}
+            selectedKeys={[activePath]}
             openKeys={collapsed ? [] : openKeys}
             items={antdMenuItems}
             onOpenChange={(nextOpenKeys) => setUserOpenKeys(nextOpenKeys as string[])}
@@ -131,6 +132,7 @@ export function AppLayout() {
             {USE_MOCK && <Tag color="processing">Mock Feed</Tag>}
           </Space>
           <Space>
+            <ThemeModeSwitch />
             {agent && (
               <Typography.Text type="secondary" className="header-agent-info">
                 {agent.agentName} ({agent.role})
@@ -148,7 +150,7 @@ export function AppLayout() {
             <Result
               status="403"
               title="메뉴 접근 권한 없음"
-              subTitle={`${pathToMenuKey(canonicalPath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
+              subTitle={`${pathToMenuKey(activePath)} 메뉴는 현재 역할에 허용되지 않았습니다.`}
             />
           )}
         </Content>

@@ -30,20 +30,20 @@ export function AdminDashboardPage() {
   }
 
   return (
-    <div className="dashboard-compact">
-      <div className="dashboard-compact__header">
-        <Card size="small" bodyStyle={{ padding: '6px 12px' }}>
-          <Space align="center" size="middle" wrap>
-            <Typography.Title level={5} style={{ margin: 0 }}>콜센터 운영 대시보드</Typography.Title>
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-              갱신 {dayjs(data.updatedAt).format('HH:mm:ss')}
-            </Typography.Text>
-            <BranchFilterSelect value={branchId} onChange={setBranchId} />
-            {refreshing ? <Spin size="small" /> : null}
-            {error ? <Typography.Text type="warning" style={{ fontSize: 11 }}>{error}</Typography.Text> : null}
-            <InfraStatusBar />
-          </Space>
-        </Card>
+    <div className="ops-room dashboard-compact">
+      <div className="ops-room__bar dashboard-compact__header">
+        <Space align="center" size="middle" wrap className="ops-room__bar-left">
+          <Typography.Title level={5} style={{ margin: 0 }}>콜센터 운영 대시보드</Typography.Title>
+          <Typography.Text type="secondary" className="ops-room__timestamp">
+            갱신 {dayjs(data.updatedAt).format('HH:mm:ss')}
+          </Typography.Text>
+          <BranchFilterSelect value={branchId} onChange={setBranchId} />
+          {refreshing ? <Spin size="small" /> : null}
+          {error ? <Typography.Text type="warning" style={{ fontSize: 11 }}>{error}</Typography.Text> : null}
+        </Space>
+        <div className="ops-room__infra">
+          <InfraStatusBar />
+        </div>
       </div>
 
       <div className="dashboard-compact__kpi">

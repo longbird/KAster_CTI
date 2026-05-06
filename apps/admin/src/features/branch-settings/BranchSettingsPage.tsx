@@ -1,6 +1,6 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchEditModal, type BranchRow } from './BranchEditModal';
@@ -39,40 +39,60 @@ export function BranchSettingsPage() {
   };
 
   const headerLabel = (label: string) => <span style={{ whiteSpace: 'nowrap' }}>{label}</span>;
-
-  if (!rows) return <Skeleton active paragraph={{ rows: 6 }} />;
+  const summary = useMemo(() => {
+    const source = rows ?? [];
+    return {
+      branches: source.length,
+      activeBranches: source.filter((row) => row.isActive).length,
+      agents: source.reduce((sum, row) => sum + (row.agentCount ?? 0), 0),
+      queues: source.reduce((sum, row) => sum + (row.queueCount ?? 0), 0),
+      dids: source.reduce((sum, row) => sum + (row.didCount ?? 0), 0),
+    };
+  }, [rows]);
 
   return (
-    <Card>
-      <Space direction="vertical" size={16} style={{ width: '100%', marginBottom: 16 }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+    <div className="settings-portal">
+      <Card className="settings-portal__head">
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
           <div>
-            <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
+            <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>
               지사 설정
             </Typography.Title>
-            <Typography.Text type="secondary">
-              운영 설정의 기준은 지사입니다. 세부 항목 등록은 각 메뉴에서 처리하고, 지사에서는 실제 사용할 기능과 대상을 선택합니다.
-            </Typography.Text>
+            <div className="settings-portal__state-line">
+              <span>검증 대기</span>
+              <span>적용 준비</span>
+              <span>운영 기준: 지점</span>
+            </div>
           </div>
-          {canCreate ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              지사 등록
-            </Button>
-          ) : null}
+          <Space wrap>
+            <Button disabled>검증</Button>
+            <Button disabled>적용</Button>
+            {canCreate ? (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+                지사 등록
+              </Button>
+            ) : null}
+          </Space>
         </Space>
-        <Alert
-          type="info"
-          showIcon
-          message="지사 관리가 운영 설정의 시작점입니다. 지사 등록 시 DID 연결과 운영 항목 선택을 한 화면에서 함께 설정하세요."
-        />
-      </Space>
+        <div className="settings-portal__summary">
+          <div><span>지사</span><strong>{summary.branches}</strong></div>
+          <div><span>활성</span><strong>{summary.activeBranches}</strong></div>
+          <div><span>상담원</span><strong>{summary.agents}</strong></div>
+          <div><span>큐</span><strong>{summary.queues}</strong></div>
+          <div><span>DID</span><strong>{summary.dids}</strong></div>
+        </div>
+      </Card>
 
-      <Table<BranchRow>
-        rowKey="branchId"
-        dataSource={rows}
-        pagination={false}
-        scroll={{ x: 1320 }}
-        columns={[
+      <Card className="settings-portal__body">
+        {!rows ? (
+          <Skeleton active paragraph={{ rows: 6 }} />
+        ) : (
+          <Table<BranchRow>
+            rowKey="branchId"
+            dataSource={rows}
+            pagination={false}
+            scroll={{ x: 1320 }}
+            columns={[
           { title: headerLabel('지사 코드'), dataIndex: 'branchCode', width: 140 },
           { title: headerLabel('지사명'), dataIndex: 'branchName', width: 180 },
           {
@@ -123,8 +143,9 @@ export function BranchSettingsPage() {
             width: 80,
           },
           {
-            title: headerLabel('액션'),
+            title: headerLabel('관리'),
             width: 250,
+            fixed: 'right',
             render: (_: unknown, row: BranchRow) => (
               <Space>
                 {canUpdate ? (
@@ -140,8 +161,10 @@ export function BranchSettingsPage() {
               </Space>
             ),
           },
-        ]}
-      />
+            ]}
+          />
+        )}
+      </Card>
 
       <BranchEditModal
         open={createOpen}
@@ -154,6 +177,6 @@ export function BranchSettingsPage() {
         onClose={() => setEditing(null)}
         onSaved={() => void load()}
       />
-    </Card>
+    </div>
   );
 }

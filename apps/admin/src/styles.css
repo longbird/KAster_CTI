@@ -38,8 +38,8 @@
   --status-training: #a78bfa;
   --status-offline: var(--fg-4);
 
-  --font-sans: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-sans: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --t-micro: 10px;
   --t-caption: 11px;
@@ -112,18 +112,33 @@ body {
   background: var(--bg-0);
   color: var(--fg-1);
   font-size: var(--t-body);
-  font-weight: 700;
+  font-weight: 500;
   line-height: var(--lh-body);
   font-feature-settings: 'ss01', 'ss03', 'cv09';
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 #root { min-height: 100vh; }
 
-#root,
-#root * {
-  font-weight: 700 !important;
+.ant-typography,
+.ant-btn,
+.ant-menu,
+.ant-table,
+.ant-select,
+.ant-input,
+.ant-picker,
+.ant-tag {
+  font-family: var(--font-sans);
+}
+
+.ant-btn,
+.ant-menu-item,
+.ant-menu-submenu-title,
+.ant-table-tbody > tr > td {
+  font-weight: 500;
 }
 
 .login-screen {
@@ -274,8 +289,8 @@ body {
   font-size: 18px;
   font-weight: 700;
   color: var(--fg-1);
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
 .brand-subtitle {
   font-size: var(--t-micro);
@@ -292,9 +307,44 @@ body {
   padding: 0 24px;
   display: flex;
   align-items: center;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 10;
+}
+.app-header > .ant-space:first-child {
+  min-width: 0;
+}
+.app-header h4.ant-typography {
+  white-space: nowrap;
+}
+.theme-mode-switch .ant-segmented-item-label > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.theme-mode-switch {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    padding: 0 10px;
+  }
+  .header-menu-toggle {
+    margin-right: 0 !important;
+  }
+  .header-agent-info {
+    display: none;
+  }
+  .theme-mode-switch .ant-segmented-item-label > span {
+    gap: 0;
+    font-size: 0;
+  }
+  .theme-mode-switch .anticon {
+    font-size: 13px;
+  }
 }
 
 .app-main-layout {
@@ -313,6 +363,42 @@ body {
 }
 
 /* Compact dashboard */
+.ops-room {
+  min-width: 0;
+}
+.ops-room__bar {
+  min-width: 0;
+  min-height: 44px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  background: var(--bg-1);
+}
+.ops-room__bar-left {
+  min-width: 0;
+  flex: 1;
+}
+.ops-room__timestamp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ops-room__infra {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.ops-alerts .ant-card-head-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
 .dashboard-compact {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
@@ -343,7 +429,7 @@ body {
 .dashboard-compact__kpi-strip {
   min-height: 69px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(96px, 1fr));
+  grid-template-columns: repeat(6, minmax(92px, 1fr));
   overflow: hidden;
   background: var(--bg-1);
   border: 1px solid var(--line-1);
@@ -527,12 +613,42 @@ body {
       "bottom";
   }
   .dashboard-compact__bottom { grid-template-columns: 1fr; }
+  .ops-room__bar { align-items: stretch; flex-direction: column; }
+  .ops-room__infra { justify-content: flex-start; }
 }
 
 @media (max-width: 900px) {
-  .dashboard-compact__kpi-strip,
+  .dashboard-compact__kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-compact__kpi-cell {
+    border-right: 1px solid var(--line-1);
+    border-bottom: 1px solid var(--line-1);
+  }
+  .dashboard-compact__kpi-cell:nth-child(2n) {
+    border-right: 0;
+  }
+  .dashboard-compact__kpi-cell:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
   .active-calls-kanban {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-compact__kpi-strip {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-compact__kpi-cell,
+  .dashboard-compact__kpi-cell:nth-child(2n) {
+    border-right: 0;
+  }
+  .dashboard-compact__kpi-cell:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--line-1);
+  }
+  .dashboard-compact__kpi-cell:last-child {
+    border-bottom: 0;
   }
 }
 
@@ -615,6 +731,109 @@ body {
 .k-hr { height: 1px; background: var(--line-1); border: none; margin: 0; }
 
 /* ============================================================
+ * Admin design patterns — operations room / workbench / settings portal
+ * ============================================================ */
+.admin-workbench .ant-card-body {
+  padding: 0;
+}
+.admin-workbench .customers-page__header {
+  margin: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-1);
+}
+.admin-workbench__filters {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-2);
+}
+.admin-workbench__table {
+  min-width: 0;
+}
+.admin-workbench__table .ant-table-wrapper {
+  border-radius: 0 0 var(--r-md) var(--r-md);
+}
+.admin-workbench__table .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.settings-portal {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-portal__head .ant-card-body {
+  padding: 14px 16px;
+}
+.settings-portal__state-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.settings-portal__state-line span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-sm);
+  background: var(--bg-2);
+}
+.settings-portal__summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(90px, 1fr));
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+}
+.settings-portal__summary > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid var(--line-1);
+  background: var(--bg-2);
+}
+.settings-portal__summary > div:last-child {
+  border-right: 0;
+}
+.settings-portal__summary span {
+  display: block;
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.settings-portal__summary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.settings-portal__body .ant-card-body {
+  padding: 0;
+}
+
+@media (max-width: 720px) {
+  .settings-portal__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ============================================================
  * Ant Design bridge — 타이트하게 맞춰 다크 기본으로
  * ============================================================ */
 .ant-layout, .ant-layout-content, .ant-layout-sider, .ant-layout-header {
@@ -657,10 +876,11 @@ body {
   background: var(--bg-2) !important;
   color: var(--fg-3) !important;
   border-bottom: 1px solid var(--line-2) !important;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--t-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--tr-eyebrow);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .ant-table-tbody > tr > td {
   border-bottom: 1px solid var(--line-1) !important;
@@ -669,7 +889,7 @@ body {
 .ant-table-tbody > tr:hover > td {
   background: var(--bg-2) !important;
 }
-.ant-statistic-title { color: var(--fg-3) !important; font-family: var(--font-mono); text-transform: uppercase; font-size: var(--t-micro); letter-spacing: var(--tr-eyebrow); }
+.ant-statistic-title { color: var(--fg-3) !important; font-family: var(--font-sans); font-weight: 600; text-transform: none; font-size: var(--t-micro); letter-spacing: 0; }
 .ant-statistic-content { color: var(--fg-1) !important; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .ant-tag { border-radius: var(--r-sm) !important; }
 .ant-btn { box-shadow: none !important; }
@@ -684,21 +904,21 @@ body {
 .adm-brand-box {
   width: 24px; height: 24px;
   background: var(--signal); color: var(--bg-0);
-  font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+  font-family: var(--font-sans); font-weight: 700; font-size: 13px;
   border-radius: 3px;
   display: inline-flex; align-items: center; justify-content: center;
 }
 .adm-brand-wm {
-  font-family: var(--font-mono);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--fg-1);
 }
 .adm-brand-wm span { color: var(--fg-3); font-weight: 400; }
 .adm-brand-wm em { color: var(--signal); font-style: normal; margin-left: 6px; font-size: 10px; }
 
 .adm-top-meta {
   display: flex; align-items: center; gap: 14px;
-  color: var(--fg-3); font-family: var(--font-mono);
-  font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--fg-3); font-family: var(--font-sans);
+  font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0;
 }
 .adm-top-meta strong { color: var(--fg-1); font-weight: 500; }
 .adm-top-meta .seg { display: inline-flex; align-items: center; gap: 6px; }
@@ -713,7 +933,7 @@ body {
   color: var(--fg-1);
 }
 .adm-admin-pill .role {
-  font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em;
+  font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0;
   color: var(--signal); padding: 2px 4px;
   border: 1px solid var(--signal-dim); border-radius: 2px;
   background: var(--signal-soft);
@@ -759,7 +979,7 @@ body {
 }
 .adm-side-group { margin-bottom: 18px; }
 .adm-side-group > h4 {
-  font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
+  font-family: var(--font-sans); font-size: 10px; text-transform: none; letter-spacing: 0;
   color: var(--fg-3); font-weight: 600; padding: 0 10px; margin: 0 0 6px;
 }
 .adm-main { grid-area: main; overflow: auto; padding: 14px 18px; }
@@ -775,7 +995,7 @@ body {
 }
 .adm-page-sub {
   font-size: 12px; color: var(--fg-3);
-  font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em;
+  font-family: var(--font-sans); font-weight: 500; text-transform: none; letter-spacing: 0;
   margin-top: 4px;
 }
 
@@ -806,7 +1026,7 @@ body {
 .adm-kpi { padding: 14px 18px; border-right: 1px solid var(--line-1); }
 .adm-kpi:last-child { border-right: 0; }
 .adm-kpi-label {
-  font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; text-transform: none; letter-spacing: 0;
   color: var(--fg-3);
   display: flex; justify-content: space-between; align-items: center;
 }
@@ -822,8 +1042,8 @@ body {
 .adm-table th {
   text-align: left;
   padding: 8px 14px;
-  font-family: var(--font-mono); font-size: 10px;
-  text-transform: uppercase; letter-spacing: .14em;
+  font-family: var(--font-sans); font-size: 10px;
+  text-transform: none; letter-spacing: 0;
   color: var(--fg-3); font-weight: 600;
   border-bottom: 1px solid var(--line-1);
   background: var(--bg-1);
@@ -852,7 +1072,7 @@ body {
 .adm-q-row:last-child { border-bottom: 0; }
 .adm-q-row:hover { background: var(--bg-2); }
 .adm-q-nm {
-  font-family: var(--font-mono); font-size: 12px; color: var(--fg-1);
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--fg-1);
   display: flex; align-items: center; gap: 8px;
 }
 .adm-q-desc { font-size: 11px; color: var(--fg-3); margin-top: 2px; }
@@ -894,8 +1114,8 @@ body {
   background: var(--bg-1);
   display: flex; align-items: center; gap: 14px;
   padding: 0 16px;
-  font-family: var(--font-mono); font-size: 10px;
-  text-transform: uppercase; letter-spacing: .08em;
+  font-family: var(--font-sans); font-size: 10px; font-weight: 500;
+  text-transform: none; letter-spacing: 0;
   color: var(--fg-3);
 }
 .adm-status strong { color: var(--fg-1); font-weight: 500; }

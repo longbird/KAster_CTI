@@ -182,8 +182,9 @@ export function QueueSettingsPage() {
             },
           },
           {
-            title: '액션',
+            title: '관리',
             width: 150,
+            fixed: 'right',
             render: (_: unknown, r: QueueRow) => {
               const deleteDisabled =
                 !r.isActive || r.canDeactivate === false || queuePermission?.canDelete === false;

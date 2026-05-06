@@ -173,6 +173,7 @@ export function ForwardingSettingsPage() {
         rowKey="id"
         dataSource={rows}
         pagination={false}
+        scroll={{ x: 1450 }}
         columns={[
           {
             title: 'DID',
@@ -264,8 +265,9 @@ export function ForwardingSettingsPage() {
             ),
           },
           {
-            title: '액션',
+            title: '관리',
             width: 180,
+            fixed: 'right',
             render: (_: unknown, row) => (
               <Space>
                 {forwardingPermission?.canUpdate !== false ? (
