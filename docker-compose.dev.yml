@@ -75,8 +75,12 @@ services:
       AMI_RECONNECT_MS: 60000
       ASTERISK_NODE_ID: dev-node
       ASTERISK_OUTBOUND_CONTEXT: outbound-main
-      ASTERISK_CONF_DIR: /etc/asterisk
-      ASTERISK_SOUNDS_DIR: /var/lib/asterisk/sounds/custom
+      # The default dev stack must not write the host PBX config when a
+      # rehearsal/production stack owns /etc/asterisk.
+      ASTERISK_CONF_DIR: /var/lib/kaster/asterisk-conf-disabled
+      ASTERISK_SOUNDS_DIR: /var/lib/kaster/asterisk-sounds-disabled
+      ASTERISK_CONF_OWNER_ID: dev-node
+      ASTERISK_CONF_ALLOW_SHARED_WRITE: "false"
       ASTERISK_EXTERNAL_MEDIA_ADDRESS: ${ASTERISK_EXTERNAL_MEDIA_ADDRESS:-49.247.46.86}
       ASTERISK_EXTERNAL_SIGNALING_ADDRESS: ${ASTERISK_EXTERNAL_SIGNALING_ADDRESS:-49.247.46.86}
       ASTERISK_LOCAL_NETS: ${ASTERISK_LOCAL_NETS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
@@ -93,9 +97,6 @@ services:
       SOFTPHONE_ICE_SERVERS_JSON: ${SOFTPHONE_ICE_SERVERS_JSON:-[]}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - /etc/asterisk:/etc/asterisk
-      - /var/lib/asterisk/sounds/custom:/var/lib/asterisk/sounds/custom
     ports:
       - "3000:3000"
 

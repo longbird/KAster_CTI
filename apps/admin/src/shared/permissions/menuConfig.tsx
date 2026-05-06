@@ -39,6 +39,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/reports/calls', label: '통화내역 (CDR)' },
       { key: '/reports/missed', label: '미연결 콜' },
       { key: '/reports/recordings', label: '녹취 목록' },
+      { key: '/reports/ivr-failures', label: 'IVR 실패' },
       { key: '/reports/logs', label: '호 로그' },
       { key: '/history', icon: <HistoryOutlined />, label: '통화 이력' },
     ],

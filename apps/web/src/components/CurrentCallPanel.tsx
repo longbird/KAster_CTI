@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ActiveCall } from '../types/cti';
+import { formatPhoneNumber } from '../utils/format';
 
 interface Props {
   call?: ActiveCall;
@@ -18,7 +19,6 @@ function formatCallDuration(iso?: string): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-// v2 Operator — hairline panel, single signal accent, mono timer.
 export function CurrentCallPanel({
   call,
   holdEnabled = false,
@@ -27,6 +27,7 @@ export function CurrentCallPanel({
   onToggleHold,
   onHangup,
 }: Props) {
+  // 1초마다 통화 시간 리렌더
   const [, tick] = useState(0);
   useEffect(() => {
     if (!call?.answeredAt) return;
@@ -36,140 +37,158 @@ export function CurrentCallPanel({
 
   if (!call) {
     return (
-      <div className="k-panel p-10">
-        <div className="flex flex-col items-center justify-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-md border border-[var(--line-2)] bg-[var(--bg-2)]">
-            <span className="material-symbols-outlined text-2xl text-[var(--fg-3)]">call</span>
+      <section
+        className="rounded-xl p-5"
+        style={{
+          background: 'linear-gradient(135deg, #0d2818, #0a1f14)',
+          border: '1px solid var(--accent-border)',
+          boxShadow: '0 0 24px rgba(52,211,153,0.08)',
+        }}
+      >
+        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-full"
+            style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-border)' }}
+          >
+            <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: 22 }}>
+              call
+            </span>
           </div>
-          <h5 className="text-sm font-semibold text-[var(--fg-1)]">진행 중인 통화 없음</h5>
-          <p className="max-w-xs text-xs text-[var(--fg-3)]">
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>진행 중인 통화 없음</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11, opacity: 0.7 }}>
             새 콜이 배정되면 여기에 고객 정보와 통화 제어가 표시됩니다.
           </p>
         </div>
-      </div>
+      </section>
     );
   }
 
   const customer = call.customer;
+  const displayName = customer?.customerName ?? (call.ani ? formatPhoneNumber(call.ani) : '미식별 고객');
+  const initial = displayName[0]?.toUpperCase() ?? '?';
   const duration = formatCallDuration(call.answeredAt ?? call.startedAt);
   const canPickup = ['QUEUED', 'RINGING_AGENT'].includes(call.sessionStatus) && !call.answeredAt;
+  const isOnHold = call.sessionStatus === 'HOLD';
 
   return (
-    <div className="k-panel relative overflow-hidden p-6">
-      {/* Eyebrow + live dot */}
-      <div className="mb-5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="k-dot k-dot-live" style={{ background: 'var(--signal)' }} />
-          <span className="k-eyebrow">LIVE CALL</span>
-        </div>
-        <span className="k-chip is-talking">
-          <span className="k-chip-dot" style={{ background: 'var(--accent-info)' }} />
-          통화 중
-          <span className="k-chip-code">TALKING</span>
-        </span>
-      </div>
-
-      <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-        {/* 고객 정보 */}
-        <div className="flex min-w-0 items-center gap-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-md border border-[var(--line-2)] bg-[var(--bg-2)]">
-            <span className="material-symbols-outlined text-3xl text-[var(--fg-2)]">person</span>
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-xl font-bold tracking-tight text-[var(--fg-1)]">
-              {customer?.customerName ?? '미식별 고객'}
-            </h3>
-            <p className="mt-1 flex items-center gap-2 text-xs text-[var(--fg-3)]">
-              <span className="material-symbols-outlined text-sm">call</span>
-              <span className="k-mono text-[var(--fg-2)]">{call.ani ?? '-'}</span>
-              {customer?.companyName && <span>· {customer.companyName}</span>}
-              {customer?.grade && (
-                <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--fg-1)]">
-                  {customer.grade}
-                </span>
-              )}
-            </p>
-            <div className="mt-4 flex items-center gap-4">
-              <span className="k-num text-3xl font-semibold text-[var(--signal)]">{duration}</span>
-              <div className="flex h-5 items-end gap-0.5">
-                <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.0s' }} />
-                <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.15s' }} />
-                <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.3s' }} />
-                <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.45s' }} />
-                <div className="waveform-bar w-0.5 rounded-sm" style={{ background: 'var(--signal)', animationDelay: '0.6s' }} />
-              </div>
-            </div>
-          </div>
+    <section
+      className="rounded-xl p-5"
+      style={{
+        background: 'linear-gradient(135deg, #0d2818, #0a1f14)',
+        border: '1px solid var(--accent-border)',
+        boxShadow: '0 0 24px rgba(52,211,153,0.08)',
+      }}
+    >
+      {/* Header row: avatar + info + timer */}
+      <div className="flex items-center gap-4">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+          style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-border)' }}
+        >
+          <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 16 }}>{initial}</span>
         </div>
 
-        {/* 콜 제어 버튼 */}
-        <div className="flex flex-wrap gap-2">
-          {canPickup ? (
-            <button
-              onClick={async () => {
-                await onPickup();
-              }}
-              className="k-btn k-btn-primary"
-              style={{ height: 36, paddingInline: 16 }}
-            >
-              <span className="material-symbols-outlined">phone_in_talk</span>
-              당겨받기
-            </button>
-          ) : null}
-          <IconButton
-            icon={call.isMuted ? 'mic' : 'mic_off'}
-            label={call.isMuted ? '음소거 해제' : '음소거'}
-            onClick={async () => {
-              await onToggleMute();
-            }}
-          />
-          <IconButton
-            icon={call.sessionStatus === 'HOLD' ? 'play_arrow' : 'pause'}
-            label={call.sessionStatus === 'HOLD' ? '보류 해제' : '보류'}
-            disabled={!holdEnabled}
-            onClick={async () => {
-              await onToggleHold();
-            }}
-          />
-          <IconButton icon="phone_forwarded" label="전환" />
-          <button
-            onClick={async () => {
-              await onHangup();
-            }}
-            className="k-btn k-btn-danger"
-            style={{ height: 36, paddingInline: 18 }}
+        <div className="min-w-0 flex-1">
+          <div
+            className="truncate"
+            style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 16 }}
           >
-            <span className="material-symbols-outlined">call_end</span>
-            종료
-          </button>
+            {displayName}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+            {formatPhoneNumber(call.ani)}
+            {call.queueName ? ` · ${call.queueName}` : ''}
+            {customer?.companyName ? ` · ${customer.companyName}` : ''}
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: 'var(--accent)',
+            fontSize: 28,
+            fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums',
+            textShadow: '0 0 16px var(--accent-glow)',
+          }}
+        >
+          {duration}
         </div>
       </div>
-    </div>
+
+      {/* Control row */}
+      <div className="mt-4 flex items-center gap-2">
+        {canPickup ? (
+          <button
+            type="button"
+            onClick={() => { void onPickup(); }}
+            className="flex-1 rounded-md py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-75"
+            style={{ background: 'var(--accent-strong)' }}
+          >
+            당겨받기
+          </button>
+        ) : (
+          /* spacer keeps layout stable when pickup is not shown */
+          <div className="flex-1" />
+        )}
+
+        <IconButton
+          icon={call.isMuted ? 'mic' : 'mic_off'}
+          onClick={() => { void onToggleMute(); }}
+          title={call.isMuted ? '음소거 해제' : '음소거'}
+          active={call.isMuted}
+        />
+
+        <IconButton
+          icon={isOnHold ? 'play_arrow' : 'pause'}
+          onClick={() => { void onToggleHold(); }}
+          title={isOnHold ? '보류 해제' : '보류'}
+          disabled={!holdEnabled}
+        />
+
+        <button
+          type="button"
+          onClick={() => { void onHangup(); }}
+          className="rounded-md px-3 py-2 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
+          style={{
+            background: 'transparent',
+            color: 'var(--status-danger)',
+            border: '1px solid rgba(248,81,73,0.3)',
+          }}
+        >
+          종료
+        </button>
+      </div>
+    </section>
   );
 }
 
 function IconButton({
   icon,
-  label,
   onClick,
+  title,
+  active = false,
   disabled = false,
 }: {
   icon: string;
-  label: string;
-  onClick?: () => void | Promise<void>;
+  onClick: () => void;
+  title?: string;
+  active?: boolean;
   disabled?: boolean;
 }) {
   return (
     <button
-      title={label}
+      type="button"
+      onClick={onClick}
+      title={title}
       disabled={disabled}
-      onClick={() => {
-        void onClick?.();
+      className="flex h-9 w-9 items-center justify-center rounded-md transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+      style={{
+        background: active ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+        border: `1px solid ${active ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
+        color: active ? 'var(--accent)' : 'var(--text-primary)',
       }}
-      className="k-btn k-btn-icon"
-      style={{ height: 36, width: 36 }}
     >
-      <span className="material-symbols-outlined">{icon}</span>
+      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{icon}</span>
     </button>
   );
 }

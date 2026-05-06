@@ -10,10 +10,14 @@ import {
 import { parseAllowedCallerIds, serializeAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
+import { HealthSummaryService } from '../health/health-summary.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { QueuesService } from '../queues/queues.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
+import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
+import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { UpdateAgentPermissionsDto } from './dto/update-agent-permissions.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
@@ -728,6 +732,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly queuesService: QueuesService,
     private readonly asteriskReloadService: AsteriskReloadService,
+    private readonly healthSummary: HealthSummaryService,
+    private readonly realtimeGateway: RealtimeGateway,
   ) {}
 
   private buildPermissionMatrix(
@@ -1145,6 +1151,283 @@ export class AdminService {
     };
   }
 
+  async listIvrFailures(tenantId: string, q: ListIvrFailuresQueryDto) {
+    const page = q.page ?? 1;
+    const pageSize = q.pageSize ?? 20;
+    const from = q.from ? new Date(q.from) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const to = q.to ? new Date(q.to) : new Date();
+    const branchScope = await this.getBranchScope(tenantId, q.branchId);
+    let linkedidsForBranch: string[] | null = null;
+
+    if (branchScope) {
+      const rows = await this.prisma.callSessions.findMany({
+        where: {
+          tenantId,
+          startedAt: { gte: from, lte: to },
+          ...(this.buildBranchCallFilter(branchScope) ?? {}),
+        },
+        select: { linkedid: true },
+      });
+      linkedidsForBranch = rows.map((row) => row.linkedid);
+    }
+
+    const where: Prisma.rawAmiEventsWhereInput = {
+      tenantId,
+      eventName: 'UserEvent',
+      eventTime: { gte: from, lte: to },
+      ...(linkedidsForBranch ? { linkedid: { in: linkedidsForBranch } } : {}),
+    };
+
+    const events = await this.prisma.rawAmiEvents.findMany({
+      where,
+      orderBy: { eventTime: 'desc' },
+      take: 1000,
+      select: {
+        eventId: true,
+        eventName: true,
+        eventTime: true,
+        linkedid: true,
+        uniqueid: true,
+        payload: true,
+      },
+    });
+
+    const linkedids = [...new Set(events.map((event) => event.linkedid).filter((value): value is string => Boolean(value)))];
+    const sessions = linkedids.length > 0
+      ? await this.prisma.callSessions.findMany({
+          where: { tenantId, linkedid: { in: linkedids } },
+          select: {
+            callId: true,
+            linkedid: true,
+            sessionStatus: true,
+            queueName: true,
+            primaryAgent: { select: { agentName: true } },
+          },
+        })
+      : [];
+    const sessionByLinkedid = new Map(sessions.map((session) => [session.linkedid, session]));
+
+    const rows = events
+      .filter((event) => this.isSmartArsUserEvent(event))
+      .map((event) => this.buildIvrFailureRow(event, sessionByLinkedid.get(event.linkedid ?? '')))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      .filter((row) => !q.entryDid || row.entryDid === q.entryDid)
+      .filter((row) => !q.reason || row.failureReason === q.reason);
+
+    const start = (page - 1) * pageSize;
+    return {
+      success: true,
+      data: {
+        rows: rows.slice(start, start + pageSize),
+        total: rows.length,
+        page,
+        pageSize,
+      },
+      error: null,
+    };
+  }
+
+  async listRecordingDownloadAudits(tenantId: string, q: ListRecordingDownloadAuditsQueryDto) {
+    const page = q.page ?? 1;
+    const pageSize = q.pageSize ?? 20;
+    const from = q.from ? new Date(q.from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const to = q.to ? new Date(q.to) : new Date();
+    const branchScope = await this.getBranchScope(tenantId, q.branchId);
+    let linkedidsForBranch: string[] | null = null;
+
+    if (branchScope) {
+      const rows = await this.prisma.callSessions.findMany({
+        where: {
+          tenantId,
+          startedAt: { gte: from, lte: to },
+          ...(this.buildBranchCallFilter(branchScope) ?? {}),
+        },
+        select: { linkedid: true },
+      });
+      linkedidsForBranch = rows.map((row) => row.linkedid);
+    }
+
+    const where: any = {
+      tenantId,
+      action: 'DOWNLOAD',
+      createdAt: { gte: from, lte: to },
+      ...(q.agentId ? { agentId: q.agentId } : {}),
+      ...(q.linkedid ? { linkedid: { contains: q.linkedid, mode: 'insensitive' } } : {}),
+    };
+
+    if (linkedidsForBranch) {
+      where.AND = [
+        ...(where.AND ?? []),
+        { linkedid: { in: linkedidsForBranch } },
+      ];
+    }
+
+    const [total, auditRows] = await Promise.all([
+      (this.prisma as any).callRecordingAccessAuditLogs.count({ where }),
+      (this.prisma as any).callRecordingAccessAuditLogs.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          auditLogId: true,
+          recordingId: true,
+          callId: true,
+          linkedid: true,
+          agentId: true,
+          userRole: true,
+          action: true,
+          clientIp: true,
+          userAgent: true,
+          success: true,
+          createdAt: true,
+        },
+      }),
+    ]) as [number, any[]];
+
+    const callIds = [...new Set(auditRows.map((row: any) => row.callId).filter((value: unknown): value is string => typeof value === 'string'))];
+    const agentIds = [...new Set(auditRows.map((row: any) => row.agentId).filter((value: unknown): value is string => typeof value === 'string'))];
+    const [sessions, agents] = await Promise.all([
+      callIds.length
+        ? this.prisma.callSessions.findMany({
+            where: { tenantId, callId: { in: callIds } },
+            select: {
+              callId: true,
+              linkedid: true,
+              ani: true,
+              dnis: true,
+              didNumber: true,
+              queueName: true,
+            },
+          })
+        : [],
+      agentIds.length
+        ? this.prisma.agents.findMany({
+            where: { tenantId, agentId: { in: agentIds } },
+            select: { agentId: true, agentName: true, extension: true },
+          })
+        : [],
+    ]);
+    const sessionByCallId = new Map(sessions.map((session) => [session.callId, session] as const));
+    const agentById = new Map(agents.map((agent) => [agent.agentId, agent] as const));
+
+    return {
+      success: true,
+      data: {
+        rows: auditRows.map((row: any) => {
+          const session = sessionByCallId.get(row.callId ?? '');
+          const agent = agentById.get(row.agentId ?? '');
+          return {
+            auditLogId: row.auditLogId,
+            recordingId: row.recordingId,
+            callId: row.callId,
+            linkedid: row.linkedid,
+            agentId: row.agentId,
+            agentName: agent?.agentName ?? null,
+            agentExtension: agent?.extension ?? null,
+            userRole: row.userRole,
+            action: row.action,
+            success: row.success,
+            createdAt: row.createdAt,
+            userAgent: row.userAgent,
+            callerMasked: this.maskPhoneNumber(session?.ani),
+            dnisMasked: this.maskPhoneNumber(session?.didNumber ?? session?.dnis),
+            clientIpMasked: this.maskClientIp(row.clientIp),
+            queueName: session?.queueName ?? null,
+          };
+        }),
+        total,
+        page,
+        pageSize,
+      },
+      error: null,
+    };
+  }
+
+  async getOperationalMonitoring(tenantId: string) {
+    const health = await this.healthSummary.getHealth(tenantId);
+    const recoverySince = new Date(Date.now() - 60 * 60 * 1000);
+    const [pendingOutbox, oldestOutbox, recoveredLastHour] = await Promise.all([
+      this.prisma.eventOutbox.count({
+        where: { tenantId, publishedAt: null },
+      }),
+      this.prisma.eventOutbox.findFirst({
+        where: { tenantId, publishedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      }),
+      this.prisma.callSessions.count({
+        where: {
+          tenantId,
+          resultCode: 'RECOVERY_TIMEOUT',
+          endedAt: { gte: recoverySince },
+        },
+      }),
+    ]);
+
+    const websocketClients = this.realtimeGateway.getClientCount();
+    const outboxStatus = pendingOutbox >= 100 ? 'critical' : pendingOutbox >= 10 ? 'warning' : 'ok';
+    const recoveryStatus = recoveredLastHour >= 10 ? 'critical' : recoveredLastHour > 0 ? 'warning' : 'ok';
+    const websocketStatus = websocketClients >= 0 ? 'ok' : 'warning';
+    const alerts: Array<{ key: string; severity: 'critical' | 'warning'; message: string }> = [];
+
+    if (health.checks.db === 'down') {
+      alerts.push({ key: 'db-down', severity: 'critical', message: 'DB 연결 실패' });
+    }
+    if (health.checks.redis === 'down') {
+      alerts.push({ key: 'redis-down', severity: 'critical', message: 'Redis 연결 실패' });
+    }
+    if (health.checks.ami === 'disconnected') {
+      alerts.push({ key: 'ami-disconnected', severity: 'critical', message: 'AMI 연결 끊김' });
+    }
+    if (outboxStatus !== 'ok') {
+      alerts.push({ key: 'outbox-backlog', severity: outboxStatus, message: `eventOutbox 미발행 ${pendingOutbox}건` });
+    }
+    if (recoveryStatus !== 'ok') {
+      alerts.push({ key: 'recovery-timeout', severity: recoveryStatus, message: `최근 1시간 복구 종료 ${recoveredLastHour}건` });
+    }
+    if (health.call.stuck > 0) {
+      alerts.push({ key: 'stuck-calls', severity: 'warning', message: `10분 이상 상태 변경 없는 콜 ${health.call.stuck}건` });
+    }
+
+    const status = alerts.some((alert) => alert.severity === 'critical')
+      ? 'critical'
+      : alerts.length > 0 || health.status === 'degraded'
+      ? 'warning'
+      : 'ok';
+
+    return {
+      success: true,
+      data: {
+        status,
+        timestamp: health.timestamp,
+        instanceId: health.instanceId,
+        leader: health.leader,
+        checks: health.checks,
+        call: health.call,
+        agent: health.agent,
+        queue: health.queue,
+        outbox: {
+          pending: pendingOutbox,
+          oldestCreatedAt: oldestOutbox?.createdAt ?? null,
+          status: outboxStatus,
+          thresholds: { warning: 10, critical: 100 },
+        },
+        recovery: {
+          lastHour: recoveredLastHour,
+          status: recoveryStatus,
+          thresholds: { warning: 1, critical: 10 },
+        },
+        websocket: {
+          clients: websocketClients,
+          status: websocketStatus,
+        },
+        alerts,
+      },
+      error: null,
+    };
+  }
+
   private buildCallLogSummary(call: any, smartArsEvents: any[] = []) {
     const callerNumber = call.ani ?? null;
     const inboundNumber = call.didNumber ?? call.dnis ?? null;
@@ -1279,6 +1562,45 @@ export class AdminService {
     return raw.UserEvent === 'KasterSmartArs';
   }
 
+  private buildIvrFailureRow(event: any, session?: any | null) {
+    const raw = this.getAmiRawPayload(event);
+    const failureReason = this.getIvrFailureReason(raw);
+    if (!failureReason) return null;
+
+    return {
+      eventId: event.eventId,
+      eventTime: event.eventTime,
+      linkedid: event.linkedid,
+      uniqueid: event.uniqueid,
+      caller: raw.Caller ? String(raw.Caller) : null,
+      entryDid: raw.EntryDid ? String(raw.EntryDid) : null,
+      branchId: raw.BranchId ? String(raw.BranchId) : null,
+      stage: raw.Stage ? String(raw.Stage) : null,
+      action: raw.Action ? String(raw.Action) : null,
+      digit: raw.Digit ? String(raw.Digit) : null,
+      result: raw.Result ? String(raw.Result) : null,
+      target: raw.Target ? String(raw.Target) : null,
+      failureReason,
+      callId: session?.callId ?? null,
+      sessionStatus: session?.sessionStatus ?? null,
+      queueName: session?.queueName ?? null,
+      primaryAgentName: session?.primaryAgent?.agentName ?? null,
+    };
+  }
+
+  private getIvrFailureReason(raw: Record<string, unknown>) {
+    const stage = String(raw.Stage ?? '').toLowerCase();
+    const result = String(raw.Result ?? '').toLowerCase();
+    const action = String(raw.Action ?? '').toUpperCase();
+
+    if (stage === 'selection' && result === 'timeout') return 'INPUT_TIMEOUT';
+    if (stage === 'selection' && result === 'invalid') return 'INVALID_INPUT';
+    if (stage === 'result' && action === 'SEND_SMS' && !['success', 'started'].includes(result)) return 'SMS_FAILURE';
+    if (stage === 'result' && action === 'OPT_OUT' && !['success', 'started'].includes(result)) return 'OPT_OUT_FAILURE';
+    if (stage === 'result' && result === 'failure') return 'FLOW_FAILURE';
+    return null;
+  }
+
   private getQueueEventLabel(eventType?: string | null) {
     switch (eventType) {
       case 'ENTERQUEUE':
@@ -1321,6 +1643,28 @@ export class AdminService {
     }
 
     return value;
+  }
+
+  private maskPhoneNumber(value?: string | null) {
+    if (!value) return null;
+    const digits = value.replace(/\D/g, '');
+    if (digits.length < 7) return value;
+
+    const last4 = digits.slice(-4);
+    if (digits.startsWith('02')) return `02-****-${last4}`;
+    if (digits.length >= 10) return `${digits.slice(0, 3)}-****-${last4}`;
+    return `****-${last4}`;
+  }
+
+  private maskClientIp(value?: string | null) {
+    if (!value) return null;
+    const parts = value.split('.');
+    if (parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part))) {
+      return `${parts.slice(0, 3).join('.')}.xxx`;
+    }
+    const ipv6Parts = value.split(':').filter(Boolean);
+    if (ipv6Parts.length > 2) return `${ipv6Parts.slice(0, 2).join(':')}:****`;
+    return 'masked';
   }
 
   private getLegTypeLabel(legType?: string | null) {

@@ -7,8 +7,7 @@
 - CMake 3.20 or newer
 - A C++17 toolchain
 - Network access for the first configure step so CMake can fetch CLI11, yaml-cpp, nlohmann/json, and Catch2
-- `PJSIP_ROOT` is required for live SIP `run` support and must point to a local pjproject install
-- Without `PJSIP_ROOT`, the CLI still builds and supports non-live commands such as `validate`, `dry-run`, `report`, and `test-plan`; live `run` fails clearly until rebuilt with PJSIP
+- `PJSIP_ROOT` is required for CLI builds and must point to a local pjproject install
 - If the CLI is linked against pjproject shared libraries, those libraries must remain discoverable at package time or the package scripts will abort instead of emitting an incomplete dist
 - If you know a build is fully static, set `PBX_LOADGEN_ASSUME_STATIC_PJSIP=1` to allow packaging without discovered pjproject runtimes
 
@@ -89,42 +88,3 @@ The package scripts copy the built binary, the YAML scenarios, and any discovera
 3. Run `pbx-loadgen validate -f scenarios/inbound-smoke.yaml`.
 4. Run `pbx-loadgen dry-run -f scenarios/inbound-30cps-300concurrent.yaml`.
 5. Package the artifacts with `scripts/package.ps1` or `scripts/package.sh`.
-
-## CTI Feature Test Automation
-
-Build a feature inventory from the current OpenAPI document:
-
-```bash
-tools/pbx-loadgen/native/build/pbx-loadgen test-plan inventory \
-  --openapi docs/openapi.json \
-  --out tools/pbx-loadgen/generated/feature-inventory.json
-```
-
-Generate a test plan draft for an inbound call feature:
-
-```bash
-tools/pbx-loadgen/native/build/pbx-loadgen test-plan generate \
-  --openapi docs/openapi.json \
-  --feature calls.inbound.basic \
-  --out tools/pbx-loadgen/generated/test-plans/calls.inbound.basic.yaml
-```
-
-Validate and inspect the generated plan without opening SIP, API, or WebSocket connections:
-
-```bash
-tools/pbx-loadgen/native/build/pbx-loadgen test-plan validate \
-  -f tools/pbx-loadgen/generated/test-plans/calls.inbound.basic.yaml
-
-tools/pbx-loadgen/native/build/pbx-loadgen test-plan dry-run \
-  -f tools/pbx-loadgen/generated/test-plans/calls.inbound.basic.yaml
-```
-
-Generate improvement feedback from a failed test result:
-
-```bash
-tools/pbx-loadgen/native/build/pbx-loadgen test-plan feedback \
-  -f tools/pbx-loadgen/reports/test-result-example.json \
-  --out docs/generated-test-feedback/calls.inbound.basic.md
-```
-
-The generator is rule-based. It uses OpenAPI paths and known KAster CTI module naming to create executable drafts so feature work can include a matching test script without writing every scenario by hand.

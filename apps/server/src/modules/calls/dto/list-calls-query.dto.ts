@@ -14,4 +14,12 @@ export class ListCallsQueryDto {
   @IsOptional() @IsIn(['ENDED', 'QUEUED', 'TALKING', 'AFTER_CALL_WORK', 'RINGING_AGENT']) status?: string;
   @ApiPropertyOptional({ enum: ['missed', 'all'] })
   @IsOptional() @IsIn(['missed', 'all']) mode?: string;
+  @ApiPropertyOptional()
+  @IsOptional() @IsString() resultCode?: string;
+  @ApiPropertyOptional()
+  @IsOptional() @IsString() queueName?: string;
+  @ApiPropertyOptional({ enum: ['true', 'false'] })
+  @IsOptional() @IsIn(['true', 'false']) abandon?: string;
+  @ApiPropertyOptional({ enum: ['true', 'false'] })
+  @IsOptional() @IsIn(['true', 'false']) recording?: string;
 }

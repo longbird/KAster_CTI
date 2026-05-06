@@ -15,6 +15,7 @@ import { PromptSettingsPage } from '../features/prompt-settings/PromptSettingsPa
 import { SmsTemplatesPage } from '../features/sms-templates/SmsTemplatesPage';
 import { CallsReportPage } from '../features/reports/CallsReportPage';
 import { AmiLogsPage } from '../features/reports/AmiLogsPage';
+import { IvrFailuresPage } from '../features/reports/IvrFailuresPage';
 import { MissedCallsPage } from '../features/reports/MissedCallsPage';
 import { RecordingsPage } from '../features/reports/RecordingsPage';
 import { SystemSettingsPage } from '../features/system-settings/SystemSettingsPage';
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: 'reports/calls',        element: <CallsReportPage /> },
       { path: 'reports/missed',       element: <MissedCallsPage /> },
       { path: 'reports/recordings',   element: <RecordingsPage /> },
+      { path: 'reports/ivr-failures',  element: <IvrFailuresPage /> },
       { path: 'reports/logs',         element: <AmiLogsPage /> },
       { path: 'announcements',        element: <AnnouncementsPage /> },
       { path: 'blocklist',            element: <BlocklistPage /> },

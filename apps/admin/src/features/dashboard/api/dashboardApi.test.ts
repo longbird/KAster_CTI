@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mapDashboardPayload } from './dashboardApi';
 
 describe('mapDashboardPayload', () => {
@@ -35,5 +35,21 @@ describe('mapDashboardPayload', () => {
       ]),
     );
     expect(dashboard.teams).toEqual([]);
+  });
+});
+
+describe('fetchDashboardData', () => {
+  it('returns built-in dashboard data in mock mode without calling the backend', async () => {
+    vi.resetModules();
+    vi.doMock('../../../config', () => ({ USE_MOCK: true }));
+    const get = vi.fn();
+    vi.doMock('../../../shared/lib/apiClient', () => ({ apiClient: { get } }));
+
+    const { fetchDashboardData } = await import('./dashboardApi');
+    const data = await fetchDashboardData();
+
+    expect(get).not.toHaveBeenCalled();
+    expect(data.kpis.length).toBeGreaterThan(0);
+    expect(data.activeCalls.length).toBeGreaterThan(0);
   });
 });

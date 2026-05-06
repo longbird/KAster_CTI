@@ -16,12 +16,14 @@ const BASELINE_LEAF_KEYS = [
   '/blocklist',
   '/customers',
   '/dashboard',
+  '/history',
   '/kpi',
   '/live-calls',
   '/monitoring',
   '/opt-out-customers',
   '/queues',
   '/reports/calls',
+  '/reports/ivr-failures',
   '/reports/logs',
   '/reports/missed',
   '/reports/recordings',
@@ -33,6 +35,8 @@ const BASELINE_LEAF_KEYS = [
   '/settings/queues',
   '/settings/sms-templates',
   '/system',
+  '/numbers',
+  '/integrations',
 ] as const;
 
 const NESTED_MENU_CONFIG: MenuConfigItem[] = [
@@ -85,8 +89,21 @@ describe('ADMIN_MENU_CONFIG', () => {
       '/settings/sms-templates',
       '/settings/permissions',
       '/announcements',
+      '/numbers',
+      '/integrations',
       '/asterisk',
       '/system',
+    ]);
+  });
+
+  it('keeps operational reports under the reports group', () => {
+    expect(childKeysOf('reports')).toEqual([
+      '/reports/calls',
+      '/reports/missed',
+      '/reports/recordings',
+      '/reports/ivr-failures',
+      '/reports/logs',
+      '/history',
     ]);
   });
 
@@ -125,6 +142,8 @@ describe('openMenuGroupKeysForPath', () => {
   it('returns the containing settings group for settings leaf routes', () => {
     expect(openMenuGroupKeysForPath('/system')).toEqual(['settings']);
     expect(openMenuGroupKeysForPath('/settings/queues')).toEqual(['settings']);
+    expect(openMenuGroupKeysForPath('/integrations')).toEqual(['settings']);
+    expect(openMenuGroupKeysForPath('/asterisk')).toEqual(['settings']);
   });
 
   it('returns the containing customer group for customer leaf routes', () => {

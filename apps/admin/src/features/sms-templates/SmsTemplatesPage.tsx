@@ -141,8 +141,9 @@ export function SmsTemplatesPage() {
         render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm'),
       },
       {
-        title: '액션',
+        title: '관리',
         width: 140,
+        fixed: 'right' as const,
         render: (_: unknown, row: SmsTemplateRow) => (
           <Space>
             {canUpdate ? (

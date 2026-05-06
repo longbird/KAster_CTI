@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import { initialActiveCalls, initialAgentDirectory, initialAgentSession, initialQueues, recentHistory } from '../mock/data';
-import type { ActiveCall, AgentDirectoryItem, AgentSession, ApiResponse, CallHistoryItem, CommandAck, QueueSummary } from '../types/cti';
+import { initialActiveCalls, initialAgentDirectory, initialAgentSession, initialAnnouncements, initialQueues, recentHistory } from '../mock/data';
+import type { ActiveCall, AgentDirectoryItem, AgentSession, Announcement, ApiResponse, CallHistoryItem, CommandAck, QueueSummary } from '../types/cti';
 
 const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -36,6 +36,11 @@ export async function getCallHistory(): Promise<ApiResponse<CallHistoryItem[]>> 
 export async function getAgents(): Promise<ApiResponse<AgentDirectoryItem[]>> {
   await wait();
   return { success: true, data: initialAgentDirectory, error: null };
+}
+
+export async function getAnnouncements(): Promise<ApiResponse<Announcement[]>> {
+  await wait();
+  return { success: true, data: initialAnnouncements, error: null };
 }
 
 export async function updateAgentStatus(statusCode: AgentSession['statusCode']): Promise<ApiResponse<{ statusCode: AgentSession['statusCode'] }>> {

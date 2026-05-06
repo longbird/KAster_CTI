@@ -1,7 +1,4 @@
 import { AsteriskReloadService } from './asterisk-reload.service';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
 
 describe('AsteriskReloadService Smart ARS preview', () => {
   it('maps branch Smart ARS settings into generated DID dialplan', async () => {
@@ -76,46 +73,5 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     expect(preview.extensionsQueue).toContain("kaster-smart-ars-hook.sh 'sms'");
     expect(preview.extensionsQueue).toContain("kaster-smart-ars-hook.sh 'opt-out'");
     expect(preview.extensionsQueue).toContain('Playback(/var/lib/asterisk/sounds/custom/office_hours)');
-  });
-});
-
-describe('AsteriskReloadService dry run', () => {
-  it('returns validation, diff summary, and reload commands without writing files', async () => {
-    const confDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kaster-conf-'));
-    fs.writeFileSync(path.join(confDir, 'pjsip.conf'), '[global]\ntype=global\n', 'utf8');
-    const config = {
-      get: jest.fn((key: string, fallback?: string) => {
-        if (key === 'ASTERISK_CONF_DIR') return confDir;
-        return fallback;
-      }),
-    };
-    const service = new AsteriskReloadService({} as any, config as any, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
-    jest.spyOn(service, 'previewConfFiles').mockResolvedValue({
-      pjsip: '[global]\ntype=global\n\n[transport-udp]\ntype=transport\n',
-      extensionsInbound: '[inbound-main]\nexten => 07012345678,1,NoOp(test)\n',
-      extensionsQueue: '[queue-entry]\nexten => s,1,NoOp(queue)\n',
-      extensionsAgent: '[from-queue]\nexten => 1001,1,NoOp(agent)\n',
-      queues: '[sales]\nstrategy=ringall\n',
-    });
-
-    const result = await service.dryRunConfFiles('tenant-1');
-
-    expect(result.validation.ok).toBe(true);
-    expect(result.diff).toContainEqual({
-      fileName: 'pjsip.conf',
-      status: 'changed',
-      addedLines: 2,
-      removedLines: 0,
-    });
-    expect(result.reloadCommands).toEqual([
-      'module load res_http_websocket.so',
-      'module load res_pjsip_transport_websocket.so',
-      'http reload',
-      'module reload res_pjsip',
-      'moh reload',
-      'dialplan reload',
-      'queue reload all',
-    ]);
-    expect(result.generatedAt).toEqual(expect.any(String));
   });
 });

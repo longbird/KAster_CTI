@@ -140,7 +140,7 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
   }, [initialGrade]);
 
   return (
-    <Card>
+    <Card className="admin-workbench">
       <div className="customers-page__header">
         <div className="customers-page__heading">
           <Typography.Title level={4} className="customers-page__title">
@@ -169,49 +169,52 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
         </Space>
       </div>
 
-      <Space wrap size={8} className="customers-page__filters">
-        <Select
-          allowClear
-          value={grade}
-          onChange={(value) => setGrade(value)}
-          style={{ width: 108 }}
-          options={[
-            { value: 'NORMAL', label: '일반' },
-            { value: 'VIP', label: 'VIP' },
-            { value: 'BLACK', label: 'BLACK' },
-          ]}
-        />
-        <Select
-          value={dateFilterType}
-          onChange={(value) => setDateFilterType(value)}
-          className="customers-page__date-filter"
-          style={{ width: 120 }}
-          options={[
-            { value: 'registered', label: '등록일' },
-            { value: 'lastCalled', label: '최종통화일' },
-          ]}
-        />
-        <DatePicker.RangePicker
-          value={dateRange}
-          onChange={(value) => setDateRange((value as [Dayjs, Dayjs]) ?? null)}
-          className="customers-page__date-range"
-          style={{ width: 250 }}
-        />
-        <Input
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="전화번호 또는 성명 검색"
-          style={{ width: 220 }}
-        />
-        <Button onClick={() => void load()}>조회</Button>
-      </Space>
+      <div className="admin-workbench__filters">
+        <Space wrap size={8} className="customers-page__filters">
+          <Select
+            allowClear
+            value={grade}
+            onChange={(value) => setGrade(value)}
+            style={{ width: 108 }}
+            options={[
+              { value: 'NORMAL', label: '일반' },
+              { value: 'VIP', label: 'VIP' },
+              { value: 'BLACK', label: 'BLACK' },
+            ]}
+          />
+          <Select
+            value={dateFilterType}
+            onChange={(value) => setDateFilterType(value)}
+            className="customers-page__date-filter"
+            style={{ width: 120 }}
+            options={[
+              { value: 'registered', label: '등록일' },
+              { value: 'lastCalled', label: '최종통화일' },
+            ]}
+          />
+          <DatePicker.RangePicker
+            value={dateRange}
+            onChange={(value) => setDateRange((value as [Dayjs, Dayjs]) ?? null)}
+            className="customers-page__date-range"
+            style={{ width: 250 }}
+          />
+          <Input
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="전화번호 또는 성명 검색"
+            style={{ width: 220 }}
+          />
+          <Button onClick={() => void load()}>조회</Button>
+        </Space>
+      </div>
 
-      <Table<CustomerRow>
-        rowKey="customerId"
-        loading={loading}
-        dataSource={rows}
-        scroll={{ x: 1140 }}
-        columns={[
+      <div className="admin-workbench__table">
+        <Table<CustomerRow>
+          rowKey="customerId"
+          loading={loading}
+          dataSource={rows}
+          scroll={{ x: 1140 }}
+          columns={[
           {
             title: headerLabel('대표전화번호'),
             dataIndex: 'primaryPhoneNumber',
@@ -250,8 +253,9 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           { title: headerLabel('최종통화일'), dataIndex: 'lastCalledAt', width: 130, render: (value?: string | null) => formatCustomerListDate(value) },
           { title: headerLabel('기본메모'), dataIndex: 'memo', width: 180, ellipsis: true, render: (value?: string | null) => value || '-' },
           {
-            title: headerLabel('액션'),
+            title: headerLabel('관리'),
             width: 132,
+            fixed: 'right',
             render: (_: unknown, row) => (
               <Space>
                 {permission?.canUpdate !== false ? (
@@ -267,8 +271,9 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
               </Space>
             ),
           },
-        ]}
-      />
+          ]}
+        />
+      </div>
 
       <CustomerFormModal
         open={createOpen || !!editing}

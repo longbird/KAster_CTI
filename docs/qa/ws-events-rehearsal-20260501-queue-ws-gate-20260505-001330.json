@@ -1,0 +1,668 @@
+{
+  "startedAt": "2026-05-04T15:13:31.519Z",
+  "endedAt": "2026-05-04T15:15:21.653Z",
+  "connected": true,
+  "eventCount": 18,
+  "events": [
+    {
+      "type": "socket.connected",
+      "at": "2026-05-04T15:13:31.666Z",
+      "payload": {
+        "id": "_oJtoG6qi4Rj3UhcAAAF"
+      }
+    },
+    {
+      "type": "call.created",
+      "at": "2026-05-04T15:13:37.912Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": null,
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": null,
+        "ringingAt": null,
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": null,
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "NEW",
+        "primaryAgentId": null,
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.924Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:13:37.928Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.540Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": null,
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": null,
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "QUEUED",
+        "primaryAgentId": null,
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.935Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:13:37.937Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.540Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.560Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": null,
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "RINGING_AGENT",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0",
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.943Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:13:37.945Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.540Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.560Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": "2026-05-04T15:13:37.563Z",
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "TALKING",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0",
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.951Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:13:37.953Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.540Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.582Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": "2026-05-04T15:13:37.563Z",
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "TALKING",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0",
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.959Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:13:37.961Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.540Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.582Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": "2026-05-04T15:13:37.587Z",
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "TALKING",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0",
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.968Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:13:37.969Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.540Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.582Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": "2026-05-04T15:13:37.598Z",
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 0,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "TALKING",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0",
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:13:37.975Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 1,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.updated",
+      "at": "2026-05-04T15:14:43.917Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": null,
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.575Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.582Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": "2026-05-04T15:13:37.575Z",
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 64,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "AFTER_CALL_WORK",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0",
+        "latestTransfer": null,
+        "customer": null,
+        "isMuted": false
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:14:43.932Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "call.ended",
+      "at": "2026-05-04T15:14:43.934Z",
+      "payload": {
+        "ani": "01011112222",
+        "dnis": "07052346380",
+        "callId": "98603553-73c1-4ab5-8f34-1c5bea1fc596",
+        "endedAt": "2026-05-04T15:14:41.583Z",
+        "queueId": null,
+        "linkedid": "1777907617.68",
+        "queuedAt": "2026-05-04T15:13:37.575Z",
+        "tenantId": "00000000-0000-0000-0000-000000000001",
+        "createdAt": "2026-05-04T15:13:37.548Z",
+        "didNumber": null,
+        "direction": "inbound",
+        "queueName": "smoke-3999",
+        "ringingAt": "2026-05-04T15:13:37.582Z",
+        "startedAt": "2026-05-04T15:13:37.547Z",
+        "trunkName": null,
+        "updatedAt": "2026-05-04T15:13:37.548Z",
+        "acwSeconds": 0,
+        "answeredAt": "2026-05-04T15:13:37.575Z",
+        "customerId": null,
+        "resultCode": null,
+        "abandonFlag": false,
+        "holdSeconds": 0,
+        "ringSeconds": 0,
+        "talkSeconds": 64,
+        "waitSeconds": 0,
+        "callbackFlag": false,
+        "campaignCode": null,
+        "resultDetail": null,
+        "transferFlag": false,
+        "aniNormalized": "01011112222",
+        "recordingFlag": false,
+        "sessionStatus": "ENDED",
+        "primaryAgentId": "ec367ab9-c755-44ba-b241-c011d83b2aa0"
+      }
+    },
+    {
+      "type": "queue.summary.updated",
+      "at": "2026-05-04T15:14:43.941Z",
+      "payload": [
+        {
+          "queueId": "2370150c-e06a-4a27-9080-7c9846fedb9a",
+          "queueName": "Smoke 3999 Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "00000000-0000-0000-0000-000000000101",
+          "queueName": "Sales Queue",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 0,
+          "longestWaitSeconds": 0
+        },
+        {
+          "queueId": "4f2ad187-d0e6-4a6d-89c7-dc6cf7a59168",
+          "queueName": "기본 호 분배룰",
+          "waitingCount": 0,
+          "talkingCount": 0,
+          "availableAgents": 1,
+          "longestWaitSeconds": 0
+        }
+      ]
+    },
+    {
+      "type": "socket.disconnected",
+      "at": "2026-05-04T15:15:21.653Z",
+      "payload": {
+        "reason": "io client disconnect"
+      }
+    }
+  ],
+  "errors": []
+}

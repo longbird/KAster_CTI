@@ -133,8 +133,9 @@ export function AnnouncementsPage() {
             render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm'),
           },
           {
-            title: '',
+            title: '관리',
             width: 96,
+            fixed: 'right',
             render: (_: unknown, row: Notice) => (
               <Space>
                 {canUpdate ? (

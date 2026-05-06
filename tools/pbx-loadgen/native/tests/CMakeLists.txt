@@ -16,39 +16,6 @@ endif()
 
 catch_discover_tests(pbx_loadgen_tests)
 
-add_executable(pbx_loadgen_test_plan_tests test_plan_test.cpp)
-target_link_libraries(
-  pbx_loadgen_test_plan_tests
-  PRIVATE
-    Catch2::Catch2WithMain
-    loadgen_test_plan
-)
-target_include_directories(pbx_loadgen_test_plan_tests PRIVATE ../include)
-
-catch_discover_tests(pbx_loadgen_test_plan_tests)
-
-add_executable(pbx_loadgen_feature_inventory_tests feature_inventory_test.cpp)
-target_link_libraries(
-  pbx_loadgen_feature_inventory_tests
-  PRIVATE
-    Catch2::Catch2WithMain
-    loadgen_feature_inventory
-)
-target_include_directories(pbx_loadgen_feature_inventory_tests PRIVATE ../include)
-
-catch_discover_tests(pbx_loadgen_feature_inventory_tests)
-
-add_executable(pbx_loadgen_test_result_tests test_result_test.cpp)
-target_link_libraries(
-  pbx_loadgen_test_result_tests
-  PRIVATE
-    Catch2::Catch2WithMain
-    loadgen_test_result
-)
-target_include_directories(pbx_loadgen_test_result_tests PRIVATE ../include)
-
-catch_discover_tests(pbx_loadgen_test_result_tests)
-
 add_executable(pbx_loadgen_tone_generator_tests tone_generator_test.cpp ../src/tone_generator.cpp)
 target_link_libraries(pbx_loadgen_tone_generator_tests PRIVATE Catch2::Catch2WithMain)
 target_include_directories(pbx_loadgen_tone_generator_tests PRIVATE ../include)

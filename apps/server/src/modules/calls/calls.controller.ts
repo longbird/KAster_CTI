@@ -20,6 +20,14 @@ function buildDownloadDisposition(fileName: string) {
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 }
 
+function getClientIp(req: any) {
+  const forwarded = req.headers?.['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0]?.trim() || null;
+  }
+  return req.ip ?? req.socket?.remoteAddress ?? null;
+}
+
 @ApiTags('calls')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -165,6 +173,13 @@ export class CallsController {
     if (!stat?.isFile()) {
       throw new NotFoundException('Recording file not found');
     }
+
+    await this.callsService.recordRecordingDownloadAudit(req.user.tenantId, recording, {
+      agentId: req.user.sub,
+      userRole: req.user.role,
+      clientIp: getClientIp(req),
+      userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+    });
 
     res.setHeader('Content-Type', recording.contentType);
     res.setHeader('Content-Length', stat.size);

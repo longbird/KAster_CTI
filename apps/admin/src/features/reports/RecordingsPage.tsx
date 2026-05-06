@@ -1,4 +1,4 @@
-import { Button, Card, DatePicker, Modal, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, DatePicker, Input, Modal, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import { DownloadOutlined, PlayCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -25,6 +25,32 @@ interface RecRow {
     queueDisplayName?: string | null;
     primaryAgent: { agentName: string } | null;
   } | null;
+}
+
+interface RecordingAuditRow {
+  auditLogId: string;
+  recordingId: string;
+  callId: string | null;
+  linkedid: string | null;
+  agentId: string | null;
+  agentName: string | null;
+  agentExtension: string | null;
+  userRole: string | null;
+  action: string;
+  success: boolean;
+  createdAt: string;
+  userAgent: string | null;
+  callerMasked: string | null;
+  dnisMasked: string | null;
+  clientIpMasked: string | null;
+  queueName: string | null;
+}
+
+interface RecordingAuditResponse {
+  rows: RecordingAuditRow[];
+  page: number;
+  pageSize: number;
+  total: number;
 }
 
 function getDisplayDid(row: RecRow) {
@@ -55,8 +81,15 @@ export function RecordingsPage() {
   const playerRequestSeq = useRef(0);
   const [rows, setRows]       = useState<RecRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [auditRows, setAuditRows] = useState<RecordingAuditRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState('recordings');
+  const [auditLinkedid, setAuditLinkedid] = useState('');
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(20);
+  const [auditTotal, setAuditTotal] = useState(0);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [playerRow, setPlayerRow] = useState<RecRow | null>(null);
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
@@ -100,6 +133,32 @@ export function RecordingsPage() {
     }
   }, [branchId, range]);
 
+  const loadAudits = useCallback(async (nextPage = auditPage, nextPageSize = auditPageSize) => {
+    setAuditLoading(true);
+    try {
+      const res = await apiClient.get('/admin/reports/recording-download-audits', {
+        params: {
+          from: range[0].toISOString(),
+          to: range[1].toISOString(),
+          branchId,
+          linkedid: auditLinkedid.trim() || undefined,
+          page: nextPage,
+          pageSize: nextPageSize,
+        },
+      });
+      const data = (res.data?.data ?? {}) as RecordingAuditResponse;
+      setAuditRows(data.rows ?? []);
+      setAuditTotal(data.total ?? 0);
+      setAuditPage(data.page ?? nextPage);
+      setAuditPageSize(data.pageSize ?? nextPageSize);
+    } catch {
+      setAuditRows([]);
+      setAuditTotal(0);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [auditLinkedid, auditPage, auditPageSize, branchId, range]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -118,6 +177,24 @@ export function RecordingsPage() {
         row.fileName,
         row.fileFormat.toUpperCase(),
         row.durationSeconds,
+      ]),
+    );
+  };
+
+  const exportAuditRows = () => {
+    downloadCsv(
+      `recording-download-audits-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      ['시각', '상담원', '역할', '고객번호', 'DID', 'IP', 'Linkedid', 'RecordingId', 'User-Agent'],
+      auditRows.map((row) => [
+        dayjs(row.createdAt).format('YYYY-MM-DD HH:mm:ss'),
+        row.agentName ?? row.agentId ?? '',
+        row.userRole ?? '',
+        row.callerMasked ?? '',
+        row.dnisMasked ?? '',
+        row.clientIpMasked ?? '',
+        row.linkedid ?? '',
+        row.recordingId,
+        row.userAgent ?? '',
       ]),
     );
   };
@@ -194,89 +271,167 @@ export function RecordingsPage() {
           }}
         />
         <BranchFilterSelect value={branchId} onChange={setBranchId} />
-        <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
+        {activeTab === 'audits' ? (
+          <Input
+            placeholder="Linkedid"
+            value={auditLinkedid}
+            onChange={(event) => setAuditLinkedid(event.target.value)}
+            style={{ width: 180 }}
+          />
+        ) : null}
+        <Button
+          type="primary"
+          icon={<SearchOutlined />}
+          onClick={() => (activeTab === 'audits' ? void loadAudits(1, auditPageSize) : void load())}
+          loading={activeTab === 'audits' ? auditLoading : loading}
+        >
           조회
         </Button>
-        {reportPermission?.canExport ? (
+        {reportPermission?.canExport && activeTab === 'recordings' ? (
           <Button icon={<DownloadOutlined />} onClick={exportRows} disabled={rows.length === 0}>
             CSV 내보내기
           </Button>
         ) : null}
+        {reportPermission?.canExport && activeTab === 'audits' ? (
+          <Button icon={<DownloadOutlined />} onClick={exportAuditRows} disabled={auditRows.length === 0}>
+            CSV 내보내기
+          </Button>
+        ) : null}
       </Space>
-      <Table<RecRow>
-        rowKey="recordingId"
-        dataSource={rows}
-        loading={loading}
-        size="small"
-        pagination={{ pageSize: 50 }}
-        columns={[
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => {
+          setActiveTab(key);
+          if (key === 'audits') void loadAudits(1, auditPageSize);
+        }}
+        items={[
           {
-            title: '시작',
-            dataIndex: 'recordingStartedAt',
-            render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm:ss') : '-'),
-            width: 130,
+            key: 'recordings',
+            label: '녹취 목록',
+            children: (
+              <Table<RecRow>
+                rowKey="recordingId"
+                dataSource={rows}
+                loading={loading}
+                size="small"
+                pagination={{ pageSize: 50 }}
+                scroll={{ x: 1250 }}
+                columns={[
+                  {
+                    title: '시작',
+                    dataIndex: 'recordingStartedAt',
+                    render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm:ss') : '-'),
+                    width: 130,
+                  },
+                  {
+                    title: '발신번호',
+                    render: (_: unknown, r: RecRow) => formatPhoneNumber(r.session?.ani),
+                    width: 120,
+                  },
+                  {
+                    title: '대표번호 / DID',
+                    render: (_: unknown, r: RecRow) => {
+                      const lines = getRepresentativeDidLines(r);
+                      return (
+                        <Space direction="vertical" size={0}>
+                          <Typography.Text strong>{lines.primary}</Typography.Text>
+                          {lines.secondary ? (
+                            <Typography.Text type="secondary">{lines.secondary}</Typography.Text>
+                          ) : null}
+                        </Space>
+                      );
+                    },
+                    width: 180,
+                  },
+                  {
+                    title: '분배룰',
+                    render: (_: unknown, r: RecRow) => getQueueLabel(r),
+                    width: 140,
+                  },
+                  {
+                    title: '상담원',
+                    render: (_: unknown, r: RecRow) => r.session?.primaryAgent?.agentName ?? '-',
+                    width: 100,
+                  },
+                  { title: '파일명', dataIndex: 'fileName', ellipsis: true },
+                  {
+                    title: '형식',
+                    dataIndex: 'fileFormat',
+                    render: (v: string) => <Tag>{v.toUpperCase()}</Tag>,
+                    width: 70,
+                  },
+                  { title: '길이(초)', dataIndex: 'durationSeconds', width: 80 },
+                  {
+                    title: '관리',
+                    key: 'actions',
+                    width: 170,
+                    fixed: 'right',
+                    render: (_: unknown, row: RecRow) => (
+                      <Space size="small">
+                        <Button
+                          icon={<PlayCircleOutlined />}
+                          onClick={() => void openPlayer(row)}
+                          loading={playerLoading && playerRow?.recordingId === row.recordingId}
+                        >
+                          재생
+                        </Button>
+                        {reportPermission?.canExport ? (
+                          <Button
+                            icon={<DownloadOutlined />}
+                            onClick={() => void downloadRecording(row)}
+                            loading={downloadingId === row.recordingId}
+                          >
+                            다운로드
+                          </Button>
+                        ) : null}
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
+            ),
           },
           {
-            title: '발신번호',
-            render: (_: unknown, r: RecRow) => formatPhoneNumber(r.session?.ani),
-            width: 120,
-          },
-          {
-            title: '대표번호 / DID',
-            render: (_: unknown, r: RecRow) => {
-              const lines = getRepresentativeDidLines(r);
-              return (
-                <Space direction="vertical" size={0}>
-                  <Typography.Text strong>{lines.primary}</Typography.Text>
-                  {lines.secondary ? (
-                    <Typography.Text type="secondary">{lines.secondary}</Typography.Text>
-                  ) : null}
-                </Space>
-              );
-            },
-            width: 180,
-          },
-          {
-            title: '분배룰',
-            render: (_: unknown, r: RecRow) => getQueueLabel(r),
-            width: 140,
-          },
-          {
-            title: '상담원',
-            render: (_: unknown, r: RecRow) => r.session?.primaryAgent?.agentName ?? '-',
-            width: 100,
-          },
-          { title: '파일명', dataIndex: 'fileName', ellipsis: true },
-          {
-            title: '형식',
-            dataIndex: 'fileFormat',
-            render: (v: string) => <Tag>{v.toUpperCase()}</Tag>,
-            width: 70,
-          },
-          { title: '길이(초)', dataIndex: 'durationSeconds', width: 80 },
-          {
-            title: '작업',
-            key: 'actions',
-            width: 170,
-            render: (_: unknown, row: RecRow) => (
-              <Space size="small">
-                <Button
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => void openPlayer(row)}
-                  loading={playerLoading && playerRow?.recordingId === row.recordingId}
-                >
-                  재생
-                </Button>
-                {reportPermission?.canExport ? (
-                  <Button
-                    icon={<DownloadOutlined />}
-                    onClick={() => void downloadRecording(row)}
-                    loading={downloadingId === row.recordingId}
-                  >
-                    다운로드
-                  </Button>
-                ) : null}
-              </Space>
+            key: 'audits',
+            label: `다운로드 감사 (${auditTotal.toLocaleString()})`,
+            children: (
+              <Table<RecordingAuditRow>
+                rowKey="auditLogId"
+                dataSource={auditRows}
+                loading={auditLoading}
+                size="small"
+                pagination={{
+                  current: auditPage,
+                  pageSize: auditPageSize,
+                  total: auditTotal,
+                  showSizeChanger: true,
+                  onChange: (nextPage, nextPageSize) => void loadAudits(nextPage, nextPageSize),
+                }}
+                columns={[
+                  {
+                    title: '시각',
+                    dataIndex: 'createdAt',
+                    width: 170,
+                    render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm:ss'),
+                  },
+                  {
+                    title: '상담원',
+                    width: 130,
+                    render: (_: unknown, row: RecordingAuditRow) => (
+                      <Space direction="vertical" size={0}>
+                        <Typography.Text>{row.agentName ?? '-'}</Typography.Text>
+                        <Typography.Text type="secondary">{row.agentExtension ?? row.userRole ?? '-'}</Typography.Text>
+                      </Space>
+                    ),
+                  },
+                  { title: '고객번호', dataIndex: 'callerMasked', width: 130, render: (value: string | null) => value ?? '-' },
+                  { title: 'DID', dataIndex: 'dnisMasked', width: 130, render: (value: string | null) => value ?? '-' },
+                  { title: 'IP', dataIndex: 'clientIpMasked', width: 130, render: (value: string | null) => value ?? '-' },
+                  { title: 'Linkedid', dataIndex: 'linkedid', width: 150, render: (value: string | null) => value ?? '-' },
+                  { title: '녹취ID', dataIndex: 'recordingId', width: 260, ellipsis: true },
+                  { title: 'User-Agent', dataIndex: 'userAgent', ellipsis: true, render: (value: string | null) => value ?? '-' },
+                ]}
+              />
             ),
           },
         ]}

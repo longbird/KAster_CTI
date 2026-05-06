@@ -1,6 +1,7 @@
 import { Input, Select, Spin } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { ControlPanel } from '../components/ControlPanel';
+import { AnnouncementsPanel } from '../components/AnnouncementsPanel';
 import { CurrentCallPanel } from '../components/CurrentCallPanel';
 import { EventLogPanel } from '../components/EventLogPanel';
 import { KpiPanel } from '../components/KpiPanel';
@@ -28,6 +29,7 @@ export function FullShell() {
   const {
     loading,
     agentSession,
+    announcements,
     queues,
     activeCalls,
     selectedCallId,
@@ -136,6 +138,7 @@ export function FullShell() {
         <div className="mx-auto max-w-7xl space-y-8">
           {fullSection === 'overview' ? (
             <>
+              <AnnouncementsPanel announcements={announcements} />
               <KpiPanel />
               <CurrentCallPanel
                 call={selectedCall}

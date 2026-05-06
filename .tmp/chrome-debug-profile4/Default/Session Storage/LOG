@@ -1,0 +1,2 @@
+2026/05/05-22:13:34.600 278ec Creating DB D:\Work\AI_Projects\KAster_CTI\.tmp\chrome-debug-profile4\Default\Session Storage since it was missing.
+2026/05/05-22:13:36.847 278ec Reuse MANIFEST: IO error: D:\Work\AI_Projects\KAster_CTI\.tmp\chrome-debug-profile4\Default\Session Storage/MANIFEST-000001: Unable to create appendable file (ChromeMethodBFE: 21::NewAppendableFile::16)

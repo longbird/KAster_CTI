@@ -22,14 +22,6 @@ export const SESSION_META: Record<SessionStatus, StatusMeta> = {
   ENDED: { label: '종료', color: 'default', tone: 'neutral' },
 };
 
-export const CALL_STATUS_LABEL = Object.fromEntries(
-  Object.entries(SESSION_META).map(([key, value]) => [key, value.label]),
-) as Record<SessionStatus, string>;
-
-export const CALL_STATUS_COLOR = Object.fromEntries(
-  Object.entries(SESSION_META).map(([key, value]) => [key, value.color]),
-) as Record<SessionStatus, string>;
-
 export const AGENT_META: Record<AgentStatusCode, StatusMeta> = {
   AVAILABLE: { label: '대기', color: 'green', tone: 'ok' },
   RINGING: { label: '벨 울림', color: 'gold', tone: 'warn' },
@@ -41,15 +33,33 @@ export const AGENT_META: Record<AgentStatusCode, StatusMeta> = {
   MANUAL_PAUSED: { label: '일시정지', color: 'default', tone: 'neutral' },
 };
 
-// hero 카드 border / 배경 틴트. v2 Operator — hairline + soft tint.
+// hero 카드 border / 배경 틴트. Tailwind 클래스 그룹.
 export const TONE_CLASS: Record<StatusMeta['tone'], string> = {
-  info: 'border-[rgba(96,165,250,0.35)] bg-[var(--accent-info-soft)]',
-  warn: 'border-[rgba(251,191,36,0.35)] bg-[var(--accent-warn-soft)]',
-  ok: 'border-[var(--signal-dim)] bg-[var(--signal-soft)]',
-  danger: 'border-[rgba(248,113,113,0.35)] bg-[var(--accent-danger-soft)]',
-  neutral: 'border-[var(--line-1)] bg-[var(--bg-1)]',
+  info: 'border-blue-200 bg-blue-50/40',
+  warn: 'border-amber-200 bg-amber-50/40',
+  ok: 'border-emerald-200 bg-emerald-50/40',
+  danger: 'border-rose-200 bg-rose-50/40',
+  neutral: 'border-slate-200 bg-white',
 };
 
-// 공통 카드 외곽 클래스 — v2 panel
+// 공통 카드 외곽 클래스. Antd Card 의 기본 테두리/그림자보다 더 현대적.
 export const PANEL_CLASS =
-  'rounded-md border border-[var(--line-1)] bg-[var(--bg-1)]';
+  'rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)]';
+
+export const CALL_STATUS_LABEL: Record<string, string> = {
+  QUEUED: '대기열',
+  RINGING_AGENT: '벨 울림',
+  TALKING: '통화 중',
+  AFTER_CALL_WORK: '후처리',
+  TRANSFERRING: '전환 중',
+  ENDED: '종료',
+};
+
+export const CALL_STATUS_COLOR: Record<string, string> = {
+  QUEUED: 'var(--status-queued)',
+  RINGING_AGENT: 'var(--status-ringing)',
+  TALKING: 'var(--status-talking)',
+  AFTER_CALL_WORK: 'var(--text-secondary)',
+  TRANSFERRING: 'var(--status-ringing)',
+  ENDED: 'var(--status-danger)',
+};

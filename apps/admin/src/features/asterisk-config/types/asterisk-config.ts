@@ -127,12 +127,6 @@ export interface AsteriskPrompt {
   category: string;
   description: string | null;
   isActive: boolean;
-  fileStatus?: {
-    status: 'METADATA_ONLY' | 'UPLOADED' | 'PLAYBACK_READY' | 'INVALID_FILE_NAME' | 'CHECK_FAILED';
-    uploaded: boolean;
-    playbackReady: boolean;
-    checkedAt: string;
-  };
 }
 
 export interface AsteriskBlocklistEntry {
@@ -170,28 +164,4 @@ export interface ConfPreview {
   extensionsQueue: string;
   extensionsAgent?: string;
   queues?: string;
-}
-
-export interface ConfValidationCheck {
-  name: string;
-  status: 'pass' | 'fail';
-  detail: string;
-}
-
-export interface ConfDiffSummary {
-  fileName: string;
-  status: 'changed' | 'unchanged' | 'missing-current';
-  addedLines: number;
-  removedLines: number;
-}
-
-export interface ConfDryRun {
-  generatedAt: string;
-  files: Required<ConfPreview>;
-  validation: {
-    ok: boolean;
-    checks: ConfValidationCheck[];
-  };
-  diff: ConfDiffSummary[];
-  reloadCommands: string[];
 }

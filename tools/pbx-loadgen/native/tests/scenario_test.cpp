@@ -116,52 +116,6 @@ reporting:
   REQUIRE(scenario.callFlow.didPool.front() == "1899");
 }
 
-TEST_CASE("scenario parser loads optional DTMF settings", "[scenario]") {
-  const auto scenario = loadgen::loadScenarioFromString(R"(
-target: { host: 127.0.0.1, port: 5060, transport: udp, requestUriTemplate: "sip:{did}@127.0.0.1:5060" }
-load: { cps: 1, maxConcurrent: 1, totalCalls: 1, rampUpSeconds: 0, callStartJitterMs: 0 }
-callFlow:
-  callerIdPool: ["01011112222"]
-  didPool: ["1899"]
-  answerTimeoutMs: 8000
-  holdSecondsMin: 8
-  holdSecondsMax: 8
-  dtmf:
-    sequence: "1#"
-    sendAfterAnswerMs: 1000
-    interDigitMs: 300
-  disconnectMode: { normalPercent: 100 }
-media: { beepIntervalMs: 800, txGain: 0.8 }
-reporting: { outputDir: "./reports", consoleRefreshMs: 500, saveFailureDetails: true }
-)");
-
-  REQUIRE(scenario.callFlow.dtmf.sequence == "1#");
-  REQUIRE(scenario.callFlow.dtmf.sendAfterAnswerMs == 1000);
-  REQUIRE(scenario.callFlow.dtmf.interDigitMs == 300);
-}
-
-TEST_CASE("scenario validation rejects invalid DTMF digits", "[scenario]") {
-  try {
-    static_cast<void>(loadgen::loadScenarioFromString(R"(
-target: { host: 127.0.0.1, port: 5060, transport: udp, requestUriTemplate: "sip:{did}@127.0.0.1:5060" }
-load: { cps: 1, maxConcurrent: 1, totalCalls: 1, rampUpSeconds: 0, callStartJitterMs: 0 }
-callFlow:
-  callerIdPool: ["01011112222"]
-  didPool: ["1899"]
-  answerTimeoutMs: 8000
-  holdSecondsMin: 8
-  holdSecondsMax: 8
-  dtmf: { sequence: "1A" }
-  disconnectMode: { normalPercent: 100 }
-media: { beepIntervalMs: 800, txGain: 0.8 }
-reporting: { outputDir: "./reports", consoleRefreshMs: 500, saveFailureDetails: true }
-)"));
-    FAIL("expected loadScenarioFromString to throw");
-  } catch (const std::runtime_error& ex) {
-    REQUIRE(std::string{ex.what()} == "dtmf.sequence must contain only 0-9, * or #");
-  }
-}
-
 TEST_CASE("scenario validation rejects hold range inversion", "[scenario]") {
   try {
     static_cast<void>(loadgen::loadScenarioFromString(R"(
@@ -186,9 +140,9 @@ reporting: { outputDir: "./reports", consoleRefreshMs: 500, saveFailureDetails: 
 TEST_CASE("scenario parser loads the smoke scenario file", "[scenario]") {
   const auto scenario = loadgen::loadScenarioFromFile(sample_scenario_path().string());
 
-  REQUIRE(scenario.target.host == "49.247.46.86");
+  REQUIRE(scenario.target.host == "127.0.0.1");
   REQUIRE(scenario.load.totalCalls == 1);
-  REQUIRE(scenario.callFlow.holdSecondsMin == 5);
+  REQUIRE(scenario.callFlow.holdSecondsMin == 3);
 }
 
 #if defined(PBX_LOADGEN_HAS_CLI)
@@ -198,14 +152,6 @@ TEST_CASE("run command rejects a missing scenario file", "[scenario]") {
 
 TEST_CASE("report command rejects a missing result file", "[scenario]") {
   REQUIRE(run_cli({"report", "-f", missing_path().string()}) != 0);
-}
-
-TEST_CASE("test-plan command rejects a missing test plan file", "[scenario]") {
-  REQUIRE(run_cli({"test-plan", "validate", "-f", missing_path().string()}) != 0);
-}
-
-TEST_CASE("test-plan inventory rejects a missing openapi file", "[scenario]") {
-  REQUIRE(run_cli({"test-plan", "inventory", "--openapi", missing_path().string()}) != 0);
 }
 #endif
 

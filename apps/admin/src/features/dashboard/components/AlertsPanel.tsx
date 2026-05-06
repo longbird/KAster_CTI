@@ -17,9 +17,10 @@ export function AlertsPanel({ items, compact = false }: { items: AlertItem[]; co
   if (compact) {
     return (
       <Card
-        title={`⚠ 경보 (${items.length})`}
+        title={`경보 (${items.length})`}
         size="small"
-        bodyStyle={{ padding: 8, overflowY: 'auto', maxHeight: 200 }}
+        className="ops-alerts"
+        styles={{ body: { padding: 8, overflowY: 'auto', maxHeight: 200 } }}
         style={{ height: '100%' }}
       >
         {items.length === 0 ? (

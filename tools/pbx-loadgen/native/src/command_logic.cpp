@@ -11,10 +11,7 @@
 #include <thread>
 #include <vector>
 
-#include "loadgen/feature_inventory.hpp"
 #include "loadgen/live_run.hpp"
-#include "loadgen/test_plan.hpp"
-#include "loadgen/test_result.hpp"
 
 namespace loadgen {
 
@@ -260,7 +257,6 @@ PracticalRunResult executeLiveRun(const Scenario& scenario,
                 scheduledCall.startOffsetMs,
                 scenario.callFlow.answerTimeoutMs,
                 deriveHoldDurationMs(scheduledCall.index, scenario),
-                scenario.callFlow.dtmf,
             };
 
             CallResult result;
@@ -359,35 +355,6 @@ std::string formatReportReplay(const RunSummary& summary) {
          " failed=" + std::to_string(summary.failed) +
          " peakConcurrent=" + std::to_string(summary.peakConcurrent) +
          " totalScheduleMs=" + std::to_string(summary.totalScheduleMs);
-}
-
-std::string formatFeatureInventoryFromOpenApi(const std::string& openapiJson) {
-  return renderFeatureInventoryJson(buildFeatureInventoryFromOpenApi(openapiJson));
-}
-
-std::string validateTestPlanYaml(const std::string& yaml) {
-  const auto plan = loadTestPlanFromString(yaml);
-  return "test plan ok: " + plan.id + " steps=" +
-         std::to_string(plan.steps.size());
-}
-
-std::string formatTestPlanDryRunFromYaml(const std::string& yaml) {
-  return formatTestPlanDryRun(loadTestPlanFromString(yaml));
-}
-
-std::string renderGeneratedTestPlanForFeature(const std::string& openapiJson,
-                                              const std::string& featureId) {
-  const auto inventory = buildFeatureInventoryFromOpenApi(openapiJson);
-  for (const auto& feature : inventory.features) {
-    if (feature.id == featureId) {
-      return renderGeneratedTestPlan(feature);
-    }
-  }
-  throw std::runtime_error("feature not found: " + featureId);
-}
-
-std::string renderFeedbackFromTestResultFile(const std::string& resultJsonPath) {
-  return renderFeedbackMarkdown(readTestResult(resultJsonPath));
 }
 
 }  // namespace loadgen

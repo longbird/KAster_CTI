@@ -2,67 +2,127 @@ import dayjs from 'dayjs';
 import { useCtiStore } from '../store/useCtiStore';
 import type { EventLogItem } from '../types/cti';
 
-const TYPE_META: Record<EventLogItem['type'], { label: string; icon: string; color: string; bg: string }> = {
-  'call.created':          { label: '신규 콜',   icon: 'add_call',            color: 'var(--signal)',        bg: 'var(--signal-soft)' },
-  'call.updated':          { label: '콜 변경',   icon: 'sync',                color: 'var(--accent-info)',   bg: 'var(--accent-info-soft)' },
-  'call.ended':            { label: '통화 종료', icon: 'call_end',            color: 'var(--accent-danger)', bg: 'var(--accent-danger-soft)' },
-  'screenpop.customer':    { label: '고객 팝업', icon: 'person',              color: 'var(--fg-2)',          bg: 'var(--bg-2)' },
-  'agent.status.changed':  { label: '상담원 상태', icon: 'how_to_reg',         color: 'var(--accent-warn)',   bg: 'var(--accent-warn-soft)' },
-  'queue.summary.updated': { label: '큐 갱신',   icon: 'stacked_line_chart', color: 'var(--fg-2)',          bg: 'var(--bg-2)' },
-  info:                    { label: '안내',      icon: 'info',                color: 'var(--fg-2)',          bg: 'var(--bg-2)' },
+const TYPE_META: Record<EventLogItem['type'], { label: string; icon: string; tone: string }> = {
+  'call.created': {
+    label: '신규 콜',
+    icon: 'add_call',
+    tone: 'bg-primary/10 text-primary',
+  },
+  'call.updated': {
+    label: '콜 변경',
+    icon: 'sync',
+    tone: 'bg-secondary-container text-on-secondary-container',
+  },
+  'call.ended': { label: '통화 종료', icon: 'call_end', tone: 'bg-error-container/30 text-error' },
+  'screenpop.customer': {
+    label: '고객 팝업',
+    icon: 'person',
+    tone: 'bg-surface-container-high text-on-surface-variant',
+  },
+  'agent.status.changed': {
+    label: '상담원 상태',
+    icon: 'how_to_reg',
+    tone: 'bg-tertiary/10 text-tertiary',
+  },
+  'queue.summary.updated': {
+    label: '큐 갱신',
+    icon: 'stacked_line_chart',
+    tone: 'bg-surface-container-high text-on-surface-variant',
+  },
+  info: { label: '안내', icon: 'info', tone: 'bg-surface-container text-on-surface-variant' },
 };
 
-// v2 Operator — hairline rows, mono timestamp.
+// "The Precision Curator" Real-time Events feed.
+// 테두리 없고 divider 없음. 항목 사이 공백만.
 export function EventLogPanel() {
   const events = useCtiStore((s) => s.eventLog);
 
   return (
-    <div className="k-panel">
-      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--line-1)' }}>
-        <h4 className="text-[15px] font-semibold text-[var(--fg-1)]">실시간 이벤트</h4>
-        <div className="flex items-center gap-1.5">
-          <span className="k-dot k-dot-live" style={{ background: 'var(--signal)' }} />
-          <span className="k-eyebrow">LIVE</span>
-        </div>
+    <div
+      className="min-w-0 overflow-hidden rounded-lg p-3"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+      }}
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <h4 style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>
+          실시간 이벤트
+        </h4>
+        <span
+          style={{
+            color: 'var(--accent)',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}
+        >
+          실시간
+        </span>
       </div>
 
       {events.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="flex flex-col items-center justify-center py-8 text-center">
           <div
-            className="mb-3 flex h-12 w-12 items-center justify-center rounded-md"
-            style={{ border: '1px solid var(--line-2)', background: 'var(--bg-2)' }}
+            className="mb-2 flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--bg-raised)' }}
           >
-            <span className="material-symbols-outlined text-2xl text-[var(--fg-3)]">history_toggle_off</span>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 20, color: 'var(--text-secondary)' }}
+            >
+              history_toggle_off
+            </span>
           </div>
-          <h5 className="text-sm font-semibold text-[var(--fg-1)]">최근 이벤트 없음</h5>
-          <p className="mt-1 max-w-xs text-[11px] text-[var(--fg-3)]">
-            신규 수신, 통화 전환, 큐 변경 내역이 자동으로 여기에 표시됩니다.
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+            최근 이벤트 없음
           </p>
         </div>
       ) : (
-        <ul className="max-h-80 overflow-y-auto">
-          {events.map((item, idx) => {
+        <ul className="max-h-72 space-y-1 overflow-y-auto overflow-x-hidden pr-1">
+          {events.map((item) => {
             const meta = TYPE_META[item.type];
             return (
               <li
                 key={item.id}
-                className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-2)]"
-                style={{ borderBottom: idx !== events.length - 1 ? '1px solid var(--line-1)' : undefined }}
+                className="flex items-start gap-2 rounded p-2"
+                style={{ background: 'var(--bg-surface)' }}
               >
                 <div
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm"
-                  style={{ background: meta.bg, border: `1px solid ${meta.color}`, color: meta.color }}
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${meta.tone}`}
                 >
-                  <span className="material-symbols-outlined text-[14px]">{meta.icon}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    {meta.icon}
+                  </span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="k-eyebrow" style={{ color: meta.color }}>{meta.label}</span>
-                    <span className="k-mono text-[10px] text-[var(--fg-3)]">
+                    <span
+                      className="truncate"
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span
+                      className="shrink-0"
+                      style={{ color: 'var(--text-muted)', fontSize: 10 }}
+                    >
                       {dayjs(item.timestamp).format('HH:mm:ss')}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-[13px] text-[var(--fg-1)]">{item.message}</p>
+                  <p
+                    className="mt-0.5 truncate"
+                    style={{ color: 'var(--text-primary)', fontSize: 12 }}
+                  >
+                    {item.message}
+                  </p>
                 </div>
               </li>
             );

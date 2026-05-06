@@ -122,12 +122,11 @@ export class AuthService {
       agentId: agent.agentId,
       statusCode: 'AVAILABLE',
       reasonCode: null,
-    }, agent.tenantId);
+    });
     const queueSummary = await this.queuesService.getSummary(agent.tenantId);
     await this.eventBus.publish(
       REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
-      agent.tenantId,
     );
 
     const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, meta);
@@ -233,7 +232,6 @@ export class AuthService {
       await this.eventBus.publish(
         REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
         toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
-        row.tenantId,
       );
     }
     return { success: true, data: { loggedOut: true }, error: null };

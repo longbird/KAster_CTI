@@ -57,26 +57,6 @@ export class AsteriskConfigController {
     await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'asterisk', action, user.sub);
   }
 
-  private async assertForwardingAccess(user: any) {
-    await this.menuPermissionService.assertAnyMenuAction(
-      user.tenantId,
-      user.role,
-      ['settings/forwarding', 'asterisk'],
-      'view',
-      user.sub,
-    );
-  }
-
-  private async assertForwardingAction(user: any, action: 'create' | 'update' | 'delete') {
-    await this.menuPermissionService.assertAnyMenuAction(
-      user.tenantId,
-      user.role,
-      ['settings/forwarding', 'asterisk'],
-      action,
-      user.sub,
-    );
-  }
-
   private async assertPromptAction(user: any, action: 'create' | 'update' | 'delete') {
     await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/prompts', action, user.sub);
   }
@@ -126,10 +106,10 @@ export class AsteriskConfigController {
   @Post('agents-sip/sync') async syncAgentSip(@CurrentUser() u: any) { await this.assertAsteriskAction(u, 'operate'); return this.svc.syncAgentSip(u.tenantId); }
 
   // Forwarding Rules
-  @Get('forwarding-rules') async getForwardingRules(@CurrentUser() u: any) { await this.assertForwardingAccess(u); return this.svc.getForwardingRules(u.tenantId); }
-  @Post('forwarding-rules') async createForwardingRule(@CurrentUser() u: any, @Body() dto: CreateForwardingRuleDto) { await this.assertForwardingAction(u, 'create'); return this.svc.createForwardingRule(u.tenantId, dto); }
-  @Put('forwarding-rules/:id') async updateForwardingRule(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateForwardingRuleDto) { await this.assertForwardingAction(u, 'update'); return this.svc.updateForwardingRule(u.tenantId, id, dto); }
-  @Delete('forwarding-rules/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteForwardingRule(@CurrentUser() u: any, @Param('id') id: string) { await this.assertForwardingAction(u, 'delete'); return this.svc.deleteForwardingRule(u.tenantId, id); }
+  @Get('forwarding-rules') async getForwardingRules(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getForwardingRules(u.tenantId); }
+  @Post('forwarding-rules') async createForwardingRule(@CurrentUser() u: any, @Body() dto: CreateForwardingRuleDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createForwardingRule(u.tenantId, dto); }
+  @Put('forwarding-rules/:id') async updateForwardingRule(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateForwardingRuleDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateForwardingRule(u.tenantId, id, dto); }
+  @Delete('forwarding-rules/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteForwardingRule(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteForwardingRule(u.tenantId, id); }
 
   // Prompts
   @Get('prompts') async getPrompts(@CurrentUser() u: any) { await this.assertPromptAccess(u); return this.svc.getPrompts(u.tenantId); }
@@ -160,7 +140,6 @@ export class AsteriskConfigController {
 
   // Reload + Preview
   @Post('reload') async manualReload(@CurrentUser() u: any) { await this.assertAsteriskAction(u, 'operate'); return this.reload.executeReload(u.tenantId); }
-  @Get('dry-run') async dryRun(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.dryRunConfFiles(u.tenantId); }
   @Get('preview') async preview(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.previewConfFiles(u.tenantId); }
 }
 

@@ -3,6 +3,7 @@ import {
   cancelAttendedTransferCall,
   completeAttendedTransferCall,
   getActiveCalls,
+  getAnnouncements,
   getAgents,
   getAgentSession,
   getCallHistory,
@@ -22,6 +23,7 @@ import type {
   ActiveCall,
   AgentDirectoryItem,
   AgentSession,
+  Announcement,
   CallHistoryItem,
   CommandAck,
   CtiEvent,
@@ -35,6 +37,7 @@ interface CtiState {
   agentSession: AgentSession | null;
   queues: QueueSummary[];
   agentDirectory: AgentDirectoryItem[];
+  announcements: Announcement[];
   activeCalls: ActiveCall[];
   selectedCallId: string | null;
   recentHistory: CallHistoryItem[];
@@ -100,6 +103,7 @@ export const useCtiStore = create<CtiState>((set, get) => ({
   agentSession: null,
   queues: [],
   agentDirectory: [],
+  announcements: [],
   activeCalls: [],
   selectedCallId: null,
   recentHistory: [],
@@ -120,12 +124,13 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       }
     };
 
-    const [agentSession, queues, activeCalls, recentHistory, agentDirectory] = await Promise.all([
+    const [agentSession, queues, activeCalls, recentHistory, agentDirectory, announcements] = await Promise.all([
       safe(getAgentSession(), null as any),
       safe(getQueuesSummary(), [] as any),
       safe(getActiveCalls(), [] as any),
       safe(getCallHistory(), [] as any),
       safe(getAgents(), [] as any),
+      safe(getAnnouncements(), [] as any),
     ]);
 
     set({
@@ -133,6 +138,7 @@ export const useCtiStore = create<CtiState>((set, get) => ({
       agentSession,
       queues,
       agentDirectory,
+      announcements,
       activeCalls,
       selectedCallId: activeCalls[0]?.callId ?? null,
       recentHistory,

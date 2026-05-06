@@ -4,6 +4,7 @@ import type {
   ActiveCall,
   AgentDirectoryItem,
   AgentSession,
+  Announcement,
   AgentStatusCode,
   ApiResponse,
   CallHistoryItem,
@@ -225,6 +226,21 @@ export async function getAgents(): Promise<ApiResponse<AgentDirectoryItem[]>> {
           startedAt: agent.currentStatus.startedAt ?? undefined,
         }
       : null,
+  }));
+  return { success: true, data, error: null };
+}
+
+export async function getAnnouncements(): Promise<ApiResponse<Announcement[]>> {
+  const res = await apiClient.get('/announcements');
+  const raw: any[] = res.data?.data ?? [];
+  const data: Announcement[] = raw.map((item) => ({
+    announcementId: item.announcementId,
+    title: item.title,
+    body: item.body,
+    authorName: item.authorName,
+    pinned: item.pinned === true,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
   }));
   return { success: true, data, error: null };
 }

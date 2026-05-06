@@ -25,10 +25,6 @@ add_library(loadgen_scenario STATIC src/scenario.cpp)
 target_link_libraries(loadgen_scenario PUBLIC yaml-cpp)
 target_include_directories(loadgen_scenario PUBLIC include)
 
-add_library(loadgen_test_plan STATIC src/test_plan.cpp)
-target_link_libraries(loadgen_test_plan PUBLIC yaml-cpp)
-target_include_directories(loadgen_test_plan PUBLIC include)
-
 add_library(loadgen_orchestrator STATIC src/orchestrator.cpp)
 target_include_directories(loadgen_orchestrator PUBLIC include)
 
@@ -36,45 +32,29 @@ add_library(loadgen_report_writer STATIC src/report_writer.cpp)
 target_link_libraries(loadgen_report_writer PUBLIC nlohmann_json::nlohmann_json)
 target_include_directories(loadgen_report_writer PUBLIC include)
 
-add_library(loadgen_test_result STATIC src/test_result.cpp)
-target_link_libraries(loadgen_test_result PUBLIC nlohmann_json::nlohmann_json)
-target_include_directories(loadgen_test_result PUBLIC include)
-
-add_library(loadgen_feature_inventory STATIC src/feature_inventory.cpp)
-target_link_libraries(loadgen_feature_inventory PUBLIC nlohmann_json::nlohmann_json)
-target_include_directories(loadgen_feature_inventory PUBLIC include)
-
 add_library(loadgen_command_logic STATIC src/command_logic.cpp)
 target_link_libraries(
   loadgen_command_logic
   PUBLIC
-    loadgen_feature_inventory
     loadgen_orchestrator
     loadgen_report_writer
     loadgen_scenario
-    loadgen_test_plan
-    loadgen_test_result
 )
 target_include_directories(loadgen_command_logic PUBLIC include)
 
 if(PBX_LOADGEN_BUILD_CLI)
-  find_package(PJSIP QUIET)
+  find_package(PJSIP REQUIRED)
 
   add_executable(pbx-loadgen src/main.cpp)
+  target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp src/tone_generator.cpp)
   target_link_libraries(
     pbx-loadgen
     PRIVATE
       CLI11::CLI11
       loadgen_command_logic
       nlohmann_json::nlohmann_json
+      PJSIP::PJSIP
   )
-  if(PJSIP_FOUND)
-    target_sources(pbx-loadgen PRIVATE src/pjsip_client.cpp src/tone_generator.cpp)
-    target_link_libraries(pbx-loadgen PRIVATE PJSIP::PJSIP)
-    target_compile_definitions(pbx-loadgen PRIVATE PBX_LOADGEN_HAS_PJSIP=1)
-  else()
-    message(WARNING "PJSIP was not found. Building pbx-loadgen CLI with live SIP run disabled.")
-  endif()
   target_include_directories(pbx-loadgen PRIVATE include)
 endif()
 

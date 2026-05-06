@@ -15,7 +15,6 @@ struct LiveCallRequest {
   int startOffsetMs{0};
   int answerTimeoutMs{0};
   int holdDurationMs{0};
-  DtmfConfig dtmf;
 };
 
 class LiveCallRunner {

@@ -11,6 +11,7 @@ export const getQueuesSummary = api.getQueuesSummary;
 export const getActiveCalls = api.getActiveCalls;
 export const getCallHistory = api.getCallHistory;
 export const getAgents = api.getAgents;
+export const getAnnouncements = api.getAnnouncements;
 export const updateAgentStatus = api.updateAgentStatus;
 export const saveCallMemo = api.saveCallMemo;
 export const transferCall = api.transferCall;

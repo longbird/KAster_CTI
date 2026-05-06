@@ -33,6 +33,31 @@ export class CallsService {
     return `kaster:cti:call:${callId}:mute`;
   }
 
+  private parseBooleanFilter(value?: string) {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
+  }
+
+  private getMissedReason(row: {
+    answeredAt?: Date | null;
+    abandonFlag?: boolean | null;
+    resultCode?: string | null;
+    queueName?: string | null;
+    primaryAgent?: unknown | null;
+    callMemos?: Array<{ resultCode?: string | null }> | null;
+  }) {
+    if (row.answeredAt) return null;
+
+    const finalResultCode = row.callMemos?.[0]?.resultCode ?? row.resultCode ?? null;
+    if (finalResultCode?.includes('RECOVERY_TIMEOUT')) return 'SYSTEM_RECOVERY';
+    if (finalResultCode?.includes('TIMEOUT')) return 'QUEUE_TIMEOUT';
+    if (row.abandonFlag) return 'CUSTOMER_ABANDONED';
+    if (row.primaryAgent) return 'AGENT_NO_ANSWER';
+    if (row.queueName) return 'QUEUE_NO_ANSWER';
+    return 'NO_ANSWER';
+  }
+
   private async getMuteStateMap(callIds: string[]) {
     const uniqueCallIds = [...new Set(callIds.filter(Boolean))];
     const muteMap = new Map<string, boolean>();
@@ -1033,6 +1058,12 @@ export class CallsService {
     if (q.agentId)           where.primaryAgentId = q.agentId;
     if (q.status)            where.sessionStatus  = q.status;
     if (q.mode === 'missed') { where.sessionStatus = 'ENDED'; where.answeredAt = null; }
+    if (q.resultCode)        where.resultCode = q.resultCode;
+    if (q.queueName)         where.queueName = q.queueName;
+    const abandon = this.parseBooleanFilter(q.abandon);
+    if (abandon !== undefined) where.abandonFlag = abandon;
+    const recording = this.parseBooleanFilter(q.recording);
+    if (recording !== undefined) where.recordingFlag = recording;
 
     const rows = await this.prisma.callSessions.findMany({
       where,
@@ -1084,6 +1115,7 @@ export class CallsService {
       didNumber: resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? null,
       queueDisplayName: queueDisplayNameMap.get(row.queueName ?? '') ?? row.queueName ?? null,
       latestTransfer: latestTransferCandidateMap.get(row.linkedid) ?? null,
+      missedReason: this.getMissedReason(row),
       representativeNumber:
         didMetaMap.get(resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? row.dnis ?? '')?.representativeNumber ?? null,
     }));
@@ -1153,6 +1185,7 @@ export class CallsService {
     );
     const data = rows.map((row) => ({
       ...row,
+      fileSizeBytes: row.fileSizeBytes == null ? null : row.fileSizeBytes.toString(),
       session: row.session
         ? {
             ...row.session,
@@ -1182,6 +1215,8 @@ export class CallsService {
         fileFormat: true,
         fileSizeBytes: true,
         storageProvider: true,
+        callId: true,
+        linkedid: true,
       },
     });
 
@@ -1197,5 +1232,35 @@ export class CallsService {
       ...recording,
       contentType: this.getRecordingContentType(recording.fileFormat, recording.fileName),
     };
+  }
+
+  async recordRecordingDownloadAudit(
+    tenantId: string,
+    recording: {
+      recordingId: string;
+      callId?: string | null;
+      linkedid?: string | null;
+    },
+    audit: {
+      agentId?: string | null;
+      userRole?: string | null;
+      clientIp?: string | null;
+      userAgent?: string | null;
+    },
+  ) {
+    await (this.prisma as any).callRecordingAccessAuditLogs.create({
+      data: {
+        tenantId,
+        recordingId: recording.recordingId,
+        callId: recording.callId,
+        linkedid: recording.linkedid,
+        agentId: audit.agentId ?? null,
+        userRole: audit.userRole ?? null,
+        action: 'DOWNLOAD',
+        clientIp: audit.clientIp ?? null,
+        userAgent: audit.userAgent ?? null,
+        success: true,
+      },
+    });
   }
 }

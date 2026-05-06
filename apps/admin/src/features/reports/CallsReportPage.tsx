@@ -1,4 +1,4 @@
-import { Button, DatePicker, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, DatePicker, Input, Select, Space, Table, Tag, Typography } from 'antd';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
@@ -18,6 +18,8 @@ interface CdrRow {
   representativeNumber?: string | null;
   queueName: string;
   queueDisplayName?: string | null;
+  resultCode?: string | null;
+  missedReason?: string | null;
   sessionStatus: string;
   direction: string;
   startedAt: string;
@@ -74,6 +76,24 @@ const TRANSFER_PHASE_LABEL: Record<string, string> = {
   EXPIRED: '만료',
 };
 
+const MISSED_REASON_COLOR: Record<string, string> = {
+  CUSTOMER_ABANDONED: 'red',
+  QUEUE_TIMEOUT: 'orange',
+  QUEUE_NO_ANSWER: 'gold',
+  AGENT_NO_ANSWER: 'volcano',
+  SYSTEM_RECOVERY: 'purple',
+  NO_ANSWER: 'default',
+};
+
+const MISSED_REASON_LABEL: Record<string, string> = {
+  CUSTOMER_ABANDONED: '고객 포기',
+  QUEUE_TIMEOUT: '큐 timeout',
+  QUEUE_NO_ANSWER: '큐 미응답',
+  AGENT_NO_ANSWER: '상담원 미응답',
+  SYSTEM_RECOVERY: '복구 종료',
+  NO_ANSWER: '미응답',
+};
+
 function getStatusLabel(value?: string | null) {
   if (!value) return '-';
   return STATUS_LABEL[value] ?? '알 수 없음';
@@ -82,6 +102,11 @@ function getStatusLabel(value?: string | null) {
 function getTransferPhaseLabel(value?: string | null) {
   if (!value) return '-';
   return TRANSFER_PHASE_LABEL[value] ?? '알 수 없음';
+}
+
+function getMissedReasonLabel(value?: string | null) {
+  if (!value) return '-';
+  return MISSED_REASON_LABEL[value] ?? value;
 }
 
 function getDisplayDid(row: CdrRow) {
@@ -113,6 +138,11 @@ export function CallsReportPage() {
   const [range, setRange]     = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [mode, setMode]       = useState<'all' | 'missed'>('all');
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
+  const [status, setStatus] = useState<string | undefined>(undefined);
+  const [resultCode, setResultCode] = useState('');
+  const [queueName, setQueueName] = useState('');
+  const [abandon, setAbandon] = useState<string | undefined>(undefined);
+  const [recording, setRecording] = useState<string | undefined>(undefined);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,6 +153,11 @@ export function CallsReportPage() {
           to:   range[1].toISOString(),
           mode: mode === 'missed' ? 'missed' : undefined,
           branchId,
+          status,
+          resultCode: resultCode.trim() || undefined,
+          queueName: queueName.trim() || undefined,
+          abandon,
+          recording,
         },
       });
       setRows(res.data?.data ?? []);
@@ -131,7 +166,7 @@ export function CallsReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [branchId, mode, range]);
+  }, [abandon, branchId, mode, queueName, range, recording, resultCode, status]);
 
   useEffect(() => {
     void load();
@@ -140,7 +175,7 @@ export function CallsReportPage() {
   const exportRows = () => {
     downloadCsv(
       `calls-report-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
-      ['시작', '발신번호', '대표번호', 'DID', '큐', '상담원', '상태', '전환', '대기(초)', '통화(초)', '포기', '녹취'],
+      ['시작', '발신번호', '대표번호', 'DID', '큐', '상담원', '상태', '미연결 원인', '결과코드', '전환', '대기(초)', '통화(초)', '포기', '녹취'],
       rows.map((row) => [
         dayjs(row.startedAt).format('YYYY-MM-DD HH:mm:ss'),
         formatPhoneNumber(row.ani),
@@ -149,6 +184,8 @@ export function CallsReportPage() {
         getQueueLabel(row),
         row.primaryAgent?.agentName ?? '-',
         getStatusLabel(row.sessionStatus),
+        getMissedReasonLabel(row.missedReason),
+        row.resultCode ?? '',
         row.latestTransfer
           ? `${getTransferPhaseLabel(row.latestTransfer.phase)}${row.latestTransfer.toExtension ? ` · ${row.latestTransfer.toExtension}` : ''}`
           : '-',
@@ -177,6 +214,20 @@ export function CallsReportPage() {
         />
         <BranchFilterSelect value={branchId} onChange={setBranchId} />
         <Select
+          allowClear
+          placeholder="상태"
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: 'ENDED', label: '종료' },
+            { value: 'QUEUED', label: '대기열' },
+            { value: 'RINGING_AGENT', label: '벨 울림' },
+            { value: 'TALKING', label: '통화 중' },
+            { value: 'AFTER_CALL_WORK', label: '후처리' },
+          ]}
+          style={{ width: 130 }}
+        />
+        <Select
           value={mode}
           onChange={setMode}
           options={[
@@ -184,6 +235,40 @@ export function CallsReportPage() {
             { value: 'missed', label: '미연결만' },
           ]}
           style={{ width: 120 }}
+        />
+        <Input
+          placeholder="결과코드"
+          value={resultCode}
+          onChange={(event) => setResultCode(event.target.value)}
+          style={{ width: 140 }}
+        />
+        <Input
+          placeholder="큐명"
+          value={queueName}
+          onChange={(event) => setQueueName(event.target.value)}
+          style={{ width: 120 }}
+        />
+        <Select
+          allowClear
+          placeholder="포기"
+          value={abandon}
+          onChange={setAbandon}
+          options={[
+            { value: 'true', label: '포기' },
+            { value: 'false', label: '정상' },
+          ]}
+          style={{ width: 100 }}
+        />
+        <Select
+          allowClear
+          placeholder="녹취"
+          value={recording}
+          onChange={setRecording}
+          options={[
+            { value: 'true', label: '있음' },
+            { value: 'false', label: '없음' },
+          ]}
+          style={{ width: 100 }}
         />
         <Button type="primary" icon={<SearchOutlined />} onClick={() => void load()} loading={loading}>
           조회
@@ -239,6 +324,14 @@ export function CallsReportPage() {
             render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{getStatusLabel(v)}</Tag>,
             width: 120,
           },
+          {
+            title: '미연결 원인',
+            dataIndex: 'missedReason',
+            render: (value: string | null) =>
+              value ? <Tag color={MISSED_REASON_COLOR[value] ?? 'default'}>{getMissedReasonLabel(value)}</Tag> : '-',
+            width: 120,
+          },
+          { title: '결과코드', dataIndex: 'resultCode', width: 120, render: (value: string | null) => value || '-' },
           {
             title: '전환',
             width: 150,

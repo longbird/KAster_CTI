@@ -17,6 +17,26 @@ interface HealthResponse {
   ami?: { connected?: boolean; lastEventAt?: string };
   redis?: { connected?: boolean };
   db?: { connected?: boolean };
+  checks?: {
+    ami?: 'connected' | 'disconnected' | string;
+    redis?: 'up' | 'down' | string;
+    db?: 'up' | 'down' | string;
+  };
+}
+
+export function resolveLiveIntegrationHealth(data: HealthResponse) {
+  return {
+    ami: data.checks?.ami
+      ? data.checks.ami === 'connected' ? 'connected' : 'error'
+      : data.ami?.connected ? 'connected' : 'error',
+    redis: data.checks?.redis
+      ? data.checks.redis === 'up' ? 'connected' : 'error'
+      : data.redis?.connected ? 'connected' : 'error',
+    db: data.checks?.db
+      ? data.checks.db === 'up' ? 'connected' : 'error'
+      : data.db?.connected ? 'connected' : 'error',
+    lastEventAt: data.ami?.lastEventAt ?? null,
+  } as const;
 }
 
 const CATEGORY_LABEL: Record<IntegrationCard['category'], string> = {
@@ -71,10 +91,11 @@ export function IntegrationsPage() {
     try {
       const res = await apiClient.get('/health');
       const data: HealthResponse = res.data?.data ?? res.data ?? {};
-      setAmi(data.ami?.connected ? 'connected' : 'error');
-      setRedis(data.redis?.connected ? 'connected' : 'error');
-      setDb(data.db?.connected ? 'connected' : 'error');
-      setLastEventAt(data.ami?.lastEventAt ?? null);
+      const health = resolveLiveIntegrationHealth(data);
+      setAmi(health.ami);
+      setRedis(health.redis);
+      setDb(health.db);
+      setLastEventAt(health.lastEventAt);
     } catch {
       setAmi('error');
       setRedis('error');
@@ -91,9 +112,9 @@ export function IntegrationsPage() {
   const liveCards: IntegrationCard[] = [
     {
       id: 'asterisk-ami',
-      name: 'Asterisk AMI',
+      name: 'PBX AMI',
       code: 'AMI',
-      desc: 'Asterisk Manager Interface · 세션 이벤트 소스',
+      desc: 'PBX 관리 인터페이스 · 세션 이벤트 소스',
       category: 'pbx',
       status: ami,
       detail: lastEventAt ? `마지막 이벤트 ${new Date(lastEventAt).toLocaleTimeString()}` : '이벤트 대기 중',
