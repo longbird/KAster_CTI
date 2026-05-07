@@ -21,6 +21,7 @@ import { SmsTemplatesModule } from './modules/sms-templates/sms-templates.module
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { OutboundRulesModule } from './modules/outbound-rules/outbound-rules.module';
 import { ShareRulesModule } from './modules/share-rules/share-rules.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ShareRulesModule } from './modules/share-rules/share-rules.module';
     AgentUpdatesModule,
     OutboundRulesModule,
     ShareRulesModule,
+    IntegrationsModule,
     HealthModule,
   ],
   providers: [PrismaService],

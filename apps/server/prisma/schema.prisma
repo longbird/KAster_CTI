@@ -70,6 +70,7 @@ model tenants {
   shareRuleAgents      shareRuleAgents[]
   shareRuleAgentGroups shareRuleAgentGroups[]
   shareRuleBranches    shareRuleBranches[]
+  integrationAutomations integrationAutomations[]
 }
 
 model agentGroups {
@@ -948,6 +949,26 @@ model shareRuleAgentGroups {
 
   @@unique([tenantId, shareRuleId, agentGroupId])
   @@index([shareRuleId, priority])
+}
+
+// 외부 연동 자동화 (BlueSky DlgVixActionPhone / DlgVixActionSms 등가)
+model integrationAutomations {
+  integrationAutomationId String   @id @default(uuid()) @db.Uuid
+  tenantId                String   @db.Uuid
+  type                    String   @db.VarChar(32)
+  name                    String   @db.VarChar(128)
+  description             String?
+  config                  Json     @default("{}")
+  enabled                 Boolean  @default(true)
+  lastTriggeredAt         DateTime? @db.Timestamptz(6)
+  createdAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedById             String?  @db.Uuid
+
+  tenant                  tenants  @relation(fields: [tenantId], references: [tenantId])
+
+  @@index([tenantId, type, enabled])
+  @@index([tenantId, name])
 }
 
 // 공유규칙 → 지사 매트릭스 (mainPhone/transferPhone 부속)

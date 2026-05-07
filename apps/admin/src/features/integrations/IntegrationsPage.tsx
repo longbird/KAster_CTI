@@ -1,7 +1,29 @@
-import { Button, Tag, message } from 'antd';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  ExperimentOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Popconfirm,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
+import { usePermissionStore } from '../../store/usePermissionStore';
+import {
+  buildPayload,
+  IntegrationAutomationRow,
+  IntegrationFormModal,
+} from './IntegrationFormModal';
 
 interface IntegrationCard {
   id: string;
@@ -81,11 +103,42 @@ const STATIC_INTEGRATIONS: IntegrationCard[] = [
   },
 ];
 
+const TYPE_LABEL: Record<string, string> = {
+  VIX_PHONE: 'VIX 전화',
+  VIX_SMS: 'VIX SMS',
+  WEBHOOK: 'Webhook',
+  SLACK_WEBHOOK: 'Slack',
+};
+
 export function IntegrationsPage() {
   const [ami, setAmi] = useState<'connected' | 'error' | 'available'>('available');
   const [redis, setRedis] = useState<'connected' | 'error' | 'available'>('available');
   const [db, setDb] = useState<'connected' | 'error' | 'available'>('available');
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
+
+  const [automations, setAutomations] = useState<IntegrationAutomationRow[]>([]);
+  const [automationsLoading, setAutomationsLoading] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<IntegrationAutomationRow | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const permission = usePermissionStore((s) => s.permissionsByMenu['integrations']);
+  const canCreate = permission?.canCreate ?? true;
+  const canUpdate = permission?.canUpdate ?? true;
+  const canDelete = permission?.canDelete ?? true;
+  const canOperate = permission?.canOperate ?? true;
+
+  const loadAutomations = async () => {
+    setAutomationsLoading(true);
+    try {
+      const res = await apiClient.get('/admin/settings/integrations');
+      setAutomations(res.data?.data ?? []);
+    } catch {
+      setAutomations([]);
+    } finally {
+      setAutomationsLoading(false);
+    }
+  };
 
   const refresh = async () => {
     try {
@@ -105,9 +158,68 @@ export function IntegrationsPage() {
 
   useEffect(() => {
     void refresh();
+    void loadAutomations();
     const t = window.setInterval(() => void refresh(), 10000);
     return () => window.clearInterval(t);
   }, []);
+
+  const submit = async (payload: ReturnType<typeof buildPayload>) => {
+    setSubmitting(true);
+    try {
+      if (editing) {
+        await apiClient.post(
+          `/admin/settings/integrations/${editing.integrationAutomationId}`,
+          payload,
+        );
+        message.success('자동화를 수정했습니다.');
+      } else {
+        await apiClient.post('/admin/settings/integrations', payload);
+        message.success('자동화를 등록했습니다.');
+      }
+      setFormOpen(false);
+      setEditing(null);
+      await loadAutomations();
+    } catch (error: any) {
+      message.error(error?.response?.data?.error?.message ?? '저장에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await apiClient.delete(`/admin/settings/integrations/${id}`);
+      message.success('자동화를 삭제했습니다.');
+      await loadAutomations();
+    } catch {
+      message.error('삭제에 실패했습니다.');
+    }
+  };
+
+  const toggle = async (row: IntegrationAutomationRow, enabled: boolean) => {
+    try {
+      await apiClient.post(
+        `/admin/settings/integrations/${row.integrationAutomationId}/toggle`,
+        { enabled },
+      );
+      await loadAutomations();
+    } catch {
+      message.error('상태 변경에 실패했습니다.');
+    }
+  };
+
+  const runTest = async (row: IntegrationAutomationRow) => {
+    try {
+      const res = await apiClient.post(
+        `/admin/settings/integrations/${row.integrationAutomationId}/test`,
+        { payload: { source: 'admin-test' } },
+      );
+      message.success(res.data?.data?.message ?? '테스트 실행 완료 (dry-run)');
+      await loadAutomations();
+    } catch (error: any) {
+      message.error(error?.response?.data?.error?.message ?? '테스트 실패');
+    }
+  };
 
   const liveCards: IntegrationCard[] = [
     {
@@ -154,6 +266,119 @@ export function IntegrationsPage() {
             재확인
           </Button>
         }
+      />
+
+      <Card
+        title="외부 자동화 (VIX / Webhook)"
+        size="small"
+        style={{ marginBottom: 16 }}
+        extra={
+          canCreate ? (
+            <Button
+              type="primary"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+            >
+              자동화 등록
+            </Button>
+          ) : null
+        }
+      >
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+          BlueSky <code>DlgVixActionPhone</code> / <code>DlgVixActionSms</code> 등가물. 등록 + 수동 테스트(dry-run)
+          까지 지원합니다. 통화/이벤트 자동 트리거 연결은 follow-up PR.
+        </Typography.Paragraph>
+        <Table<IntegrationAutomationRow>
+          rowKey="integrationAutomationId"
+          dataSource={automations}
+          loading={automationsLoading}
+          size="small"
+          pagination={false}
+          columns={[
+            {
+              title: '타입',
+              dataIndex: 'type',
+              width: 130,
+              render: (v: string) => <Tag>{TYPE_LABEL[v] ?? v}</Tag>,
+            },
+            { title: '이름', dataIndex: 'name' },
+            {
+              title: '설명',
+              dataIndex: 'description',
+              render: (v: string | null) => v ?? '',
+            },
+            {
+              title: '마지막 실행',
+              dataIndex: 'lastTriggeredAt',
+              width: 170,
+              render: (v: string | null) =>
+                v ? new Date(v).toLocaleString() : <Typography.Text type="secondary">-</Typography.Text>,
+            },
+            {
+              title: '사용',
+              dataIndex: 'enabled',
+              width: 90,
+              render: (v: boolean, row) => (
+                <Switch
+                  size="small"
+                  checked={v}
+                  disabled={!canOperate}
+                  onChange={(checked) => void toggle(row, checked)}
+                />
+              ),
+            },
+            {
+              title: '관리',
+              width: 200,
+              render: (_: unknown, row) => (
+                <Space>
+                  {canOperate ? (
+                    <Button
+                      size="small"
+                      icon={<ExperimentOutlined />}
+                      onClick={() => void runTest(row)}
+                    >
+                      테스트
+                    </Button>
+                  ) : null}
+                  {canUpdate ? (
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => {
+                        setEditing(row);
+                        setFormOpen(true);
+                      }}
+                    />
+                  ) : null}
+                  {canDelete ? (
+                    <Popconfirm
+                      title="자동화를 삭제하시겠습니까?"
+                      onConfirm={() => remove(row.integrationAutomationId)}
+                    >
+                      <Button size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  ) : null}
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <IntegrationFormModal
+        open={formOpen}
+        initial={editing}
+        loading={submitting}
+        onCancel={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={submit}
       />
 
       {Object.entries(grouped).map(([cat, items]) => (
