@@ -57,6 +57,7 @@ model tenants {
   asteriskIvrMenus     AsteriskIvrMenu[]
   smsTemplates         tenantSmsTemplate[]
   agentGroups          agentGroups[]
+  agentBranchCallerIds agentBranchCallerIds[]
 }
 
 model agentGroups {
@@ -112,6 +113,7 @@ model agents {
   refreshTokens      refreshTokens[]
   agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
   menuPermissions    agentMenuPermissions[]
+  branchCallerIds    agentBranchCallerIds[]
 
   @@unique([tenantId, loginId])
   @@unique([tenantId, agentCode])
@@ -558,6 +560,7 @@ model branches {
   agentMappings branchAgents[]
   queueMappings branchQueues[]
   didMappings   branchDids[]
+  agentCallerIds agentBranchCallerIds[]
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
@@ -606,6 +609,30 @@ model branchDids {
 
   @@unique([branchId, didId])
   @@index([tenantId, branchId])
+}
+
+// 상담원-지사 CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가)
+model agentBranchCallerIds {
+  agentBranchCallerIdId String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  branchId              String   @db.Uuid
+  agentId               String   @db.Uuid
+  callerIdNumber        String   @db.VarChar(32)
+  displayName           String?  @db.VarChar(64)
+  allowedInbound        Boolean  @default(true)
+  allowedOutbound       Boolean  @default(true)
+  allowedTransfer       Boolean  @default(true)
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  agent  agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([tenantId, branchId, agentId, callerIdNumber])
+  @@index([tenantId, branchId, agentId])
+  @@index([tenantId, agentId])
 }
 
 model rolePermissions {

@@ -9,6 +9,7 @@ import { AdminService } from './admin.service';
 import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
+import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-ids.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
 import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
@@ -161,6 +162,56 @@ export class AdminController {
       user.sub,
     );
     return this.adminService.deleteAgentGroup(user.tenantId, agentGroupId);
+  }
+
+  // -------- 상담원-지사 CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가) --------
+  @Get('settings/branches/:branchId/agent-caller-ids')
+  @Roles('supervisor', 'admin')
+  async listBranchAgentCallerIds(
+    @CurrentUser() user: any,
+    @Param('branchId') branchId: string,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/branches',
+      'view',
+      user.sub,
+    );
+    return this.adminService.listBranchAgentCallerIds(user.tenantId, branchId);
+  }
+
+  @Post('settings/branches/:branchId/agent-caller-ids')
+  @Roles('supervisor', 'admin')
+  async updateBranchAgentCallerIds(
+    @CurrentUser() user: any,
+    @Param('branchId') branchId: string,
+    @Body() dto: UpdateAgentBranchCallerIdsDto,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/branches',
+      'update',
+      user.sub,
+    );
+    return this.adminService.updateBranchAgentCallerIds(user.tenantId, branchId, dto);
+  }
+
+  @Get('agents/:agentId/caller-id-permissions')
+  @Roles('supervisor', 'admin')
+  async listAgentCallerIdPermissions(
+    @CurrentUser() user: any,
+    @Param('agentId') agentId: string,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/agents',
+      'view',
+      user.sub,
+    );
+    return this.adminService.listAgentCallerIdPermissions(user.tenantId, agentId);
   }
 
   @Get('settings/branches')

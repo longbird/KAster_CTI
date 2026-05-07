@@ -691,4 +691,21 @@ export class AuthService {
       }
     }
   }
+
+  /**
+   * 상담원 본인 — JWT 의 sub 기반으로 발신 가능한 callerId 권한 목록 조회.
+   * apps/web · apps/desktop 발신 UI 가 이 응답을 토대로 발신번호 선택 옵션을 표시한다.
+   * agents-by-id 경로에 본인+감독 분기를 두는 대신 본인 전용 endpoint 로 분리해
+   * agents.controller 의 `user.sub !== agentId && !SUPERVISORY_ROLES.has(user.role)` 류 인라인 분기를 피함.
+   */
+  async listMyCallerIdPermissions(user: { tenantId: string; sub: string }) {
+    const rows = await (this.prisma as any).agentBranchCallerIds.findMany({
+      where: { tenantId: user.tenantId, agentId: user.sub },
+      include: {
+        branch: { select: { branchId: true, branchCode: true, branchName: true } },
+      },
+      orderBy: [{ branchId: 'asc' }, { sortOrder: 'asc' }],
+    });
+    return { success: true, data: rows, error: null };
+  }
 }

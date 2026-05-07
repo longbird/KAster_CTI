@@ -67,6 +67,18 @@ export class AuthController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Get('me/caller-id-permissions')
+  @ApiOperation({
+    summary: '본인 발신 가능 callerId 목록 (지사 × 발신번호)',
+    description: '발신 UI 가 상담원 본인의 발신 가능한 번호를 조회. 관리자 시점은 /admin/agents/:agentId/caller-id-permissions 사용.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  myCallerIdPermissions(@CurrentUser() user: any) {
+    return this.authService.listMyCallerIdPermissions(user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get('auth/desktop/session')
   @ApiOperation({
     summary: 'Desktop 전용 세션 조회',

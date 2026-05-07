@@ -16,6 +16,7 @@ import { QueuesService } from '../queues/queues.service';
 import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-ids.dto';
 import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
@@ -2617,4 +2618,120 @@ export class AdminService {
 
     return { success: true, data: { deleted: true, agentGroupId }, error: null };
   }
+
+  // ===========================================================================
+  // Agent-branch CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가)
+  // ===========================================================================
+
+  /** 지사 단위 매트릭스 조회 — 행=상담원, 컬럼=callerIdNumber */
+  async listBranchAgentCallerIds(tenantId: string, branchId: string) {
+    const branch = await this.prisma.branches.findFirst({
+      where: { tenantId, branchId },
+      select: { branchId: true, branchCode: true, branchName: true },
+    });
+    if (!branch) {
+      throw new BadRequestException('지사를 찾을 수 없습니다.');
+    }
+
+    const rows = await (this.prisma as any).agentBranchCallerIds.findMany({
+      where: { tenantId, branchId },
+      orderBy: [{ sortOrder: 'asc' }, { callerIdNumber: 'asc' }],
+    });
+
+    const agents = await this.prisma.agents.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: { extension: 'asc' },
+      select: {
+        agentId: true,
+        agentCode: true,
+        agentName: true,
+        extension: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: { branch, agents, entries: rows },
+      error: null,
+    };
+  }
+
+  /** 지사 단위 bulk upsert — 매트릭스 한 번에 저장 */
+  async updateBranchAgentCallerIds(
+    tenantId: string,
+    branchId: string,
+    dto: UpdateAgentBranchCallerIdsDto,
+  ) {
+    const branch = await this.prisma.branches.findFirst({
+      where: { tenantId, branchId },
+      select: { branchId: true },
+    });
+    if (!branch) {
+      throw new BadRequestException('지사를 찾을 수 없습니다.');
+    }
+
+    const agentIds = Array.from(new Set(dto.entries.map((e) => e.agentId)));
+    if (agentIds.length > 0) {
+      const validAgents = await this.prisma.agents.findMany({
+        where: { tenantId, agentId: { in: agentIds } },
+        select: { agentId: true },
+      });
+      if (validAgents.length !== agentIds.length) {
+        throw new BadRequestException('알 수 없는 상담원이 포함되어 있습니다.');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await (tx as any).agentBranchCallerIds.deleteMany({
+        where: { tenantId, branchId },
+      });
+      if (dto.entries.length === 0) return;
+      await (tx as any).agentBranchCallerIds.createMany({
+        data: dto.entries.map((e) => ({
+          tenantId,
+          branchId,
+          agentId: e.agentId,
+          callerIdNumber: e.callerIdNumber,
+          displayName: e.displayName ?? null,
+          allowedInbound: e.allowedInbound ?? true,
+          allowedOutbound: e.allowedOutbound ?? true,
+          allowedTransfer: e.allowedTransfer ?? true,
+          sortOrder: e.sortOrder ?? 0,
+        })),
+      });
+    });
+
+    return { success: true, data: { branchId, count: dto.entries.length }, error: null };
+  }
+
+  /** 상담원 시점 — 관리자 조회 (전 지사 합본) */
+  async listAgentCallerIdPermissions(tenantId: string, agentId: string) {
+    const agent = await this.prisma.agents.findFirst({
+      where: { tenantId, agentId },
+      select: {
+        agentId: true,
+        agentCode: true,
+        agentName: true,
+        extension: true,
+      },
+    });
+    if (!agent) {
+      throw new BadRequestException('상담원을 찾을 수 없습니다.');
+    }
+
+    const rows = await (this.prisma as any).agentBranchCallerIds.findMany({
+      where: { tenantId, agentId },
+      include: {
+        branch: { select: { branchId: true, branchCode: true, branchName: true } },
+      },
+      orderBy: [{ branchId: 'asc' }, { sortOrder: 'asc' }],
+    });
+
+    return {
+      success: true,
+      data: { agent, entries: rows },
+      error: null,
+    };
+  }
+
 }
