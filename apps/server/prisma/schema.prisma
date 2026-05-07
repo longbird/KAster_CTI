@@ -16,6 +16,13 @@ enum SmsTemplateCategory {
   RESERVATION_ALERT
 }
 
+enum OutboundCallerIdMatchType {
+  EXACT
+  PREFIX
+  REGEX
+  DIALPLAN_PATTERN
+}
+
 model tenants {
   tenantId     String    @id @default(uuid()) @db.Uuid
   tenantCode   String    @unique @db.VarChar(32)
@@ -58,6 +65,7 @@ model tenants {
   smsTemplates         tenantSmsTemplate[]
   agentGroups          agentGroups[]
   agentBranchCallerIds agentBranchCallerIds[]
+  outboundCallerIdRules outboundCallerIdRules[]
 }
 
 model agentGroups {
@@ -561,6 +569,7 @@ model branches {
   queueMappings branchQueues[]
   didMappings   branchDids[]
   agentCallerIds agentBranchCallerIds[]
+  outboundCallerIdRules outboundCallerIdRules[]
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
@@ -609,6 +618,28 @@ model branchDids {
 
   @@unique([branchId, didId])
   @@index([tenantId, branchId])
+}
+
+// 아웃바운드 발신번호 매핑 룰 (BlueSky Outbound 등가)
+model outboundCallerIdRules {
+  outboundCallerIdRuleId String                    @id @default(uuid()) @db.Uuid
+  tenantId               String                    @db.Uuid
+  branchId               String?                   @db.Uuid
+  matchType              OutboundCallerIdMatchType
+  sourceNumberPattern    String                    @db.VarChar(64)
+  callerIdNumber         String                    @db.VarChar(32)
+  displayName            String?                   @db.VarChar(64)
+  memo                   String?
+  priority               Int                       @default(0)
+  enabled                Boolean                   @default(true)
+  createdAt              DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime                  @default(now()) @db.Timestamptz(6)
+
+  tenant tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch branches? @relation(fields: [branchId], references: [branchId], onDelete: SetNull)
+
+  @@index([tenantId, branchId, priority])
+  @@index([tenantId, enabled])
 }
 
 // 상담원-지사 CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가)

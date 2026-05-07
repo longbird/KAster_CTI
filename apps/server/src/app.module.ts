@@ -19,6 +19,7 @@ import { AsteriskConfigModule } from './modules/asterisk-config/asterisk-config.
 import { AgentUpdatesModule } from './modules/agent-updates/agent-updates.module';
 import { SmsTemplatesModule } from './modules/sms-templates/sms-templates.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { OutboundRulesModule } from './modules/outbound-rules/outbound-rules.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
     SmsTemplatesModule,
     AsteriskConfigModule,
     AgentUpdatesModule,
+    OutboundRulesModule,
     HealthModule,
   ],
   providers: [PrismaService],

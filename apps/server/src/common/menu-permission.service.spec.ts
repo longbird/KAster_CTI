@@ -60,4 +60,16 @@ describe('defaultPermissionFlags', () => {
       }),
     );
   });
+
+  it('adds outbound caller-id rules under operations settings permissions', () => {
+    expect(MENU_KEYS).toContain('settings/outbound-rules');
+    expect(defaultPermissionFlags('supervisor', 'settings/outbound-rules')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+      }),
+    );
+  });
 });
