@@ -7,6 +7,7 @@ import { KpiPage } from '../features/kpi/KpiPage';
 import { AgentGroupsPage } from '../features/agent-groups/AgentGroupsPage';
 import { AgentSettingsPage } from '../features/agent-settings/AgentSettingsPage';
 import { OutboundRulesPage } from '../features/outbound-rules/OutboundRulesPage';
+import { ShareRulesPage } from '../features/share-rules/ShareRulesPage';
 import { QueueSettingsPage } from '../features/queue-settings/QueueSettingsPage';
 import { BranchSettingsPage } from '../features/branch-settings/BranchSettingsPage';
 import { CustomersPage } from '../features/customers/CustomersPage';
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: 'settings/agents',      element: <AgentSettingsPage /> },
       { path: 'settings/agent-groups', element: <AgentGroupsPage /> },
       { path: 'settings/outbound-rules', element: <OutboundRulesPage /> },
+      { path: 'settings/share-rules', element: <ShareRulesPage /> },
       { path: 'settings/queues',      element: <QueueSettingsPage /> },
       { path: 'settings/forwarding',  element: <ForwardingSettingsPage /> },
       { path: 'settings/prompts',     element: <PromptSettingsPage /> },

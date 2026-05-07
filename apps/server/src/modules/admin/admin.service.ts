@@ -1857,6 +1857,9 @@ export class AdminService {
     if (dto.vipPromptId) {
       await this.assertPromptBelongsToTenant(tenantId, dto.vipPromptId);
     }
+    if (dto.defaultShareRuleId) {
+      await this.assertShareRuleBelongsToTenant(tenantId, dto.defaultShareRuleId);
+    }
     const row = await this.prisma.branches.create({
       data: {
         tenantId,
@@ -1865,6 +1868,9 @@ export class AdminService {
         description: dto.description ?? null,
         isActive: dto.isActive ?? true,
         ...(dto.vipPromptId !== undefined ? { vipPromptId: dto.vipPromptId ?? null } : {}),
+        ...(dto.defaultShareRuleId !== undefined
+          ? { defaultShareRuleId: dto.defaultShareRuleId ?? null }
+          : {}),
       } as any,
     });
     return { success: true, data: row, error: null };
@@ -1874,6 +1880,9 @@ export class AdminService {
     if (dto.vipPromptId) {
       await this.assertPromptBelongsToTenant(tenantId, dto.vipPromptId);
     }
+    if (dto.defaultShareRuleId) {
+      await this.assertShareRuleBelongsToTenant(tenantId, dto.defaultShareRuleId);
+    }
     const row = await this.prisma.branches.updateMany({
       where: { tenantId, branchId },
       data: {
@@ -1881,11 +1890,24 @@ export class AdminService {
         ...(dto.branchName !== undefined ? { branchName: dto.branchName } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.vipPromptId !== undefined ? { vipPromptId: dto.vipPromptId ?? null } : {}),
+        ...(dto.defaultShareRuleId !== undefined
+          ? { defaultShareRuleId: dto.defaultShareRuleId ?? null }
+          : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         updatedAt: new Date(),
       } as any,
     });
     return { success: true, data: { updated: row.count > 0, branchId }, error: null };
+  }
+
+  private async assertShareRuleBelongsToTenant(tenantId: string, shareRuleId: string) {
+    const rule = await (this.prisma as any).shareRules.findFirst({
+      where: { tenantId, shareRuleId },
+      select: { shareRuleId: true },
+    });
+    if (!rule) {
+      throw new BadRequestException('선택한 공유규칙(shareRule)을 찾을 수 없습니다.');
+    }
   }
 
   private async assertPromptBelongsToTenant(tenantId: string, promptId: string) {
@@ -2028,6 +2050,7 @@ export class AdminService {
               description: branch.description,
               isActive: branch.isActive,
               vipPromptId: (branch as any).vipPromptId ?? null,
+              defaultShareRuleId: (branch as any).defaultShareRuleId ?? null,
             }
           : null,
         assignedAgentIds: branch?.agentMappings.map((item) => item.agentId) ?? [],

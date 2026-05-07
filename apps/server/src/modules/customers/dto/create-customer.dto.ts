@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
@@ -14,6 +14,10 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   memo?: string;
+
+  @IsOptional()
+  @IsUUID()
+  shareRuleId?: string | null;
 
   @IsOptional()
   @IsArray()

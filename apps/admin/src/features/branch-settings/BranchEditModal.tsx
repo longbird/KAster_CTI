@@ -48,6 +48,7 @@ export interface BranchRow {
   isActive: boolean;
   vipPromptId?: string | null;
   vipPrompt?: { id: string; promptKey: string; displayName: string } | null;
+  defaultShareRuleId?: string | null;
   createdAt: string;
   agentCount?: number;
   queueCount?: number;
@@ -209,6 +210,7 @@ interface MappingResponse {
     description?: string | null;
     isActive: boolean;
     vipPromptId?: string | null;
+    defaultShareRuleId?: string | null;
   } | null;
   assignedQueueIds: string[];
   assignedDidIds: string[];
@@ -230,6 +232,7 @@ interface BranchConfigFormValue {
   description?: string;
   isActive: boolean;
   vipPromptId?: string;
+  defaultShareRuleId?: string;
   queueIds: string[];
   didIds: string[];
   representativeDidId?: string;
@@ -823,6 +826,8 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
     description: mapping?.branch?.description ?? branch?.description ?? '',
     isActive: mapping?.branch?.isActive ?? branch?.isActive ?? true,
     vipPromptId: mapping?.branch?.vipPromptId ?? branch?.vipPromptId ?? undefined,
+    defaultShareRuleId:
+      mapping?.branch?.defaultShareRuleId ?? branch?.defaultShareRuleId ?? undefined,
     queueIds,
     didIds,
     representativeDidId:
@@ -893,6 +898,21 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mappingData, setMappingData] = useState<MappingResponse | null>(null);
+  const [shareRuleOptions, setShareRuleOptions] = useState<
+    Array<{ shareRuleId: string; ruleCode: string; ruleName: string; isActive: boolean }>
+  >([]);
+
+  useEffect(() => {
+    if (!open) return;
+    void apiClient
+      .get('/admin/settings/share-rules')
+      .then((res) => {
+        setShareRuleOptions(
+          (res.data?.data ?? []).filter((r: any) => r.isActive !== false),
+        );
+      })
+      .catch(() => setShareRuleOptions([]));
+  }, [open]);
   const navigate = useNavigate();
   const isEdit = !!branch?.branchId;
   const [activeSection, setActiveSection] = useState<string>('basic');
@@ -1266,6 +1286,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
             description: values.description ?? '',
             isActive: values.isActive,
             vipPromptId: values.vipPromptId || null,
+            defaultShareRuleId: values.defaultShareRuleId || null,
           };
 
           if (branchId) {
@@ -1447,6 +1468,22 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                 </Row>
                 <Form.Item label="설명" name="description" extra="지사 역할이나 운영 메모를 남길 수 있습니다.">
                   <Input.TextArea rows={4} maxLength={1000} placeholder="예: 서울 남부권 대표 인입 지사" />
+                </Form.Item>
+                <Form.Item
+                  className="branch-edit-modal__compact-item"
+                  label={renderFieldLabel('기본 공유규칙', '지사에 적용할 기본 호 분배 룰. 고객별 오버라이드가 없으면 이 룰을 따릅니다. BlueSky ShareRule 매트릭스.')}
+                  name="defaultShareRuleId"
+                >
+                  <Select
+                    allowClear
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="공유규칙 미사용"
+                    options={shareRuleOptions.map((r) => ({
+                      value: r.shareRuleId,
+                      label: `${r.ruleName} (${r.ruleCode})`,
+                    }))}
+                  />
                 </Form.Item>
                 <Form.Item className="branch-edit-modal__compact-item" label="활성 여부" name="isActive" valuePropName="checked">
                   <Switch checkedChildren="활성" unCheckedChildren="비활성" />

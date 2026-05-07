@@ -26,6 +26,14 @@ export class CreateBranchDto {
   @IsUUID()
   vipPromptId?: string | null;
 
+  @ApiProperty({
+    required: false,
+    description: '지사 기본 공유규칙 (shareRules FK). BlueSky ShareRule 매트릭스.',
+  })
+  @IsOptional()
+  @IsUUID()
+  defaultShareRuleId?: string | null;
+
   @ApiProperty({ required: false, example: true })
   @IsOptional()
   @IsBoolean()
