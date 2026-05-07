@@ -19,6 +19,7 @@ import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AgentStateService } from '../calls/agent-state.service';
 import { AgentsService } from './agents.service';
 import { ChangeAgentStatusDto } from './dto/change-agent-status.dto';
+import { CopyAgentPermissionsDto } from './dto/copy-agent-permissions.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 
@@ -136,5 +137,28 @@ export class AgentsController {
       dto.reasonCode,
     );
     return { success: true, data: row, error: null };
+  }
+
+  /**
+   * 권한 복사 (BlueSky DlgCallPossibleAuthCopy 등가).
+   * 핵심 scope (queueMembership / branchCidAuth / menuPermissions / agentSettingsProfile)
+   * 가 destructive 이므로 settings/agents update 권한 필요.
+   */
+  @Post(':targetAgentId/copy-permissions')
+  @UseGuards(RolesGuard)
+  @Roles('supervisor', 'admin')
+  async copyPermissions(
+    @CurrentUser() user: any,
+    @Param('targetAgentId') targetAgentId: string,
+    @Body() dto: CopyAgentPermissionsDto,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/agents',
+      'update',
+      user.sub,
+    );
+    return this.agentsService.copyPermissions(user.tenantId, targetAgentId, dto);
   }
 }

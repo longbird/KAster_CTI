@@ -11,6 +11,7 @@ import {
   message,
 } from 'antd';
 import {
+  CopyOutlined,
   EditOutlined,
   KeyOutlined,
   PlusOutlined,
@@ -21,6 +22,7 @@ import { usePermissionStore } from '../../store/usePermissionStore';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AgentCreateModal } from './AgentCreateModal';
 import { AgentEditModal, type AgentRow } from './AgentEditModal';
+import { AgentPermissionCopyModal } from './AgentPermissionCopyModal';
 
 const STATUS_COLOR: Record<string, string> = {
   AVAILABLE: 'green',
@@ -49,6 +51,7 @@ export function AgentSettingsPage() {
   const [rows, setRows] = useState<AgentRow[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<AgentRow | null>(null);
+  const [copyTarget, setCopyTarget] = useState<AgentRow | null>(null);
 
   const load = async () => {
     try {
@@ -171,6 +174,15 @@ export function AgentSettingsPage() {
                 >
                   PW 초기화
                 </Button>
+                <Button
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={() => setCopyTarget(r)}
+                  disabled={!r.isActive || agentPermission?.canUpdate === false}
+                  title="다른 상담원의 권한을 이 상담원으로 복사"
+                >
+                  권한복사
+                </Button>
                 <Popconfirm
                   title="정말 비활성화할까요?"
                   onConfirm={() => void deactivate(r.agentId)}
@@ -208,6 +220,13 @@ export function AgentSettingsPage() {
           onClose={() => {
             setEditing(null);
           }}
+          onSaved={() => void load()}
+        />
+      ) : null}
+      {agentPermission?.canUpdate !== false ? (
+        <AgentPermissionCopyModal
+          target={copyTarget}
+          onClose={() => setCopyTarget(null)}
           onSaved={() => void load()}
         />
       ) : null}
