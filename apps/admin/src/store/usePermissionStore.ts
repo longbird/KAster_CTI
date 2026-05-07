@@ -75,8 +75,11 @@ export const usePermissionStore = create<PermissionState>((set) => ({
         loading: false,
       });
     } catch {
+      // fail-closed: 권한 API 장애 시 클라이언트가 임의로 메뉴/액션을 열어주지 않는다.
+      // 서버 가드가 최종 방어선이지만 운영 화면에서 권한 fallback 으로 인한
+      // 의도치 않은 노출은 금지. 대시보드만 남기고 모든 메뉴를 막는다.
       set({
-        allowedPaths: defaultAllowedPaths(role),
+        allowedPaths: ['/dashboard'],
         permissionsByMenu: {},
         loaded: true,
         loading: false,

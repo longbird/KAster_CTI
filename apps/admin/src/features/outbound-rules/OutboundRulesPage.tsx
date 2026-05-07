@@ -71,8 +71,8 @@ const MATCH_TYPE_OPTIONS: { value: MatchType; label: string; help: string }[] = 
   { value: 'REGEX', label: 'REGEX (정규식)', help: '서버 측 매칭 전용. dialplan 으로는 보내지 않음. 최대 200자.' },
   {
     value: 'DIALPLAN_PATTERN',
-    label: 'DIALPLAN_PATTERN (Asterisk 패턴)',
-    help: '_NXX, _010. 등 Asterisk 패턴. dialplan 에 그대로 들어감.',
+    label: 'DIALPLAN_PATTERN (PBX 패턴)',
+    help: '_NXX, _010. 등 PBX 패턴. dialplan 에 그대로 들어감.',
   },
 ];
 
