@@ -877,6 +877,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       defaultOutboundCallerId,
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
+    const outboundCallerIdRules = await this.fetchOutboundCallerIdRules(tenantId);
 
     const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const rtpContent = this.renderRtpConf();
@@ -896,6 +897,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           liveRecordingEnabled: profile.liveRecording === 'USE',
         };
       }),
+      outboundCallerIdRules,
     });
     const queuesContent = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -957,6 +959,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       defaultOutboundCallerId,
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
+    const outboundCallerIdRules = await this.fetchOutboundCallerIdRules(tenantId);
 
     const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const rtp = this.renderRtpConf();
@@ -976,6 +979,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           liveRecordingEnabled: profile.liveRecording === 'USE',
         };
       }),
+      outboundCallerIdRules,
     });
     const queues = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -1267,6 +1271,34 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       forwardingRules,
       blocklistEntries,
     };
+  }
+
+  /**
+   * 아웃바운드 발신번호 룰 — PR1-3B 에서 dialplan 에 주입.
+   * REGEX 룰은 dialplan 으로 옮길 수 없어 NoOp 로깅만 되며, 그 외 타입은
+   * native exten 으로 [outbound-cid-rules] 컨텍스트에 등록된다.
+   */
+  private async fetchOutboundCallerIdRules(tenantId: string) {
+    const rows = await (this.prisma as any).outboundCallerIdRules.findMany({
+      where: { tenantId, enabled: true },
+      orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        matchType: true,
+        sourceNumberPattern: true,
+        callerIdNumber: true,
+        displayName: true,
+        priority: true,
+        enabled: true,
+      },
+    });
+    return rows as Array<{
+      matchType: 'EXACT' | 'PREFIX' | 'REGEX' | 'DIALPLAN_PATTERN';
+      sourceNumberPattern: string;
+      callerIdNumber: string;
+      displayName: string | null;
+      priority: number;
+      enabled: boolean;
+    }>;
   }
 
   private async fetchQueueData(tenantId: string) {

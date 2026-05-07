@@ -65,4 +65,149 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('Playback(ss-noservice)');
     expect(rendered).not.toContain('Goto(outbound-main-1002,${EXTEN},1)');
   });
+
+  it('outbound caller-id rules — 룰이 없거나 모두 disabled 면 단일 callerId 인라인 Set 을 유지한다 (PR1-3B 회귀 가드)', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+      outboundCallerIdRules: [],
+    });
+
+    expect(rendered).toContain('Set(CALLERID(num)=07052346380)');
+    expect(rendered).not.toContain('Gosub(outbound-cid-rules');
+    expect(rendered).not.toContain('[outbound-cid-rules]');
+  });
+
+  it('outbound caller-id rules — 룰이 있으면 outbound-cid-rules 컨텍스트로 Gosub 위임', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '0299999999',
+      allowedOutboundCallerIds: ['0299999999', '0212345678'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+      outboundCallerIdRules: [
+        {
+          matchType: 'PREFIX',
+          sourceNumberPattern: '010',
+          callerIdNumber: '0212345678',
+          displayName: '대표번호',
+          priority: 100,
+          enabled: true,
+        },
+        {
+          matchType: 'EXACT',
+          sourceNumberPattern: '0212340000',
+          callerIdNumber: '0287654321',
+          displayName: null,
+          priority: 50,
+          enabled: true,
+        },
+        {
+          matchType: 'DIALPLAN_PATTERN',
+          sourceNumberPattern: '_NXX',
+          callerIdNumber: '0277777777',
+          displayName: null,
+          priority: 200,
+          enabled: true,
+        },
+        {
+          matchType: 'REGEX',
+          sourceNumberPattern: '^999',
+          callerIdNumber: '0288888888',
+          displayName: null,
+          priority: 300,
+          enabled: true,
+        },
+        {
+          matchType: 'PREFIX',
+          sourceNumberPattern: '02',
+          callerIdNumber: '0211111111',
+          displayName: null,
+          priority: 999,
+          enabled: false, // disabled — 출력 안됨
+        },
+      ],
+    });
+
+    expect(rendered).toContain('[outbound-cid-rules]');
+    // outbound-main 은 인라인 Set 대신 Gosub 사용
+    expect(rendered).toContain('Gosub(outbound-cid-rules,${EXTEN},1)');
+    expect(rendered).not.toContain('Set(CALLERID(num)=0299999999)\n same => n,Set(CALLERID(name)=0299999999)\n same => n,Set(CALLERID(pres)');
+
+    // priority 50 (EXACT) 가 100 (PREFIX) 보다 먼저
+    const idxExact = rendered.indexOf('exten => 0212340000,1,');
+    const idxPrefix = rendered.indexOf('exten => _010.,1,');
+    const idxDialplan = rendered.indexOf('exten => _NXX,1,');
+    expect(idxExact).toBeGreaterThan(0);
+    expect(idxPrefix).toBeGreaterThan(idxExact);
+    expect(idxDialplan).toBeGreaterThan(idxPrefix);
+
+    // PREFIX 룰이 _010. 으로 dialplan 패턴 변환
+    expect(rendered).toContain('Set(CALLERID(num)=0212345678)');
+    expect(rendered).toContain('Set(CALLERID(name)=대표번호)');
+
+    // EXACT 룰
+    expect(rendered).toContain('Set(CALLERID(num)=0287654321)');
+    // displayName 이 없으면 callerIdNumber 그대로
+    expect(rendered).toContain('Set(CALLERID(name)=0287654321)');
+
+    // REGEX 는 NOTE 코멘트만
+    expect(rendered).toContain('NOTE: REGEX rule prio=300');
+
+    // disabled 룰은 출력되지 않음
+    expect(rendered).not.toContain('0211111111');
+
+    // fallback 컨텍스트
+    expect(rendered).toContain('exten => _X.,1,NoOp(Outbound CID rule fallback)');
+    expect(rendered).toContain('Set(CALLERID(num)=0299999999)'); // default fallback
+  });
+
+  it('outbound caller-id rules — 동일 dialplan exten 충돌 시 priority 작은 룰만 채택', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '0299999999',
+      allowedOutboundCallerIds: ['0299999999'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+      outboundCallerIdRules: [
+        {
+          matchType: 'PREFIX',
+          sourceNumberPattern: '010',
+          callerIdNumber: '0211111111',
+          displayName: null,
+          priority: 200,
+          enabled: true,
+        },
+        {
+          matchType: 'PREFIX',
+          sourceNumberPattern: '010',
+          callerIdNumber: '0222222222',
+          displayName: null,
+          priority: 100, // 더 작은 priority — 채택됨
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(rendered).toContain('Set(CALLERID(num)=0222222222)');
+    expect(rendered).not.toContain('Set(CALLERID(num)=0211111111)');
+  });
 });
