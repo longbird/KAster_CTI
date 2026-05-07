@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   MENU_KEYS,
@@ -2619,6 +2619,16 @@ export class AdminService {
     dto: UpdateAgentGroupDto,
     actor?: { agentId?: string },
   ) {
+    // 테넌트 범위 밖 그룹 갱신 방지: where: { agentGroupId } 만으로는
+    // 다른 테넌트 행을 건드릴 수 있다. 먼저 (tenantId, agentGroupId) 존재 확인.
+    const existing = await (this.prisma as any).agentGroups.findFirst({
+      where: { tenantId, agentGroupId },
+      select: { agentGroupId: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('상담원 그룹을 찾을 수 없습니다.');
+    }
+
     if (dto.groupCode) {
       const conflict = await (this.prisma as any).agentGroups.findFirst({
         where: {

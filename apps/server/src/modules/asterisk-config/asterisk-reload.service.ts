@@ -1277,10 +1277,17 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
    * 아웃바운드 발신번호 룰 — PR1-3B 에서 dialplan 에 주입.
    * REGEX 룰은 dialplan 으로 옮길 수 없어 NoOp 로깅만 되며, 그 외 타입은
    * native exten 으로 [outbound-cid-rules] 컨텍스트에 등록된다.
+   *
+   * IMPORTANT: dialplan 은 현재 단일 [outbound-cid-rules] 컨텍스트로 모든
+   * 상담원 발신을 라우팅한다. 따라서 branchId 가 있는 (지사 한정) 룰을
+   * 그대로 섞으면 다른 지사 상담원의 발신에도 적용된다. 지사별 dialplan
+   * 분리는 별도 follow-up PR 이며, 그 전까지는 **전역 룰(`branchId IS NULL`)
+   * 만** PBX 에 반영한다. 지사 한정 룰은 화면/저장은 가능하지만 dialplan
+   * 반영은 보류한다.
    */
   private async fetchOutboundCallerIdRules(tenantId: string) {
     const rows = await (this.prisma as any).outboundCallerIdRules.findMany({
-      where: { tenantId, enabled: true },
+      where: { tenantId, enabled: true, branchId: null },
       orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
       select: {
         matchType: true,

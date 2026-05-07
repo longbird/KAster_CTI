@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -163,6 +164,19 @@ export class AgentsService {
     return indexed;
   }
 
+  private async assertAgentGroupBelongsToTenant(
+    tenantId: string,
+    agentGroupId: string,
+  ) {
+    const group = await (this.prisma as any).agentGroups.findFirst({
+      where: { tenantId, agentGroupId },
+      select: { agentGroupId: true },
+    });
+    if (!group) {
+      throw new BadRequestException('상담원 그룹을 찾을 수 없습니다.');
+    }
+  }
+
   async create(tenantId: string, dto: CreateAgentDto) {
     const existing = await this.prisma.agents.findFirst({
       where: {
@@ -186,6 +200,10 @@ export class AgentsService {
       if (existing.extension === dto.extension) {
         throw new ConflictException(`extension '${dto.extension}' 이미 사용 중`);
       }
+    }
+
+    if (dto.agentGroupId) {
+      await this.assertAgentGroupBelongsToTenant(tenantId, dto.agentGroupId);
     }
 
     const hash = await bcrypt.hash(dto.password, 10);
@@ -313,6 +331,10 @@ export class AgentsService {
           throw new ConflictException(`extension '${dto.extension}' 이미 사용 중`);
         }
       }
+    }
+
+    if (dto.agentGroupId) {
+      await this.assertAgentGroupBelongsToTenant(tenantId, dto.agentGroupId);
     }
 
     const passwordHash =

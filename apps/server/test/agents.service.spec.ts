@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../src/common/prisma.service';
 import { AgentsService } from '../src/modules/agents/agents.service';
+import { AmiConnectionService } from '../src/modules/ami/ami-connection.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 
 describe('AgentsService listForTenant', () => {
@@ -14,6 +15,9 @@ describe('AgentsService listForTenant', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
     },
+    refreshTokens: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
 
   beforeEach(async () => {
@@ -24,6 +28,14 @@ describe('AgentsService listForTenant', () => {
         AgentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: AsteriskReloadService, useValue: { scheduleReload: jest.fn() } },
+        {
+          provide: AmiConnectionService,
+          useValue: {
+            sendActionCollect: jest.fn().mockResolvedValue([]),
+            sendAction: jest.fn().mockResolvedValue(undefined),
+            sendActionWithResponse: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 
@@ -92,6 +104,8 @@ describe('AgentsService listForTenant', () => {
         role: true,
         employmentStatus: true,
         defaultQueueId: true,
+        agentGroupId: true,
+        agentGroup: { select: { agentGroupId: true, groupCode: true, groupName: true } },
         settingsProfile: true,
         lastLoginAt: true,
         isActive: true,

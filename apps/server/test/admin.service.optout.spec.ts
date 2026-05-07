@@ -64,11 +64,19 @@ function createService() {
   const asteriskReloadService = {
     executeReload: jest.fn(),
   } as any;
+  const healthSummary = {} as any;
+  const realtimeGateway = {} as any;
 
   return {
     prisma,
     asteriskReloadService,
-    service: new AdminService(prisma, queuesService, asteriskReloadService),
+    service: new AdminService(
+      prisma,
+      queuesService,
+      asteriskReloadService,
+      healthSummary,
+      realtimeGateway,
+    ),
   };
 }
 

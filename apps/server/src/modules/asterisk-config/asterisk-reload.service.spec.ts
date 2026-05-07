@@ -58,6 +58,7 @@ describe('AsteriskReloadService Smart ARS preview', () => {
           .mockResolvedValueOnce([]),
       },
       tenantSystemSettings: { findUnique: jest.fn().mockResolvedValue(null) },
+      outboundCallerIdRules: { findMany: jest.fn().mockResolvedValue([]) },
     } as any;
     const config = {
       get: jest.fn((key: string, fallback?: string) => fallback),
