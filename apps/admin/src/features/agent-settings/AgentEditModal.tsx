@@ -23,6 +23,7 @@ export interface AgentRow {
   extension: string;
   role: string;
   defaultQueueId?: string | null;
+  agentGroupId?: string | null;
   isActive: boolean;
   currentStatus: { statusCode: string } | null;
 }
@@ -31,6 +32,13 @@ interface QueueOption {
   queueId: string;
   queueName: string;
   queueDisplayName?: string;
+  isActive?: boolean;
+}
+
+interface AgentGroupOption {
+  agentGroupId: string;
+  groupCode: string;
+  groupName: string;
   isActive?: boolean;
 }
 
@@ -119,6 +127,7 @@ const PANEL_BODY_STYLE: CSSProperties = {
 export function AgentEditModal({ agent, onClose, onSaved }: Props) {
   const [form] = Form.useForm();
   const [queues, setQueues] = useState<QueueOption[]>([]);
+  const [agentGroups, setAgentGroups] = useState<AgentGroupOption[]>([]);
   const [detail, setDetail] = useState<any>(null);
   const isOpen = !!agent;
 
@@ -132,8 +141,9 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
     void Promise.all([
       apiClient.get(`/agents/${agent.agentId}`),
       apiClient.get('/queues'),
+      apiClient.get('/admin/settings/agent-groups').catch(() => ({ data: { data: [] } })),
     ])
-      .then(([detailRes, queueRes]) => {
+      .then(([detailRes, queueRes, groupRes]) => {
         const loaded = detailRes.data?.data?.agent ?? null;
         setDetail(loaded);
         form.resetFields();
@@ -143,12 +153,16 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
           extension: loaded?.extension ?? agent.extension,
           role: loaded?.role ?? agent.role,
           defaultQueueId: loaded?.defaultQueueId ?? agent.defaultQueueId ?? undefined,
+          agentGroupId: loaded?.agentGroupId ?? agent.agentGroupId ?? undefined,
           isActive: loaded?.isActive ?? agent.isActive,
           password: '',
           sipPassword: loaded?.sipPassword ?? '',
           settingsProfile: normalizeAgentSettingsProfile(loaded?.settingsProfile),
         });
         setQueues((queueRes.data?.data ?? []).filter((q: QueueOption) => q.isActive !== false));
+        setAgentGroups(
+          (groupRes.data?.data ?? []).filter((g: AgentGroupOption) => g.isActive !== false),
+        );
       })
       .catch(() => {
         setDetail(null);
@@ -159,12 +173,14 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
           extension: agent.extension,
           role: agent.role,
           defaultQueueId: agent.defaultQueueId ?? undefined,
+          agentGroupId: agent.agentGroupId ?? undefined,
           isActive: agent.isActive,
           password: '',
           sipPassword: '',
           settingsProfile: DEFAULT_AGENT_SETTINGS_PROFILE,
         });
         setQueues([]);
+        setAgentGroups([]);
       });
   }, [agent, form]);
 
@@ -271,15 +287,30 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
                 </Col>
                 <Col span={8}>
                   <Form.Item
-                    label={labelWithHelp('그룹(대표 큐)', '대표 소속 그룹/큐만 여기서 설정합니다. 실제 큐 멤버십은 큐 설정에서 별도로 관리합니다.')}
+                    label={labelWithHelp('대표 큐', '상담원의 기본 큐입니다. 실제 큐 멤버십은 큐 설정에서 별도로 관리합니다.')}
                     name="defaultQueueId"
                   >
                     <Select
                       allowClear
-                      placeholder="대표 소속 그룹 선택"
+                      placeholder="대표 큐 선택"
                       options={queues.map((q) => ({
                         value: q.queueId,
                         label: q.queueDisplayName ?? q.queueName,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label={labelWithHelp('상담원 그룹', '조직/팀 단위 분류. 호분배 룰·통계에서 사용합니다.')}
+                    name="agentGroupId"
+                  >
+                    <Select
+                      allowClear
+                      placeholder="그룹 선택"
+                      options={agentGroups.map((g) => ({
+                        value: g.agentGroupId,
+                        label: `${g.groupName} (${g.groupCode})`,
                       }))}
                     />
                   </Form.Item>

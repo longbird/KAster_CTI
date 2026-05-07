@@ -6,11 +6,13 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AdminService } from './admin.service';
+import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
 import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
+import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { UpdateAgentPermissionsDto } from './dto/update-agent-permissions.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
@@ -97,6 +99,68 @@ export class AdminController {
   async deleteAnnouncement(@CurrentUser() user: any, @Param('announcementId') announcementId: string) {
     await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'announcements', 'delete', user.sub);
     return this.adminService.deleteAnnouncement(user.tenantId, announcementId);
+  }
+
+  // -------- Agent Groups (BlueSky StaffGroup 등가) --------
+  @Get('settings/agent-groups')
+  @Roles('supervisor', 'admin')
+  async listAgentGroups(@CurrentUser() user: any) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/agent-groups',
+      'view',
+      user.sub,
+    );
+    return this.adminService.listAgentGroups(user.tenantId);
+  }
+
+  @Post('settings/agent-groups')
+  @Roles('supervisor', 'admin')
+  async createAgentGroup(@CurrentUser() user: any, @Body() dto: CreateAgentGroupDto) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/agent-groups',
+      'create',
+      user.sub,
+    );
+    return this.adminService.createAgentGroup(user.tenantId, dto, { agentId: user.sub });
+  }
+
+  @Post('settings/agent-groups/:agentGroupId')
+  @Roles('supervisor', 'admin')
+  async updateAgentGroup(
+    @CurrentUser() user: any,
+    @Param('agentGroupId') agentGroupId: string,
+    @Body() dto: UpdateAgentGroupDto,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/agent-groups',
+      'update',
+      user.sub,
+    );
+    return this.adminService.updateAgentGroup(user.tenantId, agentGroupId, dto, {
+      agentId: user.sub,
+    });
+  }
+
+  @Delete('settings/agent-groups/:agentGroupId')
+  @Roles('supervisor', 'admin')
+  async deleteAgentGroup(
+    @CurrentUser() user: any,
+    @Param('agentGroupId') agentGroupId: string,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/agent-groups',
+      'delete',
+      user.sub,
+    );
+    return this.adminService.deleteAgentGroup(user.tenantId, agentGroupId);
   }
 
   @Get('settings/branches')

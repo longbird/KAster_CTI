@@ -32,6 +32,7 @@ export const MENU_KEYS = [
   'opt-out-customers',
   'announcements',
   'settings/agents',
+  'settings/agent-groups',
   'settings/queues',
   'settings/forwarding',
   'settings/prompts',
@@ -60,6 +61,7 @@ const REPORT_MENU_PREFIX = 'reports/';
 const MUTABLE_MENU_KEYS = new Set([
   'announcements',
   'settings/agents',
+  'settings/agent-groups',
   'settings/queues',
   'settings/forwarding',
   'settings/prompts',

@@ -13,8 +13,10 @@ import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.servic
 import { HealthSummaryService } from '../health/health-summary.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { QueuesService } from '../queues/queues.service';
+import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
 import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
@@ -2507,5 +2509,112 @@ export class AdminService {
     if (templateIds.some((templateId) => !foundIds.has(templateId))) {
       throw new BadRequestException('선택한 SMS 템플릿을 찾을 수 없습니다.');
     }
+  }
+
+  // ===========================================================================
+  // Agent groups (BlueSky StaffGroup 등가)
+  // ===========================================================================
+
+  async listAgentGroups(tenantId: string) {
+    const rows = await (this.prisma as any).agentGroups.findMany({
+      where: { tenantId },
+      orderBy: [{ isActive: 'desc' }, { groupName: 'asc' }],
+    });
+
+    const memberCounts = await this.prisma.agents.groupBy({
+      by: ['agentGroupId'],
+      where: { tenantId, agentGroupId: { not: null }, isActive: true },
+      _count: { agentId: true },
+    });
+    const countByGroup = new Map<string, number>(
+      memberCounts
+        .filter((row) => row.agentGroupId)
+        .map((row) => [row.agentGroupId as string, row._count.agentId]),
+    );
+
+    return {
+      success: true,
+      data: rows.map((row: any) => ({
+        ...row,
+        memberCount: countByGroup.get(row.agentGroupId) ?? 0,
+      })),
+      error: null,
+    };
+  }
+
+  async createAgentGroup(
+    tenantId: string,
+    dto: CreateAgentGroupDto,
+    actor?: { agentId?: string },
+  ) {
+    const existing = await (this.prisma as any).agentGroups.findUnique({
+      where: { tenantId_groupCode: { tenantId, groupCode: dto.groupCode } },
+    });
+    if (existing) {
+      throw new BadRequestException('이미 존재하는 그룹 코드입니다.');
+    }
+
+    const row = await (this.prisma as any).agentGroups.create({
+      data: {
+        tenantId,
+        groupCode: dto.groupCode,
+        groupName: dto.groupName,
+        description: dto.description ?? null,
+        isActive: dto.isActive ?? true,
+        updatedById: actor?.agentId ?? null,
+      },
+    });
+
+    return { success: true, data: row, error: null };
+  }
+
+  async updateAgentGroup(
+    tenantId: string,
+    agentGroupId: string,
+    dto: UpdateAgentGroupDto,
+    actor?: { agentId?: string },
+  ) {
+    if (dto.groupCode) {
+      const conflict = await (this.prisma as any).agentGroups.findFirst({
+        where: {
+          tenantId,
+          groupCode: dto.groupCode,
+          NOT: { agentGroupId },
+        },
+      });
+      if (conflict) {
+        throw new BadRequestException('이미 존재하는 그룹 코드입니다.');
+      }
+    }
+
+    const row = await (this.prisma as any).agentGroups.update({
+      where: { agentGroupId },
+      data: {
+        groupCode: dto.groupCode,
+        groupName: dto.groupName,
+        description: dto.description,
+        isActive: dto.isActive,
+        updatedAt: new Date(),
+        updatedById: actor?.agentId ?? null,
+      },
+    });
+
+    return { success: true, data: row, error: null };
+  }
+
+  async deleteAgentGroup(tenantId: string, agentGroupId: string) {
+    const target = await (this.prisma as any).agentGroups.findFirst({
+      where: { tenantId, agentGroupId },
+    });
+    if (!target) {
+      return { success: true, data: { deleted: false, agentGroupId }, error: null };
+    }
+
+    // 그룹 삭제 시 소속 상담원의 agentGroupId 는 SET NULL (FK ON DELETE SET NULL)
+    await (this.prisma as any).agentGroups.delete({
+      where: { agentGroupId },
+    });
+
+    return { success: true, data: { deleted: true, agentGroupId }, error: null };
   }
 }

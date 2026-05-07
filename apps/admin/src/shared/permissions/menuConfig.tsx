@@ -48,6 +48,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
     children: [
       { key: '/settings/branches', label: '지사 관리' },
       { key: '/settings/agents', label: '상담원 설정' },
+      { key: '/settings/agent-groups', label: '상담원 그룹' },
       { key: '/settings/queues', label: '호 분배룰 설정' },
       { key: '/settings/forwarding', label: '착신전환 설정' },
       { key: '/settings/prompts', label: '멘트 관리' },

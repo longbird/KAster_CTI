@@ -40,4 +40,24 @@ describe('defaultPermissionFlags', () => {
       }),
     );
   });
+
+  it('adds agent group management under operations settings permissions', () => {
+    expect(MENU_KEYS).toContain('settings/agent-groups');
+    expect(defaultPermissionFlags('supervisor', 'settings/agent-groups')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+      }),
+    );
+    expect(defaultPermissionFlags('agent', 'settings/agent-groups')).toEqual(
+      expect.objectContaining({
+        canView: false,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+      }),
+    );
+  });
 });

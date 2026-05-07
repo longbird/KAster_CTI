@@ -21,6 +21,13 @@ interface QueueOption {
   isActive?: boolean;
 }
 
+interface AgentGroupOption {
+  agentGroupId: string;
+  groupCode: string;
+  groupName: string;
+  isActive?: boolean;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -74,6 +81,7 @@ const PANEL_BODY_STYLE: CSSProperties = {
 export function AgentCreateModal({ open, onClose, onCreated }: Props) {
   const [form] = Form.useForm();
   const [queues, setQueues] = useState<QueueOption[]>([]);
+  const [agentGroups, setAgentGroups] = useState<AgentGroupOption[]>([]);
 
   useEffect(() => {
     if (!open) {
@@ -85,6 +93,14 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
       .get('/queues')
       .then((res) => setQueues((res.data?.data ?? []).filter((q: QueueOption) => q.isActive !== false)))
       .catch(() => setQueues([]));
+    void apiClient
+      .get('/admin/settings/agent-groups')
+      .then((res) =>
+        setAgentGroups(
+          (res.data?.data ?? []).filter((g: AgentGroupOption) => g.isActive !== false),
+        ),
+      )
+      .catch(() => setAgentGroups([]));
   }, [form, open]);
 
   const handleOk = async () => {
@@ -184,15 +200,30 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
                 </Col>
                 <Col span={8}>
                   <Form.Item
-                    label={labelWithHelp('그룹(대표 큐)', '대표 소속 그룹/큐만 여기서 설정합니다. 실제 큐 멤버십은 큐 설정에서 별도로 관리합니다.')}
+                    label={labelWithHelp('대표 큐', '상담원의 기본 큐입니다. 실제 큐 멤버십은 큐 설정에서 별도로 관리합니다.')}
                     name="defaultQueueId"
                   >
                     <Select
                       allowClear
-                      placeholder="대표 소속 그룹 선택"
+                      placeholder="대표 큐 선택"
                       options={queues.map((q) => ({
                         value: q.queueId,
                         label: q.queueDisplayName ?? q.queueName,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    label={labelWithHelp('상담원 그룹', '조직/팀 단위 분류. 호분배 룰·통계에서 사용합니다.')}
+                    name="agentGroupId"
+                  >
+                    <Select
+                      allowClear
+                      placeholder="그룹 선택"
+                      options={agentGroups.map((g) => ({
+                        value: g.agentGroupId,
+                        label: `${g.groupName} (${g.groupCode})`,
                       }))}
                     />
                   </Form.Item>

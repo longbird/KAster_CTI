@@ -34,6 +34,8 @@ export class AgentsService {
         role: true,
         employmentStatus: true,
         defaultQueueId: true,
+        agentGroupId: true,
+        agentGroup: { select: { agentGroupId: true, groupCode: true, groupName: true } },
         settingsProfile: true,
         lastLoginAt: true,
         isActive: true,
@@ -197,6 +199,7 @@ export class AgentsService {
           : {}),
         role: dto.role ?? 'agent',
         defaultQueueId: dto.defaultQueueId ?? null,
+        agentGroupId: dto.agentGroupId ?? null,
       },
       select: {
         agentId: true,
@@ -207,6 +210,7 @@ export class AgentsService {
         sipPassword: true,
         role: true,
         defaultQueueId: true,
+        agentGroupId: true,
         settingsProfile: true,
       },
     });
@@ -320,6 +324,7 @@ export class AgentsService {
         ...(dto.extension !== undefined && { extension: dto.extension }),
         ...(dto.role !== undefined && { role: dto.role }),
         ...(dto.defaultQueueId !== undefined && { defaultQueueId: dto.defaultQueueId }),
+        ...(dto.agentGroupId !== undefined && { agentGroupId: dto.agentGroupId }),
         ...(dto.sipPassword !== undefined && { sipPassword: dto.sipPassword?.trim() || null }),
         ...(dto.settingsProfile !== undefined
           ? { settingsProfile: dto.settingsProfile as Prisma.InputJsonValue }
@@ -334,6 +339,7 @@ export class AgentsService {
         role: true,
         loginId: true,
         defaultQueueId: true,
+        agentGroupId: true,
         sipPassword: true,
         settingsProfile: true,
         isActive: true,

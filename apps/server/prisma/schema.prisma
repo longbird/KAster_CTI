@@ -56,6 +56,25 @@ model tenants {
   asteriskDids         AsteriskDid[]
   asteriskIvrMenus     AsteriskIvrMenu[]
   smsTemplates         tenantSmsTemplate[]
+  agentGroups          agentGroups[]
+}
+
+model agentGroups {
+  agentGroupId String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  groupCode    String   @db.VarChar(32)
+  groupName    String   @db.VarChar(128)
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedById  String?  @db.Uuid
+
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId])
+  agents       agents[] @relation("agent_group")
+
+  @@unique([tenantId, groupCode])
+  @@index([tenantId, isActive])
 }
 
 model agents {
@@ -72,6 +91,7 @@ model agents {
   role               String    @default("agent") @db.VarChar(32)
   employmentStatus   String    @default("active") @db.VarChar(16)
   defaultQueueId     String?   @db.Uuid
+  agentGroupId       String?   @db.Uuid
   lastLoginAt        DateTime? @db.Timestamptz(6)
   isActive           Boolean   @default(true)
   createdAt          DateTime  @default(now()) @db.Timestamptz(6)
@@ -79,6 +99,7 @@ model agents {
 
   tenant             tenants   @relation(fields: [tenantId], references: [tenantId])
   defaultQueue       queues?   @relation("agent_default_queue", fields: [defaultQueueId], references: [queueId])
+  agentGroup         agentGroups? @relation("agent_group", fields: [agentGroupId], references: [agentGroupId])
   statusHistory      agentStatusHistory[]
   callSessions       callSessions[] @relation("primary_agent")
   callLegs           callLegs[]
