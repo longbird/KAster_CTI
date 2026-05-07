@@ -4,8 +4,8 @@ export interface SoftphoneDiagnostic {
   code: string;
   message: string;
   hint: string | null;
-  source: 'config' | 'transport' | 'registration';
-  severity: 'warning' | 'error';
+  source: 'config' | 'transport' | 'registration' | 'media';
+  severity: 'info' | 'warning' | 'error';
   occurredAt: string;
 }
 
@@ -25,6 +25,8 @@ export interface SoftphoneState {
   diagnostics: SoftphoneDiagnostic[];
   session: SoftphoneCallState | null;
   remoteAudioActive: boolean;
+  localMuted: boolean;
+  localHold: boolean;
 }
 
 export function createSoftphoneState(config: DesktopSoftphoneConfig): SoftphoneState {
@@ -37,6 +39,8 @@ export function createSoftphoneState(config: DesktopSoftphoneConfig): SoftphoneS
       diagnostics: [],
       session: null,
       remoteAudioActive: false,
+      localMuted: false,
+      localHold: false,
     };
   }
 
@@ -48,5 +52,7 @@ export function createSoftphoneState(config: DesktopSoftphoneConfig): SoftphoneS
     diagnostics: [],
     session: null,
     remoteAudioActive: false,
+    localMuted: false,
+    localHold: false,
   };
 }

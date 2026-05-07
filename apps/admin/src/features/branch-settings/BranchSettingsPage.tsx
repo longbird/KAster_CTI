@@ -144,7 +144,7 @@ export function BranchSettingsPage() {
           },
           {
             title: headerLabel('관리'),
-            width: 250,
+            width: 120,
             fixed: 'right',
             render: (_: unknown, row: BranchRow) => (
               <Space>

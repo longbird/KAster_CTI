@@ -17,7 +17,8 @@ describe('AgentsService', () => {
       },
     } as any;
     const reload = { scheduleReload: jest.fn() } as any;
-    const service = new AgentsService(prisma, reload);
+    const ami = { sendActionWithResponse: jest.fn().mockResolvedValue([]) } as any;
+    const service = new AgentsService(prisma, reload, ami);
 
     await service.update('tenant-1', 'agent-1', { sipPassword: '' });
 

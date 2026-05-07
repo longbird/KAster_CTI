@@ -11,6 +11,7 @@ import { renderDialplan } from './renderers/dialplan.renderer';
 import { renderMusiconholdConf } from './renderers/musiconhold.renderer';
 import { renderPjsip } from './renderers/pjsip.renderer';
 import { renderQueuesConf } from './renderers/queues.renderer';
+import { renderRtp } from './renderers/rtp.renderer';
 import {
   diffRenderedConfFiles,
   RENDERED_CONF_FILE_NAMES,
@@ -19,6 +20,8 @@ import {
 } from './asterisk-config-validation';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
+const DEFAULT_MOH_DIR = '/var/lib/asterisk/moh';
+const DEFAULT_MOH_FILE_NAME = 'kaster-default-hold.wav';
 const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh';
 const OPT_OUT_GUARDED_DIGIT_AGI_PATH = '/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi';
 const SMART_ARS_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-smart-ars-hook.sh';
@@ -27,6 +30,7 @@ const RELOAD_COMMANDS = [
   'module load res_pjsip_transport_websocket.so',
   'http reload',
   'module reload res_pjsip',
+  'module reload res_rtp_asterisk.so',
   'moh reload',
   'dialplan reload',
   'queue reload all',
@@ -452,7 +456,7 @@ function buildDefaultMusiconholdBaseContent(includeLine: string): string {
     '; Managed by KAster CTI - base MOH file',
     '[default]',
     'mode=files',
-    'directory=/var/lib/asterisk/moh',
+    `directory=${DEFAULT_MOH_DIR}`,
     'random=no',
     '',
     includeLine,
@@ -612,6 +616,40 @@ function buildSmartArsHookScript(port: number, configuredSecret: string | null):
   ].join('\n');
 }
 
+function buildDefaultMohWav(): Buffer {
+  const sampleRate = 8000;
+  const seconds = 4;
+  const sampleCount = sampleRate * seconds;
+  const pcm = Buffer.alloc(sampleCount * 2);
+  const notes = [392, 494, 587, 494];
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const noteIndex = Math.floor(index / sampleRate) % notes.length;
+    const frequency = notes[noteIndex];
+    const time = index / sampleRate;
+    const envelope = (index % sampleRate) < sampleRate * 0.65 ? 0.045 : 0;
+    const sample = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * envelope);
+    pcm.writeInt16LE(sample, index * 2);
+  }
+
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0, 'ascii');
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write('WAVE', 8, 'ascii');
+  header.write('fmt ', 12, 'ascii');
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write('data', 36, 'ascii');
+  header.writeUInt32LE(pcm.length, 40);
+
+  return Buffer.concat([header, pcm]);
+}
+
 function buildOptOutGuardedDigitAgiScript(): string {
   return [
     '#!/usr/bin/env python3',
@@ -715,6 +753,13 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     return { externalMediaAddress, externalSignalingAddress, localNets };
   }
 
+  private renderRtpConf() {
+    const rtpStart = Number(this.config.get<string>('ASTERISK_RTP_START', '10000')) || 10000;
+    const rtpEnd = Number(this.config.get<string>('ASTERISK_RTP_END', '20000')) || 20000;
+    const stunAddress = this.config.get<string>('ASTERISK_RTP_STUN_ADDRESS')?.trim() || null;
+    return renderRtp({ rtpStart, rtpEnd, stunAddress });
+  }
+
   onApplicationBootstrap() {
     setTimeout(() => {
       void this.syncAllTenantsOnStartup().catch((error) => {
@@ -771,6 +816,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     const preview = await this.previewConfFiles(tenantId);
     const rendered: RenderedConfFiles = {
       pjsip: preview.pjsip,
+      rtp: preview.rtp,
       extensionsInbound: preview.extensionsInbound,
       extensionsQueue: preview.extensionsQueue,
       extensionsAgent: preview.extensionsAgent,
@@ -833,6 +879,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     const rawQueues = await this.fetchQueueData(tenantId);
 
     const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
+    const rtpContent = this.renderRtpConf();
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
     const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
@@ -878,9 +925,11 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       directory: item.directory,
     })));
 
+    this.ensureDefaultMohAsset();
     this.syncPromptMohAssets(promptMohClasses, soundsDir);
 
     fs.writeFileSync(path.join(confDir, 'pjsip.conf'), pjsipContent, 'utf8');
+    fs.writeFileSync(path.join(confDir, 'rtp.conf'), rtpContent, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_inbound.conf'), extensionsInbound, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_queue.conf'), extensionsQueue, 'utf8');
     fs.writeFileSync(path.join(confDir, 'extensions_agent.conf'), extensionsAgent, 'utf8');
@@ -910,6 +959,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     const rawQueues = await this.fetchQueueData(tenantId);
 
     const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
+    const rtp = this.renderRtpConf();
     const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
     const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({
@@ -959,7 +1009,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       .replace(/^(password=).+$/gm, '$1***')
       .replace(/^(md5_cred=).+$/gm, '$1***');
 
-    return { pjsip: maskedPjsip, extensionsInbound, extensionsQueue, extensionsAgent, queues: `${queues}\n\n${musiconhold}` };
+    return { pjsip: maskedPjsip, rtp, extensionsInbound, extensionsQueue, extensionsAgent, queues: `${queues}\n\n${musiconhold}` };
   }
 
   private buildPromptMohClasses(
@@ -1028,6 +1078,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       { encoding: 'utf8', mode: 0o755 },
     );
     fs.chmodSync(SMART_ARS_HOOK_SCRIPT_PATH, 0o755);
+  }
+
+  private ensureDefaultMohAsset() {
+    fs.mkdirSync(DEFAULT_MOH_DIR, { recursive: true });
+    const targetPath = path.join(DEFAULT_MOH_DIR, DEFAULT_MOH_FILE_NAME);
+    fs.writeFileSync(targetPath, buildDefaultMohWav());
   }
 
   private syncPromptMohAssets(

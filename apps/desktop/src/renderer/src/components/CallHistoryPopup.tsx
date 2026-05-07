@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopCallHistoryItem } from '../../../shared/ipc';
 
 function formatTime(value: string | null) {
@@ -19,32 +19,120 @@ function formatTime(value: string | null) {
   });
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  QUEUED: '대기',
+  RINGING_AGENT: '상담원 호출',
+  TALKING: '통화 중',
+  HOLD: '보류',
+  TRANSFERRING: '전환 중',
+  AFTER_CALL_WORK: '후처리',
+  ENDED: '종료',
+};
+
+function formatStatus(value: string) {
+  return STATUS_LABELS[value] ?? (value || '-');
+}
+
+function formatPhoneValue(value: string | null | undefined) {
+  const normalized = value?.trim();
+  if (!normalized || normalized === '<unknown>' || normalized === 's') {
+    return '-';
+  }
+  return normalized;
+}
+
+function formatPhoneDisplay(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('010')) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10 && digits.startsWith('02')) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 9 && digits.startsWith('02')) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+  }
+  if (digits.length === 11 && /^0\d{2}/.test(digits)) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10 && /^0\d{2}/.test(digits)) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+  return value;
+}
+
+function secondsBetween(start: string | null, end: string | null) {
+  if (!start || !end) {
+    return null;
+  }
+  const startTime = new Date(start).getTime();
+  const endTime = new Date(end).getTime();
+  if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) {
+    return null;
+  }
+  return Math.round((endTime - startTime) / 1000);
+}
+
+function formatDuration(row: DesktopCallHistoryItem) {
+  const seconds = row.talkSeconds && row.talkSeconds > 0
+    ? row.talkSeconds
+    : secondsBetween(row.answeredAt ?? row.startedAt, row.endedAt);
+  if (!seconds || seconds <= 0) {
+    return '-';
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+}
+
+function canDialFromHistory(row: DesktopCallHistoryItem, field: 'ani' | 'dnis') {
+  const direction = row.direction?.toUpperCase();
+  if (direction === 'OUTBOUND') {
+    return field === 'dnis';
+  }
+  if (direction === 'INBOUND') {
+    return field === 'ani';
+  }
+  return false;
+}
+
 export function CallHistoryPopup() {
   const [rows, setRows] = useState<DesktopCallHistoryItem[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [dialingNumber, setDialingNumber] = useState<string | null>(null);
+  const [dialStatus, setDialStatus] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  const loadSeqRef = useRef(0);
+
+  const loadHistory = useCallback(async () => {
+    const seq = loadSeqRef.current + 1;
+    loadSeqRef.current = seq;
+    setLoading(true);
+    try {
+      const desktopApi =
+        typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+      const history = await desktopApi?.getCallHistory?.();
+      if (mountedRef.current && loadSeqRef.current === seq) {
+        setRows(history ?? []);
+      }
+    } finally {
+      if (mountedRef.current && loadSeqRef.current === seq) {
+        setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const desktopApi =
-          typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
-        const history = await desktopApi?.getCallHistory?.();
-        if (alive) {
-          setRows(history ?? []);
-        }
-      } finally {
-        if (alive) {
-          setLoading(false);
-        }
-      }
-    })();
-
+    mountedRef.current = true;
+    void loadHistory();
     return () => {
-      alive = false;
+      mountedRef.current = false;
     };
-  }, []);
+  }, [loadHistory]);
 
   const filtered = rows.filter((row) => {
     const keyword = query.trim();
@@ -57,19 +145,83 @@ export function CallHistoryPopup() {
       .some((value) => String(value).includes(keyword));
   });
 
+  const handleDial = async (phoneNumber: string) => {
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!desktopApi) {
+      return;
+    }
+
+    const confirmed = window.confirm(`${phoneNumber} 번호로 발신할까요?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDialingNumber(phoneNumber);
+    setDialStatus(null);
+    try {
+      const result = await desktopApi.requestHistoryOriginate({ phoneNumber });
+      if (!result.ok) {
+        throw new Error(result.message ?? '발신 요청 실패');
+      }
+      setDialStatus(result.message ?? `${phoneNumber} 발신 요청 완료`);
+    } catch (error) {
+      setDialStatus(error instanceof Error ? error.message : '발신 요청 실패');
+    } finally {
+      setDialingNumber(null);
+    }
+  };
+
+  const renderPhoneCell = (
+    row: DesktopCallHistoryItem,
+    field: 'ani' | 'dnis',
+    label: '발신번호' | '수신번호',
+    fallback?: string | null,
+  ) => {
+    const value = formatPhoneValue(row[field]);
+    const displayValue = value !== '-' ? formatPhoneDisplay(value) : fallback ? formatPhoneDisplay(fallback) : '-';
+    if (value === '-' || !canDialFromHistory(row, field)) {
+      return displayValue;
+    }
+
+    return (
+      <button
+        type="button"
+        className="popup-dial-button"
+        aria-label={`${label} ${displayValue} 발신`}
+        disabled={dialingNumber === value}
+        onClick={() => void handleDial(value)}
+      >
+        <span>{displayValue}</span>
+        <span className="popup-dial-badge">발신</span>
+      </button>
+    );
+  };
+
   return (
     <main className="popup-layout">
       <header className="popup-header">
         <div>
           <h1>통화내역</h1>
-          <p>{loading ? '조회 중' : `${filtered.length}건`}</p>
+          <p>{dialStatus ?? (loading ? '조회 중' : `${filtered.length}건`)}</p>
         </div>
-        <input
-          aria-label="통화내역 검색"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="번호, 고객, 상담원"
-        />
+        <div className="popup-header-actions">
+          <input
+            aria-label="통화내역 검색"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="번호, 고객, 상담원"
+          />
+          <button
+            type="button"
+            className="popup-refresh-button"
+            aria-label="통화내역 새로고침"
+            disabled={loading}
+            onClick={() => void loadHistory()}
+          >
+            {loading ? '조회 중' : '갱신'}
+          </button>
+        </div>
       </header>
 
       <section className="popup-table-shell">
@@ -86,14 +238,18 @@ export function CallHistoryPopup() {
           </thead>
           <tbody>
             {filtered.map((row) => (
-              <tr key={row.callId}>
-                <td>{formatTime(row.startedAt)}</td>
-                <td>{row.sessionStatus}</td>
-                <td>{row.ani ?? '-'}</td>
-                <td>{row.dnis ?? row.queueName ?? '-'}</td>
-                <td>{row.primaryAgent?.agentName ?? '-'}</td>
-                <td>{row.talkSeconds == null ? '-' : `${row.talkSeconds}s`}</td>
-              </tr>
+              (() => {
+                return (
+                  <tr key={row.callId}>
+                    <td>{formatTime(row.startedAt)}</td>
+                    <td>{formatStatus(row.sessionStatus)}</td>
+                    <td>{renderPhoneCell(row, 'ani', '발신번호')}</td>
+                    <td>{renderPhoneCell(row, 'dnis', '수신번호', row.queueName)}</td>
+                    <td>{row.primaryAgent?.agentName ?? '-'}</td>
+                    <td>{formatDuration(row)}</td>
+                  </tr>
+                );
+              })()
             ))}
             {!loading && filtered.length === 0 ? (
               <tr>

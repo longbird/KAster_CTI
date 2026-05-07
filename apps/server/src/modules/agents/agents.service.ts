@@ -6,6 +6,8 @@ import {
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../common/prisma.service';
+import { AmiConnectionService } from '../ami/ami-connection.service';
+import type { ParsedAmiFrame } from '../ami/ami.parser';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
@@ -15,6 +17,7 @@ export class AgentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly asteriskReload: AsteriskReloadService,
+    private readonly ami: AmiConnectionService,
   ) {}
 
   async listForTenant(tenantId: string) {
@@ -65,13 +68,92 @@ export class AgentsService {
         currentStatusByAgentId.set(agentId, current);
       }
     }
+    const now = new Date();
+    const activeSessions = agentIds.length
+      ? await this.prisma.refreshTokens.findMany({
+          where: {
+            tenantId,
+            agentId: { in: agentIds },
+            revokedAt: null,
+            expiresAt: { gt: now },
+          },
+          orderBy: { issuedAt: 'desc' },
+          select: {
+            agentId: true,
+            issuedAt: true,
+            expiresAt: true,
+          },
+        })
+      : [];
+    const activeSessionByAgentId = new Map<string, Omit<(typeof activeSessions)[number], 'agentId'>>();
+    for (const row of activeSessions) {
+      if (!activeSessionByAgentId.has(row.agentId)) {
+        const { agentId, ...session } = row;
+        activeSessionByAgentId.set(agentId, session);
+      }
+    }
+
+    const contactsByExtension = this.indexContactsByExtension(await this.fetchPjsipContacts());
 
     const withStatus = agents.map((agent) => ({
       ...agent,
       currentStatus: currentStatusByAgentId.get(agent.agentId) ?? null,
+      loginStatus: activeSessionByAgentId.has(agent.agentId) ? 'LOGGED_IN' : 'LOGGED_OUT',
+      activeSession: activeSessionByAgentId.get(agent.agentId) ?? null,
+      sipRegistration: contactsByExtension[agent.extension] ?? {
+        registered: false,
+        registrationStatus: 'UNREGISTERED',
+        contactUri: null,
+        userAgent: null,
+        roundtripUsec: null,
+      },
+      canCall: agent.isActive
+        && activeSessionByAgentId.has(agent.agentId)
+        && Boolean(contactsByExtension[agent.extension]?.registered),
     }));
 
     return { success: true, data: withStatus, error: null };
+  }
+
+  private async fetchPjsipContacts(): Promise<ParsedAmiFrame[]> {
+    try {
+      return await this.ami.sendActionWithResponse(
+        { Action: 'PJSIPShowContacts' },
+        { eventList: true, timeoutMs: 5000 },
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  private indexContactsByExtension(frames: ParsedAmiFrame[]) {
+    const indexed: Record<string, {
+      registered: boolean;
+      registrationStatus: string;
+      contactUri: string | null;
+      userAgent: string | null;
+      roundtripUsec: number | null;
+    }> = {};
+
+    for (const frame of frames) {
+      if (frame.Event !== 'ContactList') continue;
+      const endpointName = frame.Endpoint?.trim();
+      const objectName = frame.ObjectName ?? '';
+      const extension = endpointName || objectName.split('/')[0]?.trim();
+      if (!extension || !/^\d+$/.test(extension)) continue;
+
+      const contactUri = frame.Uri ?? frame.URI ?? frame.Contact ?? null;
+      const registrationStatus = frame.Status ?? 'UNKNOWN';
+      indexed[extension] = {
+        registered: Boolean(contactUri),
+        registrationStatus,
+        contactUri,
+        userAgent: frame.UserAgent ?? null,
+        roundtripUsec: frame.RoundtripUsec ? Number(frame.RoundtripUsec) : null,
+      };
+    }
+
+    return indexed;
   }
 
   async create(tenantId: string, dto: CreateAgentDto) {

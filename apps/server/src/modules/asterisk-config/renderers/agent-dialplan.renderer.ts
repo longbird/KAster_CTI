@@ -50,6 +50,9 @@ function renderAgentEntryContext(
   }
 
   lines.push(` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`);
+  lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
+  lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
+  lines.push(' same => n,Hangup()');
   return lines.join('\n');
 }
 

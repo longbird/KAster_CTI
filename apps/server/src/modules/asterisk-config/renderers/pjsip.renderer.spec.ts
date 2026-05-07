@@ -28,6 +28,7 @@ describe('renderPjsip', () => {
     expect(result).toContain('external_signaling_address=49.247.46.86');
     expect(result).toContain('local_net=10.0.0.0/8');
     expect(result).toContain('local_net=172.16.0.0/12');
+    expect(result).toContain('[transport-ws]\ntype=transport\nprotocol=ws\nbind=0.0.0.0:8088\nexternal_media_address=49.247.46.86');
   });
 
   it('renders enabled trunk sections', () => {
@@ -90,7 +91,11 @@ describe('renderPjsip', () => {
     expect(result).toContain('context=agent-phone-1001');
     expect(result).toContain('max_contacts=2');
     expect(result).toContain('allow=alaw,ulaw');
+    expect(result).toContain('media_encryption=dtls');
+    expect(result).toContain('dtls_verify=fingerprint');
+    expect(result).toContain('ice_support=yes');
     expect(result).toContain('webrtc=yes');
+    expect(result).toContain('moh_suggest=default');
     expect(result).toContain('callerid_privacy=prohib');
     expect(result).toContain('named_call_group=queue-sales');
     expect(result).toContain('named_pickup_group=queue-sales,all-agents');

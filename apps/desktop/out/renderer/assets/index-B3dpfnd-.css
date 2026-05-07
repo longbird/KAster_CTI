@@ -55,7 +55,10 @@ button {
 .desktop-layout {
   display: block;
   width: min(560px, 100%);
+  height: 100vh;
   margin: 0 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .desktop-main {
@@ -449,6 +452,7 @@ button {
   display: grid;
   gap: 10px;
   min-width: 0;
+  align-content: start;
 }
 
 .console-header,
@@ -641,8 +645,23 @@ button {
 
 .dial-grid {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr) 64px;
-  gap: 8px;
+  grid-template-columns: 150px minmax(0, 1fr) 58px;
+  gap: 6px;
+}
+
+.dial-grid select {
+  width: 100%;
+  padding: 7px 22px 7px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dial-grid .primary-button {
+  padding-inline: 8px;
+}
+
+.dial-error {
+  margin: 0;
+  color: var(--danger);
 }
 
 .agent-list {
@@ -665,6 +684,44 @@ button {
 
 .agent-row small {
   color: var(--muted);
+}
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(15 23 42 / 0.34);
+}
+
+.confirm-dialog {
+  display: grid;
+  width: min(360px, 100%);
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.confirm-dialog h2,
+.confirm-dialog p {
+  margin: 0;
+}
+
+.confirm-dialog h2 {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.confirm-dialog p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .transfer-grid {
@@ -834,7 +891,15 @@ button {
   font-size: 12px;
 }
 
+.popup-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: min(420px, 58vw);
+}
+
 .popup-header input {
+  flex: 1 1 auto;
   width: min(280px, 48vw);
   min-height: 34px;
   border: 1px solid var(--border);
@@ -842,6 +907,22 @@ button {
   padding: 7px 9px;
   background: var(--surface-subtle);
   color: var(--text);
+}
+
+.popup-refresh-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.popup-refresh-button:disabled {
+  cursor: progress;
+  opacity: 0.65;
 }
 
 .popup-table-shell,
@@ -873,6 +954,42 @@ button {
   background: var(--surface-subtle);
   color: var(--muted);
   font-weight: 800;
+}
+
+.popup-dial-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  max-width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: #eef5fa;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.popup-dial-button span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-dial-button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.popup-dial-badge {
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: var(--primary);
+  color: white;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 5px;
 }
 
 .popup-agent-list {
@@ -912,7 +1029,6 @@ button {
     padding: 12px;
   }
 
-  .dial-grid,
   .transfer-grid,
   .primary-action-row,
   .call-control-row {

@@ -215,7 +215,10 @@ function getSoftphoneClient() {
       }));
     },
     onCallState: (call) => {
-      if (call?.phase === 'ringing') {
+      const previousCall = useDesktopStore.getState().softphone?.session ?? null;
+      const shouldPlayProgressTone = call?.phase === 'ringing'
+        || (call?.direction === 'outgoing' && call.phase === 'establishing');
+      if (shouldPlayProgressTone) {
         void getSoftphoneMediaController()?.startRingtone();
         if (call.direction === 'incoming' && call.id !== lastIncomingAttentionCallId) {
           lastIncomingAttentionCallId = call.id;
@@ -238,12 +241,24 @@ function getSoftphoneClient() {
           ? {
               ...current.softphone,
               session: call,
+              lastError: call
+                ? null
+                : previousCall?.direction === 'outgoing' && previousCall.phase !== 'active'
+                  ? '통화 연결 실패: 대상 내선 등록 또는 PBX 라우트를 확인하세요.'
+                  : current.softphone.lastError,
               remoteAudioActive: call ? current.softphone.remoteAudioActive : false,
+              localMuted: call ? current.softphone.localMuted : false,
+              localHold: call ? current.softphone.localHold : false,
             }
           : current.softphone,
         events: call
           ? pushEvent(current.events, `softphone ${call.phase} ${call.remoteDisplayName}`)
-          : pushEvent(current.events, 'softphone 세션 종료'),
+          : pushEvent(
+              current.events,
+              previousCall?.direction === 'outgoing' && previousCall.phase !== 'active'
+                ? 'softphone 통화 연결 실패'
+                : 'softphone 세션 종료',
+            ),
       }));
     },
     onRemoteStream: (stream) => {
@@ -263,9 +278,30 @@ function getSoftphoneClient() {
           return;
         }
 
-        if (mediaController) {
-          await mediaController.applyOutputDevice(outputDeviceId);
-          await mediaController.attachRemoteStream(stream);
+        try {
+          if (mediaController) {
+            await mediaController.applyOutputDevice(outputDeviceId);
+            await mediaController.attachRemoteStream(stream);
+          }
+        } catch (error) {
+          const message = toErrorMessage(error);
+          useDesktopStore.setState((current) => ({
+            softphone: current.softphone
+              ? {
+                  ...current.softphone,
+                  lastError: `원격 오디오 재생 실패: ${message}`,
+                  diagnostics: pushSoftphoneDiagnostic(current.softphone.diagnostics, {
+                    code: 'MEDIA_PLAYBACK_FAILED',
+                    message: '원격 오디오 재생에 실패했습니다.',
+                    hint: '출력 장치 선택과 Windows 앱 오디오 권한을 확인하세요.',
+                    source: 'media',
+                    severity: 'error',
+                  }),
+                }
+              : current.softphone,
+            events: pushEvent(current.events, `softphone 오디오 재생 실패 ${message}`),
+          }));
+          return;
         }
 
         useDesktopStore.setState((current) => ({
@@ -961,15 +997,19 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await getDesktopApi().originate({
-      agentExtension: agent.extension,
-      phoneNumber: normalized,
-      callerId: callerId?.trim() || undefined,
-    });
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.registration !== 'registered') {
+      set((current) => ({
+        events: pushEvent(current.events, 'softphone 미등록: 외부 발신 불가'),
+      }));
+      throw new Error('Softphone must be registered before outbound calling');
+    }
+
+    await getSoftphoneClient().invite(normalized, useDesktopStore.getState().audioPreferences);
     set((current) => ({
       events: pushEvent(
         current.events,
-        `외부 발신 요청 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`,
+        `softphone 외부 발신 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`,
       ),
     }));
   },
@@ -979,12 +1019,17 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    await getDesktopApi().originateInternal({
-      targetAgentId: target.agentId,
-      targetExtension: normalizedExtension,
-    });
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.registration !== 'registered') {
+      set((current) => ({
+        events: pushEvent(current.events, 'softphone 미등록: 내선 통화 불가'),
+      }));
+      throw new Error('Softphone must be registered before internal calling');
+    }
+
+    await getSoftphoneClient().invite(normalizedExtension, useDesktopStore.getState().audioPreferences);
     set((current) => ({
-      events: pushEvent(current.events, `내선 발신 요청 ${target.agentName} ${normalizedExtension}`),
+      events: pushEvent(current.events, `softphone 내선 통화 ${target.agentName} ${normalizedExtension}`),
     }));
   },
   async openCallHistoryPopup() {
@@ -1011,6 +1056,27 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }));
   },
   async mute() {
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.session) {
+      const nextMuted = !softphone.localMuted;
+      const controlled = getSoftphoneClient().setMuted(nextMuted);
+      set((current) => ({
+        softphone: current.softphone
+          ? {
+              ...current.softphone,
+              localMuted: controlled ? nextMuted : current.softphone.localMuted,
+            }
+          : current.softphone,
+        events: pushEvent(
+          current.events,
+          controlled
+            ? `softphone 음소거 ${nextMuted ? '적용' : '해제'}`
+            : 'softphone 음소거 실패: 마이크 트랙 없음',
+        ),
+      }));
+      return;
+    }
+
     const callId = useDesktopStore.getState().activeCall?.callId;
     if (!callId) {
       return;
@@ -1029,6 +1095,11 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }));
   },
   async hangup() {
+    if (useDesktopStore.getState().softphone?.session) {
+      await useDesktopStore.getState().hangupSoftphoneCall();
+      return;
+    }
+
     const callId = useDesktopStore.getState().activeCall?.callId;
     if (!callId) {
       return;
@@ -1040,6 +1111,40 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }));
   },
   async toggleHold() {
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.session) {
+      const nextHold = !softphone.localHold;
+      try {
+        const controlled = await getSoftphoneClient().setHeld(nextHold);
+        set((current) => ({
+          softphone: current.softphone
+            ? {
+                ...current.softphone,
+                localHold: controlled ? nextHold : current.softphone.localHold,
+              }
+            : current.softphone,
+          events: pushEvent(
+            current.events,
+            controlled
+              ? `softphone ${nextHold ? '보류' : '재개'} 요청`
+              : 'softphone 보류 실패: 연결된 SIP 세션 없음',
+          ),
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'softphone hold failed';
+        set((current) => ({
+          softphone: current.softphone
+            ? {
+                ...current.softphone,
+                lastError: `보류 실패: ${message}`,
+              }
+            : current.softphone,
+          events: pushEvent(current.events, `softphone 보류 실패 ${message}`),
+        }));
+      }
+      return;
+    }
+
     const currentCall = useDesktopStore.getState().activeCall;
     if (!currentCall) {
       return;
@@ -1361,6 +1466,8 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
             lastError: null,
             session: null,
             remoteAudioActive: false,
+            localMuted: false,
+            localHold: false,
           }
         : current.softphone,
       events: pushEvent(current.events, 'softphone 등록 종료'),
@@ -1381,6 +1488,8 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
             ...current.softphone,
             session: null,
             remoteAudioActive: false,
+            localMuted: false,
+            localHold: false,
           }
         : current.softphone,
       events: pushEvent(current.events, 'softphone 수신 거절'),

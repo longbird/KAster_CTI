@@ -6,6 +6,8 @@ const softphoneClientMocks = vi.hoisted(() => {
   const answer = vi.fn(async () => undefined);
   const reject = vi.fn(async () => undefined);
   const hangup = vi.fn(async () => undefined);
+  const setMuted = vi.fn(() => true);
+  const setHeld = vi.fn(async () => true);
   let callbacks:
     | {
         onCallState: (call: unknown) => void;
@@ -19,6 +21,8 @@ const softphoneClientMocks = vi.hoisted(() => {
     answer,
     reject,
     hangup,
+    setMuted,
+    setHeld,
     setCallbacks(input: typeof callbacks) {
       callbacks = input;
     },
@@ -55,6 +59,8 @@ vi.mock('../softphone/sip-softphone-client', () => ({
       answer: softphoneClientMocks.answer,
       reject: softphoneClientMocks.reject,
       hangup: softphoneClientMocks.hangup,
+      setMuted: softphoneClientMocks.setMuted,
+      setHeld: softphoneClientMocks.setHeld,
     };
   }),
 }));
@@ -198,6 +204,8 @@ describe('useDesktopStore softphone call state', () => {
     softphoneClientMocks.answer.mockClear();
     softphoneClientMocks.reject.mockClear();
     softphoneClientMocks.hangup.mockClear();
+    softphoneClientMocks.setMuted.mockClear();
+    softphoneClientMocks.setHeld.mockClear();
     softphoneMediaControllerMocks.attachRemoteStream.mockClear();
     softphoneMediaControllerMocks.detachRemoteStream.mockClear();
     softphoneMediaControllerMocks.applyOutputDevice.mockClear();
@@ -235,24 +243,25 @@ describe('useDesktopStore softphone call state', () => {
     expect(desktopApi.focusWindow).toHaveBeenCalled();
   });
 
-  it('softphone 세션이 active 또는 null 로 바뀌면 벨소리를 멈춘다', async () => {
+  it('softphone 발신 연결 중에는 발신음을 재생하고 active 또는 null 로 바뀌면 멈춘다', async () => {
     await useDesktopStore.getState().initialize();
 
     softphoneClientMocks.getCallbacks()?.onCallState({
       id: 'invite-1',
-      direction: 'incoming',
-      phase: 'ringing',
-      remoteDisplayName: '고객A',
-      remoteUri: 'sip:customer-a@pbx.example.com',
+      direction: 'outgoing',
+      phase: 'establishing',
+      remoteDisplayName: '01012345678',
+      remoteUri: 'sip:01012345678@pbx.example.com',
     });
+    expect(softphoneMediaControllerMocks.startRingtone).toHaveBeenCalled();
     softphoneMediaControllerMocks.stopRingtone.mockClear();
 
     softphoneClientMocks.getCallbacks()?.onCallState({
       id: 'invite-1',
-      direction: 'incoming',
+      direction: 'outgoing',
       phase: 'active',
-      remoteDisplayName: '고객A',
-      remoteUri: 'sip:customer-a@pbx.example.com',
+      remoteDisplayName: '01012345678',
+      remoteUri: 'sip:01012345678@pbx.example.com',
     });
     softphoneClientMocks.getCallbacks()?.onCallState(null);
 
@@ -336,5 +345,58 @@ describe('useDesktopStore softphone call state', () => {
 
     expect(desktopApi.applyPreparedUpdate).not.toHaveBeenCalled();
     expect(useDesktopStore.getState().events[0]).toContain('업데이트 적용 보류');
+  });
+
+  it('softphone 세션 중 음소거는 서버 mute 대신 SIP 로컬 마이크를 제어한다', async () => {
+    await useDesktopStore.getState().initialize();
+
+    softphoneClientMocks.getCallbacks()?.onCallState({
+      id: 'invite-3',
+      direction: 'outgoing',
+      phase: 'active',
+      remoteDisplayName: '01012345678',
+      remoteUri: 'sip:01012345678@pbx.example.com',
+    });
+
+    await useDesktopStore.getState().mute();
+
+    expect(softphoneClientMocks.setMuted).toHaveBeenCalledWith(true);
+    expect(desktopApi.mute).not.toHaveBeenCalled();
+    expect(useDesktopStore.getState().softphone?.localMuted).toBe(true);
+  });
+
+  it('softphone 세션 중 보류는 서버 hold 대신 SIP re-INVITE 를 요청한다', async () => {
+    await useDesktopStore.getState().initialize();
+
+    softphoneClientMocks.getCallbacks()?.onCallState({
+      id: 'invite-4',
+      direction: 'outgoing',
+      phase: 'active',
+      remoteDisplayName: '01012345678',
+      remoteUri: 'sip:01012345678@pbx.example.com',
+    });
+
+    await useDesktopStore.getState().toggleHold();
+
+    expect(softphoneClientMocks.setHeld).toHaveBeenCalledWith(true);
+    expect(desktopApi.hold).not.toHaveBeenCalled();
+    expect(useDesktopStore.getState().softphone?.localHold).toBe(true);
+  });
+
+  it('softphone 세션 중 hangup 은 서버 hangup 대신 SIP hangup 을 호출한다', async () => {
+    await useDesktopStore.getState().initialize();
+
+    softphoneClientMocks.getCallbacks()?.onCallState({
+      id: 'invite-5',
+      direction: 'outgoing',
+      phase: 'active',
+      remoteDisplayName: '01012345678',
+      remoteUri: 'sip:01012345678@pbx.example.com',
+    });
+
+    await useDesktopStore.getState().hangup();
+
+    expect(softphoneClientMocks.hangup).toHaveBeenCalled();
+    expect(desktopApi.hangup).not.toHaveBeenCalled();
   });
 });

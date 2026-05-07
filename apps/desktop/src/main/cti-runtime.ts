@@ -197,6 +197,15 @@ export class CtiRuntime {
       extension?: string;
       role?: string;
       isActive?: boolean;
+      loginStatus?: 'LOGGED_IN' | 'LOGGED_OUT' | 'UNKNOWN';
+      sipRegistration?: {
+        registered?: boolean;
+        registrationStatus?: string;
+        contactUri?: string | null;
+        userAgent?: string | null;
+        roundtripUsec?: number | null;
+      } | null;
+      canCall?: boolean;
       currentStatus?: { statusCode?: AgentStatusCode } | null;
     }) => ({
       agentId: agent.agentId ?? '',
@@ -204,6 +213,15 @@ export class CtiRuntime {
       extension: agent.extension ?? '',
       role: agent.role ?? 'agent',
       isActive: agent.isActive !== false,
+      loginStatus: agent.loginStatus ?? 'UNKNOWN',
+      sipRegistration: {
+        registered: agent.sipRegistration?.registered === true,
+        registrationStatus: agent.sipRegistration?.registrationStatus ?? 'UNKNOWN',
+        contactUri: agent.sipRegistration?.contactUri ?? null,
+        userAgent: agent.sipRegistration?.userAgent ?? null,
+        roundtripUsec: agent.sipRegistration?.roundtripUsec ?? null,
+      },
+      canCall: agent.canCall === true,
       currentStatus: agent.currentStatus?.statusCode
         ? { statusCode: agent.currentStatus.statusCode }
         : null,
@@ -218,6 +236,8 @@ export class CtiRuntime {
       callId?: string;
       ani?: string | null;
       dnis?: string | null;
+      didNumber?: string | null;
+      representativeNumber?: string | null;
       queueName?: string | null;
       sessionStatus?: string;
       direction?: string | null;
@@ -232,6 +252,8 @@ export class CtiRuntime {
       callId: row.callId ?? '',
       ani: row.ani ?? null,
       dnis: row.dnis ?? null,
+      didNumber: row.didNumber ?? null,
+      representativeNumber: row.representativeNumber ?? null,
       queueName: row.queueName ?? null,
       sessionStatus: row.sessionStatus ?? '',
       direction: row.direction ?? null,

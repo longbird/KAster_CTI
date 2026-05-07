@@ -401,6 +401,15 @@ describe('CtiRuntime', () => {
         extension: '1002',
         role: 'agent',
         isActive: true,
+        loginStatus: 'UNKNOWN',
+        sipRegistration: {
+          registered: false,
+          registrationStatus: 'UNKNOWN',
+          contactUri: null,
+          userAgent: null,
+          roundtripUsec: null,
+        },
+        canCall: false,
         currentStatus: { statusCode: 'AVAILABLE' },
       },
     ]);

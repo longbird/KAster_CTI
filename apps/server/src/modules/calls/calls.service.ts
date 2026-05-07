@@ -1110,16 +1110,77 @@ export class CallsService {
       tenantId,
       rows.map((row) => row.queueName),
     );
-    const data = rows.map((row) => ({
-      ...row,
-      didNumber: resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? null,
-      queueDisplayName: queueDisplayNameMap.get(row.queueName ?? '') ?? row.queueName ?? null,
-      latestTransfer: latestTransferCandidateMap.get(row.linkedid) ?? null,
-      missedReason: this.getMissedReason(row),
-      representativeNumber:
-        didMetaMap.get(resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? row.dnis ?? '')?.representativeNumber ?? null,
-    }));
+    const agentByExtensionMap = await this.getAgentByExtensionMap(
+      tenantId,
+      rows.flatMap((row) => [row.ani, row.dnis]),
+    );
+    const defaultOutboundCallerId = await this.getDefaultOutboundCallerId(tenantId);
+    const data = rows.map((row) => {
+      const ani = row.ani?.trim() ?? '';
+      const dnis = row.dnis?.trim() ?? '';
+      const primaryAgent = row.primaryAgent
+        ?? agentByExtensionMap.get(ani)
+        ?? agentByExtensionMap.get(dnis)
+        ?? null;
+      const agentAni = agentByExtensionMap.has(ani);
+      const agentDnis = agentByExtensionMap.has(dnis);
+      const looksLikeDesktopOutbound = agentAni && !agentDnis && Boolean(dnis);
+      const resolvedDidNumber = looksLikeDesktopOutbound
+        ? defaultOutboundCallerId ?? row.didNumber ?? null
+        : resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? null;
+      const representativeNumber = looksLikeDesktopOutbound
+        ? defaultOutboundCallerId ?? null
+        : didMetaMap.get(resolvedDidMap.get(row.linkedid) ?? row.didNumber ?? row.dnis ?? '')?.representativeNumber ?? null;
+
+      return {
+        ...row,
+        direction: looksLikeDesktopOutbound ? 'OUTBOUND' : row.direction,
+        ani: looksLikeDesktopOutbound ? defaultOutboundCallerId ?? row.ani : row.ani,
+        primaryAgent,
+        didNumber: resolvedDidNumber,
+        queueDisplayName: queueDisplayNameMap.get(row.queueName ?? '') ?? row.queueName ?? null,
+        latestTransfer: latestTransferCandidateMap.get(row.linkedid) ?? null,
+        missedReason: this.getMissedReason(row),
+        representativeNumber,
+      };
+    });
     return { success: true, data, error: null };
+  }
+
+  private async getDefaultOutboundCallerId(tenantId: string) {
+    const settings = await this.prisma.tenantSystemSettings.findUnique({
+      where: { tenantId },
+      select: {
+        allowedOutboundCallerIds: true,
+        defaultOutboundCallerId: true,
+      },
+    } as any) as
+      | { allowedOutboundCallerIds?: string | null; defaultOutboundCallerId?: string | null }
+      | null;
+    const defaultCallerId = settings?.defaultOutboundCallerId?.trim();
+    if (defaultCallerId) {
+      return defaultCallerId;
+    }
+    return parseAllowedCallerIds(settings?.allowedOutboundCallerIds)[0] ?? null;
+  }
+
+  private async getAgentByExtensionMap(
+    tenantId: string,
+    values: Array<string | null | undefined>,
+  ): Promise<Map<string, { agentName: string }>> {
+    const extensions = [...new Set(values
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value) && /^\d{2,8}$/.test(value)))];
+    if (extensions.length === 0) {
+      return new Map();
+    }
+
+    const agents = await this.prisma.agents.findMany({
+      where: { tenantId, extension: { in: extensions } },
+      select: { agentId: true, agentName: true, extension: true },
+    });
+
+    return new Map(agents.map((agent) => [agent.extension, { agentName: agent.agentName }]));
   }
 
   async listRecordings(tenantId: string, q: { from?: string; to?: string; branchId?: string }) {

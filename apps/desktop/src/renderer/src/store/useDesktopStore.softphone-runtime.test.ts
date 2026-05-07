@@ -9,8 +9,8 @@ const softphoneClientMocks = vi.hoisted(() => {
           code: string;
           message: string;
           hint: string | null;
-          source: 'config' | 'transport' | 'registration';
-          severity: 'warning' | 'error';
+          source: 'config' | 'transport' | 'registration' | 'media';
+          severity: 'info' | 'warning' | 'error';
         }) => void;
       }
     | undefined;

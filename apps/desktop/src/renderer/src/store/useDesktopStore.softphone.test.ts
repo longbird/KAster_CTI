@@ -133,6 +133,8 @@ describe('useDesktopStore softphone bootstrap', () => {
       diagnostics: [],
       session: null,
       remoteAudioActive: false,
+      localMuted: false,
+      localHold: false,
     });
   });
 });

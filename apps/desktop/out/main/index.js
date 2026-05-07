@@ -1,10 +1,10 @@
 import { safeStorage, app, Menu, ipcMain, shell, BrowserWindow, session, Notification, nativeImage, Tray } from "electron";
+import { randomUUID, createHash } from "node:crypto";
 import { createReadStream, existsSync } from "node:fs";
 import { join } from "node:path";
 import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
 import axios from "axios";
 import { createServer } from "node:http";
-import { randomUUID, createHash } from "node:crypto";
 import { io } from "socket.io-client";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
@@ -442,6 +442,15 @@ class CtiRuntime {
       extension: agent.extension ?? "",
       role: agent.role ?? "agent",
       isActive: agent.isActive !== false,
+      loginStatus: agent.loginStatus ?? "UNKNOWN",
+      sipRegistration: {
+        registered: agent.sipRegistration?.registered === true,
+        registrationStatus: agent.sipRegistration?.registrationStatus ?? "UNKNOWN",
+        contactUri: agent.sipRegistration?.contactUri ?? null,
+        userAgent: agent.sipRegistration?.userAgent ?? null,
+        roundtripUsec: agent.sipRegistration?.roundtripUsec ?? null
+      },
+      canCall: agent.canCall === true,
       currentStatus: agent.currentStatus?.statusCode ? { statusCode: agent.currentStatus.statusCode } : null
     }));
   }
@@ -452,6 +461,8 @@ class CtiRuntime {
       callId: row.callId ?? "",
       ani: row.ani ?? null,
       dnis: row.dnis ?? null,
+      didNumber: row.didNumber ?? null,
+      representativeNumber: row.representativeNumber ?? null,
       queueName: row.queueName ?? null,
       sessionStatus: row.sessionStatus ?? "",
       direction: row.direction ?? null,
@@ -744,6 +755,18 @@ async function verifySha256(filePath, expectedSha256) {
   });
   return hash.digest("hex") === expectedSha256;
 }
+function compareVersion(left, right) {
+  const leftParts = left.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const rightParts = right.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const length = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+  return 0;
+}
 class UpdateClient {
   constructor(baseUrl, accessToken, artifactTempDir) {
     this.artifactTempDir = artifactTempDir;
@@ -767,7 +790,11 @@ class UpdateClient {
         channel: params.channel
       }
     });
-    return manifest.data.data ?? null;
+    const data = manifest.data.data ?? null;
+    if (!data || compareVersion(data.latestVersion, params.currentVersion) <= 0) {
+      return null;
+    }
+    return data;
   }
   async prepareUpdate(params) {
     if (!this.artifactTempDir) {
@@ -859,9 +886,11 @@ let runtime = null;
 let isQuitting = false;
 let trayService = null;
 let runtimeSupervisor = null;
+let primaryWindow = null;
+const historyOriginateRequests = /* @__PURE__ */ new Map();
 let preparedUpdate = null;
 const DESKTOP_WINDOW_BOUNDS = {
-  idle: { width: 420, height: 360, minWidth: 380, minHeight: 320 },
+  idle: { width: 440, height: 560, minWidth: 420, minHeight: 520 },
   ringing: { width: 440, height: 420, minWidth: 400, minHeight: 380 },
   talking: { width: 460, height: 620, minWidth: 420, minHeight: 540 },
   transferring: { width: 500, height: 640, minWidth: 440, minHeight: 560 },
@@ -878,7 +907,13 @@ function normalizeDesktopWindowMode(mode) {
   return mode;
 }
 function getPrimaryWindow() {
-  return BrowserWindow.getAllWindows()[0] ?? null;
+  if (primaryWindow && !primaryWindow.isDestroyed()) {
+    return primaryWindow;
+  }
+  return BrowserWindow.getAllWindows().find((win) => {
+    const title = win.getTitle();
+    return title !== getUtilityWindowTitle("history") && title !== getUtilityWindowTitle("agents");
+  }) ?? null;
 }
 function getUtilityWindowTitle(kind) {
   return kind === "history" ? "KAster 통화내역" : "KAster 상담원 리스트";
@@ -897,7 +932,6 @@ function openUtilityWindow(kind) {
     height: bounds.height,
     minWidth: bounds.minWidth,
     minHeight: bounds.minHeight,
-    parent: getPrimaryWindow() ?? void 0,
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       contextIsolation: true,
@@ -1005,6 +1039,12 @@ function createWindow() {
       sandbox: false
     }
   });
+  primaryWindow = win;
+  win.on("closed", () => {
+    if (primaryWindow === win) {
+      primaryWindow = null;
+    }
+  });
   win.setMenuBarVisibility(false);
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) {
@@ -1031,7 +1071,6 @@ function applyWindowMode(mode) {
   const bounds = DESKTOP_WINDOW_BOUNDS[normalizeDesktopWindowMode(mode)];
   win.setMinimumSize(bounds.minWidth, bounds.minHeight);
   win.setSize(bounds.width, bounds.height);
-  win.center();
 }
 function createTrayIcon() {
   const packagedIconPath = join(process.resourcesPath, "icon.png");
@@ -1291,6 +1330,32 @@ app.whenReady().then(() => {
       return [];
     }
     return runtime.getCallHistory();
+  });
+  ipcMain.handle("desktop:request-history-originate", (_event, input) => {
+    const win = getPrimaryWindow();
+    const phoneNumber = input.phoneNumber?.trim();
+    if (!win || !phoneNumber) {
+      throw new Error("상담원 화면으로 발신 요청을 전달할 수 없습니다.");
+    }
+    const requestId = randomUUID();
+    focusPrimaryWindow();
+    win.webContents.send("desktop:history-originate-request", { requestId, phoneNumber });
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        historyOriginateRequests.delete(requestId);
+        reject(new Error("발신 요청 응답 시간이 초과되었습니다."));
+      }, 15e3);
+      historyOriginateRequests.set(requestId, { resolve, reject, timer });
+    });
+  });
+  ipcMain.handle("desktop:complete-history-originate", (_event, input) => {
+    const pending = historyOriginateRequests.get(input.requestId);
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timer);
+    historyOriginateRequests.delete(input.requestId);
+    pending.resolve(input);
   });
   ipcMain.handle("desktop:open-call-history-popup", () => {
     openUtilityWindow("history");

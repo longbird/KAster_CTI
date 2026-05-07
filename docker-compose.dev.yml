@@ -48,6 +48,25 @@ services:
       timeout: 3s
       retries: 10
 
+  turn:
+    image: coturn/coturn:4.6
+    container_name: kaster-turn
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --lt-cred-mech
+      - --user=${TURN_USERNAME:-kaster}:${TURN_PASSWORD:-kaster_turn_dev_secret}
+      - --realm=${TURN_REALM:-kaster-cti}
+      - --external-ip=${TURN_EXTERNAL_IP:-49.247.46.86}/${TURN_PRIVATE_IP:-10.7.1.49}
+      - --no-tls
+      - --no-dtls
+      - --no-cli
+      - --no-software-attribute
+      - --fingerprint
+
   server:
     build:
       context: .
@@ -75,15 +94,15 @@ services:
       AMI_RECONNECT_MS: 60000
       ASTERISK_NODE_ID: dev-node
       ASTERISK_OUTBOUND_CONTEXT: outbound-main
-      # The default dev stack must not write the host PBX config when a
-      # rehearsal/production stack owns /etc/asterisk.
-      ASTERISK_CONF_DIR: /var/lib/kaster/asterisk-conf-disabled
-      ASTERISK_SOUNDS_DIR: /var/lib/kaster/asterisk-sounds-disabled
+      # Current dev server owns the host PBX generated config.
+      ASTERISK_CONF_DIR: /etc/asterisk
+      ASTERISK_SOUNDS_DIR: /var/lib/asterisk/sounds/custom
       ASTERISK_CONF_OWNER_ID: dev-node
       ASTERISK_CONF_ALLOW_SHARED_WRITE: "false"
       ASTERISK_EXTERNAL_MEDIA_ADDRESS: ${ASTERISK_EXTERNAL_MEDIA_ADDRESS:-49.247.46.86}
       ASTERISK_EXTERNAL_SIGNALING_ADDRESS: ${ASTERISK_EXTERNAL_SIGNALING_ADDRESS:-49.247.46.86}
       ASTERISK_LOCAL_NETS: ${ASTERISK_LOCAL_NETS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      ASTERISK_RTP_STUN_ADDRESS: ${ASTERISK_RTP_STUN_ADDRESS:-stun.l.google.com:19302}
       KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET:-change_me_internal}
       SEED_DEMO_PASSWORD: Password123!
       AUTO_SEED_DEMO_DATA: "true"
@@ -94,9 +113,13 @@ services:
       SOFTPHONE_ENABLED: ${SOFTPHONE_ENABLED:-false}
       SOFTPHONE_SIP_DOMAIN: ${SOFTPHONE_SIP_DOMAIN:-}
       SOFTPHONE_WS_SERVER: ${SOFTPHONE_WS_SERVER:-}
-      SOFTPHONE_ICE_SERVERS_JSON: ${SOFTPHONE_ICE_SERVERS_JSON:-[]}
+      SOFTPHONE_ICE_SERVERS_JSON: '${SOFTPHONE_ICE_SERVERS_JSON:-[{"urls":"stun:stun.l.google.com:19302"},{"urls":["turn:49.247.46.86:3478?transport=udp","turn:49.247.46.86:3478?transport=tcp"],"username":"kaster","credential":"kaster_turn_dev_secret"}]}'
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - /etc/asterisk:/etc/asterisk
+      - /var/lib/asterisk/sounds/custom:/var/lib/asterisk/sounds/custom
+      - /var/lib/asterisk/moh:/var/lib/asterisk/moh
     ports:
       - "3000:3000"
 

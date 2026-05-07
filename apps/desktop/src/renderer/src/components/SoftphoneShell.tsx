@@ -11,6 +11,10 @@ import {
   deriveDesktopConsoleState,
   getWindowModeForConsoleState,
 } from './desktop-console-state';
+import {
+  formatDirectoryAgentSummary,
+  getAgentCallBlockReason,
+} from './agent-directory-display';
 
 const AGENT_STATUS_OPTIONS: Array<{ value: AgentStatusCode; label: string }> = [
   { value: 'AVAILABLE', label: '대기' },
@@ -48,6 +52,10 @@ function getCallSubtitle(activeCall: ActiveCall | null, softphone: SoftphoneStat
     return [softphone.session.direction === 'incoming' ? '수신' : '발신', softphone.session.phase]
       .filter(Boolean)
       .join(' / ');
+  }
+
+  if (softphone?.lastError) {
+    return softphone.lastError;
   }
 
   return '필요한 작업만 표시합니다.';
@@ -116,8 +124,8 @@ export function SoftphoneShell({
   onReconnectRuntime: () => void;
   onChangeAgentStatus: (statusCode: AgentStatusCode) => void;
   onPickup: () => void;
-  onOriginate: (phoneNumber: string, callerId?: string) => void;
-  onOriginateInternal: (target: DesktopAgentDirectoryItem) => void;
+  onOriginate: (phoneNumber: string, callerId?: string) => Promise<void> | void;
+  onOriginateInternal: (target: DesktopAgentDirectoryItem) => Promise<void> | void;
   onOpenCallHistoryPopup: () => void;
   onOpenAgentListPopup: () => void;
   onMute: () => void;
@@ -139,6 +147,11 @@ export function SoftphoneShell({
 }) {
   const [view, setView] = useState<'call' | 'settings'>('call');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [dialPending, setDialPending] = useState(false);
+  const [dialError, setDialError] = useState<string | null>(null);
+  const [internalTarget, setInternalTarget] = useState<DesktopAgentDirectoryItem | null>(null);
+  const [internalPending, setInternalPending] = useState(false);
+  const [internalError, setInternalError] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState('');
   const [transferMode, setTransferMode] = useState<'blind' | 'attended'>('blind');
   const [dialNumber, setDialNumber] = useState('');
@@ -199,7 +212,54 @@ export function SoftphoneShell({
     () => agentDirectory.filter((agent) => agent.extension !== extension).slice(0, 5),
     [agentDirectory, extension],
   );
-  const canDialExternal = runtimeReady && Boolean(dialNumber.trim()) && callerIds.length > 0;
+  const canDialExternal =
+    runtimeReady
+    && softphone?.registration === 'registered'
+    && Boolean(dialNumber.trim())
+    && callerIds.length > 0
+    && !dialPending;
+  const canAnswerRinging =
+    activeCall
+      ? runtimeReady
+      : Boolean(softphone?.session && softphone.session.phase === 'ringing');
+
+  const handleExternalOriginate = async () => {
+    if (!canDialExternal) {
+      return;
+    }
+
+    setDialPending(true);
+    setDialError(null);
+    try {
+      await onOriginate(dialNumber, selectedCallerId);
+    } catch (error) {
+      setDialError(error instanceof Error ? error.message : '발신 요청 실패');
+    } finally {
+      setDialPending(false);
+    }
+  };
+
+  const handleInternalOriginate = async () => {
+    if (!internalTarget) {
+      return;
+    }
+    const blockReason = getAgentCallBlockReason(internalTarget);
+    if (blockReason) {
+      setInternalError(`내선 통화 불가: ${blockReason}`);
+      return;
+    }
+
+    setInternalPending(true);
+    setInternalError(null);
+    try {
+      await onOriginateInternal(internalTarget);
+      setInternalTarget(null);
+    } catch (error) {
+      setInternalError(error instanceof Error ? error.message : '내선 발신 요청 실패');
+    } finally {
+      setInternalPending(false);
+    }
+  };
 
   if (view === 'settings') {
     return (
@@ -296,6 +356,16 @@ export function SoftphoneShell({
                 ))}
               </ul>
               {softphone?.lastError ? <p className="console-muted">오류 {softphone.lastError}</p> : null}
+              {softphone?.diagnostics.length ? (
+                <ul className="softphone-readiness-list">
+                  {softphone.diagnostics.slice(0, 3).map((diagnostic) => (
+                    <li key={`${diagnostic.code}-${diagnostic.occurredAt}`} className={`readiness-item readiness-item-${diagnostic.severity === 'error' ? 'error' : diagnostic.severity === 'warning' ? 'warning' : 'ok'}`}>
+                      <span>{diagnostic.code} / {diagnostic.message}</span>
+                      {diagnostic.hint ? <small>{diagnostic.hint}</small> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <div className="console-actions">
                 <button type="button" disabled={runtimeConnection === 'reconnecting'} onClick={onReconnectRuntime}>
                   Runtime 재연결
@@ -344,12 +414,17 @@ export function SoftphoneShell({
           <button
             type="button"
             className="primary-button"
-            disabled={!runtimeReady || !activeCall}
+            disabled={!canAnswerRinging}
             onClick={activeCall ? onPickup : onAnswerSoftphoneCall}
           >
             받기
           </button>
-          <button type="button" className="danger-button" onClick={activeCall ? onHangup : onRejectSoftphoneCall}>
+          <button
+            type="button"
+            className="danger-button"
+            disabled={!canAnswerRinging}
+            onClick={activeCall ? onHangup : onRejectSoftphoneCall}
+          >
             거절
           </button>
         </div>
@@ -388,11 +463,12 @@ export function SoftphoneShell({
                 type="button"
                 className="primary-button"
                 disabled={!canDialExternal}
-                onClick={() => onOriginate(dialNumber, selectedCallerId)}
+                onClick={() => void handleExternalOriginate()}
               >
-                발신
+                {dialPending ? '발신 중' : '발신'}
               </button>
             </div>
+            {dialError ? <p className="console-muted dial-error">{dialError}</p> : null}
           </section>
 
           <section className="console-section agent-directory-section">
@@ -407,16 +483,25 @@ export function SoftphoneShell({
                 <p className="console-muted">표시할 상담원이 없습니다.</p>
               ) : (
                 availableAgents.map((agent) => (
+                  (() => {
+                    const blockReason = getAgentCallBlockReason(agent);
+                    return (
                   <button
                     type="button"
                     key={agent.agentId}
                     className="agent-row"
-                    disabled={!runtimeReady || !agent.isActive}
-                    onClick={() => onOriginateInternal(agent)}
+                    disabled={!runtimeReady || softphone?.registration !== 'registered' || Boolean(blockReason)}
+                    onClick={() => {
+                      setInternalError(null);
+                      setInternalTarget(agent);
+                    }}
+                    title={blockReason ? `내선 통화 불가: ${blockReason}` : '내선 통화 가능'}
                   >
                     <span>{agent.agentName}</span>
-                    <small>{agent.extension}</small>
+                    <small>{formatDirectoryAgentSummary(agent)}</small>
                   </button>
+                    );
+                  })()
                 ))
               )}
             </div>
@@ -428,12 +513,12 @@ export function SoftphoneShell({
         <>
           <div className="call-control-row">
             <button type="button" onClick={onMute}>
-              {activeCall?.isMuted ? '음소거 해제' : '음소거'}
+              {softphone?.session ? (softphone.localMuted ? '음소거 해제' : '음소거') : activeCall?.isMuted ? '음소거 해제' : '음소거'}
             </button>
             <button type="button" onClick={onToggleHold}>
-              {activeCall?.sessionStatus === 'HOLD' ? '재개' : '보류'}
+              {softphone?.session ? (softphone.localHold ? '재개' : '보류') : activeCall?.sessionStatus === 'HOLD' ? '재개' : '보류'}
             </button>
-            <button type="button" className="danger-button" onClick={activeCall ? onHangup : onHangupSoftphoneCall}>
+            <button type="button" className="danger-button" onClick={softphone?.session ? onHangupSoftphoneCall : onHangup}>
               종료
             </button>
           </div>
@@ -490,6 +575,35 @@ export function SoftphoneShell({
             </section>
           ) : null}
         </>
+      ) : null}
+
+      {internalTarget ? (
+        <div className="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="internal-call-title">
+          <section className="confirm-dialog">
+            <h2 id="internal-call-title">내선 통화</h2>
+            <p>{internalTarget.agentName} {internalTarget.extension} 연결을 시작할까요?</p>
+            <p>상담원 {formatDirectoryAgentSummary(internalTarget)}</p>
+            {internalError ? <p className="console-muted dial-error">{internalError}</p> : null}
+            <div className="primary-action-row">
+              <button
+                type="button"
+                className="primary-button"
+                disabled={internalPending}
+                onClick={() => void handleInternalOriginate()}
+              >
+                {internalPending ? '연결 중' : '연결'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={internalPending}
+                onClick={() => setInternalTarget(null)}
+              >
+                취소
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </section>
   );

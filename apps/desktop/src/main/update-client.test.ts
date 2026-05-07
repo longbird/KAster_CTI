@@ -76,6 +76,43 @@ describe('UpdateClient', () => {
     expect(manifest?.latestVersion).toBe('1.4.0');
   });
 
+  it('pollManifest 는 현재 버전과 같은 manifest 를 업데이트 없음으로 처리한다', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        data: {
+          updateSessionToken: 'update-session-1',
+          expiresIn: 600,
+        },
+      },
+    });
+    get.mockResolvedValueOnce({
+      data: {
+        data: {
+          latestVersion: '0.1.0',
+          mandatory: false,
+          artifacts: [
+            {
+              artifactId: 'agent-win-x64-0.1.0',
+              version: '0.1.0',
+              fileName: 'KAster-Agent-0.1.0-x64.exe',
+              size: 123,
+              sha256: 'abc123',
+            },
+          ],
+        },
+      },
+    });
+
+    const client = new UpdateClient('https://cti-center-a.example.com', 'access-1');
+    const manifest = await client.pollManifest({
+      deviceId: 'device-1',
+      currentVersion: '0.1.0',
+      channel: 'stable',
+    });
+
+    expect(manifest).toBeNull();
+  });
+
   it('prepareUpdate 는 download-init 후 파일을 저장하고 sha256 을 검증한다', async () => {
     post
       .mockResolvedValueOnce({

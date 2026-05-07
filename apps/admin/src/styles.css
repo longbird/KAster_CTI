@@ -266,6 +266,51 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 10px 0;
+}
+
+.app-sider-menu .ant-menu-root > .ant-menu-item,
+.app-sider-menu .ant-menu-root > .ant-menu-submenu > .ant-menu-submenu-title {
+  height: 40px;
+  line-height: 40px;
+  margin: 6px 8px;
+  width: auto;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--fg-1) !important;
+  font-weight: 700;
+}
+
+.app-sider-menu .ant-menu-root > .ant-menu-submenu > .ant-menu-submenu-title {
+  background: color-mix(in srgb, var(--bg-2) 72%, transparent);
+  border-color: color-mix(in srgb, var(--line-1) 65%, transparent);
+}
+
+.app-sider-menu .ant-menu-root > .ant-menu-submenu-open > .ant-menu-submenu-title,
+.app-sider-menu .ant-menu-root > .ant-menu-submenu-selected > .ant-menu-submenu-title {
+  background: var(--bg-2);
+  border-color: var(--line-2);
+}
+
+.app-sider-menu .ant-menu-sub .ant-menu-item {
+  height: 36px;
+  line-height: 36px;
+  margin-block: 2px;
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--fg-2) !important;
+}
+
+.app-sider-menu .ant-menu-sub .ant-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 34px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--line-3);
+  transform: translateY(-50%);
 }
 
 .brand-block {

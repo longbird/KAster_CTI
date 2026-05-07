@@ -83,11 +83,11 @@ export function PromptSettingsPage() {
         dataSource={rows}
         pagination={false}
         tableLayout="fixed"
-        scroll={{ x: 860 }}
+        scroll={{ x: 1210 }}
         columns={[
           {
             title: '프롬프트',
-            width: 220,
+            width: 260,
             render: (_: unknown, row) => (
               <Space direction="vertical" size={0}>
                 <Typography.Text strong>{row.displayName}</Typography.Text>
@@ -98,7 +98,7 @@ export function PromptSettingsPage() {
           {
             title: '파일명',
             dataIndex: 'fileName',
-            width: 180,
+            width: 220,
           },
           {
             title: '카테고리',
@@ -109,7 +109,7 @@ export function PromptSettingsPage() {
           {
             title: '설명',
             dataIndex: 'description',
-            width: 220,
+            width: 420,
             render: (value?: string | null) => value || '-',
           },
           {
@@ -122,7 +122,7 @@ export function PromptSettingsPage() {
           },
           {
             title: '관리',
-            width: 180,
+            width: 120,
             fixed: 'right',
             render: (_: unknown, row) => (
               <Space>

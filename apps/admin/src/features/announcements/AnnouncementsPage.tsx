@@ -103,7 +103,7 @@ export function AnnouncementsPage() {
         loading={loading}
         size="small"
         tableLayout="fixed"
-        scroll={{ x: 760 }}
+        scroll={{ x: 1120 }}
         expandable={{
           expandedRowRender: (row) => (
             <Typography.Paragraph style={{ margin: 0 }}>{row.body}</Typography.Paragraph>
@@ -113,28 +113,38 @@ export function AnnouncementsPage() {
           {
             title: '제목',
             dataIndex: 'title',
-            width: 340,
+            width: 420,
             render: (value: string, row: Notice) => (
-              <Space>
+              <Space style={{ maxWidth: '100%' }}>
                 {row.pinned && (
                   <Tag color="red" icon={<PushpinOutlined />}>
                     고정
                   </Tag>
                 )}
-                <span>{value}</span>
+                <Typography.Text ellipsis={{ tooltip: value }}>{value}</Typography.Text>
               </Space>
             ),
           },
-          { title: '작성자', dataIndex: 'authorName', width: 100 },
+          {
+            title: '내용',
+            dataIndex: 'body',
+            width: 340,
+            render: (value: string) => (
+              <Typography.Text type="secondary" ellipsis={{ tooltip: value }}>
+                {value}
+              </Typography.Text>
+            ),
+          },
+          { title: '작성자', dataIndex: 'authorName', width: 120 },
           {
             title: '등록일',
             dataIndex: 'createdAt',
-            width: 160,
+            width: 170,
             render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm'),
           },
           {
             title: '관리',
-            width: 96,
+            width: 88,
             fixed: 'right',
             render: (_: unknown, row: Notice) => (
               <Space>

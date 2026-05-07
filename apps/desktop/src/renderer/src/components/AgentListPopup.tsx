@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { DesktopAgentDirectoryItem } from '../../../shared/ipc';
+import {
+  formatDirectoryAgentSummary,
+  getAgentCallBlockReason,
+} from './agent-directory-display';
 
 export function AgentListPopup() {
   const [rows, setRows] = useState<DesktopAgentDirectoryItem[]>([]);
@@ -48,24 +52,20 @@ export function AgentListPopup() {
       </header>
 
       <section className="popup-agent-list">
-        {filtered.map((agent) => (
+        {filtered.map((agent) => {
+          const callBlockedReason = getAgentCallBlockReason(agent);
+          return (
           <button
             type="button"
             key={agent.agentId}
-            disabled={!agent.isActive}
-            onClick={() => {
-              const desktopApi =
-                typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
-              void desktopApi?.originateInternal?.({
-                targetAgentId: agent.agentId,
-                targetExtension: agent.extension,
-              });
-            }}
+            disabled={Boolean(callBlockedReason)}
+            title={callBlockedReason ? `내선 통화 불가: ${callBlockedReason}` : '내선 통화 가능'}
           >
             <span>{agent.agentName}</span>
-            <small>{agent.extension} / {agent.currentStatus?.statusCode ?? 'UNKNOWN'}</small>
+            <small>{formatDirectoryAgentSummary(agent)}</small>
           </button>
-        ))}
+          );
+        })}
         {filtered.length === 0 ? <p className="console-muted">표시할 상담원이 없습니다.</p> : null}
       </section>
     </main>

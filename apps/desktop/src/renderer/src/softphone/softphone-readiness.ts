@@ -85,7 +85,13 @@ export function evaluateSoftphoneReadiness(input: {
     {
       key: 'diagnostics',
       label: '최근 진단',
-      status: latestDiagnostic ? (latestDiagnostic.severity === 'error' ? 'error' : 'warning') : 'ok',
+      status: latestDiagnostic
+        ? latestDiagnostic.severity === 'error'
+          ? 'error'
+          : latestDiagnostic.severity === 'warning'
+            ? 'warning'
+            : 'ok'
+        : 'ok',
       detail: latestDiagnostic ? latestDiagnostic.message : '최근 진단 없음',
       hint: latestDiagnostic?.hint ?? null,
     },

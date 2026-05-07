@@ -33,6 +33,14 @@ import { assertNoNewlines, toSlug } from './renderer-utils';
 const SIP_WS_PORT = 8088;
 const ASTERISK_AUTH_REALM = 'asterisk';
 
+function renderTransportNatLines(input: PjsipInput, localNets: string[]): string[] {
+  return [
+    ...(input.externalMediaAddress ? [`external_media_address=${input.externalMediaAddress}`] : []),
+    ...(input.externalSignalingAddress ? [`external_signaling_address=${input.externalSignalingAddress}`] : []),
+    ...localNets.map((localNet) => `local_net=${localNet}`),
+  ];
+}
+
 function renderTrunk(trunk: TrunkInput): string {
   const slug = toSlug(trunk.name);
   if (!slug) throw new Error(`Trunk name "${trunk.name}" produces an empty slug`);
@@ -127,7 +135,16 @@ function renderAgent(agent: AgentInput): string {
     `rtp_symmetric=yes`,
     `force_rport=yes`,
     `rewrite_contact=yes`,
+    `use_avpf=yes`,
+    `media_encryption=dtls`,
+    `media_use_received_transport=yes`,
+    `dtls_auto_generate_cert=yes`,
+    `dtls_verify=fingerprint`,
+    `dtls_setup=actpass`,
+    `ice_support=yes`,
+    `rtcp_mux=yes`,
     `webrtc=yes`,
+    `moh_suggest=default`,
   ].join('\n');
 }
 
@@ -137,6 +154,7 @@ export function renderPjsip(input: PjsipInput): string {
   if (input.externalSignalingAddress) assertNoNewlines(input.externalSignalingAddress, 'externalSignalingAddress');
   const localNets = [...new Set((input.localNets || []).map((item) => item.trim()).filter(Boolean))];
   localNets.forEach((localNet) => assertNoNewlines(localNet, 'localNet'));
+  const transportNatLines = renderTransportNatLines(input, localNets);
   const header = [
     `[global]`,
     `type=global`,
@@ -147,14 +165,13 @@ export function renderPjsip(input: PjsipInput): string {
     `type=transport`,
     `protocol=udp`,
     `bind=0.0.0.0:${sipRegisterPort}`,
-    ...(input.externalMediaAddress ? [`external_media_address=${input.externalMediaAddress}`] : []),
-    ...(input.externalSignalingAddress ? [`external_signaling_address=${input.externalSignalingAddress}`] : []),
-    ...localNets.map((localNet) => `local_net=${localNet}`),
+    ...transportNatLines,
     ``,
     `[transport-ws]`,
     `type=transport`,
     `protocol=ws`,
     `bind=0.0.0.0:${SIP_WS_PORT}`,
+    ...transportNatLines,
   ].join('\n');
 
   const trunks = input.trunks

@@ -142,7 +142,7 @@ export function SmsTemplatesPage() {
       },
       {
         title: '관리',
-        width: 140,
+        width: 120,
         fixed: 'right' as const,
         render: (_: unknown, row: SmsTemplateRow) => (
           <Space>

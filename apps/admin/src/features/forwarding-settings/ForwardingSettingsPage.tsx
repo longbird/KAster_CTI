@@ -266,7 +266,7 @@ export function ForwardingSettingsPage() {
           },
           {
             title: '관리',
-            width: 180,
+            width: 120,
             fixed: 'right',
             render: (_: unknown, row) => (
               <Space>

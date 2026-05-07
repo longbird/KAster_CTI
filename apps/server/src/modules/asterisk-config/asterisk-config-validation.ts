@@ -1,5 +1,6 @@
 export interface RenderedConfFiles {
   pjsip: string;
+  rtp: string;
   extensionsInbound: string;
   extensionsQueue: string;
   extensionsAgent: string;
@@ -30,6 +31,7 @@ export const RENDERED_CONF_FILE_NAMES: Array<{
   requiredContext?: string;
 }> = [
   { key: 'pjsip', fileName: 'pjsip.conf', requiredContext: 'global' },
+  { key: 'rtp', fileName: 'rtp.conf', requiredContext: 'general' },
   { key: 'extensionsInbound', fileName: 'extensions_inbound.conf', requiredContext: 'inbound-main' },
   { key: 'extensionsQueue', fileName: 'extensions_queue.conf', requiredContext: 'queue-entry' },
   { key: 'extensionsAgent', fileName: 'extensions_agent.conf', requiredContext: 'from-queue' },

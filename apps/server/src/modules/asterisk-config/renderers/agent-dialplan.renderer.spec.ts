@@ -35,6 +35,8 @@ describe('renderAgentDialplan', () => {
     });
 
     expect(rendered).toContain('Goto(outbound-main-1001,${EXTEN},1)');
+    expect(rendered).toContain('exten => _[12]XXX,1,NoOp(Internal endpoint call 1001 / ${EXTEN})');
+    expect(rendered).toContain('Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
     expect(rendered).toContain('Set(CALLERID(num)=07052346380)');
     expect(rendered).toContain('Set(CALLERID(pres)=prohib)');
     expect(rendered).toContain('Dial(PJSIP/${EXTEN}@trunk-carrier-main,60');

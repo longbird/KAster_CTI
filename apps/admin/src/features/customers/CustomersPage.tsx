@@ -218,7 +218,7 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           {
             title: headerLabel('대표전화번호'),
             dataIndex: 'primaryPhoneNumber',
-            width: 160,
+            width: 170,
             render: (value: string | null | undefined, row) => (
               <Button
                 type="link"
@@ -232,7 +232,7 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           {
             title: headerLabel('성명'),
             dataIndex: 'customerName',
-            width: 140,
+            width: 160,
             render: (value: string | null | undefined, row) => (
               <Button
                 type="link"
@@ -251,10 +251,10 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
           },
           { title: headerLabel('등록일'), dataIndex: 'createdAt', width: 130, render: (value: string) => formatCustomerListDate(value) },
           { title: headerLabel('최종통화일'), dataIndex: 'lastCalledAt', width: 130, render: (value?: string | null) => formatCustomerListDate(value) },
-          { title: headerLabel('기본메모'), dataIndex: 'memo', width: 180, ellipsis: true, render: (value?: string | null) => value || '-' },
+          { title: headerLabel('기본메모'), dataIndex: 'memo', width: 350, ellipsis: true, render: (value?: string | null) => value || '-' },
           {
             title: headerLabel('관리'),
-            width: 132,
+            width: 120,
             fixed: 'right',
             render: (_: unknown, row) => (
               <Space>

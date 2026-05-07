@@ -27,6 +27,8 @@ describe('createSoftphoneState', () => {
       diagnostics: [],
       session: null,
       remoteAudioActive: false,
+      localMuted: false,
+      localHold: false,
     });
   });
 
@@ -55,6 +57,8 @@ describe('createSoftphoneState', () => {
       diagnostics: [],
       session: null,
       remoteAudioActive: false,
+      localMuted: false,
+      localHold: false,
     });
   });
 });

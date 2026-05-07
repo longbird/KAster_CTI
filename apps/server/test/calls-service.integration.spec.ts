@@ -83,6 +83,7 @@ describe('CallsService branch filter integration', () => {
     jest.clearAllMocks();
     prisma.asteriskDid.findMany.mockResolvedValue([]);
     prisma.queues.findMany.mockResolvedValue([]);
+    prisma.agents.findMany.mockResolvedValue([]);
     redisClient.mget.mockResolvedValue([]);
     redisClient.set.mockResolvedValue('OK');
     const module: TestingModule = await Test.createTestingModule({
@@ -530,6 +531,93 @@ describe('CallsService branch filter integration', () => {
         expect.objectContaining({ callId: 'call-recovery', missedReason: 'SYSTEM_RECOVERY' }),
       ]),
     );
+  });
+
+  it('listHistory 는 primaryAgent 가 비어 있으면 내선 번호로 상담원을 보정한다', async () => {
+    prisma.callSessions.findMany.mockResolvedValue([
+      {
+        callId: 'call-softphone-out',
+        linkedid: 'L-softphone-out',
+        ani: '1001',
+        dnis: '01034623453',
+        didNumber: null,
+        queueName: null,
+        sessionStatus: 'ENDED',
+        direction: 'OUTBOUND',
+        resultCode: null,
+        startedAt: new Date('2026-05-07T06:50:33.000Z'),
+        answeredAt: new Date('2026-05-07T06:50:39.000Z'),
+        endedAt: new Date('2026-05-07T06:50:55.000Z'),
+        waitSeconds: 0,
+        talkSeconds: 16,
+        abandonFlag: false,
+        recordingFlag: false,
+        customer: null,
+        callMemos: [],
+        primaryAgent: null,
+      },
+    ]);
+    prisma.agents.findMany.mockResolvedValue([
+      { agentId: 'agent-1001', agentName: '홍길동', extension: '1001' },
+    ]);
+    prisma.attendedTransferCandidates.findMany.mockResolvedValue([]);
+
+    const result = await service.listHistory('tenant-1', {});
+
+    expect(prisma.agents.findMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', extension: { in: ['1001'] } },
+      select: { agentId: true, agentName: true, extension: true },
+    });
+    expect(result.data[0]).toMatchObject({
+      callId: 'call-softphone-out',
+      primaryAgent: { agentName: '홍길동' },
+    });
+  });
+
+  it('listHistory 는 상담원 내선으로 기록된 데스크톱 발신 통화를 외부 발신으로 보정한다', async () => {
+    prisma.callSessions.findMany.mockResolvedValue([
+      {
+        callId: 'call-softphone-out',
+        linkedid: 'L-softphone-out',
+        ani: '1001',
+        dnis: '01034623453',
+        didNumber: '01034623453',
+        queueName: null,
+        sessionStatus: 'ENDED',
+        direction: 'inbound',
+        resultCode: null,
+        startedAt: new Date('2026-05-07T06:50:33.000Z'),
+        answeredAt: new Date('2026-05-07T06:50:39.000Z'),
+        endedAt: new Date('2026-05-07T06:50:55.000Z'),
+        waitSeconds: 0,
+        talkSeconds: 16,
+        abandonFlag: false,
+        recordingFlag: false,
+        customer: null,
+        callMemos: [],
+        primaryAgent: null,
+      },
+    ]);
+    prisma.agents.findMany.mockResolvedValue([
+      { agentId: 'agent-1001', agentName: '홍길동', extension: '1001' },
+    ]);
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      allowedOutboundCallerIds: '07052346380',
+      defaultOutboundCallerId: '07052346380',
+    });
+    prisma.attendedTransferCandidates.findMany.mockResolvedValue([]);
+
+    const result = await service.listHistory('tenant-1', {});
+
+    expect(result.data[0]).toMatchObject({
+      callId: 'call-softphone-out',
+      direction: 'OUTBOUND',
+      ani: '07052346380',
+      dnis: '01034623453',
+      didNumber: '07052346380',
+      representativeNumber: '07052346380',
+      primaryAgent: { agentName: '홍길동' },
+    });
   });
 
   it('originate 는 기본 발신번호를 사용하고 허용 목록 밖 번호는 차단한다', async () => {

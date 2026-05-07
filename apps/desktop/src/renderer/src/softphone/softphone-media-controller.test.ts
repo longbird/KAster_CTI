@@ -34,6 +34,31 @@ describe('SoftphoneMediaController', () => {
     expect(audioElement.play).toHaveBeenCalled();
   });
 
+  it('같은 remote stream 을 반복 attach 해도 srcObject 를 다시 load 하지 않는다', async () => {
+    const controller = new SoftphoneMediaController({
+      createAudioElement: () => audioElement,
+    });
+    const stream = { id: 'remote-stream' } as unknown as MediaStream;
+
+    await controller.attachRemoteStream(stream);
+    audioElement.currentTime = 12;
+    await controller.attachRemoteStream(stream);
+
+    expect(audioElement.srcObject).toBe(stream);
+    expect(audioElement.currentTime).toBe(12);
+    expect(audioElement.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('새 load 로 중단된 play 요청은 재생 실패로 전파하지 않는다', async () => {
+    const controller = new SoftphoneMediaController({
+      createAudioElement: () => audioElement,
+    });
+    const stream = { id: 'remote-stream' } as unknown as MediaStream;
+    audioElement.play.mockRejectedValueOnce(new DOMException('The play() request was interrupted by a new load request.', 'AbortError'));
+
+    await expect(controller.attachRemoteStream(stream)).resolves.toBeUndefined();
+  });
+
   it('applyOutputDevice 는 setSinkId 를 지원하면 sink id 를 적용한다', async () => {
     const controller = new SoftphoneMediaController({
       createAudioElement: () => audioElement,
@@ -64,6 +89,7 @@ describe('SoftphoneMediaController', () => {
     controller.stopRingtone();
 
     expect(ringAudio.loop).toBe(true);
+    expect(ringAudio.volume).toBe(0.35);
     expect(ringAudio.play).toHaveBeenCalled();
     expect(ringAudio.pause).toHaveBeenCalled();
   });

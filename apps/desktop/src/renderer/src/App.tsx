@@ -95,6 +95,31 @@ export default function App() {
     });
   }, [connectWithProtocol, desktopApi]);
 
+  useEffect(() => {
+    if (!desktopApi?.onHistoryOriginateRequest) {
+      return;
+    }
+
+    return desktopApi.onHistoryOriginateRequest((payload) => {
+      void (async () => {
+        try {
+          await originate(payload.phoneNumber);
+          await desktopApi.completeHistoryOriginateRequest({
+            requestId: payload.requestId,
+            ok: true,
+            message: '발신 요청 완료',
+          });
+        } catch (error) {
+          await desktopApi.completeHistoryOriginateRequest({
+            requestId: payload.requestId,
+            ok: false,
+            message: error instanceof Error ? error.message : '발신 요청 실패',
+          });
+        }
+      })();
+    });
+  }, [desktopApi, originate]);
+
   if (!bootstrapped) {
     return (
       <section className="auth-screen">

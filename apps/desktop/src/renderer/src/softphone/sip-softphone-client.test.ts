@@ -61,6 +61,10 @@ vi.mock('sip.js', () => ({
   },
 }));
 
+vi.mock('sip.js/lib/platform/web/modifiers/index.js', () => ({
+  holdModifier: vi.fn((description) => Promise.resolve(description)),
+}));
+
 import { SipSoftphoneClient } from './sip-softphone-client';
 
 describe('SipSoftphoneClient', () => {
@@ -100,6 +104,13 @@ describe('SipSoftphoneClient', () => {
     expect(sipMocks.start).toHaveBeenCalled();
     expect(sipMocks.register).toHaveBeenCalled();
     expect(sipMocks.registererStateChangeAddListener).toHaveBeenCalled();
+    expect(sipMocks.MockUserAgent.mock.calls[0]?.[0]).toMatchObject({
+      sessionDescriptionHandlerFactoryOptions: {
+        peerConnectionConfiguration: {
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        },
+      },
+    });
   });
 
   it('incoming invite 를 수신하면 ringing 상태를 올리고 answer 로 accept 를 호출한다', async () => {
@@ -158,6 +169,7 @@ describe('SipSoftphoneClient', () => {
     });
 
     expect(sipMocks.invitationAccept).toHaveBeenCalledWith({
+      sessionDescriptionHandlerModifiers: [expect.any(Function)],
       sessionDescriptionHandlerOptions: {
         constraints: {
           audio: {
@@ -177,6 +189,48 @@ describe('SipSoftphoneClient', () => {
     expect(events).toContain('call:active:고객A');
     expect(events).toContain('stream:attached');
   });
+
+  it('원격 표시명이 unknown 이면 SIP URI user 를 통화 제목으로 사용한다', async () => {
+    const events: string[] = [];
+    const client = new SipSoftphoneClient({
+      onTransportState: () => undefined,
+      onRegistrationState: () => undefined,
+      onCallState: (call) => events.push(call ? `call:${call.remoteDisplayName}` : 'call:none'),
+      onRemoteStream: () => undefined,
+      onError: () => undefined,
+      onDiagnostic: () => undefined,
+    });
+
+    await client.start({
+      enabled: true,
+      sipUri: 'sip:1001@pbx.example.com',
+      wsServer: 'wss://pbx.example.com:8089/ws',
+      authorizationUsername: '1001',
+      authorizationPassword: 'sip-secret-1001',
+      displayName: '상담원1',
+      iceServers: [],
+    });
+
+    await (client as unknown as { handleIncomingInvitation: (session: unknown) => Promise<void> })
+      .handleIncomingInvitation({
+        id: 'invite-unknown',
+        state: 'Initial',
+        remoteIdentity: {
+          displayName: '<unknown>',
+          uri: { user: '01034623453', toString: () => 'sip:01034623453@pbx.example.com' },
+        },
+        stateChange: {
+          addListener: sipMocks.sessionStateListener,
+        },
+        accept: sipMocks.invitationAccept,
+        reject: sipMocks.invitationReject,
+        bye: sipMocks.sessionBye,
+        sessionDescriptionHandler: undefined,
+      });
+
+    expect(events).toContain('call:01034623453');
+  });
+
 
   it('reject 와 hangup 은 현재 세션 상태에 맞는 SIP 메서드를 호출한다', async () => {
     const client = new SipSoftphoneClient({

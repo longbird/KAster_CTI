@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Menu, Notification, Tray, nativeImage, session, shell } from 'electron';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { AttentionService } from './attention-service';
@@ -12,7 +13,11 @@ import { RuntimeSupervisor } from './runtime-supervisor';
 import { TokenVault } from './token-vault';
 import { TrayService } from './tray-service';
 import { UpdateClient } from './update-client';
-import type { DesktopProtocolConnectPayload, DesktopWindowMode } from '../shared/ipc';
+import type {
+  DesktopHistoryOriginateResult,
+  DesktopProtocolConnectPayload,
+  DesktopWindowMode,
+} from '../shared/ipc';
 import { normalizeCenterConfig } from '../shared/center-config';
 
 const configStore = new DesktopConfigStore(app.getPath('userData'));
@@ -31,6 +36,12 @@ let runtime: CtiRuntime | null = null;
 let isQuitting = false;
 let trayService: TrayService | null = null;
 let runtimeSupervisor: RuntimeSupervisor | null = null;
+let primaryWindow: BrowserWindow | null = null;
+const historyOriginateRequests = new Map<string, {
+  resolve: (result: DesktopHistoryOriginateResult) => void;
+  reject: (error: Error) => void;
+  timer: NodeJS.Timeout;
+}>();
 let preparedUpdate:
   | {
       version: string;
@@ -42,7 +53,7 @@ let preparedUpdate:
   | null = null;
 
 const DESKTOP_WINDOW_BOUNDS = {
-  idle: { width: 420, height: 360, minWidth: 380, minHeight: 320 },
+  idle: { width: 440, height: 560, minWidth: 420, minHeight: 520 },
   ringing: { width: 440, height: 420, minWidth: 400, minHeight: 380 },
   talking: { width: 460, height: 620, minWidth: 420, minHeight: 540 },
   transferring: { width: 500, height: 640, minWidth: 440, minHeight: 560 },
@@ -63,7 +74,14 @@ function normalizeDesktopWindowMode(mode: DesktopWindowMode): keyof typeof DESKT
 }
 
 function getPrimaryWindow() {
-  return BrowserWindow.getAllWindows()[0] ?? null;
+  if (primaryWindow && !primaryWindow.isDestroyed()) {
+    return primaryWindow;
+  }
+
+  return BrowserWindow.getAllWindows().find((win) => {
+    const title = win.getTitle();
+    return title !== getUtilityWindowTitle('history') && title !== getUtilityWindowTitle('agents');
+  }) ?? null;
 }
 
 function getUtilityWindowTitle(kind: 'history' | 'agents') {
@@ -87,7 +105,6 @@ function openUtilityWindow(kind: 'history' | 'agents') {
     height: bounds.height,
     minWidth: bounds.minWidth,
     minHeight: bounds.minHeight,
-    parent: getPrimaryWindow() ?? undefined,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
@@ -215,6 +232,12 @@ function createWindow() {
       sandbox: false,
     },
   });
+  primaryWindow = win;
+  win.on('closed', () => {
+    if (primaryWindow === win) {
+      primaryWindow = null;
+    }
+  });
   win.setMenuBarVisibility(false);
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
@@ -245,7 +268,6 @@ function applyWindowMode(mode: DesktopWindowMode) {
   const bounds = DESKTOP_WINDOW_BOUNDS[normalizeDesktopWindowMode(mode)];
   win.setMinimumSize(bounds.minWidth, bounds.minHeight);
   win.setSize(bounds.width, bounds.height);
-  win.center();
 }
 
 function createTrayIcon() {
@@ -557,6 +579,35 @@ app.whenReady().then(() => {
       return [];
     }
     return runtime.getCallHistory();
+  });
+  ipcMain.handle('desktop:request-history-originate', (_event, input: { phoneNumber: string }) => {
+    const win = getPrimaryWindow();
+    const phoneNumber = input.phoneNumber?.trim();
+    if (!win || !phoneNumber) {
+      throw new Error('상담원 화면으로 발신 요청을 전달할 수 없습니다.');
+    }
+
+    const requestId = randomUUID();
+    focusPrimaryWindow();
+    win.webContents.send('desktop:history-originate-request', { requestId, phoneNumber });
+
+    return new Promise<DesktopHistoryOriginateResult>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        historyOriginateRequests.delete(requestId);
+        reject(new Error('발신 요청 응답 시간이 초과되었습니다.'));
+      }, 15000);
+      historyOriginateRequests.set(requestId, { resolve, reject, timer });
+    });
+  });
+  ipcMain.handle('desktop:complete-history-originate', (_event, input: DesktopHistoryOriginateResult) => {
+    const pending = historyOriginateRequests.get(input.requestId);
+    if (!pending) {
+      return;
+    }
+
+    clearTimeout(pending.timer);
+    historyOriginateRequests.delete(input.requestId);
+    pending.resolve(input);
   });
   ipcMain.handle('desktop:open-call-history-popup', () => {
     openUtilityWindow('history');

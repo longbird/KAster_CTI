@@ -20,6 +20,8 @@ describe('evaluateSoftphoneReadiness', () => {
         diagnostics: [],
         session: null,
         remoteAudioActive: false,
+        localMuted: false,
+        localHold: false,
       },
     });
 
@@ -54,6 +56,8 @@ describe('evaluateSoftphoneReadiness', () => {
         ],
         session: null,
         remoteAudioActive: false,
+        localMuted: false,
+        localHold: false,
       },
     });
 
@@ -87,6 +91,8 @@ describe('evaluateSoftphoneReadiness', () => {
         diagnostics: [],
         session: null,
         remoteAudioActive: false,
+        localMuted: false,
+        localHold: false,
       },
     });
 
@@ -98,6 +104,45 @@ describe('evaluateSoftphoneReadiness', () => {
     expect(readiness.items[2]).toMatchObject({
       key: 'transport',
       status: 'error',
+    });
+  });
+
+  it('성공한 미디어 진단은 준비 상태를 degraded 로 낮추지 않는다', () => {
+    const readiness = evaluateSoftphoneReadiness({
+      runtimeConnection: 'connected',
+      softphone: {
+        registration: 'registered',
+        transport: 'connected',
+        config: {
+          enabled: true,
+          sipUri: 'sip:1001@pbx.example.com',
+          wsServer: 'wss://pbx.example.com:8089/ws',
+          authorizationUsername: '1001',
+          displayName: '상담원1',
+          iceServers: [],
+        },
+        lastError: null,
+        diagnostics: [
+          {
+            code: 'MEDIA_RTP_STATS',
+            message: 'RTP audio stats inbound=37440/234, outbound=37440/234',
+            hint: '데스크톱까지 오디오 패킷이 도착했고 마이크 송신도 확인됐습니다.',
+            source: 'media',
+            severity: 'info',
+            occurredAt: '2026-05-07T06:45:00.000Z',
+          },
+        ],
+        session: null,
+        remoteAudioActive: true,
+        localMuted: false,
+        localHold: false,
+      },
+    });
+
+    expect(readiness.overall).toBe('ready');
+    expect(readiness.items[4]).toMatchObject({
+      key: 'diagnostics',
+      status: 'ok',
     });
   });
 });

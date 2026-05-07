@@ -37,11 +37,26 @@ describe('desktop window mode bounds', () => {
   it('defines bounds for every contextual console mode', () => {
     const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
 
-    expect(source).toContain('idle: { width: 420, height: 360, minWidth: 380, minHeight: 320 }');
+    expect(source).toContain('idle: { width: 440, height: 560, minWidth: 420, minHeight: 520 }');
     expect(source).toContain('ringing: { width: 440, height: 420, minWidth: 400, minHeight: 380 }');
     expect(source).toContain('talking: { width: 460, height: 620, minWidth: 420, minHeight: 540 }');
     expect(source).toContain('transferring: { width: 500, height: 640, minWidth: 440, minHeight: 560 }');
     expect(source).toContain('afterCall: { width: 460, height: 520, minWidth: 420, minHeight: 460 }');
     expect(source).toContain('settings: { width: 560, height: 720, minWidth: 500, minHeight: 640 }');
+  });
+
+  it('resizes contextual modes without recentering the user-moved window', () => {
+    const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
+    const applyWindowModeSource = source.match(/function applyWindowMode[\s\S]*?\n}/)?.[0] ?? '';
+
+    expect(applyWindowModeSource).toMatch(/setSize\(bounds\.width,\s*bounds\.height\)/);
+    expect(applyWindowModeSource).not.toMatch(/\.center\(\)/);
+  });
+
+  it('opens utility windows independently from the main agent window', () => {
+    const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
+    const openUtilityWindowSource = source.match(/function openUtilityWindow[\s\S]*?\n}/)?.[0] ?? '';
+
+    expect(openUtilityWindowSource).not.toMatch(/parent:/);
   });
 });

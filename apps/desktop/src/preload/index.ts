@@ -23,6 +23,8 @@ const desktopApi: DesktopApi = {
   getCallerIds: () => ipcRenderer.invoke('desktop:get-caller-ids'),
   getAgentDirectory: () => ipcRenderer.invoke('desktop:get-agent-directory'),
   getCallHistory: () => ipcRenderer.invoke('desktop:get-call-history'),
+  requestHistoryOriginate: (input) => ipcRenderer.invoke('desktop:request-history-originate', input),
+  completeHistoryOriginateRequest: (input) => ipcRenderer.invoke('desktop:complete-history-originate', input),
   openCallHistoryPopup: () => ipcRenderer.invoke('desktop:open-call-history-popup'),
   openAgentListPopup: () => ipcRenderer.invoke('desktop:open-agent-list-popup'),
   transfer: (callId, params) => ipcRenderer.invoke('desktop:transfer', callId, params),
@@ -37,6 +39,13 @@ const desktopApi: DesktopApi = {
   notifyIncomingCall: (input) => ipcRenderer.invoke('desktop:notify-incoming-call', input),
   focusWindow: () => ipcRenderer.invoke('desktop:focus-window'),
   openExternal: (url) => ipcRenderer.invoke('desktop:open-external', url),
+  onHistoryOriginateRequest: (listener) => {
+    const handler = (_event: unknown, payload: Parameters<typeof listener>[0]) => listener(payload);
+    ipcRenderer.on('desktop:history-originate-request', handler);
+    return () => {
+      ipcRenderer.removeListener('desktop:history-originate-request', handler);
+    };
+  },
   onProtocolConnect: (listener) => {
     const handler = (_event: unknown, payload: Parameters<typeof listener>[0]) => listener(payload);
     ipcRenderer.on('desktop:protocol-connect', handler);

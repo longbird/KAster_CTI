@@ -157,7 +157,7 @@ export function OptOutCustomersPage() {
           },
           {
             title: '관리',
-            width: 110,
+            width: 90,
             fixed: 'right',
             render: (_: unknown, row) =>
               row.isActive && blocklistPermission?.canUpdate !== false ? (

@@ -47,13 +47,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 apps/server/          NestJS + Prisma CTI 미들웨어 (백엔드)
 apps/web/             Vite + React + Tailwind + Antd 상담원 앱
 apps/admin/           Vite + React + Antd 관리자 대시보드 (supervisor/admin 전용)
+apps/desktop/         Electron + electron-vite 데스크톱 소프트폰 (sip.js 기반, Windows 배포 타깃)
 infra/asterisk/       Asterisk PJSIP / Dialplan / Manager 설정 초안
+deploy/sites/         사이트별 운영 배포 템플릿 (compose.prod.yml + nginx + .env.example)
 docs/                 기획·설계 PDF + ChatGPT 세션 분석 + 보조 설계 문서
   docs/design/        보조 설계 MD (SIP Trunk, Hotlink, Ops 아키텍처)
   docs/chatgpt-archive/ 46 세션 transcript + preview + extractor
   docs/reference/     원본 PDF (합본, 제안서)
 scripts/              운영 스크립트 (push_to_github 등)
-docker-compose.yml    Postgres 16 + Redis 7 로컬 인프라
+docker-compose.yml    로컬 개발용 Postgres 16 + Redis 7
+docker-compose.dev.yml 원격 운영 서버용 — server/web/admin 이미지 빌드 + nginx + coturn TURN 포함
 ```
 
 ## 주요 개발 명령
@@ -64,6 +67,16 @@ docker compose up -d postgres redis
 ```
 - DB: `kaster_cti` / user `kaster` / pw `kaster` / 5432
 - Redis: 6379
+
+### 운영 배포 (`docker-compose.dev.yml`)
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml logs -f server
+```
+- server/web/admin 을 모두 이미지로 빌드. server 컨테이너 부팅 시 `prisma migrate deploy` 후 앱 시작
+- 호스트 포트 충돌 회피: Postgres 5433, Redis 6380 (컨테이너 내부 통신은 5432/6379)
+- `coturn` (TURN/STUN) 컨테이너 포함 — 49160-49200/udp 미디어 릴레이. `TURN_USERNAME` / `TURN_PASSWORD` / `TURN_EXTERNAL_IP` env 필수
+- 사이트별 배포는 `deploy/sites/_template/` 을 복제해 site code 디렉터리(`deploy/sites/<site>/`)에서 `compose.prod.yml` + `.env` 로 기동. PBX 설정 반영 전 `/etc/asterisk/.kaster-cti-config-owner` marker 와 site code 일치 여부를 반드시 확인 (불일치 시 reload 중단)
 
 ### NestJS 서버 (`apps/server`)
 ```bash
@@ -126,8 +139,27 @@ npm run dev -- --port 5174   # 기본 5173 은 apps/web 이 쓰므로 다른 포
   - `/dashboard` — `AdminDashboardPage` (KPI / Queue / Team / ActiveCall / Alert). `/admin/dashboard` + `/calls/active` 호출
   - `/queues` — `QueuesPage` (5초 폴링으로 `/queues/summary` 테이블)
   - `/agents` — `AgentsPage` (5초 폴링으로 `/agents` 테이블)
+- `src/features/` 아래에 admin 화면이 기능 단위로 정리되어 있습니다 (`announcements`, `asterisk-config`, `blocklist`, `branch-settings`, `customers`, `forwarding-settings`, `live-calls`, `monitoring`, `opt-out-customers`, `permission-settings`, `prompt-settings`, `queue-settings`, `reports`, `sms-templates`, `system-settings` 등). 페이지를 추가할 때는 이 디렉터리 단위 분리(컴포넌트 + api + 훅)를 따르세요. 좌측 메뉴 등록은 `shared/permissions/menuConfig.tsx` 에서 권한과 함께 정의합니다.
 - `features/dashboard/api/dashboardApi.ts` 는 mock/real 이중 경로. 실 모드에서 오류 시 mock 폴백 (화면 항상 렌더).
 - 백엔드 `AdminController.dashboard` 는 `@Roles('supervisor','admin')` 가드로 보호됨 (아래 RolesGuard 참고).
+
+### 데스크톱 소프트폰 (`apps/desktop`)
+```bash
+cd apps/desktop
+npm install
+npm run dev                          # electron-vite dev (main + preload + renderer hot reload)
+npm run build                        # electron-vite build → out/
+npm test                             # vitest run (main/renderer 단위 테스트)
+npm run dist:win                     # electron-builder NSIS + portable x64
+npm run dist:win:signed              # 빌드 → 내부 서명 (PowerShell) → 서명 검증
+```
+- 스택: Electron 33 + electron-vite + React 19 + sip.js 0.21 + zustand + socket.io-client + electron-log
+- `src/main/` 메인 프로세스: `index.ts` 가 단일 BrowserWindow + Tray 를 띄우고 다음 서비스를 부팅합니다 — `CtiRuntime` (서버 REST/WS 게이트), `RuntimeSupervisor` (재시작/헬스체크), `DesktopBridgeServer` (브라우저 연동용 로컬 HTTP), `TokenVault` (자격증명 보관), `AttentionService` (윈도우 깜빡임/알림), `TrayService`, `AudioPreferencesStore`, `DesktopConfigStore`, `UpdateClient` (자동 업데이트)
+- `src/renderer/src/softphone/` 가 SIP UA. `sip-softphone-client.ts` + `softphone-runtime.ts` 가 등록/INVITE/미디어 협상을 담당. UI 는 `components/SoftphoneShell.tsx` 가 메인 셸이며 `useDesktopStore.ts` (zustand) 로 상태 관리
+- **Window mode 컨텍스트 전환**: `DesktopWindowMode` 는 `compact | full | idle | ringing | talking | transferring | afterCall | settings` 8 개. 통화 단계에 따라 메인 프로세스가 창 크기/위치/투명도를 바꿉니다 (`window-options.ts`). 통화 상태와 창 모양은 메인 프로세스가 단일 진실원
+- **IPC 계약**: `src/shared/ipc.ts` 에 모든 채널의 페이로드 타입이 한곳에 모여 있음. 메인 ↔ 렌더러 양방향 호출은 반드시 이 파일에 타입을 먼저 추가
+- **프로토콜 핸들러**: `kastercti://` URL 스킴으로 외부 앱(예: 웹)에서 데스크톱을 열어 즉시 발신/연결할 수 있음. `protocol-payload.ts` 가 페이로드 파싱, `ProtocolConnectInbox` 가 메인 윈도우 부팅 전에 도착한 요청을 큐잉
+- 테스트는 main 프로세스 모듈 단위로 `*.test.ts` (vitest + jsdom). 렌더러는 `@testing-library/react`. 새 main 모듈을 추가할 땐 동일 패턴의 테스트를 함께 작성
 
 ### Asterisk 설정
 - `infra/asterisk/` 의 `pjsip.conf`, `extensions*.conf` (inbound/queue/agent/transfer 분리), `queues.conf`, `manager.conf`가 초안입니다.
@@ -199,6 +231,15 @@ NestJS 미들웨어가 Asterisk AMI의 원시 이벤트를 받아 `linkedid`를 
   - **성공 판정**(conv 40): 모든 AMI 제어 명령의 성공은 `OriginateResponse` 가 아니라 후속 `DialBegin/DialEnd/BridgeEnter/Newstate(Up)` 이벤트를 SessionEngine 이 받아 판정합니다. REST 는 `accepted:true` 즉시 반환.
   - `BlindTransfer` / `AttendedTransfer` AMI 이벤트는 `TransferDetectorService` 가 `attendedTransferCandidates` 에 기록하고 `callTransfers.transferResult` 를 `COMPLETED` 로 확정합니다.
 - `agents`, `health`는 얇은 컨트롤러입니다.
+- **확장 모듈** (admin 화면 기능 단위):
+  - `customers` — 고객/번호 마스터 (CRUD + 검색)
+  - `opt-out` — 수신거부 / 발신 차단 목록
+  - `announcements` — 공지/안내 메시지
+  - `sms-templates` — 발신 SMS 템플릿
+  - `smart-ars` — 동적 IVR/ARS 시나리오
+  - `asterisk-config` — Asterisk pjsip/dialplan/queue/IVR 설정을 DB → conf 파일 렌더링. `renderers/` 아래에 단위 테스트 (`agent-dialplan.renderer.spec.ts`) 포함. 변경 시 marker guard 후 reload
+  - `monitoring` — 운영 헬스 / Prometheus 노출
+  - `agent-updates` — 데스크톱 앱 자동 업데이트 매니페스트 (`UpdateClient` 가 폴링)
 - 모든 응답은 `{ success, data, error }` 형태를 따릅니다. 새 엔드포인트를 추가할 때 이 envelope 을 유지하세요.
 - **모듈 의존성**: `CallsModule` ↔ `AmiModule` 은 `forwardRef` 로 순환을 해결합니다 (CallsService → AsteriskManagerService → AmiConnectionService, AmiConnectionService → SessionEngineService). 재배치 시 주의.
 

@@ -152,7 +152,7 @@ export function BlocklistPage() {
         rowKey="id"
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 980 }}
+        scroll={{ x: 1200 }}
         columns={[
           {
             title: '지사',
@@ -177,7 +177,7 @@ export function BlocklistPage() {
           {
             title: '사유',
             dataIndex: 'description',
-            width: 260,
+            width: 420,
             ellipsis: true,
             render: (value?: string | null) => (
               <Typography.Text ellipsis={{ tooltip: value || undefined }} style={{ maxWidth: 240 }}>
@@ -201,7 +201,7 @@ export function BlocklistPage() {
           },
           {
             title: '관리',
-            width: 140,
+            width: 120,
             fixed: 'right',
             render: (_: unknown, row) => (
               <Space>

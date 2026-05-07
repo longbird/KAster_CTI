@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SipSoftphoneClient } from '../softphone/sip-softphone-client';
 import { useDesktopStore } from './useDesktopStore';
 
 const desktopApi = {
@@ -756,7 +757,11 @@ describe('useDesktopStore pairing', () => {
     expect(useDesktopStore.getState().activeCall?.sessionStatus).toBe('TRANSFERRING');
   });
 
-  it('originate 는 agent extension 으로 외부 발신 요청을 보낸다', async () => {
+  it('originate 는 등록된 softphone 으로 외부 발신을 보낸다', async () => {
+    const inviteSpy = vi
+      .spyOn(SipSoftphoneClient.prototype, 'invite')
+      .mockResolvedValue(undefined);
+
     useDesktopStore.setState({
       bootstrapped: true,
       pairing: false,
@@ -784,7 +789,25 @@ describe('useDesktopStore pairing', () => {
       audioCapabilities: {
         sinkSelectionSupported: false,
       },
-      softphone: null,
+      softphone: {
+        registration: 'registered',
+        transport: 'connected',
+        config: {
+          enabled: true,
+          wsServer: 'wss://pbx.example.com/ws',
+          sipUri: 'sip:1001@pbx.example.com',
+          authorizationUsername: '1001',
+          authorizationPassword: 'secret',
+          displayName: '1001',
+          iceServers: [],
+        },
+        lastError: null,
+        diagnostics: [],
+        session: null,
+        remoteAudioActive: false,
+        localMuted: false,
+        localHold: false,
+      },
       updateState: null,
       initialize: useDesktopStore.getState().initialize,
       pair: useDesktopStore.getState().pair,
@@ -810,14 +833,16 @@ describe('useDesktopStore pairing', () => {
 
     await useDesktopStore.getState().originate('01012345678', '15777893');
 
-    expect(desktopApi.originate).toHaveBeenCalledWith({
-      agentExtension: '1001',
-      phoneNumber: '01012345678',
-      callerId: '15777893',
-    });
+    expect(inviteSpy).toHaveBeenCalledWith('01012345678', null);
+    expect(desktopApi.originate).not.toHaveBeenCalled();
+    inviteSpy.mockRestore();
   });
 
-  it('originateInternal 은 상담원 디렉터리 대상으로 내선 발신 요청을 보낸다', async () => {
+  it('originateInternal 은 등록된 softphone 으로 내선 발신을 보낸다', async () => {
+    const inviteSpy = vi
+      .spyOn(SipSoftphoneClient.prototype, 'invite')
+      .mockResolvedValue(undefined);
+
     useDesktopStore.setState({
       bootstrapped: true,
       pairing: false,
@@ -834,6 +859,26 @@ describe('useDesktopStore pairing', () => {
         deviceId: 'device-1',
       },
       activeCall: null,
+      audioPreferences: null,
+      softphone: {
+        registration: 'registered',
+        transport: 'connected',
+        config: {
+          enabled: true,
+          wsServer: 'wss://pbx.example.com/ws',
+          sipUri: 'sip:1001@pbx.example.com',
+          authorizationUsername: '1001',
+          authorizationPassword: 'secret',
+          displayName: '1001',
+          iceServers: [],
+        },
+        lastError: null,
+        diagnostics: [],
+        session: null,
+        remoteAudioActive: false,
+        localMuted: false,
+        localHold: false,
+      },
       events: [],
       runtimeConnection: 'connected',
       originateInternal: useDesktopStore.getState().originateInternal,
@@ -850,10 +895,9 @@ describe('useDesktopStore pairing', () => {
       },
     });
 
-    expect(desktopApi.originateInternal).toHaveBeenCalledWith({
-      targetAgentId: 'agent-2',
-      targetExtension: '1002',
-    });
+    expect(inviteSpy).toHaveBeenCalledWith('1002', null);
+    expect(desktopApi.originateInternal).not.toHaveBeenCalled();
+    inviteSpy.mockRestore();
   });
 
   it('attended transfer cancel/complete 는 latestTransfer 상태를 갱신한다', async () => {

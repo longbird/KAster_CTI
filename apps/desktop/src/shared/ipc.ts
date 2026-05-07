@@ -35,6 +35,15 @@ export interface DesktopAgentDirectoryItem {
   extension: string;
   role: string;
   isActive: boolean;
+  loginStatus: 'LOGGED_IN' | 'LOGGED_OUT' | 'UNKNOWN';
+  sipRegistration: {
+    registered: boolean;
+    registrationStatus: string;
+    contactUri: string | null;
+    userAgent: string | null;
+    roundtripUsec: number | null;
+  };
+  canCall: boolean;
   currentStatus?: {
     statusCode: import('./cti').AgentStatusCode;
   } | null;
@@ -49,6 +58,8 @@ export interface DesktopCallHistoryItem {
   callId: string;
   ani: string | null;
   dnis: string | null;
+  didNumber?: string | null;
+  representativeNumber?: string | null;
   queueName: string | null;
   sessionStatus: string;
   direction: string | null;
@@ -63,6 +74,17 @@ export interface DesktopCallHistoryItem {
   customer?: {
     customerName: string;
   } | null;
+}
+
+export interface DesktopHistoryOriginateRequest {
+  requestId: string;
+  phoneNumber: string;
+}
+
+export interface DesktopHistoryOriginateResult {
+  requestId: string;
+  ok: boolean;
+  message?: string;
 }
 
 export interface DesktopSoftphoneConfig {
@@ -144,6 +166,8 @@ export interface DesktopApi {
   getCallerIds(): Promise<DesktopCallerIdConfig>;
   getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]>;
   getCallHistory(): Promise<DesktopCallHistoryItem[]>;
+  requestHistoryOriginate(input: { phoneNumber: string }): Promise<DesktopHistoryOriginateResult>;
+  completeHistoryOriginateRequest(input: DesktopHistoryOriginateResult): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
   transfer(
@@ -174,6 +198,7 @@ export interface DesktopApi {
   notifyIncomingCall(input: { title: string; body: string }): Promise<void>;
   focusWindow(): Promise<void>;
   openExternal(url: string): Promise<void>;
+  onHistoryOriginateRequest(listener: (input: DesktopHistoryOriginateRequest) => void): () => void;
   onProtocolConnect(listener: (payload: DesktopProtocolConnectPayload) => void): () => void;
   onEvent(listener: (event: import('./cti').CtiEvent) => void): () => void;
 }

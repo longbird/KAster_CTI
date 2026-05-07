@@ -12499,6 +12499,34 @@ var clientExports = requireClient();
 const ReactDOM = /* @__PURE__ */ getDefaultExportFromCjs(clientExports);
 var reactExports = requireReact();
 const React = /* @__PURE__ */ getDefaultExportFromCjs(reactExports);
+const REST_STATUSES = /* @__PURE__ */ new Set(["BREAK", "MEAL", "TRAINING", "MANUAL_PAUSED"]);
+const WORK_STATUSES = /* @__PURE__ */ new Set(["AFTER_CALL_WORK", "TALKING", "HOLD", "TRANSFERRING"]);
+function getAgentCallBlockReason(agent) {
+  if (!agent.isActive) return "로그아웃";
+  if (agent.loginStatus !== "LOGGED_IN") return "로그아웃";
+  if (!agent.sipRegistration?.registered) return "전화기 미등록";
+  return null;
+}
+function formatDirectoryAgentAvailability(agent) {
+  const blockReason = getAgentCallBlockReason(agent);
+  if (blockReason) {
+    return blockReason;
+  }
+  const status = agent.currentStatus?.statusCode ?? null;
+  if (!status || status === "AVAILABLE") {
+    return "상담 가능";
+  }
+  if (REST_STATUSES.has(status)) {
+    return "휴식";
+  }
+  if (WORK_STATUSES.has(status)) {
+    return "업무처리";
+  }
+  return "업무처리";
+}
+function formatDirectoryAgentSummary(agent) {
+  return `${agent.extension} / ${formatDirectoryAgentAvailability(agent)}`;
+}
 function AgentListPopup() {
   const [rows, setRows] = reactExports.useState([]);
   const [query, setQuery] = reactExports.useState("");
@@ -12542,29 +12570,22 @@ function AgentListPopup() {
       )
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "popup-agent-list", children: [
-      filtered.map((agent) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          type: "button",
-          disabled: !agent.isActive,
-          onClick: () => {
-            const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
-            void desktopApi?.originateInternal?.({
-              targetAgentId: agent.agentId,
-              targetExtension: agent.extension
-            });
+      filtered.map((agent) => {
+        const callBlockedReason = getAgentCallBlockReason(agent);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            disabled: Boolean(callBlockedReason),
+            title: callBlockedReason ? `내선 통화 불가: ${callBlockedReason}` : "내선 통화 가능",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: formatDirectoryAgentSummary(agent) })
+            ]
           },
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
-              agent.extension,
-              " / ",
-              agent.currentStatus?.statusCode ?? "UNKNOWN"
-            ] })
-          ]
-        },
-        agent.agentId
-      )),
+          agent.agentId
+        );
+      }),
       filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : null
     ] })
   ] });
@@ -12584,29 +12605,108 @@ function formatTime(value) {
     minute: "2-digit"
   });
 }
+const STATUS_LABELS = {
+  QUEUED: "대기",
+  RINGING_AGENT: "상담원 호출",
+  TALKING: "통화 중",
+  HOLD: "보류",
+  TRANSFERRING: "전환 중",
+  AFTER_CALL_WORK: "후처리",
+  ENDED: "종료"
+};
+function formatStatus(value) {
+  return STATUS_LABELS[value] ?? (value || "-");
+}
+function formatPhoneValue(value) {
+  const normalized = value?.trim();
+  if (!normalized || normalized === "<unknown>" || normalized === "s") {
+    return "-";
+  }
+  return normalized;
+}
+function formatPhoneDisplay(value) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("010")) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10 && digits.startsWith("02")) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 9 && digits.startsWith("02")) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+  }
+  if (digits.length === 11 && /^0\d{2}/.test(digits)) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10 && /^0\d{2}/.test(digits)) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+  return value;
+}
+function secondsBetween(start, end) {
+  if (!start || !end) {
+    return null;
+  }
+  const startTime = new Date(start).getTime();
+  const endTime = new Date(end).getTime();
+  if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) {
+    return null;
+  }
+  return Math.round((endTime - startTime) / 1e3);
+}
+function formatDuration(row) {
+  const seconds = row.talkSeconds && row.talkSeconds > 0 ? row.talkSeconds : secondsBetween(row.answeredAt ?? row.startedAt, row.endedAt);
+  if (!seconds || seconds <= 0) {
+    return "-";
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+function canDialFromHistory(row, field) {
+  const direction = row.direction?.toUpperCase();
+  if (direction === "OUTBOUND") {
+    return field === "dnis";
+  }
+  if (direction === "INBOUND") {
+    return field === "ani";
+  }
+  return false;
+}
 function CallHistoryPopup() {
   const [rows, setRows] = reactExports.useState([]);
   const [query, setQuery] = reactExports.useState("");
   const [loading, setLoading] = reactExports.useState(true);
-  reactExports.useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
-        const history = await desktopApi?.getCallHistory?.();
-        if (alive) {
-          setRows(history ?? []);
-        }
-      } finally {
-        if (alive) {
-          setLoading(false);
-        }
+  const [dialingNumber, setDialingNumber] = reactExports.useState(null);
+  const [dialStatus, setDialStatus] = reactExports.useState(null);
+  const mountedRef = reactExports.useRef(false);
+  const loadSeqRef = reactExports.useRef(0);
+  const loadHistory = reactExports.useCallback(async () => {
+    const seq = loadSeqRef.current + 1;
+    loadSeqRef.current = seq;
+    setLoading(true);
+    try {
+      const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+      const history = await desktopApi?.getCallHistory?.();
+      if (mountedRef.current && loadSeqRef.current === seq) {
+        setRows(history ?? []);
       }
-    })();
-    return () => {
-      alive = false;
-    };
+    } finally {
+      if (mountedRef.current && loadSeqRef.current === seq) {
+        setLoading(false);
+      }
+    }
   }, []);
+  reactExports.useEffect(() => {
+    mountedRef.current = true;
+    void loadHistory();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadHistory]);
   const filtered = rows.filter((row) => {
     const keyword = query.trim();
     if (!keyword) {
@@ -12614,21 +12714,78 @@ function CallHistoryPopup() {
     }
     return [row.ani, row.dnis, row.queueName, row.customer?.customerName, row.primaryAgent?.agentName].filter(Boolean).some((value) => String(value).includes(keyword));
   });
+  const handleDial = async (phoneNumber) => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi) {
+      return;
+    }
+    const confirmed = window.confirm(`${phoneNumber} 번호로 발신할까요?`);
+    if (!confirmed) {
+      return;
+    }
+    setDialingNumber(phoneNumber);
+    setDialStatus(null);
+    try {
+      const result = await desktopApi.requestHistoryOriginate({ phoneNumber });
+      if (!result.ok) {
+        throw new Error(result.message ?? "발신 요청 실패");
+      }
+      setDialStatus(result.message ?? `${phoneNumber} 발신 요청 완료`);
+    } catch (error) {
+      setDialStatus(error instanceof Error ? error.message : "발신 요청 실패");
+    } finally {
+      setDialingNumber(null);
+    }
+  };
+  const renderPhoneCell = (row, field, label, fallback) => {
+    const value = formatPhoneValue(row[field]);
+    const displayValue = value !== "-" ? formatPhoneDisplay(value) : fallback ? formatPhoneDisplay(fallback) : "-";
+    if (value === "-" || !canDialFromHistory(row, field)) {
+      return displayValue;
+    }
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        type: "button",
+        className: "popup-dial-button",
+        "aria-label": `${label} ${displayValue} 발신`,
+        disabled: dialingNumber === value,
+        onClick: () => void handleDial(value),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: displayValue }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "popup-dial-badge", children: "발신" })
+        ]
+      }
+    );
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "popup-layout", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "popup-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "통화내역" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: loading ? "조회 중" : `${filtered.length}건` })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: dialStatus ?? (loading ? "조회 중" : `${filtered.length}건`) })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          "aria-label": "통화내역 검색",
-          value: query,
-          onChange: (event) => setQuery(event.target.value),
-          placeholder: "번호, 고객, 상담원"
-        }
-      )
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "popup-header-actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            "aria-label": "통화내역 검색",
+            value: query,
+            onChange: (event) => setQuery(event.target.value),
+            placeholder: "번호, 고객, 상담원"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "popup-refresh-button",
+            "aria-label": "통화내역 새로고침",
+            disabled: loading,
+            onClick: () => void loadHistory(),
+            children: loading ? "조회 중" : "갱신"
+          }
+        )
+      ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "popup-table-shell", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "popup-table", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
@@ -12640,14 +12797,16 @@ function CallHistoryPopup() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "통화" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-        filtered.map((row) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatTime(row.startedAt) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.sessionStatus }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.ani ?? "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.dnis ?? row.queueName ?? "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.primaryAgent?.agentName ?? "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.talkSeconds == null ? "-" : `${row.talkSeconds}s` })
-        ] }, row.callId)),
+        filtered.map((row) => (() => {
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatTime(row.startedAt) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatStatus(row.sessionStatus) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: renderPhoneCell(row, "ani", "발신번호") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: renderPhoneCell(row, "dnis", "수신번호", row.queueName) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.primaryAgent?.agentName ?? "-" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatDuration(row) })
+          ] }, row.callId);
+        })()),
         !loading && filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 6, children: "표시할 통화내역이 없습니다." }) }) : null
       ] })
     ] }) })
@@ -12867,7 +13026,7 @@ function evaluateSoftphoneReadiness(input) {
     {
       key: "diagnostics",
       label: "최근 진단",
-      status: latestDiagnostic ? latestDiagnostic.severity === "error" ? "error" : "warning" : "ok",
+      status: latestDiagnostic ? latestDiagnostic.severity === "error" ? "error" : latestDiagnostic.severity === "warning" ? "warning" : "ok" : "ok",
       detail: latestDiagnostic ? latestDiagnostic.message : "최근 진단 없음",
       hint: latestDiagnostic?.hint ?? null
     }
@@ -12928,6 +13087,9 @@ function getCallSubtitle(activeCall, softphone) {
   if (softphone?.session) {
     return [softphone.session.direction === "incoming" ? "수신" : "발신", softphone.session.phase].filter(Boolean).join(" / ");
   }
+  if (softphone?.lastError) {
+    return softphone.lastError;
+  }
   return "필요한 작업만 표시합니다.";
 }
 function SoftphoneShell({
@@ -12972,6 +13134,11 @@ function SoftphoneShell({
 }) {
   const [view, setView] = reactExports.useState("call");
   const [showDiagnostics, setShowDiagnostics] = reactExports.useState(false);
+  const [dialPending, setDialPending] = reactExports.useState(false);
+  const [dialError, setDialError] = reactExports.useState(null);
+  const [internalTarget, setInternalTarget] = reactExports.useState(null);
+  const [internalPending, setInternalPending] = reactExports.useState(false);
+  const [internalError, setInternalError] = reactExports.useState(null);
   const [transferTarget, setTransferTarget] = reactExports.useState("");
   const [transferMode, setTransferMode] = reactExports.useState("blind");
   const [dialNumber, setDialNumber] = reactExports.useState("");
@@ -13024,7 +13191,42 @@ function SoftphoneShell({
     () => agentDirectory.filter((agent) => agent.extension !== extension).slice(0, 5),
     [agentDirectory, extension]
   );
-  const canDialExternal = runtimeReady && Boolean(dialNumber.trim()) && callerIds.length > 0;
+  const canDialExternal = runtimeReady && softphone?.registration === "registered" && Boolean(dialNumber.trim()) && callerIds.length > 0 && !dialPending;
+  const canAnswerRinging = activeCall ? runtimeReady : Boolean(softphone?.session && softphone.session.phase === "ringing");
+  const handleExternalOriginate = async () => {
+    if (!canDialExternal) {
+      return;
+    }
+    setDialPending(true);
+    setDialError(null);
+    try {
+      await onOriginate(dialNumber, selectedCallerId);
+    } catch (error) {
+      setDialError(error instanceof Error ? error.message : "발신 요청 실패");
+    } finally {
+      setDialPending(false);
+    }
+  };
+  const handleInternalOriginate = async () => {
+    if (!internalTarget) {
+      return;
+    }
+    const blockReason = getAgentCallBlockReason(internalTarget);
+    if (blockReason) {
+      setInternalError(`내선 통화 불가: ${blockReason}`);
+      return;
+    }
+    setInternalPending(true);
+    setInternalError(null);
+    try {
+      await onOriginateInternal(internalTarget);
+      setInternalTarget(null);
+    } catch (error) {
+      setInternalError(error instanceof Error ? error.message : "내선 발신 요청 실패");
+    } finally {
+      setInternalPending(false);
+    }
+  };
   if (view === "settings") {
     return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "desktop-console desktop-console-settings", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -13133,6 +13335,14 @@ function SoftphoneShell({
             "오류 ",
             softphone.lastError
           ] }) : null,
+          softphone?.diagnostics.length ? /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "softphone-readiness-list", children: softphone.diagnostics.slice(0, 3).map((diagnostic) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: `readiness-item readiness-item-${diagnostic.severity === "error" ? "error" : diagnostic.severity === "warning" ? "warning" : "ok"}`, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+              diagnostic.code,
+              " / ",
+              diagnostic.message
+            ] }),
+            diagnostic.hint ? /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: diagnostic.hint }) : null
+          ] }, `${diagnostic.code}-${diagnostic.occurredAt}`)) }) : null,
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-actions", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: runtimeConnection === "reconnecting", onClick: onReconnectRuntime, children: "Runtime 재연결" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -13180,12 +13390,21 @@ function SoftphoneShell({
         {
           type: "button",
           className: "primary-button",
-          disabled: !runtimeReady || !activeCall,
+          disabled: !canAnswerRinging,
           onClick: activeCall ? onPickup : onAnswerSoftphoneCall,
           children: "받기"
         }
       ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "danger-button", onClick: activeCall ? onHangup : onRejectSoftphoneCall, children: "거절" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "danger-button",
+          disabled: !canAnswerRinging,
+          onClick: activeCall ? onHangup : onRejectSoftphoneCall,
+          children: "거절"
+        }
+      )
     ] }) : null,
     consoleState === "idle" || consoleState === "afterCall" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
@@ -13222,38 +13441,46 @@ function SoftphoneShell({
               type: "button",
               className: "primary-button",
               disabled: !canDialExternal,
-              onClick: () => onOriginate(dialNumber, selectedCallerId),
-              children: "발신"
+              onClick: () => void handleExternalOriginate(),
+              children: dialPending ? "발신 중" : "발신"
             }
           )
-        ] })
+        ] }),
+        dialError ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted dial-error", children: dialError }) : null
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section agent-directory-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "내선 통화" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenAgentListPopup, children: "전체" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "agent-list", children: availableAgents.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : availableAgents.map((agent) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
-          {
-            type: "button",
-            className: "agent-row",
-            disabled: !runtimeReady || !agent.isActive,
-            onClick: () => onOriginateInternal(agent),
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: agent.extension })
-            ]
-          },
-          agent.agentId
-        )) })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "agent-list", children: availableAgents.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : availableAgents.map((agent) => (() => {
+          const blockReason = getAgentCallBlockReason(agent);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              className: "agent-row",
+              disabled: !runtimeReady || softphone?.registration !== "registered" || Boolean(blockReason),
+              onClick: () => {
+                setInternalError(null);
+                setInternalTarget(agent);
+              },
+              title: blockReason ? `내선 통화 불가: ${blockReason}` : "내선 통화 가능",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: formatDirectoryAgentSummary(agent) })
+              ]
+            },
+            agent.agentId
+          );
+        })()) })
       ] })
     ] }) : null,
     consoleState === "talking" || consoleState === "transferring" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-control-row", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onMute, children: activeCall?.isMuted ? "음소거 해제" : "음소거" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onToggleHold, children: activeCall?.sessionStatus === "HOLD" ? "재개" : "보류" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "danger-button", onClick: activeCall ? onHangup : onHangupSoftphoneCall, children: "종료" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onMute, children: softphone?.session ? softphone.localMuted ? "음소거 해제" : "음소거" : activeCall?.isMuted ? "음소거 해제" : "음소거" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onToggleHold, children: softphone?.session ? softphone.localHold ? "재개" : "보류" : activeCall?.sessionStatus === "HOLD" ? "재개" : "보류" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "danger-button", onClick: softphone?.session ? onHangupSoftphoneCall : onHangup, children: "종료" })
       ] }),
       activeCall ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section transfer-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
@@ -13299,7 +13526,43 @@ function SoftphoneShell({
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onCancelAttendedTransfer, children: "취소" })
         ] }) : null
       ] }) : null
-    ] }) : null
+    ] }) : null,
+    internalTarget ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "confirm-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "internal-call-title", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "confirm-dialog", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { id: "internal-call-title", children: "내선 통화" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        internalTarget.agentName,
+        " ",
+        internalTarget.extension,
+        " 연결을 시작할까요?"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        "상담원 ",
+        formatDirectoryAgentSummary(internalTarget)
+      ] }),
+      internalError ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted dial-error", children: internalError }) : null,
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "primary-button",
+            disabled: internalPending,
+            onClick: () => void handleInternalOriginate(),
+            children: internalPending ? "연결 중" : "연결"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "secondary-button",
+            disabled: internalPending,
+            onClick: () => setInternalTarget(null),
+            children: "취소"
+          }
+        )
+      ] })
+    ] }) }) : null
   ] });
 }
 function ConsoleHeader({
@@ -13526,7 +13789,9 @@ function createSoftphoneState(config) {
       lastError: null,
       diagnostics: [],
       session: null,
-      remoteAudioActive: false
+      remoteAudioActive: false,
+      localMuted: false,
+      localHold: false
     };
   }
   return {
@@ -13536,18 +13801,27 @@ function createSoftphoneState(config) {
     lastError: null,
     diagnostics: [],
     session: null,
-    remoteAudioActive: false
+    remoteAudioActive: false,
+    localMuted: false,
+    localHold: false
   };
 }
 const RING_TONE_DATA_URI = (() => {
   const sampleRate = 8e3;
-  const durationMs = 420;
-  const frequency = 880;
+  const durationMs = 3e3;
+  const toneDurationMs = 900;
+  const frequencies = [440, 480];
   const sampleCount = Math.max(1, Math.floor(sampleRate * durationMs / 1e3));
+  const toneSampleCount = Math.floor(sampleRate * toneDurationMs / 1e3);
   const pcm = new Int16Array(sampleCount);
   for (let index = 0; index < sampleCount; index += 1) {
+    if (index >= toneSampleCount) {
+      pcm[index] = 0;
+      continue;
+    }
     const time = index / sampleRate;
-    pcm[index] = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * 0.28);
+    const sample = frequencies.map((frequency) => Math.sin(2 * Math.PI * frequency * time)).reduce((sum, value) => sum + value, 0) / frequencies.length;
+    pcm[index] = Math.round(sample * 32767 * 0.08);
   }
   const wav = new Uint8Array(44 + pcm.byteLength);
   const view = new DataView(wav.buffer);
@@ -13583,12 +13857,15 @@ const RING_TONE_DATA_URI = (() => {
 class SoftphoneMediaController {
   remoteAudio;
   ringAudio;
+  remoteStream = null;
+  remotePlayRequest = 0;
   constructor(options) {
     this.remoteAudio = options.createAudioElement();
     this.remoteAudio.autoplay = true;
     this.ringAudio = options.createAudioElement();
     this.ringAudio.src = RING_TONE_DATA_URI;
     this.ringAudio.loop = true;
+    this.ringAudio.volume = 0.35;
   }
   async applyOutputDevice(deviceId) {
     if (!deviceId || !this.remoteAudio.setSinkId) {
@@ -13603,11 +13880,25 @@ class SoftphoneMediaController {
     await this.ringAudio.setSinkId(deviceId);
   }
   async attachRemoteStream(stream) {
-    this.remoteAudio.srcObject = stream;
-    this.remoteAudio.currentTime = 0;
-    await this.remoteAudio.play();
+    const requestId = this.remotePlayRequest + 1;
+    this.remotePlayRequest = requestId;
+    if (this.remoteStream !== stream || this.remoteAudio.srcObject !== stream) {
+      this.remoteStream = stream;
+      this.remoteAudio.srcObject = stream;
+      this.remoteAudio.currentTime = 0;
+    }
+    try {
+      await this.remoteAudio.play();
+    } catch (error) {
+      if (requestId !== this.remotePlayRequest || isInterruptedPlayRequest(error)) {
+        return;
+      }
+      throw error;
+    }
   }
   detachRemoteStream() {
+    this.remotePlayRequest += 1;
+    this.remoteStream = null;
     this.remoteAudio.pause();
     this.remoteAudio.srcObject = null;
   }
@@ -13619,6 +13910,12 @@ class SoftphoneMediaController {
     this.ringAudio.pause();
     this.ringAudio.currentTime = 0;
   }
+}
+function isInterruptedPlayRequest(error) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return error.name === "AbortError" || /interrupted by a new load request/i.test(error.message);
 }
 const LIBRARY_VERSION = "0.21.1";
 class Exception extends Error {
@@ -26039,6 +26336,30 @@ class UserAgent {
     this._stateEventEmitter.emit(this._state);
   }
 }
+function holdModifier(description) {
+  if (!description.sdp || !description.type) {
+    throw new Error("Invalid SDP");
+  }
+  let sdp = description.sdp;
+  const type = description.type;
+  if (sdp) {
+    if (!/a=(sendrecv|sendonly|recvonly|inactive)/.test(sdp)) {
+      sdp = sdp.replace(/(m=[^\r]*\r\n)/g, "$1a=sendonly\r\n");
+    } else {
+      sdp = sdp.replace(/a=sendrecv\r\n/g, "a=sendonly\r\n");
+      sdp = sdp.replace(/a=recvonly\r\n/g, "a=inactive\r\n");
+    }
+  }
+  return Promise.resolve({ sdp, type });
+}
+const DEFAULT_ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const STRIP_DOCKER_ICE_CANDIDATES = (description) => {
+  if (!description.sdp) {
+    return Promise.resolve(description);
+  }
+  const sdp = description.sdp.split(/\r\n/).filter((line) => !/^a=candidate:.*\b(172\.(1[6-9]|2\d|3[0-1])\.)/.test(line)).join("\r\n");
+  return Promise.resolve({ ...description, sdp });
+};
 class SipSoftphoneClient {
   constructor(callbacks) {
     this.callbacks = callbacks;
@@ -26047,6 +26368,9 @@ class SipSoftphoneClient {
   registerer = null;
   currentSession = null;
   currentDirection = "incoming";
+  sipDomain = null;
+  reportedMediaDiagnostics = /* @__PURE__ */ new Set();
+  mediaStatsTimer = null;
   async start(config) {
     if (!config.enabled || !config.sipUri || !config.wsServer || !config.authorizationUsername || !config.authorizationPassword) {
       this.callbacks.onRegistrationState("disabled");
@@ -26066,6 +26390,7 @@ class SipSoftphoneClient {
       this.callbacks.onRegistrationState("error");
       return;
     }
+    this.sipDomain = extractSipDomain(config.sipUri);
     const delegate = {
       onConnect: () => this.callbacks.onTransportState("connected"),
       onDisconnect: () => {
@@ -26093,7 +26418,7 @@ class SipSoftphoneClient {
       delegate,
       sessionDescriptionHandlerFactoryOptions: {
         peerConnectionConfiguration: {
-          iceServers: config.iceServers
+          iceServers: config.iceServers.length > 0 ? config.iceServers : DEFAULT_ICE_SERVERS
         }
       }
     };
@@ -26139,6 +26464,8 @@ class SipSoftphoneClient {
     this.userAgent = null;
     this.registerer = null;
     this.currentSession = null;
+    this.sipDomain = null;
+    this.clearMediaStatsTimer();
     this.callbacks.onRegistrationState("idle");
     this.callbacks.onTransportState("not-connected");
     this.callbacks.onCallState(null);
@@ -26155,6 +26482,7 @@ class SipSoftphoneClient {
       noiseSuppression: audioPreferences.noiseSuppression
     } : true;
     await currentSession.accept({
+      sessionDescriptionHandlerModifiers: [STRIP_DOCKER_ICE_CANDIDATES],
       sessionDescriptionHandlerOptions: {
         constraints: {
           audio: audioConstraints,
@@ -26162,6 +26490,37 @@ class SipSoftphoneClient {
         }
       }
     });
+  }
+  async invite(phoneNumber, audioPreferences) {
+    if (!this.userAgent || !this.sipDomain) {
+      throw new Error("Softphone is not registered");
+    }
+    if (this.currentSession && this.currentSession.state !== SessionState.Terminated) {
+      throw new Error("Softphone already has an active session");
+    }
+    const targetUri = UserAgent.makeURI(`sip:${phoneNumber}@${this.sipDomain}`);
+    if (!targetUri) {
+      throw new Error("Invalid outbound SIP target");
+    }
+    const audioConstraints = audioPreferences ? {
+      deviceId: audioPreferences.inputDeviceId ? { exact: audioPreferences.inputDeviceId } : void 0,
+      echoCancellation: audioPreferences.echoCancellation,
+      noiseSuppression: audioPreferences.noiseSuppression
+    } : true;
+    const inviter = new Inviter(this.userAgent, targetUri, {
+      sessionDescriptionHandlerModifiers: [STRIP_DOCKER_ICE_CANDIDATES],
+      sessionDescriptionHandlerOptions: {
+        constraints: {
+          audio: audioConstraints,
+          video: false
+        }
+      }
+    });
+    this.currentSession = inviter;
+    this.currentDirection = "outgoing";
+    this.bindSession(inviter, "outgoing");
+    this.callbacks.onCallState(this.toCallState(inviter, "outgoing", "establishing"));
+    await inviter.invite();
   }
   async reject() {
     const currentSession = this.currentSession;
@@ -26184,6 +26543,40 @@ class SipSoftphoneClient {
       await currentSession.bye();
     }
   }
+  setMuted(muted) {
+    const audioTracks = this.getLocalAudioTracks();
+    if (!audioTracks.length) {
+      this.emitMediaDiagnosticOnce({
+        code: "MEDIA_LOCAL_AUDIO_CONTROL_MISSING",
+        message: "제어할 마이크 오디오 트랙을 찾지 못했습니다.",
+        hint: "통화가 연결된 뒤 다시 시도하거나 마이크 권한과 입력 장치를 확인하세요.",
+        source: "media",
+        severity: "error"
+      });
+      return false;
+    }
+    audioTracks.forEach((track) => {
+      track.enabled = !muted;
+    });
+    return true;
+  }
+  async setHeld(held) {
+    const currentSession = this.currentSession;
+    if (!currentSession || currentSession.state !== SessionState.Established || !currentSession.invite) {
+      this.emitMediaDiagnosticOnce({
+        code: "MEDIA_HOLD_SESSION_NOT_READY",
+        message: "보류를 적용할 수 있는 연결된 SIP 세션이 없습니다.",
+        hint: "통화 연결 상태를 확인한 뒤 다시 시도하세요.",
+        source: "media",
+        severity: "warning"
+      });
+      return false;
+    }
+    await currentSession.invite({
+      sessionDescriptionHandlerModifiers: held ? [holdModifier] : []
+    });
+    return true;
+  }
   async handleIncomingInvitation(invitation) {
     if (this.currentSession && this.currentSession.state !== SessionState.Terminated) {
       await invitation.reject();
@@ -26197,7 +26590,11 @@ class SipSoftphoneClient {
   bindSession(session, direction) {
     const delegate = {
       onSessionDescriptionHandler: (sessionDescriptionHandler) => {
-        const stream = this.extractRemoteStream(sessionDescriptionHandler);
+        const handler = sessionDescriptionHandler;
+        this.inspectMediaHandler(handler, false);
+        this.bindPeerConnectionDiagnostics(handler);
+        this.bindRemoteStreamTrackWakeup(handler);
+        const stream = this.extractRemoteStream(handler);
         if (stream) {
           this.callbacks.onRemoteStream(stream);
         }
@@ -26217,6 +26614,8 @@ class SipSoftphoneClient {
           const stream = this.extractRemoteStream(
             session.sessionDescriptionHandler
           );
+          this.inspectMediaHandler(session.sessionDescriptionHandler, true);
+          this.scheduleMediaStatsDiagnostic(session.sessionDescriptionHandler);
           if (stream) {
             this.callbacks.onRemoteStream(stream);
           }
@@ -26229,6 +26628,8 @@ class SipSoftphoneClient {
           this.callbacks.onCallState(null);
           this.callbacks.onRemoteStream(null);
           this.currentSession = null;
+          this.reportedMediaDiagnostics.clear();
+          this.clearMediaStatsTimer();
           break;
       }
     });
@@ -26238,9 +26639,179 @@ class SipSoftphoneClient {
       id: session.id,
       direction,
       phase,
-      remoteDisplayName: session.remoteIdentity.displayName || session.remoteIdentity.uri.user || "Unknown",
+      remoteDisplayName: formatRemoteIdentity(session.remoteIdentity.displayName, session.remoteIdentity.uri),
       remoteUri: session.remoteIdentity.uri?.toString?.() ?? null
     };
+  }
+  inspectMediaHandler(sessionDescriptionHandler, isEstablished) {
+    const peerConnection = sessionDescriptionHandler?.peerConnection;
+    if (!peerConnection) {
+      return;
+    }
+    const localAudioTracks = peerConnection.getSenders?.().map((sender) => sender.track).filter((track) => Boolean(track) && track.kind === "audio") ?? [];
+    if (isEstablished && !localAudioTracks.length) {
+      this.emitMediaDiagnosticOnce({
+        code: "MEDIA_LOCAL_AUDIO_MISSING",
+        message: "마이크 오디오 트랙이 통화에 포함되지 않았습니다.",
+        hint: "마이크 권한과 입력 장치 선택을 확인한 뒤 다시 발신하세요.",
+        source: "media",
+        severity: "error"
+      });
+    }
+    const remoteAudioTracks = peerConnection.getReceivers().map((receiver) => receiver.track).filter((track) => Boolean(track) && track.kind === "audio");
+    if (isEstablished && !remoteAudioTracks.length && this.currentDirection === "outgoing") {
+      this.emitMediaDiagnosticOnce({
+        code: "MEDIA_REMOTE_AUDIO_MISSING",
+        message: "상대방 오디오 트랙이 아직 수신되지 않았습니다.",
+        hint: "통화 연결 직후 계속 유지되면 PBX RTP 경로와 상대 단말 미디어를 확인하세요.",
+        source: "media",
+        severity: "warning"
+      });
+    }
+  }
+  getLocalAudioTracks() {
+    return this.currentSession?.sessionDescriptionHandler ? this.currentSession.sessionDescriptionHandler.peerConnection?.getSenders?.().map((sender) => sender.track).filter((track) => Boolean(track) && track.kind === "audio") ?? [] : [];
+  }
+  bindPeerConnectionDiagnostics(sessionDescriptionHandler) {
+    const peerConnection = sessionDescriptionHandler?.peerConnection;
+    if (!peerConnection?.addEventListener) {
+      return;
+    }
+    const notifyIceProblem = () => {
+      const state = peerConnection.iceConnectionState;
+      if (state !== "failed" && state !== "disconnected") {
+        return;
+      }
+      this.emitMediaDiagnosticOnce({
+        code: `MEDIA_ICE_${state.toUpperCase()}`,
+        message: `WebRTC 미디어 연결 상태가 ${state} 입니다.`,
+        hint: "PBX RTP 포트, NAT, 방화벽, ICE 후보 교환 상태를 확인하세요.",
+        source: "media",
+        severity: state === "failed" ? "error" : "warning"
+      });
+      setTimeout(() => {
+        void this.reportIceCandidatePair(peerConnection);
+      }, 100);
+    };
+    peerConnection.addEventListener("iceconnectionstatechange", notifyIceProblem);
+    peerConnection.addEventListener("connectionstatechange", notifyIceProblem);
+  }
+  bindRemoteStreamTrackWakeup(sessionDescriptionHandler) {
+    const stream = sessionDescriptionHandler?.remoteMediaStream;
+    if (!stream?.addEventListener) {
+      return;
+    }
+    stream.addEventListener("addtrack", () => {
+      this.callbacks.onRemoteStream(stream);
+    });
+  }
+  scheduleMediaStatsDiagnostic(sessionDescriptionHandler) {
+    const peerConnection = sessionDescriptionHandler?.peerConnection;
+    if (!peerConnection?.getStats) {
+      return;
+    }
+    this.clearMediaStatsTimer();
+    this.mediaStatsTimer = setTimeout(() => {
+      void this.reportMediaStats(peerConnection);
+    }, 5e3);
+  }
+  async reportMediaStats(peerConnection) {
+    if (!peerConnection.getStats) {
+      return;
+    }
+    const stats = await peerConnection.getStats();
+    let inboundBytes = 0;
+    let inboundPackets = 0;
+    let outboundBytes = 0;
+    let outboundPackets = 0;
+    stats.forEach((report) => {
+      const item = report;
+      const mediaKind = item.kind ?? item.mediaType;
+      if (mediaKind !== "audio") {
+        return;
+      }
+      if (item.type === "inbound-rtp" && !item.isRemote) {
+        inboundBytes += item.bytesReceived ?? 0;
+        inboundPackets += item.packetsReceived ?? 0;
+      }
+      if (item.type === "outbound-rtp" && !item.isRemote) {
+        outboundBytes += item.bytesSent ?? 0;
+        outboundPackets += item.packetsSent ?? 0;
+      }
+    });
+    this.callbacks.onDiagnostic({
+      code: "MEDIA_RTP_STATS",
+      message: `RTP audio stats inbound=${inboundBytes}/${inboundPackets}, outbound=${outboundBytes}/${outboundPackets}`,
+      hint: inboundBytes > 0 ? "데스크톱까지 오디오 패킷이 도착했고 마이크 송신도 확인됐습니다." : "데스크톱에 수신 오디오 RTP가 도착하지 않았습니다. PBX RTP/NAT와 트렁크 미디어 방향을 확인하세요.",
+      source: "media",
+      severity: inboundBytes > 0 ? "info" : "error"
+    });
+    await this.reportIceCandidatePair(peerConnection);
+  }
+  async reportIceCandidatePair(peerConnection) {
+    if (!peerConnection.getStats) {
+      return;
+    }
+    const stats = await peerConnection.getStats();
+    const reports = /* @__PURE__ */ new Map();
+    stats.forEach((report) => {
+      reports.set(report.id, report);
+    });
+    let selectedPair = null;
+    stats.forEach((report) => {
+      const pair = report;
+      if (report.type !== "candidate-pair" || !pair) {
+        return;
+      }
+      if (pair.selected || pair.nominated || pair.state === "succeeded") {
+        selectedPair = pair;
+      }
+    });
+    if (!selectedPair) {
+      stats.forEach((report) => {
+        const transport = report;
+        if (report.type !== "transport" || !transport.selectedCandidatePairId) {
+          return;
+        }
+        const pair = reports.get(transport.selectedCandidatePairId);
+        if (pair) {
+          selectedPair = pair;
+        }
+      });
+    }
+    if (!selectedPair) {
+      this.callbacks.onDiagnostic({
+        code: "MEDIA_ICE_CANDIDATE_PAIR",
+        message: "선택된 ICE 후보쌍을 찾지 못했습니다.",
+        hint: "ICE 연결이 후보 선택 전에 중단됐습니다. PC 방화벽, NAT, TURN 필요 여부를 확인하세요.",
+        source: "media",
+        severity: "error"
+      });
+      return;
+    }
+    const local = reports.get(selectedPair.localCandidateId ?? "");
+    const remote = reports.get(selectedPair.remoteCandidateId ?? "");
+    this.callbacks.onDiagnostic({
+      code: "MEDIA_ICE_CANDIDATE_PAIR",
+      message: `ICE pair ${selectedPair.state ?? "unknown"} local=${formatCandidate(local)} remote=${formatCandidate(remote)} sent=${selectedPair.bytesSent ?? 0} recv=${selectedPair.bytesReceived ?? 0}`,
+      hint: selectedPair.bytesReceived && selectedPair.bytesReceived > 0 ? "ICE 후보쌍이 선택됐고 미디어 바이트 송수신이 확인됐습니다." : "ICE 후보쌍에서 수신 바이트가 없습니다. PBX RTP 포트 또는 PC/공유기 UDP 경로를 확인하세요.",
+      source: "media",
+      severity: selectedPair.bytesReceived && selectedPair.bytesReceived > 0 ? "info" : "error"
+    });
+  }
+  clearMediaStatsTimer() {
+    if (!this.mediaStatsTimer) {
+      return;
+    }
+    clearTimeout(this.mediaStatsTimer);
+    this.mediaStatsTimer = null;
+  }
+  emitMediaDiagnosticOnce(diagnostic) {
+    if (this.reportedMediaDiagnostics.has(diagnostic.code)) {
+      return;
+    }
+    this.reportedMediaDiagnostics.add(diagnostic.code);
+    this.callbacks.onDiagnostic(diagnostic);
   }
   extractRemoteStream(sessionDescriptionHandler) {
     if (!sessionDescriptionHandler) {
@@ -26260,6 +26831,32 @@ class SipSoftphoneClient {
       getTracks: () => audioTracks
     };
   }
+}
+function extractSipDomain(sipUri) {
+  const match = sipUri.match(/^sips?:[^@]+@([^;>\s]+)$/i);
+  return match?.[1] ?? null;
+}
+function formatRemoteIdentity(displayName, uri) {
+  const normalizedName = displayName?.trim();
+  if (normalizedName && normalizedName !== "<unknown>") {
+    return normalizedName;
+  }
+  const user = uri?.user?.trim();
+  if (user && user !== "<unknown>") {
+    return user;
+  }
+  const uriText = uri?.toString?.() ?? "";
+  const match = uriText.match(/^sips?:([^@;>\s]+)/i);
+  return match?.[1] || "상대방";
+}
+function formatCandidate(candidate) {
+  if (!candidate) {
+    return "unknown";
+  }
+  const address = candidate.address ?? candidate.ip ?? "unknown";
+  const protocol = candidate.protocol ?? "unknown";
+  const type = candidate.candidateType ?? "unknown";
+  return `${type}/${protocol}/${address}:${candidate.port ?? "unknown"}`;
 }
 let detachRuntimeListener = null;
 let audioController = null;
@@ -26342,7 +26939,9 @@ function getSoftphoneClient() {
       }));
     },
     onCallState: (call) => {
-      if (call?.phase === "ringing") {
+      const previousCall = useDesktopStore.getState().softphone?.session ?? null;
+      const shouldPlayProgressTone = call?.phase === "ringing" || call?.direction === "outgoing" && call.phase === "establishing";
+      if (shouldPlayProgressTone) {
         void getSoftphoneMediaController()?.startRingtone();
         if (call.direction === "incoming" && call.id !== lastIncomingAttentionCallId) {
           lastIncomingAttentionCallId = call.id;
@@ -26361,9 +26960,15 @@ function getSoftphoneClient() {
         softphone: current.softphone ? {
           ...current.softphone,
           session: call,
-          remoteAudioActive: call ? current.softphone.remoteAudioActive : false
+          lastError: call ? null : previousCall?.direction === "outgoing" && previousCall.phase !== "active" ? "통화 연결 실패: 대상 내선 등록 또는 PBX 라우트를 확인하세요." : current.softphone.lastError,
+          remoteAudioActive: call ? current.softphone.remoteAudioActive : false,
+          localMuted: call ? current.softphone.localMuted : false,
+          localHold: call ? current.softphone.localHold : false
         } : current.softphone,
-        events: call ? pushEvent(current.events, `softphone ${call.phase} ${call.remoteDisplayName}`) : pushEvent(current.events, "softphone 세션 종료")
+        events: call ? pushEvent(current.events, `softphone ${call.phase} ${call.remoteDisplayName}`) : pushEvent(
+          current.events,
+          previousCall?.direction === "outgoing" && previousCall.phase !== "active" ? "softphone 통화 연결 실패" : "softphone 세션 종료"
+        )
       }));
     },
     onRemoteStream: (stream) => {
@@ -26380,9 +26985,28 @@ function getSoftphoneClient() {
           }));
           return;
         }
-        if (mediaController) {
-          await mediaController.applyOutputDevice(outputDeviceId);
-          await mediaController.attachRemoteStream(stream);
+        try {
+          if (mediaController) {
+            await mediaController.applyOutputDevice(outputDeviceId);
+            await mediaController.attachRemoteStream(stream);
+          }
+        } catch (error) {
+          const message = toErrorMessage(error);
+          useDesktopStore.setState((current) => ({
+            softphone: current.softphone ? {
+              ...current.softphone,
+              lastError: `원격 오디오 재생 실패: ${message}`,
+              diagnostics: pushSoftphoneDiagnostic(current.softphone.diagnostics, {
+                code: "MEDIA_PLAYBACK_FAILED",
+                message: "원격 오디오 재생에 실패했습니다.",
+                hint: "출력 장치 선택과 Windows 앱 오디오 권한을 확인하세요.",
+                source: "media",
+                severity: "error"
+              })
+            } : current.softphone,
+            events: pushEvent(current.events, `softphone 오디오 재생 실패 ${message}`)
+          }));
+          return;
         }
         useDesktopStore.setState((current) => ({
           softphone: current.softphone ? {
@@ -26962,15 +27586,18 @@ const useDesktopStore = create((set) => ({
     if (!agent || !normalized) {
       return;
     }
-    await getDesktopApi().originate({
-      agentExtension: agent.extension,
-      phoneNumber: normalized,
-      callerId: callerId?.trim() || void 0
-    });
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.registration !== "registered") {
+      set((current) => ({
+        events: pushEvent(current.events, "softphone 미등록: 외부 발신 불가")
+      }));
+      throw new Error("Softphone must be registered before outbound calling");
+    }
+    await getSoftphoneClient().invite(normalized, useDesktopStore.getState().audioPreferences);
     set((current) => ({
       events: pushEvent(
         current.events,
-        `외부 발신 요청 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ""}`
+        `softphone 외부 발신 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ""}`
       )
     }));
   },
@@ -26979,12 +27606,16 @@ const useDesktopStore = create((set) => ({
     if (!target.agentId || !normalizedExtension) {
       return;
     }
-    await getDesktopApi().originateInternal({
-      targetAgentId: target.agentId,
-      targetExtension: normalizedExtension
-    });
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.registration !== "registered") {
+      set((current) => ({
+        events: pushEvent(current.events, "softphone 미등록: 내선 통화 불가")
+      }));
+      throw new Error("Softphone must be registered before internal calling");
+    }
+    await getSoftphoneClient().invite(normalizedExtension, useDesktopStore.getState().audioPreferences);
     set((current) => ({
-      events: pushEvent(current.events, `내선 발신 요청 ${target.agentName} ${normalizedExtension}`)
+      events: pushEvent(current.events, `softphone 내선 통화 ${target.agentName} ${normalizedExtension}`)
     }));
   },
   async openCallHistoryPopup() {
@@ -27008,6 +27639,22 @@ const useDesktopStore = create((set) => ({
     }));
   },
   async mute() {
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.session) {
+      const nextMuted = !softphone.localMuted;
+      const controlled = getSoftphoneClient().setMuted(nextMuted);
+      set((current) => ({
+        softphone: current.softphone ? {
+          ...current.softphone,
+          localMuted: controlled ? nextMuted : current.softphone.localMuted
+        } : current.softphone,
+        events: pushEvent(
+          current.events,
+          controlled ? `softphone 음소거 ${nextMuted ? "적용" : "해제"}` : "softphone 음소거 실패: 마이크 트랙 없음"
+        )
+      }));
+      return;
+    }
     const callId = useDesktopStore.getState().activeCall?.callId;
     if (!callId) {
       return;
@@ -27023,6 +27670,10 @@ const useDesktopStore = create((set) => ({
     }));
   },
   async hangup() {
+    if (useDesktopStore.getState().softphone?.session) {
+      await useDesktopStore.getState().hangupSoftphoneCall();
+      return;
+    }
     const callId = useDesktopStore.getState().activeCall?.callId;
     if (!callId) {
       return;
@@ -27033,6 +27684,33 @@ const useDesktopStore = create((set) => ({
     }));
   },
   async toggleHold() {
+    const softphone = useDesktopStore.getState().softphone;
+    if (softphone?.session) {
+      const nextHold = !softphone.localHold;
+      try {
+        const controlled = await getSoftphoneClient().setHeld(nextHold);
+        set((current) => ({
+          softphone: current.softphone ? {
+            ...current.softphone,
+            localHold: controlled ? nextHold : current.softphone.localHold
+          } : current.softphone,
+          events: pushEvent(
+            current.events,
+            controlled ? `softphone ${nextHold ? "보류" : "재개"} 요청` : "softphone 보류 실패: 연결된 SIP 세션 없음"
+          )
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "softphone hold failed";
+        set((current) => ({
+          softphone: current.softphone ? {
+            ...current.softphone,
+            lastError: `보류 실패: ${message}`
+          } : current.softphone,
+          events: pushEvent(current.events, `softphone 보류 실패 ${message}`)
+        }));
+      }
+      return;
+    }
     const currentCall = useDesktopStore.getState().activeCall;
     if (!currentCall) {
       return;
@@ -27309,7 +27987,9 @@ const useDesktopStore = create((set) => ({
         transport: current.softphone.config.enabled ? "not-connected" : "not-configured",
         lastError: null,
         session: null,
-        remoteAudioActive: false
+        remoteAudioActive: false,
+        localMuted: false,
+        localHold: false
       } : current.softphone,
       events: pushEvent(current.events, "softphone 등록 종료")
     }));
@@ -27327,7 +28007,9 @@ const useDesktopStore = create((set) => ({
       softphone: current.softphone ? {
         ...current.softphone,
         session: null,
-        remoteAudioActive: false
+        remoteAudioActive: false,
+        localMuted: false,
+        localHold: false
       } : current.softphone,
       events: pushEvent(current.events, "softphone 수신 거절")
     }));
@@ -27416,6 +28098,29 @@ function App() {
       void connectWithProtocol(payload);
     });
   }, [connectWithProtocol, desktopApi]);
+  reactExports.useEffect(() => {
+    if (!desktopApi?.onHistoryOriginateRequest) {
+      return;
+    }
+    return desktopApi.onHistoryOriginateRequest((payload) => {
+      void (async () => {
+        try {
+          await originate(payload.phoneNumber);
+          await desktopApi.completeHistoryOriginateRequest({
+            requestId: payload.requestId,
+            ok: true,
+            message: "발신 요청 완료"
+          });
+        } catch (error) {
+          await desktopApi.completeHistoryOriginateRequest({
+            requestId: payload.requestId,
+            ok: false,
+            message: error instanceof Error ? error.message : "발신 요청 실패"
+          });
+        }
+      })();
+    });
+  }, [desktopApi, originate]);
   if (!bootstrapped) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "auth-screen", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "login-card panel boot-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "KAster Agent Desktop" }),
