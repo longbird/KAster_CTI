@@ -1825,7 +1825,8 @@ export class AdminService {
         agentMappings: true,
         queueMappings: true,
         didMappings: true,
-      },
+        vipPrompt: { select: { id: true, promptKey: true, displayName: true } },
+      } as any,
     });
 
     return {
@@ -1852,6 +1853,9 @@ export class AdminService {
   }
 
   async createBranch(tenantId: string, dto: CreateBranchDto) {
+    if (dto.vipPromptId) {
+      await this.assertPromptBelongsToTenant(tenantId, dto.vipPromptId);
+    }
     const row = await this.prisma.branches.create({
       data: {
         tenantId,
@@ -1859,23 +1863,38 @@ export class AdminService {
         branchName: dto.branchName,
         description: dto.description ?? null,
         isActive: dto.isActive ?? true,
-      },
+        ...(dto.vipPromptId !== undefined ? { vipPromptId: dto.vipPromptId ?? null } : {}),
+      } as any,
     });
     return { success: true, data: row, error: null };
   }
 
   async updateBranch(tenantId: string, branchId: string, dto: UpdateBranchDto) {
+    if (dto.vipPromptId) {
+      await this.assertPromptBelongsToTenant(tenantId, dto.vipPromptId);
+    }
     const row = await this.prisma.branches.updateMany({
       where: { tenantId, branchId },
       data: {
         ...(dto.branchCode !== undefined ? { branchCode: dto.branchCode } : {}),
         ...(dto.branchName !== undefined ? { branchName: dto.branchName } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.vipPromptId !== undefined ? { vipPromptId: dto.vipPromptId ?? null } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         updatedAt: new Date(),
-      },
+      } as any,
     });
     return { success: true, data: { updated: row.count > 0, branchId }, error: null };
+  }
+
+  private async assertPromptBelongsToTenant(tenantId: string, promptId: string) {
+    const prompt = await (this.prisma as any).asteriskPrompt.findFirst({
+      where: { id: promptId, tenantId },
+      select: { id: true },
+    });
+    if (!prompt) {
+      throw new BadRequestException('선택한 VIP 멘트(prompt)를 찾을 수 없습니다.');
+    }
   }
 
   async deleteBranch(tenantId: string, branchId: string) {
@@ -2007,6 +2026,7 @@ export class AdminService {
               branchName: branch.branchName,
               description: branch.description,
               isActive: branch.isActive,
+              vipPromptId: (branch as any).vipPromptId ?? null,
             }
           : null,
         assignedAgentIds: branch?.agentMappings.map((item) => item.agentId) ?? [],

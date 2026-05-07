@@ -46,6 +46,8 @@ export interface BranchRow {
   branchName: string;
   description?: string | null;
   isActive: boolean;
+  vipPromptId?: string | null;
+  vipPrompt?: { id: string; promptKey: string; displayName: string } | null;
   createdAt: string;
   agentCount?: number;
   queueCount?: number;
@@ -206,6 +208,7 @@ interface MappingResponse {
     branchName: string;
     description?: string | null;
     isActive: boolean;
+    vipPromptId?: string | null;
   } | null;
   assignedQueueIds: string[];
   assignedDidIds: string[];
@@ -226,6 +229,7 @@ interface BranchConfigFormValue {
   branchName: string;
   description?: string;
   isActive: boolean;
+  vipPromptId?: string;
   queueIds: string[];
   didIds: string[];
   representativeDidId?: string;
@@ -818,6 +822,7 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
     branchName: mapping?.branch?.branchName ?? branch?.branchName ?? '',
     description: mapping?.branch?.description ?? branch?.description ?? '',
     isActive: mapping?.branch?.isActive ?? branch?.isActive ?? true,
+    vipPromptId: mapping?.branch?.vipPromptId ?? branch?.vipPromptId ?? undefined,
     queueIds,
     didIds,
     representativeDidId:
@@ -1260,6 +1265,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
             branchName: values.branchName,
             description: values.description ?? '',
             isActive: values.isActive,
+            vipPromptId: values.vipPromptId || null,
           };
 
           if (branchId) {
@@ -1618,6 +1624,17 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                     </Form.Item>
                   </Col>
                 </Row>
+                <Form.Item
+                  className="branch-edit-modal__compact-item"
+                  label={renderFieldLabel('VIP 멘트', '고객 grade=VIP 인 통화 시 사용할 안내 멘트. BlueSky Jisa.m_nMentVipCD 등가. 미설정 시 기본 멘트로 fallback.')}
+                  name="vipPromptId"
+                >
+                  <PromptSelectWithPreview
+                    disabled={!promptsEnabled}
+                    placeholder="VIP 전용 멘트 선택 (선택 사항)"
+                    options={promptOptions}
+                  />
+                </Form.Item>
                 <Form.Item
                   className="branch-edit-modal__compact-item"
                   label={renderFieldLabel('멘트 완료까지 대기', '사용 시 멘트가 끝난 뒤에만 큐에 진입합니다. 끄면 멘트 시작과 동시에 또는 지정 초 후 큐에 진입합니다.')}

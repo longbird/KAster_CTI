@@ -560,6 +560,7 @@ model branches {
   branchName    String   @db.VarChar(128)
   description   String?
   settingsProfile Json?
+  vipPromptId   String?  @db.Uuid
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @default(now()) @db.Timestamptz(6)
@@ -570,6 +571,7 @@ model branches {
   didMappings   branchDids[]
   agentCallerIds agentBranchCallerIds[]
   outboundCallerIdRules outboundCallerIdRules[]
+  vipPrompt     AsteriskPrompt? @relation("branch_vip_prompt", fields: [vipPromptId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
@@ -832,7 +834,8 @@ model AsteriskPrompt {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant       tenants    @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  vipBranches  branches[] @relation("branch_vip_prompt")
 
   @@unique([tenantId, promptKey])
   @@index([tenantId, category, isActive])
