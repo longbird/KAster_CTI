@@ -20,6 +20,7 @@ import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-
 import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
+import { ListAgentWorkTimeQueryDto } from './dto/list-agent-work-time-query.dto';
 import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { UpdateAgentPermissionsDto } from './dto/update-agent-permissions.dto';
@@ -2750,6 +2751,139 @@ export class AdminService {
     return {
       success: true,
       data: { agent, entries: rows },
+      error: null,
+    };
+  }
+
+  /**
+   * BlueSky ViewSearchStaffWorkTime 등가.
+   * agentStatusHistory(startedAt, endedAt, statusCode) 행을 윈도우와 교차 후
+   * granularity bucket 별로 prorate 합산.
+   * - 열린 구간(endedAt IS NULL): min(now(), to) 로 닫음
+   * - 윈도우 경계: max(startedAt, from), min(endedAt, to)
+   * Postgres generate_series + tstzrange 교차로 한 쿼리에 산출.
+   */
+  async listAgentWorkTime(tenantId: string, query: ListAgentWorkTimeQueryDto) {
+    const granularity = query.granularity ?? 'hour';
+    const groupBy = query.groupBy ?? 'agent';
+    const fromDate = new Date(query.from);
+    const toDate = new Date(query.to);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate >= toDate) {
+      throw new BadRequestException('from/to 가 유효하지 않습니다.');
+    }
+    const bucketSqlMap: Record<string, { interval: string; bucketSeconds: number }> = {
+      hour: { interval: '1 hour', bucketSeconds: 3600 },
+      half_hour: { interval: '30 minutes', bucketSeconds: 1800 },
+      day: { interval: '1 day', bucketSeconds: 86400 },
+    };
+    const bucket = bucketSqlMap[granularity];
+
+    const agentFilter = query.agentId ?? null;
+    const groupFilter = query.agentGroupId ?? null;
+
+    // Prisma raw — bucketStart × agentId × statusCode → seconds
+    const truncUnit = granularity === 'half_hour' ? 'hour' : granularity;
+    const intervalSql = Prisma.raw(`interval '${bucket.interval}'`);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        bucketStart: Date;
+        agentId: string;
+        agentName: string;
+        agentGroupId: string | null;
+        agentGroupName: string | null;
+        statusCode: string;
+        seconds: number;
+      }>
+    >`
+      WITH window_bounds AS (
+        SELECT ${fromDate}::timestamptz AS w_from, ${toDate}::timestamptz AS w_to
+      ),
+      buckets AS (
+        SELECT generate_series(
+          date_trunc(${truncUnit}, w_from),
+          w_to,
+          ${intervalSql}
+        ) AS "bucketStart"
+        FROM window_bounds
+      ),
+      history AS (
+        SELECT
+          h."agentId",
+          h."statusCode",
+          GREATEST(h."startedAt", (SELECT w_from FROM window_bounds)) AS eff_start,
+          LEAST(COALESCE(h."endedAt", NOW()), (SELECT w_to FROM window_bounds)) AS eff_end
+        FROM "agentStatusHistory" h
+        WHERE h."tenantId" = ${tenantId}::uuid
+          AND h."startedAt" < (SELECT w_to FROM window_bounds)
+          AND COALESCE(h."endedAt", NOW()) > (SELECT w_from FROM window_bounds)
+          ${agentFilter ? Prisma.sql`AND h."agentId" = ${agentFilter}::uuid` : Prisma.empty}
+      ),
+      sliced AS (
+        SELECT
+          b."bucketStart",
+          h."agentId",
+          h."statusCode",
+          EXTRACT(EPOCH FROM (
+            LEAST(h.eff_end, b."bucketStart" + ${intervalSql})
+            - GREATEST(h.eff_start, b."bucketStart")
+          ))::int AS seconds
+        FROM buckets b
+        JOIN history h
+          ON h.eff_start < b."bucketStart" + ${intervalSql}
+         AND h.eff_end   > b."bucketStart"
+      )
+      SELECT
+        s."bucketStart",
+        s."agentId",
+        a."agentName",
+        a."agentGroupId",
+        g."groupName" AS "agentGroupName",
+        s."statusCode",
+        SUM(s.seconds)::int AS seconds
+      FROM sliced s
+      JOIN "agents" a ON a."agentId" = s."agentId" AND a."tenantId" = ${tenantId}::uuid
+      LEFT JOIN "agentGroups" g ON g."agentGroupId" = a."agentGroupId"
+      WHERE s.seconds > 0
+        ${groupFilter ? Prisma.sql`AND a."agentGroupId" = ${groupFilter}::uuid` : Prisma.empty}
+      GROUP BY s."bucketStart", s."agentId", a."agentName", a."agentGroupId", g."groupName", s."statusCode"
+      ORDER BY s."bucketStart" ASC, a."agentName" ASC, s."statusCode" ASC
+    `;
+
+    const buckets: Array<{
+      bucketStart: string;
+      seriesKey: string;
+      seriesLabel: string;
+      statusCode: string;
+      seconds: number;
+    }> = rows.map((r) => {
+      const seriesKey =
+        groupBy === 'group'
+          ? r.agentGroupId ?? '__no_group__'
+          : r.agentId;
+      const seriesLabel =
+        groupBy === 'group'
+          ? r.agentGroupName ?? '(그룹 없음)'
+          : r.agentName;
+      return {
+        bucketStart: r.bucketStart.toISOString(),
+        seriesKey,
+        seriesLabel,
+        statusCode: r.statusCode,
+        seconds: r.seconds,
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        granularity,
+        groupBy,
+        windowSeconds: bucket.bucketSeconds,
+        from: fromDate.toISOString(),
+        to: toDate.toISOString(),
+        buckets,
+      },
       error: null,
     };
   }

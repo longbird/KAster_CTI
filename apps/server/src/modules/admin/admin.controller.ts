@@ -12,6 +12,7 @@ import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-ids.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
+import { ListAgentWorkTimeQueryDto } from './dto/list-agent-work-time-query.dto';
 import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
 import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { UpdateAgentPermissionsDto } from './dto/update-agent-permissions.dto';
@@ -57,6 +58,13 @@ export class AdminController {
   async listRecordingDownloadAudits(@CurrentUser() user: any, @Query() q: ListRecordingDownloadAuditsQueryDto) {
     await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'reports/recordings', 'view', user.sub);
     return this.adminService.listRecordingDownloadAudits(user.tenantId, q);
+  }
+
+  @Get('reports/agent-work-time')
+  @Roles('supervisor', 'admin')
+  async listAgentWorkTime(@CurrentUser() user: any, @Query() q: ListAgentWorkTimeQueryDto) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'kpi', 'view', user.sub);
+    return this.adminService.listAgentWorkTime(user.tenantId, q);
   }
 
   @Get('monitoring/operations')
