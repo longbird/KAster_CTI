@@ -120,6 +120,7 @@ services:
       - /etc/asterisk:/etc/asterisk
       - /var/lib/asterisk/sounds/custom:/var/lib/asterisk/sounds/custom
       - /var/lib/asterisk/moh:/var/lib/asterisk/moh
+      - /home/blueadm/kaster_cti/agent-artifacts:/var/lib/kaster/agent-artifacts:ro
     ports:
       - "3000:3000"
 

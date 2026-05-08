@@ -1,7 +1,7 @@
 {
   "name": "kaster-cti-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "KAster CTI desktop agent runtime for Windows call center operations",
   "author": "KAster Operations",
   "type": "module",
