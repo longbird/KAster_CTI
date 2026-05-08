@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { AttentionService } from './attention-service';
 import { AudioPreferencesStore } from './audio-preferences-store';
 import { CallPreferencesStore } from './call-preferences-store';
+import { TransferHotkeysStore } from './transfer-hotkeys-store';
 import { DesktopAuthClient } from './auth-client';
 import { DesktopBridgeServer } from './desktop-bridge-server';
 import { DesktopConfigStore } from './config-store';
@@ -25,6 +26,7 @@ import { normalizeCenterConfig } from '../shared/center-config';
 const configStore = new DesktopConfigStore(app.getPath('userData'));
 const audioPreferencesStore = new AudioPreferencesStore(app.getPath('userData'));
 const callPreferencesStore = new CallPreferencesStore(app.getPath('userData'));
+const transferHotkeysStore = new TransferHotkeysStore(app.getPath('userData'));
 const tokenVault = new TokenVault(app.getPath('userData'));
 const attentionService = new AttentionService({
   getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
@@ -438,6 +440,8 @@ app.whenReady().then(() => {
   ipcMain.handle('desktop:save-audio-preferences', (_event, input) => audioPreferencesStore.save(input));
   ipcMain.handle('desktop:get-call-preferences', () => callPreferencesStore.load());
   ipcMain.handle('desktop:save-call-preferences', (_event, input) => callPreferencesStore.save(input));
+  ipcMain.handle('desktop:get-transfer-hotkeys', () => transferHotkeysStore.load());
+  ipcMain.handle('desktop:save-transfer-hotkeys', (_event, input) => transferHotkeysStore.save(input));
   ipcMain.handle('desktop:get-session', async () => toSessionSummary(await tokenVault.load()));
   ipcMain.handle('desktop:get-desktop-session', async (_event, accessToken?: string) => {
     const config = await configStore.load();

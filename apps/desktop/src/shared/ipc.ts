@@ -31,6 +31,18 @@ export interface DesktopCallPreferences {
   autoStatusAfterCallSeconds: number;
 }
 
+export type DesktopTransferHotkeyMode = 'blind' | 'attended';
+
+export interface DesktopTransferHotkeySlot {
+  /** 1~9 — 통화 중 키보드 1~9 키와 매핑 */
+  slot: number;
+  /** UI 표시용 라벨 (예: "팀장님", "지사 A") */
+  label: string;
+  /** 전환 대상 내선/번호 */
+  target: string;
+  mode: DesktopTransferHotkeyMode;
+}
+
 export interface DesktopAgentProfile {
   agentId: string;
   agentName: string;
@@ -188,6 +200,8 @@ export interface DesktopApi {
   saveAudioPreferences(input: DesktopAudioPreferences): Promise<DesktopAudioPreferences>;
   getCallPreferences(): Promise<DesktopCallPreferences>;
   saveCallPreferences(input: DesktopCallPreferences): Promise<DesktopCallPreferences>;
+  getTransferHotkeys(): Promise<DesktopTransferHotkeySlot[]>;
+  saveTransferHotkeys(input: DesktopTransferHotkeySlot[]): Promise<DesktopTransferHotkeySlot[]>;
   exchangeHandoff(handoffToken: string): Promise<DesktopSessionSummary>;
   login(input: {
     serverUrl: string;

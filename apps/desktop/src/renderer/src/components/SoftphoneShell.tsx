@@ -6,9 +6,11 @@ import type {
   DesktopCallContext,
   DesktopCallPreferences,
   DesktopConfig,
+  DesktopTransferHotkeySlot,
 } from '../../../shared/ipc';
 import { CallInfoPanel } from './CallInfoPanel';
 import { RingingAutoTimer } from './RingingAutoTimer';
+import { TransferHotkeyEditor } from './TransferHotkeyEditor';
 import type { SoftphoneState } from '../softphone/softphone-runtime';
 import { evaluateSoftphoneReadiness } from '../softphone/softphone-readiness';
 import {
@@ -249,8 +251,89 @@ export function SoftphoneShell({
     setCallPreferences(saved);
   }, []);
 
+  const [transferHotkeys, setTransferHotkeys] = useState<DesktopTransferHotkeySlot[]>([]);
+
+  useEffect(() => {
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!desktopApi?.getTransferHotkeys) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await desktopApi.getTransferHotkeys();
+        if (!cancelled) {
+          setTransferHotkeys(list);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateTransferHotkeys = useCallback(async (next: DesktopTransferHotkeySlot[]) => {
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!desktopApi?.saveTransferHotkeys) {
+      return;
+    }
+    const saved = await desktopApi.saveTransferHotkeys(next);
+    setTransferHotkeys(saved);
+  }, []);
+
   const [pendingStatus, setPendingStatus] = useState<AgentStatusCode | null>(null);
   const [reasonDraft, setReasonDraft] = useState('');
+
+  const triggerTransferHotkey = useCallback(
+    (slotNumber: number) => {
+      const slot = transferHotkeys.find((entry) => entry.slot === slotNumber);
+      if (!slot || !slot.target) {
+        return;
+      }
+      if (!activeCall || !TRANSFER_READY_STATUSES.has(activeCall.sessionStatus)) {
+        return;
+      }
+      onTransfer(slot.target, slot.mode);
+    },
+    [transferHotkeys, activeCall, onTransfer],
+  );
+
+  useEffect(() => {
+    if (consoleState !== 'talking' && consoleState !== 'transferring') {
+      return;
+    }
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
+      }
+      if (event.key < '1' || event.key > '9') {
+        return;
+      }
+      const slot = Number(event.key);
+      const has = transferHotkeys.some((entry) => entry.slot === slot);
+      if (!has) {
+        return;
+      }
+      event.preventDefault();
+      triggerTransferHotkey(slot);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [consoleState, transferHotkeys, triggerTransferHotkey]);
 
   const handleAgentStatusChange = useCallback(
     (statusCode: AgentStatusCode) => {
@@ -531,6 +614,14 @@ export function SoftphoneShell({
 
         <section className="console-section">
           <div className="console-section-title">
+            <h2>전환 단축키</h2>
+          </div>
+          <p className="console-muted">통화 중 1~9 키로 즉시 전환. 라벨/번호/방식 등록.</p>
+          <TransferHotkeyEditor slots={transferHotkeys} onSave={updateTransferHotkeys} />
+        </section>
+
+        <section className="console-section">
+          <div className="console-section-title">
             <h2>진단</h2>
             <button type="button" onClick={() => setShowDiagnostics((current) => !current)}>
               {showDiagnostics ? '숨기기' : '보기'}
@@ -793,6 +884,23 @@ export function SoftphoneShell({
                   전환
                 </button>
               </div>
+              {transferHotkeys.length > 0 ? (
+                <div className="transfer-hotkey-strip">
+                  {transferHotkeys.map((slot) => (
+                    <button
+                      type="button"
+                      key={slot.slot}
+                      className={`hotkey-chip hotkey-chip--${slot.mode}`}
+                      onClick={() => triggerTransferHotkey(slot.slot)}
+                      disabled={!transferAvailable}
+                      title={`${slot.mode === 'attended' ? '상담' : '바로'} 전환 / ${slot.target}`}
+                    >
+                      <span className="hotkey-chip__index">{slot.slot}</span>
+                      <span className="hotkey-chip__label">{slot.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {agentDirectory.length > 0 ? (
                 <div className="transfer-agent-strip">
                   {availableAgents.slice(0, 3).map((agent) => (
