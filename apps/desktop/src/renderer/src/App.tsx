@@ -168,6 +168,7 @@ export default function App() {
         <SoftphoneShell
           config={config}
           agentName={agent.agentName}
+          agentId={agent.agentId}
           extension={agent.extension}
           agentStatus={agentStatus}
           runtimeConnection={runtimeConnection}

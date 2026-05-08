@@ -4,8 +4,12 @@ import { io, type Socket } from 'socket.io-client';
 import type { AgentStatusCode, CommandAck, CtiEvent } from '../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
+  DesktopCallContext,
+  DesktopCallContextHistoryItem,
+  DesktopCallContextMemo,
   DesktopCallerIdConfig,
   DesktopCallHistoryItem,
+  DesktopSaveCallMemoInput,
 } from '../shared/ipc';
 
 type RuntimeEventName = CtiEvent['type'];
@@ -265,6 +269,110 @@ export class CtiRuntime {
       primaryAgent: row.primaryAgent?.agentName ? { agentName: row.primaryAgent.agentName } : null,
       customer: row.customer?.customerName ? { customerName: row.customer.customerName } : null,
     }));
+  }
+
+  async getCallContext(callId: string): Promise<DesktopCallContext | null> {
+    const response = await this.http.get(`/calls/${callId}`);
+    const data = response.data?.data;
+    if (!data) {
+      return null;
+    }
+
+    const customer = data.customer
+      ? {
+          customerId: String(data.customer.customerId ?? ''),
+          customerName: String(data.customer.customerName ?? ''),
+          grade: data.customer.grade ?? null,
+          memo: data.customer.memo ?? null,
+          primaryPhoneNumber:
+            data.customer.phones?.find((p: { isPrimary?: boolean }) => p.isPrimary)?.phoneNumber
+            ?? data.customer.phones?.[0]?.phoneNumber
+            ?? null,
+          extraPhoneNumbers: Array.isArray(data.customer.phones)
+            ? data.customer.phones
+                .filter((p: { isPrimary?: boolean }) => !p.isPrimary)
+                .map((p: { phoneNumber?: string }) => p.phoneNumber ?? '')
+                .filter(Boolean)
+            : [],
+        }
+      : null;
+
+    const history: DesktopCallContextHistoryItem[] = Array.isArray(data.customerHistory)
+      ? data.customerHistory.map((row: {
+          callId?: string;
+          direction?: string | null;
+          sessionStatus?: string;
+          startedAt?: string | Date;
+          answeredAt?: string | Date | null;
+          endedAt?: string | Date | null;
+          talkSeconds?: number | null;
+          queueName?: string | null;
+          primaryAgent?: { agentName?: string } | null;
+        }) => ({
+          callId: row.callId ?? '',
+          direction: row.direction ?? null,
+          sessionStatus: row.sessionStatus ?? '',
+          startedAt: String(row.startedAt ?? ''),
+          answeredAt: row.answeredAt ? String(row.answeredAt) : null,
+          endedAt: row.endedAt ? String(row.endedAt) : null,
+          talkSeconds: typeof row.talkSeconds === 'number' ? row.talkSeconds : null,
+          queueName: row.queueName ?? null,
+          primaryAgentName: row.primaryAgent?.agentName ?? null,
+        }))
+      : [];
+
+    const memos: DesktopCallContextMemo[] = Array.isArray(data.callMemos)
+      ? data.callMemos.map((memo: {
+          callMemoId?: string;
+          agentId?: string | null;
+          memoType?: string | null;
+          resultCode?: string | null;
+          subResultCode?: string | null;
+          memoText?: string | null;
+          isFinal?: boolean | null;
+          createdAt?: string | Date;
+        }) => ({
+          callMemoId: memo.callMemoId ?? '',
+          agentId: memo.agentId ?? null,
+          memoType: memo.memoType ?? null,
+          resultCode: memo.resultCode ?? null,
+          subResultCode: memo.subResultCode ?? null,
+          memoText: memo.memoText ?? null,
+          isFinal: memo.isFinal ?? null,
+          createdAt: String(memo.createdAt ?? ''),
+        }))
+      : [];
+
+    return {
+      callId: String(data.callId ?? callId),
+      customer,
+      representativeNumber: data.representativeNumber ?? null,
+      history,
+      memos,
+    };
+  }
+
+  async saveCallMemo(input: DesktopSaveCallMemoInput): Promise<DesktopCallContextMemo> {
+    const { callId, ...body } = input;
+    const response = await this.http.post(`/calls/${callId}/memo`, {
+      agentId: body.agentId,
+      memoType: body.memoType ?? 'acw',
+      memoText: body.memoText,
+      resultCode: body.resultCode,
+      subResultCode: body.subResultCode,
+      isFinal: body.isFinal ?? true,
+    });
+    const memo = response.data?.data ?? {};
+    return {
+      callMemoId: memo.callMemoId ?? '',
+      agentId: memo.agentId ?? null,
+      memoType: memo.memoType ?? null,
+      resultCode: memo.resultCode ?? null,
+      subResultCode: memo.subResultCode ?? null,
+      memoText: memo.memoText ?? null,
+      isFinal: memo.isFinal ?? null,
+      createdAt: String(memo.createdAt ?? ''),
+    };
   }
 
   async hold(callId: string): Promise<CommandAck> {

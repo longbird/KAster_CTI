@@ -81,6 +81,54 @@ export interface DesktopHistoryOriginateRequest {
   phoneNumber: string;
 }
 
+export interface DesktopCallContextHistoryItem {
+  callId: string;
+  direction: string | null;
+  sessionStatus: string;
+  startedAt: string;
+  answeredAt: string | null;
+  endedAt: string | null;
+  talkSeconds: number | null;
+  queueName: string | null;
+  primaryAgentName: string | null;
+}
+
+export interface DesktopCallContextMemo {
+  callMemoId: string;
+  agentId: string | null;
+  memoType: string | null;
+  resultCode: string | null;
+  subResultCode: string | null;
+  memoText: string | null;
+  isFinal: boolean | null;
+  createdAt: string;
+}
+
+export interface DesktopCallContext {
+  callId: string;
+  customer: {
+    customerId: string;
+    customerName: string;
+    grade: string | null;
+    memo: string | null;
+    primaryPhoneNumber: string | null;
+    extraPhoneNumbers: string[];
+  } | null;
+  representativeNumber: string | null;
+  history: DesktopCallContextHistoryItem[];
+  memos: DesktopCallContextMemo[];
+}
+
+export interface DesktopSaveCallMemoInput {
+  callId: string;
+  agentId: string;
+  memoText?: string;
+  resultCode?: string;
+  subResultCode?: string;
+  memoType?: string;
+  isFinal?: boolean;
+}
+
 export interface DesktopHistoryOriginateResult {
   requestId: string;
   ok: boolean;
@@ -166,6 +214,8 @@ export interface DesktopApi {
   getCallerIds(): Promise<DesktopCallerIdConfig>;
   getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]>;
   getCallHistory(): Promise<DesktopCallHistoryItem[]>;
+  getCallContext(callId: string): Promise<DesktopCallContext | null>;
+  saveCallMemo(input: DesktopSaveCallMemoInput): Promise<DesktopCallContextMemo>;
   requestHistoryOriginate(input: { phoneNumber: string }): Promise<DesktopHistoryOriginateResult>;
   completeHistoryOriginateRequest(input: DesktopHistoryOriginateResult): Promise<void>;
   openCallHistoryPopup(): Promise<void>;

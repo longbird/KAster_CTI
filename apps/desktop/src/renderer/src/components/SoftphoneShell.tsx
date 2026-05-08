@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ActiveCall, AgentStatusCode } from '../../../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
   DesktopAudioPreferences,
+  DesktopCallContext,
   DesktopConfig,
 } from '../../../shared/ipc';
+import { CallInfoPanel } from './CallInfoPanel';
 import type { SoftphoneState } from '../softphone/softphone-runtime';
 import { evaluateSoftphoneReadiness } from '../softphone/softphone-readiness';
 import {
@@ -64,6 +66,7 @@ function getCallSubtitle(activeCall: ActiveCall | null, softphone: SoftphoneStat
 export function SoftphoneShell({
   config,
   agentName,
+  agentId,
   extension,
   agentStatus,
   runtimeConnection,
@@ -103,6 +106,7 @@ export function SoftphoneShell({
 }: {
   config: DesktopConfig;
   agentName: string;
+  agentId?: string | null;
   extension: string;
   agentStatus: AgentStatusCode | null;
   runtimeConnection: 'idle' | 'connected' | 'reconnecting' | 'disconnected' | 'error';
@@ -194,6 +198,72 @@ export function SoftphoneShell({
       typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
     void desktopApi?.setWindowMode?.(getWindowModeForConsoleState(consoleState));
   }, [consoleState]);
+
+  const [callContext, setCallContext] = useState<DesktopCallContext | null>(null);
+  const [callContextLoading, setCallContextLoading] = useState(false);
+  const [callContextError, setCallContextError] = useState<string | null>(null);
+
+  const activeCallId = activeCall?.callId ?? null;
+  const showCallInfo = consoleState === 'talking' || consoleState === 'transferring' || consoleState === 'afterCall';
+
+  useEffect(() => {
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!activeCallId || !desktopApi?.getCallContext || !showCallInfo) {
+      setCallContext(null);
+      setCallContextError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setCallContextLoading(true);
+    setCallContextError(null);
+    void (async () => {
+      try {
+        const context = await desktopApi.getCallContext(activeCallId);
+        if (!cancelled) {
+          setCallContext(context);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCallContextError(error instanceof Error ? error.message : '알 수 없는 오류');
+        }
+      } finally {
+        if (!cancelled) {
+          setCallContextLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCallId, showCallInfo, activeCall?.sessionStatus]);
+
+  const handleSaveMemo = useCallback(
+    async (memoText: string) => {
+      const desktopApi =
+        typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+      if (!desktopApi?.saveCallMemo || !activeCallId || !agentId) {
+        throw new Error('메모를 저장할 수 없습니다.');
+      }
+      const memo = await desktopApi.saveCallMemo({
+        callId: activeCallId,
+        agentId,
+        memoText,
+        memoType: 'acw',
+        isFinal: false,
+      });
+      setCallContext((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const filtered = prev.memos.filter((existing) => existing.callMemoId !== memo.callMemoId);
+        return { ...prev, memos: [memo, ...filtered] };
+      });
+    },
+    [activeCallId, agentId],
+  );
 
   const syncAudioDraft = (next: Partial<DesktopAudioPreferences>) => {
     const merged = {
@@ -507,6 +577,16 @@ export function SoftphoneShell({
             </div>
           </section>
         </>
+      ) : null}
+
+      {showCallInfo && activeCall ? (
+        <CallInfoPanel
+          context={callContext}
+          loading={callContextLoading}
+          error={callContextError}
+          agentId={agentId ?? null}
+          onSaveMemo={handleSaveMemo}
+        />
       ) : null}
 
       {consoleState === 'talking' || consoleState === 'transferring' ? (

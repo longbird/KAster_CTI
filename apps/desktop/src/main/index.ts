@@ -16,6 +16,7 @@ import { UpdateClient } from './update-client';
 import type {
   DesktopHistoryOriginateResult,
   DesktopProtocolConnectPayload,
+  DesktopSaveCallMemoInput,
   DesktopWindowMode,
 } from '../shared/ipc';
 import { normalizeCenterConfig } from '../shared/center-config';
@@ -636,6 +637,18 @@ app.whenReady().then(() => {
       throw new Error('Runtime is not connected.');
     }
     return runtime.completeAttendedTransfer(callId);
+  });
+  ipcMain.handle('desktop:get-call-context', (_event, callId: string) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.getCallContext(callId);
+  });
+  ipcMain.handle('desktop:save-call-memo', (_event, input: DesktopSaveCallMemoInput) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.saveCallMemo(input);
   });
   ipcMain.handle('desktop:hold', (_event, callId: string) => {
     if (!runtime) {
