@@ -1085,6 +1085,7 @@ export class CallsService {
     if (q.mode === 'missed') { where.sessionStatus = 'ENDED'; where.answeredAt = null; }
     if (q.resultCode)        where.resultCode = q.resultCode;
     if (q.queueName)         where.queueName = q.queueName;
+    if (q.direction)         where.direction = q.direction;
     const abandon = this.parseBooleanFilter(q.abandon);
     if (abandon !== undefined) where.abandonFlag = abandon;
     const recording = this.parseBooleanFilter(q.recording);

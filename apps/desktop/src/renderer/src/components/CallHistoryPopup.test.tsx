@@ -68,6 +68,8 @@ describe('CallHistoryPopup', () => {
 
     render(<CallHistoryPopup />);
 
+    // answeredAt 없는 OUTBOUND 는 미연결 탭에서 보임
+    fireEvent.click(await screen.findByRole('button', { name: /미연결/ }));
     expect(await screen.findByText('00:22')).toBeTruthy();
   });
 
