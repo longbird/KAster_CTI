@@ -13759,6 +13759,8 @@ function SoftphoneShell({
   onRefreshAudioDevices,
   onRequestAudioPermission,
   onChangeAudioPreferences,
+  generalPreferences,
+  onChangeGeneralPreferences,
   onPlayOutputPreview,
   onPlayRingPreview,
   onStartSoftphone,
@@ -14135,6 +14137,87 @@ function SoftphoneShell({
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !audioCapabilities.sinkSelectionSupported, onClick: onPlayOutputPreview, children: "스피커 테스트" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !audioCapabilities.sinkSelectionSupported, onClick: onPlayRingPreview, children: "벨소리 테스트" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "일반 설정" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "시작 / 창 / 트레이 / 벨소리 음원." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "general-pref-grid", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.autoStart,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  autoStart: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "윈도우 시작 시 자동 실행" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.autoLogin,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  autoLogin: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "저장된 세션으로 자동 로그인" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.alwaysOnTop,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  alwaysOnTop: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "항상 위에 표시" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.closeToTray,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  closeToTray: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "닫기 버튼 → 트레이로 최소화 (해제 시 종료)" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field general-pref-ringtone", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "벨소리 음원" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "select",
+              {
+                value: generalPreferences.ringTonePresetId,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  ringTonePresetId: event.target.value
+                }),
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "클래식 (높은 톤)" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "soft", children: "소프트 (낮은 톤)" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "urgent", children: "긴급 (짧고 빠른 톤)" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "silent", children: "무음" })
+                ]
+              }
+            )
+          ] })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
@@ -14662,14 +14745,26 @@ function normalizeCenterConfig(input) {
   };
 }
 const OUTPUT_TONE_DATA_URI = buildToneDataUri(660, 220);
-const RING_TONE_DATA_URI$1 = buildToneDataUri(880, 420);
-function buildToneDataUri(frequency, durationMs) {
+const RING_TONE_PRESET_PARAMS = {
+  classic: { frequency: 880, durationMs: 420, gain: 0.28 },
+  soft: { frequency: 540, durationMs: 600, gain: 0.18 },
+  urgent: { frequency: 1100, durationMs: 220, gain: 0.32 },
+  silent: { frequency: 0, durationMs: 0, gain: 0 }
+};
+function getRingTonePresetUri(presetId) {
+  const params = RING_TONE_PRESET_PARAMS[presetId] ?? RING_TONE_PRESET_PARAMS.classic;
+  if (params.durationMs === 0) {
+    return buildToneDataUri(0, 1, 0);
+  }
+  return buildToneDataUri(params.frequency, params.durationMs, params.gain);
+}
+function buildToneDataUri(frequency, durationMs, gain = 0.28) {
   const sampleRate = 8e3;
   const sampleCount = Math.max(1, Math.floor(sampleRate * durationMs / 1e3));
   const pcm = new Int16Array(sampleCount);
   for (let index = 0; index < sampleCount; index += 1) {
     const time = index / sampleRate;
-    pcm[index] = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * 0.28);
+    pcm[index] = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * gain);
   }
   const wav = new Uint8Array(44 + pcm.byteLength);
   const view = new DataView(wav.buffer);
@@ -14709,12 +14804,23 @@ class AudioDeviceController {
     this.outputPreviewAudio.src = OUTPUT_TONE_DATA_URI;
     this.outputPreviewAudio.loop = false;
     this.ringPreviewAudio = options.createAudioElement();
-    this.ringPreviewAudio.src = RING_TONE_DATA_URI$1;
+    this.ringPreviewAudio.src = getRingTonePresetUri("classic");
     this.ringPreviewAudio.loop = false;
   }
   outputPreviewAudio;
   ringPreviewAudio;
   activeInputStream = null;
+  currentRingTonePresetId = "classic";
+  applyRingTonePreset(presetId) {
+    if (this.currentRingTonePresetId === presetId) {
+      return;
+    }
+    this.currentRingTonePresetId = presetId;
+    this.ringPreviewAudio.src = getRingTonePresetUri(presetId);
+  }
+  getRingTonePresetId() {
+    return this.currentRingTonePresetId;
+  }
   getCapabilities() {
     return {
       sinkSelectionSupported: typeof this.outputPreviewAudio.setSinkId === "function"
@@ -14744,6 +14850,9 @@ class AudioDeviceController {
     await this.outputPreviewAudio.play();
   }
   async playRingPreview() {
+    if (this.currentRingTonePresetId === "silent") {
+      return;
+    }
     this.ringPreviewAudio.currentTime = 0;
     await this.ringPreviewAudio.play();
   }
@@ -27851,6 +27960,13 @@ const EMPTY_CALLER_ID_CONFIG = {
   callerIds: [],
   defaultCallerId: null
 };
+const DEFAULT_GENERAL_PREFERENCES = {
+  autoStart: false,
+  autoLogin: true,
+  alwaysOnTop: false,
+  closeToTray: true,
+  ringTonePresetId: "classic"
+};
 function getMediaDevices() {
   if (typeof navigator === "undefined" || !navigator.mediaDevices) {
     return null;
@@ -28305,6 +28421,7 @@ const useDesktopStore = create((set) => ({
   audioPermission: "unknown",
   refreshingAudioDevices: false,
   audioPreferences: null,
+  generalPreferences: DEFAULT_GENERAL_PREFERENCES,
   audioDevices: EMPTY_AUDIO_DEVICES,
   audioCapabilities: DEFAULT_AUDIO_CAPABILITIES,
   softphone: null,
@@ -28314,7 +28431,13 @@ const useDesktopStore = create((set) => ({
   updateState: null,
   async initialize() {
     const controller = getAudioController();
-    const [configResult, audioPreferencesResult, sessionResult, audioDevicesResult] = await Promise.all([
+    const [
+      configResult,
+      audioPreferencesResult,
+      sessionResult,
+      audioDevicesResult,
+      generalPreferencesResult
+    ] = await Promise.all([
       safeBootstrapLoad(() => getDesktopApi().getConfig(), null, "desktop config"),
       safeBootstrapLoad(
         () => getDesktopApi().getAudioPreferences(),
@@ -28322,15 +28445,22 @@ const useDesktopStore = create((set) => ({
         "audio preferences"
       ),
       safeBootstrapLoad(() => getDesktopApi().getSession(), null, "desktop session"),
-      safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, "audio devices")
+      safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, "audio devices"),
+      safeBootstrapLoad(
+        () => getDesktopApi().getGeneralPreferences?.() ?? Promise.resolve(DEFAULT_GENERAL_PREFERENCES),
+        DEFAULT_GENERAL_PREFERENCES,
+        "general preferences"
+      )
     ]);
     const config = configResult.value;
     const audioPreferences = audioPreferencesResult.value;
-    const storedSession = sessionResult.value;
+    const generalPreferences = generalPreferencesResult.value;
+    const storedSession = generalPreferences.autoLogin ? sessionResult.value : null;
     const audioDevices = audioDevicesResult.value;
     const bootstrapError = configResult.error ?? audioPreferencesResult.error ?? sessionResult.error ?? audioDevicesResult.error;
     if (controller) {
       await controller.applyPreferences(audioPreferences);
+      controller.applyRingTonePreset(generalPreferences.ringTonePresetId);
     }
     await getSoftphoneMediaController()?.applyOutputDevice(audioPreferences.outputDeviceId);
     await getSoftphoneMediaController()?.applyRingDevice(audioPreferences.ringDeviceId);
@@ -28341,6 +28471,7 @@ const useDesktopStore = create((set) => ({
         loginPending: false,
         authError: bootstrapError,
         audioPreferences,
+        generalPreferences,
         audioDevices,
         audioPermission: getMediaDevices()?.enumerateDevices ? "unknown" : "unsupported",
         audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -28418,6 +28549,7 @@ const useDesktopStore = create((set) => ({
       runtimeConnection: sessionBootstrapError ? "error" : resolveRuntimeConnection(Boolean(session), current.runtimeConnection),
       config,
       audioPreferences,
+      generalPreferences,
       audioDevices,
       audioPermission: getMediaDevices()?.enumerateDevices ? "unknown" : "unsupported",
       audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -28982,6 +29114,14 @@ const useDesktopStore = create((set) => ({
       events: pushEvent(current.events, "오디오 설정을 저장했습니다.")
     }));
   },
+  async updateGeneralPreferences(input) {
+    const generalPreferences = await getDesktopApi().saveGeneralPreferences(input);
+    getAudioController()?.applyRingTonePreset(generalPreferences.ringTonePresetId);
+    set((current) => ({
+      generalPreferences,
+      events: pushEvent(current.events, "일반 설정을 저장했습니다.")
+    }));
+  },
   async playOutputPreview() {
     await getAudioController()?.playOutputPreview();
     set((current) => ({
@@ -29090,6 +29230,7 @@ function App() {
     audioPreferences,
     audioDevices,
     audioCapabilities,
+    generalPreferences,
     softphone,
     callerIds,
     defaultCallerId,
@@ -29121,6 +29262,7 @@ function App() {
     refreshAudioDevices,
     requestAudioPermission,
     updateAudioPreferences,
+    updateGeneralPreferences,
     playOutputPreview,
     playRingPreview,
     startSoftphone,
@@ -29250,6 +29392,8 @@ function App() {
         onRefreshAudioDevices: refreshAudioDevices,
         onRequestAudioPermission: requestAudioPermission,
         onChangeAudioPreferences: updateAudioPreferences,
+        generalPreferences,
+        onChangeGeneralPreferences: updateGeneralPreferences,
         onPlayOutputPreview: playOutputPreview,
         onPlayRingPreview: playRingPreview,
         onStartSoftphone: startSoftphone,

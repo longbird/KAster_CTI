@@ -120,6 +120,67 @@ class CallPreferencesStore {
     return next;
   }
 }
+const RING_TONE_PRESETS = [
+  "classic",
+  "soft",
+  "urgent",
+  "silent"
+];
+const DEFAULT_GENERAL_PREFERENCES = {
+  autoStart: false,
+  autoLogin: true,
+  alwaysOnTop: false,
+  closeToTray: true,
+  ringTonePresetId: "classic"
+};
+function asBool(value, fallback) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  return fallback;
+}
+function asRingTonePresetId(value) {
+  if (typeof value === "string" && RING_TONE_PRESETS.includes(value)) {
+    return value;
+  }
+  return DEFAULT_GENERAL_PREFERENCES.ringTonePresetId;
+}
+function normalizeGeneralPreferences(input) {
+  const source = input ?? {};
+  return {
+    autoStart: asBool(source.autoStart, DEFAULT_GENERAL_PREFERENCES.autoStart),
+    autoLogin: asBool(source.autoLogin, DEFAULT_GENERAL_PREFERENCES.autoLogin),
+    alwaysOnTop: asBool(source.alwaysOnTop, DEFAULT_GENERAL_PREFERENCES.alwaysOnTop),
+    closeToTray: asBool(source.closeToTray, DEFAULT_GENERAL_PREFERENCES.closeToTray),
+    ringTonePresetId: asRingTonePresetId(source.ringTonePresetId)
+  };
+}
+class GeneralPreferencesStore {
+  constructor(userDataDir) {
+    this.userDataDir = userDataDir;
+    this.filePath = join(userDataDir, "general-preferences.json");
+  }
+  filePath;
+  async load() {
+    try {
+      const raw = await readFile(this.filePath, "utf8");
+      return normalizeGeneralPreferences(
+        JSON.parse(raw)
+      );
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") {
+        return DEFAULT_GENERAL_PREFERENCES;
+      }
+      throw error;
+    }
+  }
+  async save(input) {
+    const next = normalizeGeneralPreferences(input);
+    await mkdir(this.userDataDir, { recursive: true });
+    await writeFile(this.filePath, JSON.stringify(next, null, 2), "utf8");
+    return next;
+  }
+}
 const MIN_SLOT = 1;
 const MAX_SLOT = 9;
 const MAX_LABEL = 20;
@@ -1062,6 +1123,7 @@ class UpdateClient {
 const configStore = new DesktopConfigStore(app.getPath("userData"));
 const audioPreferencesStore = new AudioPreferencesStore(app.getPath("userData"));
 const callPreferencesStore = new CallPreferencesStore(app.getPath("userData"));
+const generalPreferencesStore = new GeneralPreferencesStore(app.getPath("userData"));
 const transferHotkeysStore = new TransferHotkeysStore(app.getPath("userData"));
 const tokenVault = new TokenVault(app.getPath("userData"));
 const attentionService = new AttentionService({
@@ -1289,10 +1351,28 @@ function createTrayIcon() {
   const dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAA4ElEQVR4AWP4TwAw/P//PwMlgImB4T8DA8P//38Ghv9MDEwM/5kYGBj+M2BiYPrPwMDA8J+BgYHhPwMDA+N/BgYGhv8MDAwM/2dgYGD4z8DAwPCfgYGB4T8DAwPjfwYGBob/DAwMDP9nYGBg+M/AwMDwn4GBgeE/AwMD438GBgaG/wwMDAz/Z2BgYPjPwMDA8J+BgYHhPwMDA+N/BgYGhv8MDAwM/2dgYGD4z8DAwPCfgYGB4T8DAwPjfwYGBob/DAwMDP8ZGBj4P4QBEQAA//9EQBsy9A8nGAAAAABJRU5ErkJggg==";
   return nativeImage.createFromDataURL(dataUrl);
 }
+let closeToTrayEnabled = true;
+function applyGeneralPreferenceSideEffects(preferences) {
+  closeToTrayEnabled = preferences.closeToTray;
+  try {
+    app.setLoginItemSettings({ openAtLogin: preferences.autoStart });
+  } catch {
+  }
+  const win = getPrimaryWindow();
+  if (win) {
+    win.setAlwaysOnTop(preferences.alwaysOnTop);
+  }
+}
 function attachTrayBehavior(win) {
   let allowClose = false;
   win.on("close", (event) => {
     if (isQuitting || allowClose) {
+      return;
+    }
+    if (!closeToTrayEnabled) {
+      isQuitting = true;
+      allowClose = true;
+      app.quit();
       return;
     }
     event.preventDefault();
@@ -1384,7 +1464,7 @@ app.on("open-url", (event, url) => {
   } catch {
   }
 });
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   registerProtocolClient();
   allowMediaPermissions();
@@ -1402,6 +1482,12 @@ app.whenReady().then(() => {
   ipcMain.handle("desktop:save-audio-preferences", (_event, input) => audioPreferencesStore.save(input));
   ipcMain.handle("desktop:get-call-preferences", () => callPreferencesStore.load());
   ipcMain.handle("desktop:save-call-preferences", (_event, input) => callPreferencesStore.save(input));
+  ipcMain.handle("desktop:get-general-preferences", () => generalPreferencesStore.load());
+  ipcMain.handle("desktop:save-general-preferences", async (_event, input) => {
+    const saved = await generalPreferencesStore.save(input);
+    applyGeneralPreferenceSideEffects(saved);
+    return saved;
+  });
   ipcMain.handle("desktop:get-transfer-hotkeys", () => transferHotkeysStore.load());
   ipcMain.handle("desktop:save-transfer-hotkeys", (_event, input) => transferHotkeysStore.save(input));
   ipcMain.handle("desktop:get-session", async () => toSessionSummary(await tokenVault.load()));
@@ -1669,6 +1755,11 @@ app.whenReady().then(() => {
   ipcMain.handle("desktop:open-external", (_event, url) => {
     return shell.openExternal(url);
   });
+  try {
+    const initialPrefs = await generalPreferencesStore.load();
+    applyGeneralPreferenceSideEffects(initialPrefs);
+  } catch {
+  }
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

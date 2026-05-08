@@ -40,6 +40,7 @@ export default function App() {
     audioPreferences,
     audioDevices,
     audioCapabilities,
+    generalPreferences,
     softphone,
     callerIds,
     defaultCallerId,
@@ -71,6 +72,7 @@ export default function App() {
     refreshAudioDevices,
     requestAudioPermission,
     updateAudioPreferences,
+    updateGeneralPreferences,
     playOutputPreview,
     playRingPreview,
     startSoftphone,
@@ -215,6 +217,8 @@ export default function App() {
           onRefreshAudioDevices={refreshAudioDevices}
           onRequestAudioPermission={requestAudioPermission}
           onChangeAudioPreferences={updateAudioPreferences}
+          generalPreferences={generalPreferences}
+          onChangeGeneralPreferences={updateGeneralPreferences}
           onPlayOutputPreview={playOutputPreview}
           onPlayRingPreview={playRingPreview}
           onStartSoftphone={startSoftphone}

@@ -31,6 +31,21 @@ export interface DesktopCallPreferences {
   autoStatusAfterCallSeconds: number;
 }
 
+export type DesktopRingTonePresetId = 'classic' | 'soft' | 'urgent' | 'silent';
+
+export interface DesktopGeneralPreferences {
+  /** 부팅 시 자동 시작 (OS 로그인 항목 등록) */
+  autoStart: boolean;
+  /** 저장된 세션으로 자동 로그인. false 면 매 실행 시 로그인 화면 강제 */
+  autoLogin: boolean;
+  /** 메인 창 항상 위 표시 */
+  alwaysOnTop: boolean;
+  /** 닫기 버튼 누를 때 종료 대신 트레이 최소화 (기본 true — 기존 동작 유지) */
+  closeToTray: boolean;
+  /** 벨소리 음원 프리셋 */
+  ringTonePresetId: DesktopRingTonePresetId;
+}
+
 export type DesktopTransferHotkeyMode = 'blind' | 'attended';
 
 export interface DesktopTransferHotkeySlot {
@@ -200,6 +215,8 @@ export interface DesktopApi {
   saveAudioPreferences(input: DesktopAudioPreferences): Promise<DesktopAudioPreferences>;
   getCallPreferences(): Promise<DesktopCallPreferences>;
   saveCallPreferences(input: DesktopCallPreferences): Promise<DesktopCallPreferences>;
+  getGeneralPreferences(): Promise<DesktopGeneralPreferences>;
+  saveGeneralPreferences(input: DesktopGeneralPreferences): Promise<DesktopGeneralPreferences>;
   getTransferHotkeys(): Promise<DesktopTransferHotkeySlot[]>;
   saveTransferHotkeys(input: DesktopTransferHotkeySlot[]): Promise<DesktopTransferHotkeySlot[]>;
   exchangeHandoff(handoffToken: string): Promise<DesktopSessionSummary>;

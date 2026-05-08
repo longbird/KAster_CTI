@@ -6,6 +6,8 @@ import type {
   DesktopCallContext,
   DesktopCallPreferences,
   DesktopConfig,
+  DesktopGeneralPreferences,
+  DesktopRingTonePresetId,
   DesktopTransferHotkeySlot,
 } from '../../../shared/ipc';
 import { CallInfoPanel } from './CallInfoPanel';
@@ -108,6 +110,8 @@ export function SoftphoneShell({
   onRefreshAudioDevices,
   onRequestAudioPermission,
   onChangeAudioPreferences,
+  generalPreferences,
+  onChangeGeneralPreferences,
   onPlayOutputPreview,
   onPlayRingPreview,
   onStartSoftphone,
@@ -154,6 +158,8 @@ export function SoftphoneShell({
   onRefreshAudioDevices: () => void;
   onRequestAudioPermission: () => void;
   onChangeAudioPreferences: (input: DesktopAudioPreferences) => void;
+  generalPreferences: DesktopGeneralPreferences;
+  onChangeGeneralPreferences: (input: DesktopGeneralPreferences) => void;
   onPlayOutputPreview: () => void;
   onPlayRingPreview: () => void;
   onStartSoftphone: () => void;
@@ -563,6 +569,84 @@ export function SoftphoneShell({
             <button type="button" disabled={!audioCapabilities.sinkSelectionSupported} onClick={onPlayRingPreview}>
               벨소리 테스트
             </button>
+          </div>
+        </section>
+
+        <section className="console-section">
+          <div className="console-section-title">
+            <h2>일반 설정</h2>
+          </div>
+          <p className="console-muted">시작 / 창 / 트레이 / 벨소리 음원.</p>
+          <div className="general-pref-grid">
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={generalPreferences.autoStart}
+                onChange={(event) =>
+                  onChangeGeneralPreferences({
+                    ...generalPreferences,
+                    autoStart: event.target.checked,
+                  })
+                }
+              />
+              <span>윈도우 시작 시 자동 실행</span>
+            </label>
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={generalPreferences.autoLogin}
+                onChange={(event) =>
+                  onChangeGeneralPreferences({
+                    ...generalPreferences,
+                    autoLogin: event.target.checked,
+                  })
+                }
+              />
+              <span>저장된 세션으로 자동 로그인</span>
+            </label>
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={generalPreferences.alwaysOnTop}
+                onChange={(event) =>
+                  onChangeGeneralPreferences({
+                    ...generalPreferences,
+                    alwaysOnTop: event.target.checked,
+                  })
+                }
+              />
+              <span>항상 위에 표시</span>
+            </label>
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={generalPreferences.closeToTray}
+                onChange={(event) =>
+                  onChangeGeneralPreferences({
+                    ...generalPreferences,
+                    closeToTray: event.target.checked,
+                  })
+                }
+              />
+              <span>닫기 버튼 → 트레이로 최소화 (해제 시 종료)</span>
+            </label>
+            <label className="field general-pref-ringtone">
+              <span>벨소리 음원</span>
+              <select
+                value={generalPreferences.ringTonePresetId}
+                onChange={(event) =>
+                  onChangeGeneralPreferences({
+                    ...generalPreferences,
+                    ringTonePresetId: event.target.value as DesktopRingTonePresetId,
+                  })
+                }
+              >
+                <option value="classic">클래식 (높은 톤)</option>
+                <option value="soft">소프트 (낮은 톤)</option>
+                <option value="urgent">긴급 (짧고 빠른 톤)</option>
+                <option value="silent">무음</option>
+              </select>
+            </label>
           </div>
         </section>
 

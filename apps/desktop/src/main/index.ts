@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { AttentionService } from './attention-service';
 import { AudioPreferencesStore } from './audio-preferences-store';
 import { CallPreferencesStore } from './call-preferences-store';
+import { GeneralPreferencesStore } from './general-preferences-store';
 import { TransferHotkeysStore } from './transfer-hotkeys-store';
 import { DesktopAuthClient } from './auth-client';
 import { DesktopBridgeServer } from './desktop-bridge-server';
@@ -16,6 +17,7 @@ import { TokenVault } from './token-vault';
 import { TrayService } from './tray-service';
 import { UpdateClient } from './update-client';
 import type {
+  DesktopGeneralPreferences,
   DesktopHistoryOriginateResult,
   DesktopProtocolConnectPayload,
   DesktopSaveCallMemoInput,
@@ -26,6 +28,7 @@ import { normalizeCenterConfig } from '../shared/center-config';
 const configStore = new DesktopConfigStore(app.getPath('userData'));
 const audioPreferencesStore = new AudioPreferencesStore(app.getPath('userData'));
 const callPreferencesStore = new CallPreferencesStore(app.getPath('userData'));
+const generalPreferencesStore = new GeneralPreferencesStore(app.getPath('userData'));
 const transferHotkeysStore = new TransferHotkeysStore(app.getPath('userData'));
 const tokenVault = new TokenVault(app.getPath('userData'));
 const attentionService = new AttentionService({
@@ -308,10 +311,31 @@ function createTrayIcon() {
   return nativeImage.createFromDataURL(dataUrl);
 }
 
+let closeToTrayEnabled = true;
+
+function applyGeneralPreferenceSideEffects(preferences: DesktopGeneralPreferences) {
+  closeToTrayEnabled = preferences.closeToTray;
+  try {
+    app.setLoginItemSettings({ openAtLogin: preferences.autoStart });
+  } catch {
+    // 일부 OS / 개발 환경에서 loginItem 미지원 — 조용히 무시.
+  }
+  const win = getPrimaryWindow();
+  if (win) {
+    win.setAlwaysOnTop(preferences.alwaysOnTop);
+  }
+}
+
 function attachTrayBehavior(win: BrowserWindow) {
   let allowClose = false;
   win.on('close', (event) => {
     if (isQuitting || allowClose) {
+      return;
+    }
+    if (!closeToTrayEnabled) {
+      isQuitting = true;
+      allowClose = true;
+      app.quit();
       return;
     }
     event.preventDefault();
@@ -438,7 +462,7 @@ app.on('open-url', (event, url) => {
   }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   registerProtocolClient();
   allowMediaPermissions();
@@ -458,6 +482,12 @@ app.whenReady().then(() => {
   ipcMain.handle('desktop:save-audio-preferences', (_event, input) => audioPreferencesStore.save(input));
   ipcMain.handle('desktop:get-call-preferences', () => callPreferencesStore.load());
   ipcMain.handle('desktop:save-call-preferences', (_event, input) => callPreferencesStore.save(input));
+  ipcMain.handle('desktop:get-general-preferences', () => generalPreferencesStore.load());
+  ipcMain.handle('desktop:save-general-preferences', async (_event, input: DesktopGeneralPreferences) => {
+    const saved = await generalPreferencesStore.save(input);
+    applyGeneralPreferenceSideEffects(saved);
+    return saved;
+  });
   ipcMain.handle('desktop:get-transfer-hotkeys', () => transferHotkeysStore.load());
   ipcMain.handle('desktop:save-transfer-hotkeys', (_event, input) => transferHotkeysStore.save(input));
   ipcMain.handle('desktop:get-session', async () => toSessionSummary(await tokenVault.load()));
@@ -748,6 +778,13 @@ app.whenReady().then(() => {
   ipcMain.handle('desktop:open-external', (_event, url: string) => {
     return shell.openExternal(url);
   });
+
+  try {
+    const initialPrefs = await generalPreferencesStore.load();
+    applyGeneralPreferenceSideEffects(initialPrefs);
+  } catch {
+    // 부팅 시 환경설정 로드 실패해도 앱은 기본값으로 계속.
+  }
 
   createWindow();
 

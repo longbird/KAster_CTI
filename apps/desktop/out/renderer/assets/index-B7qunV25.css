@@ -1689,3 +1689,35 @@ button {
   font-weight: 700;
   padding: 12px;
 }
+
+.general-pref-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.toggle-row input[type='checkbox'] {
+  margin: 0;
+}
+
+.general-pref-ringtone {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.general-pref-ringtone select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}

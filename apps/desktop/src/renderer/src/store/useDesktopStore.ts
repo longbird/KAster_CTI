@@ -6,6 +6,7 @@ import type {
   DesktopAudioPreferences,
   DesktopCallerIdConfig,
   DesktopConfig,
+  DesktopGeneralPreferences,
   DesktopProtocolConnectPayload,
   DesktopSessionSummary,
 } from '../../../shared/ipc';
@@ -80,6 +81,7 @@ interface DesktopStore {
   audioPermission: AudioPermissionState;
   refreshingAudioDevices: boolean;
   audioPreferences: DesktopAudioPreferences | null;
+  generalPreferences: DesktopGeneralPreferences;
   audioDevices: AudioDeviceCatalog;
   audioCapabilities: AudioCapabilities;
   softphone: SoftphoneState | null;
@@ -122,6 +124,7 @@ interface DesktopStore {
   refreshAudioDevices(): Promise<void>;
   requestAudioPermission(): Promise<void>;
   updateAudioPreferences(input: DesktopAudioPreferences): Promise<void>;
+  updateGeneralPreferences(input: DesktopGeneralPreferences): Promise<void>;
   playOutputPreview(): Promise<void>;
   playRingPreview(): Promise<void>;
   startSoftphone(): Promise<void>;
@@ -154,6 +157,13 @@ const DEFAULT_AUDIO_CAPABILITIES: AudioCapabilities = {
 const EMPTY_CALLER_ID_CONFIG: DesktopCallerIdConfig = {
   callerIds: [],
   defaultCallerId: null,
+};
+const DEFAULT_GENERAL_PREFERENCES: DesktopGeneralPreferences = {
+  autoStart: false,
+  autoLogin: true,
+  alwaysOnTop: false,
+  closeToTray: true,
+  ringTonePresetId: 'classic',
 };
 
 function getMediaDevices() {
@@ -738,6 +748,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   audioPermission: 'unknown',
   refreshingAudioDevices: false,
   audioPreferences: null,
+  generalPreferences: DEFAULT_GENERAL_PREFERENCES,
   audioDevices: EMPTY_AUDIO_DEVICES,
   audioCapabilities: DEFAULT_AUDIO_CAPABILITIES,
   softphone: null,
@@ -747,7 +758,13 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   updateState: null,
   async initialize() {
     const controller = getAudioController();
-    const [configResult, audioPreferencesResult, sessionResult, audioDevicesResult] = await Promise.all([
+    const [
+      configResult,
+      audioPreferencesResult,
+      sessionResult,
+      audioDevicesResult,
+      generalPreferencesResult,
+    ] = await Promise.all([
       safeBootstrapLoad(() => getDesktopApi().getConfig(), null, 'desktop config'),
       safeBootstrapLoad(
         () => getDesktopApi().getAudioPreferences(),
@@ -756,10 +773,17 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       ),
       safeBootstrapLoad(() => getDesktopApi().getSession(), null, 'desktop session'),
       safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, 'audio devices'),
+      safeBootstrapLoad(
+        () => getDesktopApi().getGeneralPreferences?.() ?? Promise.resolve(DEFAULT_GENERAL_PREFERENCES),
+        DEFAULT_GENERAL_PREFERENCES,
+        'general preferences',
+      ),
     ]);
     const config = configResult.value;
     const audioPreferences = audioPreferencesResult.value;
-    const storedSession = sessionResult.value;
+    const generalPreferences = generalPreferencesResult.value;
+    // 자동 로그인 OFF 인 경우, 저장된 세션을 무시하고 로그인 화면 강제.
+    const storedSession = generalPreferences.autoLogin ? sessionResult.value : null;
     const audioDevices = audioDevicesResult.value;
     const bootstrapError =
       configResult.error ??
@@ -768,6 +792,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       audioDevicesResult.error;
     if (controller) {
       await controller.applyPreferences(audioPreferences);
+      controller.applyRingTonePreset(generalPreferences.ringTonePresetId);
     }
     await getSoftphoneMediaController()?.applyOutputDevice(audioPreferences.outputDeviceId);
     await getSoftphoneMediaController()?.applyRingDevice(audioPreferences.ringDeviceId);
@@ -779,6 +804,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         loginPending: false,
         authError: bootstrapError,
         audioPreferences,
+        generalPreferences,
         audioDevices,
         audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
         audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -862,6 +888,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         : resolveRuntimeConnection(Boolean(session), current.runtimeConnection),
       config,
       audioPreferences,
+      generalPreferences,
       audioDevices,
       audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
       audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -1512,6 +1539,14 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     set((current) => ({
       audioPreferences,
       events: pushEvent(current.events, '오디오 설정을 저장했습니다.'),
+    }));
+  },
+  async updateGeneralPreferences(input) {
+    const generalPreferences = await getDesktopApi().saveGeneralPreferences(input);
+    getAudioController()?.applyRingTonePreset(generalPreferences.ringTonePresetId);
+    set((current) => ({
+      generalPreferences,
+      events: pushEvent(current.events, '일반 설정을 저장했습니다.'),
     }));
   },
   async playOutputPreview() {
