@@ -14,6 +14,9 @@ describe('AuthService desktop session', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
     },
+    tenantSystemSettings: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
   };
   const configValues: Record<string, string> = {
     JWT_SECRET: 'change_me',

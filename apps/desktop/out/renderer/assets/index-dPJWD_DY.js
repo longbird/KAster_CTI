@@ -12527,9 +12527,53 @@ function formatDirectoryAgentAvailability(agent) {
 function formatDirectoryAgentSummary(agent) {
   return `${agent.extension} / ${formatDirectoryAgentAvailability(agent)}`;
 }
+const UNGROUPED_KEY = "__ungrouped__";
+const UNGROUPED_LABEL = "미지정";
+function groupKey(agent) {
+  return agent.agentGroup?.agentGroupId ?? UNGROUPED_KEY;
+}
+function groupLabel(agent) {
+  return agent.agentGroup?.groupName?.trim() || UNGROUPED_LABEL;
+}
+function bucketize(rows) {
+  const buckets = /* @__PURE__ */ new Map();
+  for (const agent of rows) {
+    const key = groupKey(agent);
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.members.push(agent);
+    } else {
+      buckets.set(key, { key, label: groupLabel(agent), members: [agent] });
+    }
+  }
+  const ordered = Array.from(buckets.values());
+  ordered.sort((left, right) => {
+    if (left.key === UNGROUPED_KEY && right.key !== UNGROUPED_KEY) return 1;
+    if (right.key === UNGROUPED_KEY && left.key !== UNGROUPED_KEY) return -1;
+    return left.label.localeCompare(right.label, "ko-KR");
+  });
+  for (const bucket of ordered) {
+    bucket.members.sort(
+      (left, right) => left.extension.localeCompare(right.extension, "ko-KR")
+    );
+  }
+  return ordered;
+}
+function matchesQuery(agent, keyword) {
+  if (!keyword) return true;
+  return [
+    agent.agentName,
+    agent.extension,
+    agent.currentStatus?.statusCode,
+    agent.agentGroup?.groupName,
+    agent.agentGroup?.groupCode
+  ].filter((value) => Boolean(value)).some((value) => value.includes(keyword));
+}
 function AgentListPopup() {
   const [rows, setRows] = reactExports.useState([]);
   const [query, setQuery] = reactExports.useState("");
+  const [groupFilter, setGroupFilter] = reactExports.useState("all");
+  const [collapsed, setCollapsed] = reactExports.useState({});
   reactExports.useEffect(() => {
     let alive = true;
     void (async () => {
@@ -12543,52 +12587,136 @@ function AgentListPopup() {
       alive = false;
     };
   }, []);
-  const filtered = rows.filter((agent) => {
+  const allGroups = reactExports.useMemo(() => bucketize(rows), [rows]);
+  const filteredBuckets = reactExports.useMemo(() => {
     const keyword = query.trim();
-    if (!keyword) {
-      return true;
-    }
-    return [agent.agentName, agent.extension, agent.currentStatus?.statusCode].filter(Boolean).some((value) => String(value).includes(keyword));
-  });
+    return allGroups.filter((bucket) => groupFilter === "all" || bucket.key === groupFilter).map((bucket) => ({
+      ...bucket,
+      members: bucket.members.filter((agent) => matchesQuery(agent, keyword))
+    })).filter((bucket) => bucket.members.length > 0);
+  }, [allGroups, query, groupFilter]);
+  const totalShown = filteredBuckets.reduce((sum, bucket) => sum + bucket.members.length, 0);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "popup-layout agent-popup-layout", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "popup-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "상담원 리스트" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-          filtered.length,
-          "명"
+          totalShown,
+          "명 / 그룹 ",
+          filteredBuckets.length
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          "aria-label": "상담원 검색",
-          value: query,
-          onChange: (event) => setQuery(event.target.value),
-          placeholder: "이름, 내선"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "popup-agent-list", children: [
-      filtered.map((agent) => {
-        const callBlockedReason = getAgentCallBlockReason(agent);
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-popup-filters", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
           {
-            type: "button",
-            disabled: Boolean(callBlockedReason),
-            title: callBlockedReason ? `내선 통화 불가: ${callBlockedReason}` : "내선 통화 가능",
+            "aria-label": "그룹 선택",
+            value: groupFilter,
+            onChange: (event) => setGroupFilter(event.target.value),
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: formatDirectoryAgentSummary(agent) })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "전체 그룹" }),
+              allGroups.map((bucket) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: bucket.key, children: [
+                bucket.label,
+                " (",
+                bucket.members.length,
+                ")"
+              ] }, bucket.key))
             ]
-          },
-          agent.agentId
-        );
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            "aria-label": "상담원 검색",
+            value: query,
+            onChange: (event) => setQuery(event.target.value),
+            placeholder: "이름, 내선, 그룹"
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "popup-agent-tree", children: [
+      filteredBuckets.map((bucket) => {
+        const isCollapsed = Boolean(collapsed[bucket.key]);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "popup-agent-group", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              className: "popup-agent-group__header",
+              "aria-expanded": !isCollapsed,
+              onClick: () => setCollapsed((current) => ({ ...current, [bucket.key]: !current[bucket.key] })),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: isCollapsed ? "▶" : "▼" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: bucket.label }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "popup-agent-group__count", children: bucket.members.length })
+              ]
+            }
+          ),
+          isCollapsed ? null : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "popup-agent-list", children: bucket.members.map((agent) => {
+            const callBlockedReason = getAgentCallBlockReason(agent);
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                type: "button",
+                disabled: Boolean(callBlockedReason),
+                title: callBlockedReason ? `내선 통화 불가: ${callBlockedReason}` : "내선 통화 가능",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: formatDirectoryAgentSummary(agent) })
+                ]
+              },
+              agent.agentId
+            );
+          }) })
+        ] }, bucket.key);
       }),
-      filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : null
+      filteredBuckets.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : null
     ] })
   ] });
+}
+function formatReceived(receivedAt) {
+  const date = new Date(receivedAt);
+  if (Number.isNaN(date.getTime())) return "";
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+function AnnouncementBannerStack({
+  announcements,
+  onDismiss
+}) {
+  if (announcements.length === 0) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "announcement-stack", role: "region", "aria-label": "공지사항", children: announcements.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: `announcement-banner${item.pinned ? " announcement-banner--pinned" : ""}`,
+      role: "alert",
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "announcement-banner__head", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "announcement-banner__badge", children: item.pinned ? "📌 고정" : "공지" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "announcement-banner__title", children: item.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "announcement-banner__meta", children: [
+            item.authorName ?? "",
+            " ",
+            formatReceived(item.receivedAt)
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              className: "announcement-banner__close",
+              "aria-label": "공지 닫기",
+              onClick: () => onDismiss(item.announcementId),
+              children: "×"
+            }
+          )
+        ] }),
+        item.body ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "announcement-banner__body", children: item.body }) : null
+      ]
+    },
+    item.announcementId
+  )) });
 }
 function formatTime(value) {
   if (!value) {
@@ -12676,9 +12804,33 @@ function canDialFromHistory(row, field) {
   }
   return false;
 }
+const TAB_LABELS = {
+  connected: "연결",
+  missed: "미연결",
+  internal: "내선"
+};
+function isMissed(row) {
+  return !row.answeredAt && row.sessionStatus === "ENDED";
+}
+function isInternal(row) {
+  return (row.direction ?? "").toLowerCase() === "internal";
+}
+function matchesTab(row, tab) {
+  if (isInternal(row)) {
+    return tab === "internal";
+  }
+  if (tab === "internal") {
+    return false;
+  }
+  if (tab === "missed") {
+    return isMissed(row);
+  }
+  return !isMissed(row);
+}
 function CallHistoryPopup() {
   const [rows, setRows] = reactExports.useState([]);
   const [query, setQuery] = reactExports.useState("");
+  const [tab, setTab] = reactExports.useState("connected");
   const [loading, setLoading] = reactExports.useState(true);
   const [dialingNumber, setDialingNumber] = reactExports.useState(null);
   const [dialStatus, setDialStatus] = reactExports.useState(null);
@@ -12707,7 +12859,13 @@ function CallHistoryPopup() {
       mountedRef.current = false;
     };
   }, [loadHistory]);
-  const filtered = rows.filter((row) => {
+  const tabRows = rows.filter((row) => matchesTab(row, tab));
+  const tabCounts = {
+    connected: rows.filter((row) => matchesTab(row, "connected")).length,
+    missed: rows.filter((row) => matchesTab(row, "missed")).length,
+    internal: rows.filter((row) => matchesTab(row, "internal")).length
+  };
+  const filtered = tabRows.filter((row) => {
     const keyword = query.trim();
     if (!keyword) {
       return true;
@@ -12787,6 +12945,20 @@ function CallHistoryPopup() {
         )
       ] })
     ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "popup-tab-strip", "aria-label": "통화 종류", children: Object.keys(TAB_LABELS).map((value) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        type: "button",
+        className: `popup-tab${tab === value ? " popup-tab--active" : ""}`,
+        onClick: () => setTab(value),
+        "aria-pressed": tab === value,
+        children: [
+          TAB_LABELS[value],
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "popup-tab__count", children: tabCounts[value] })
+        ]
+      },
+      value
+    )) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "popup-table-shell", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "popup-table", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "시간" }),
@@ -12797,16 +12969,17 @@ function CallHistoryPopup() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "통화" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-        filtered.map((row) => (() => {
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+        filtered.map((row) => {
+          const missedRow = isMissed(row);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: missedRow ? "popup-row--missed" : void 0, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatTime(row.startedAt) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatStatus(row.sessionStatus) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: missedRow ? "미연결" : formatStatus(row.sessionStatus) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: renderPhoneCell(row, "ani", "발신번호") }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: renderPhoneCell(row, "dnis", "수신번호", row.queueName) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.primaryAgent?.agentName ?? "-" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatDuration(row) })
           ] }, row.callId);
-        })()),
+        }),
         !loading && filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 6, children: "표시할 통화내역이 없습니다." }) }) : null
       ] })
     ] }) })
@@ -12940,6 +13113,210 @@ function DesktopLoginScreen({
     }
   ) });
 }
+const KEYS = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2", sub: "ABC" },
+  { value: "3", label: "3", sub: "DEF" },
+  { value: "4", label: "4", sub: "GHI" },
+  { value: "5", label: "5", sub: "JKL" },
+  { value: "6", label: "6", sub: "MNO" },
+  { value: "7", label: "7", sub: "PQRS" },
+  { value: "8", label: "8", sub: "TUV" },
+  { value: "9", label: "9", sub: "WXYZ" },
+  { value: "*", label: "*" },
+  { value: "0", label: "0", sub: "+" },
+  { value: "#", label: "#" }
+];
+const ALLOWED_INPUT_CHARS = /^[0-9*#+]+$/;
+function sanitizeNumber(input) {
+  return input.replace(/[^0-9*#+]/g, "");
+}
+function DialpadPopup() {
+  const [number, setNumber] = reactExports.useState("");
+  const [callerIds, setCallerIds] = reactExports.useState([]);
+  const [selectedCallerId, setSelectedCallerId] = reactExports.useState("");
+  const [pending, setPending] = reactExports.useState(false);
+  const [status, setStatus] = reactExports.useState(null);
+  const [errorMessage, setErrorMessage] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+      if (!desktopApi?.getCallerIds) {
+        return;
+      }
+      try {
+        const config = await desktopApi.getCallerIds();
+        if (!alive) return;
+        setCallerIds(config.callerIds ?? []);
+        setSelectedCallerId(
+          config.defaultCallerId ?? config.callerIds?.[0] ?? ""
+        );
+      } catch {
+        if (alive) {
+          setCallerIds([]);
+          setSelectedCallerId("");
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const handleAppend = reactExports.useCallback((digit) => {
+    setNumber((current) => current + digit);
+    setErrorMessage(null);
+    setStatus(null);
+  }, []);
+  const handleBackspace = reactExports.useCallback(() => {
+    setNumber((current) => current.slice(0, -1));
+    setErrorMessage(null);
+    setStatus(null);
+  }, []);
+  const handleClear = reactExports.useCallback(() => {
+    setNumber("");
+    setErrorMessage(null);
+    setStatus(null);
+  }, []);
+  const handleDial = reactExports.useCallback(async () => {
+    const trimmed = sanitizeNumber(number);
+    if (trimmed.length === 0) {
+      setErrorMessage("번호를 입력하세요.");
+      return;
+    }
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi) {
+      setErrorMessage("데스크톱 IPC 를 사용할 수 없습니다.");
+      return;
+    }
+    setPending(true);
+    setErrorMessage(null);
+    setStatus(null);
+    try {
+      const result = await desktopApi.requestHistoryOriginate({ phoneNumber: trimmed });
+      if (!result.ok) {
+        throw new Error(result.message ?? "발신 요청 실패");
+      }
+      setStatus(result.message ?? `${trimmed} 발신 요청 완료`);
+      setNumber("");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "발신 요청 실패");
+    } finally {
+      setPending(false);
+    }
+  }, [number]);
+  reactExports.useEffect(() => {
+    function handleKey(event) {
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleDial();
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        handleBackspace();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClear();
+        return;
+      }
+      if (event.key.length === 1 && ALLOWED_INPUT_CHARS.test(event.key)) {
+        event.preventDefault();
+        handleAppend(event.key);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [handleAppend, handleBackspace, handleClear, handleDial]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "popup-layout dialpad-popup-layout", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "popup-header", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "발신 키패드" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: status ?? "번호를 입력하고 발신을 누르세요." })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-display-row", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          "aria-label": "발신번호",
+          value: selectedCallerId,
+          onChange: (event) => setSelectedCallerId(event.target.value),
+          disabled: callerIds.length === 0,
+          className: "dialpad-caller-id",
+          children: [
+            callerIds.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "등록된 발신번호 없음" }) : null,
+            callerIds.map((callerId) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: callerId, children: callerId }, callerId))
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          "aria-label": "발신 번호",
+          className: "dialpad-display",
+          value: number,
+          onChange: (event) => setNumber(sanitizeNumber(event.target.value)),
+          placeholder: "번호 입력"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "dialpad-grid", "aria-label": "키패드", children: KEYS.map((key) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        type: "button",
+        className: "dialpad-key",
+        onClick: () => handleAppend(key.value),
+        "aria-label": `키 ${key.value}`,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dialpad-key__label", children: key.label }),
+          key.sub ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dialpad-key__sub", children: key.sub }) : null
+        ]
+      },
+      key.value
+    )) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-actions", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "dialpad-secondary",
+          onClick: handleBackspace,
+          disabled: number.length === 0,
+          "aria-label": "한 자리 지우기",
+          children: "⌫"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "primary-button dialpad-call",
+          onClick: () => void handleDial(),
+          disabled: pending || number.length === 0,
+          "aria-label": "발신",
+          children: pending ? "발신 중" : "📞 발신"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "dialpad-secondary",
+          onClick: handleClear,
+          disabled: number.length === 0,
+          "aria-label": "모두 지우기",
+          children: "C"
+        }
+      )
+    ] }),
+    errorMessage ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "dial-error console-muted", children: errorMessage }) : null
+  ] });
+}
 function PairingScreen({
   onSubmit,
   busy,
@@ -12990,6 +13367,341 @@ function PairingScreen({
       onBack ? /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "secondary-button", onClick: onBack, type: "button", children: "로그인으로 돌아가기" }) : null
     ] })
   ] }) });
+}
+const FLASH_DURATION_MS = 2400;
+function formatWait(seconds) {
+  const safe = Math.max(0, Math.floor(seconds));
+  const mm = Math.floor(safe / 60);
+  const ss = safe % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+function totalWaiting$1(rows) {
+  return rows.reduce((sum, row) => sum + (row.waitingCount ?? 0), 0);
+}
+function longestWait(rows) {
+  return rows.reduce((max, row) => Math.max(max, row.longestWaitSeconds ?? 0), 0);
+}
+function QueueMonitorPanel({
+  queueSummary,
+  flashAt
+}) {
+  const [flashing, setFlashing] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (!flashAt) {
+      return;
+    }
+    setFlashing(true);
+    const timer = setTimeout(() => setFlashing(false), FLASH_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [flashAt]);
+  if (queueSummary.length === 0) {
+    return null;
+  }
+  const waiting = totalWaiting$1(queueSummary);
+  const longest = longestWait(queueSummary);
+  const className = `queue-monitor${flashing ? " queue-monitor--flash" : ""}${waiting > 0 ? " queue-monitor--has-waiting" : ""}`;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className,
+      role: "status",
+      "aria-live": "polite",
+      "aria-label": "대기열 상태",
+      "data-testid": "queue-monitor",
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "queue-monitor__metric", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__label", children: "대기" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__value", children: waiting })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "queue-monitor__metric", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__label", children: "최대대기" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__value", children: formatWait(longest) })
+        ] })
+      ]
+    }
+  );
+}
+const MEMO_DEBOUNCE_MS = 800;
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${month}/${day} ${hour}:${minute}`;
+}
+function formatTalkSeconds(seconds) {
+  if (seconds == null) {
+    return "-";
+  }
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+function formatGrade(grade) {
+  if (!grade) {
+    return "일반";
+  }
+  switch (grade) {
+    case "VIP":
+      return "VIP";
+    case "BLACK":
+      return "블랙";
+    case "NORMAL":
+    default:
+      return "일반";
+  }
+}
+function CallInfoPanel({
+  context,
+  loading,
+  error,
+  agentId,
+  onSaveMemo
+}) {
+  const initialMemo = context?.memos?.[0]?.memoText ?? "";
+  const [memoDraft, setMemoDraft] = reactExports.useState(initialMemo);
+  const [savingState, setSavingState] = reactExports.useState("idle");
+  const lastSavedRef = reactExports.useRef(initialMemo);
+  const timerRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    const next = context?.memos?.[0]?.memoText ?? "";
+    setMemoDraft(next);
+    lastSavedRef.current = next;
+    setSavingState("idle");
+  }, [context?.callId, context?.memos]);
+  reactExports.useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+  const scheduleSave = (next) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      void (async () => {
+        if (!agentId) {
+          setSavingState("error");
+          return;
+        }
+        if (next === lastSavedRef.current) {
+          return;
+        }
+        setSavingState("saving");
+        try {
+          await onSaveMemo(next);
+          lastSavedRef.current = next;
+          setSavingState("saved");
+        } catch {
+          setSavingState("error");
+        }
+      })();
+    }, MEMO_DEBOUNCE_MS);
+  };
+  const handleMemoChange = (value) => {
+    setMemoDraft(value);
+    scheduleSave(value);
+  };
+  if (loading && !context) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "console-section call-info-panel", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "고객 정보 조회 중..." }) });
+  }
+  if (error && !context) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "console-section call-info-panel", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "console-muted dial-error", children: [
+      "고객 정보 조회 실패: ",
+      error
+    ] }) });
+  }
+  const customer = context?.customer;
+  const history = context?.history ?? [];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section call-info-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "고객 정보" }),
+      customer ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `grade-badge grade-${customer.grade ?? "NORMAL"}`, children: formatGrade(customer.grade) }) : null
+    ] }),
+    customer ? /* @__PURE__ */ jsxRuntimeExports.jsxs("dl", { className: "call-info-grid", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "이름" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: customer.customerName || "-" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "대표번호" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: customer.primaryPhoneNumber || "-" })
+      ] }),
+      context?.representativeNumber ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "수신 대표" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: context.representativeNumber })
+      ] }) : null,
+      customer.memo ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-info-grid__full", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "고객 메모" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: customer.memo })
+      ] }) : null
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "등록된 고객 정보가 없습니다." }),
+    history.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-history-mini", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "최근 통화" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { children: history.map((row) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__time", children: formatDateTime(row.startedAt) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__direction", children: row.direction === "outbound" ? "발신" : "수신" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__agent", children: row.primaryAgentName ?? "-" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__duration", children: formatTalkSeconds(row.talkSeconds) })
+      ] }, row.callId)) })
+    ] }) : null,
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "call-memo-field", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+        "상담 메모",
+        /* @__PURE__ */ jsxRuntimeExports.jsx("small", { className: `memo-status memo-status--${savingState}`, children: savingState === "saving" ? "저장 중..." : savingState === "saved" ? "저장됨" : savingState === "error" ? "저장 실패" : "" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          value: memoDraft,
+          onChange: (event) => handleMemoChange(event.target.value),
+          placeholder: "통화 메모를 입력하세요. 자동 저장됩니다.",
+          rows: 3,
+          disabled: !agentId
+        }
+      )
+    ] })
+  ] });
+}
+const TICK_MS = 100;
+function RingingAutoTimer({
+  active,
+  totalSeconds,
+  action,
+  onTrigger
+}) {
+  const [remainingMs, setRemainingMs] = reactExports.useState(totalSeconds * 1e3);
+  const triggeredRef = reactExports.useRef(false);
+  reactExports.useEffect(() => {
+    triggeredRef.current = false;
+    setRemainingMs(totalSeconds * 1e3);
+  }, [active, totalSeconds]);
+  reactExports.useEffect(() => {
+    if (!active || totalSeconds <= 0) {
+      return;
+    }
+    const startedAt = Date.now();
+    const totalMs2 = totalSeconds * 1e3;
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const next = Math.max(0, totalMs2 - elapsed);
+      setRemainingMs(next);
+      if (next <= 0 && !triggeredRef.current) {
+        triggeredRef.current = true;
+        clearInterval(interval);
+        onTrigger();
+      }
+    }, TICK_MS);
+    return () => clearInterval(interval);
+  }, [active, totalSeconds, onTrigger]);
+  if (!active || totalSeconds <= 0) {
+    return null;
+  }
+  const totalMs = totalSeconds * 1e3;
+  const percent = Math.max(0, Math.min(100, remainingMs / totalMs * 100));
+  const remainingSeconds = Math.ceil(remainingMs / 1e3);
+  const label = action === "auto-answer" ? "자동 응답" : "자동 거절";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `ringing-auto-timer ringing-auto-timer--${action}`, role: "status", "aria-live": "polite", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ringing-auto-timer__label", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ringing-auto-timer__count", children: [
+        remainingSeconds,
+        "초"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ringing-auto-timer__bar", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ringing-auto-timer__fill", style: { width: `${percent}%` } }) })
+  ] });
+}
+const ALL_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+function TransferHotkeyEditor({
+  slots,
+  onSave
+}) {
+  const [draft, setDraft] = reactExports.useState(() => {
+    const map = {};
+    for (const slot of slots) {
+      map[slot.slot] = slot;
+    }
+    return map;
+  });
+  const updateSlot = (slot, patch) => {
+    const current = draft[slot] ?? { slot, label: "", target: "", mode: "blind" };
+    const next = { ...current, ...patch };
+    setDraft({ ...draft, [slot]: next });
+  };
+  const removeSlot = (slot) => {
+    const next = { ...draft };
+    delete next[slot];
+    setDraft(next);
+    void onSave(Object.values(next));
+  };
+  const persist = () => {
+    const list = Object.values(draft).filter((s) => s.target.trim().length > 0);
+    void onSave(list);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hotkey-editor", children: ALL_SLOTS.map((slot) => {
+    const value = draft[slot];
+    const filled = Boolean(value?.target);
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `hotkey-row${filled ? " hotkey-row--filled" : ""}`, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hotkey-row__index", children: slot }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "text",
+          placeholder: "라벨",
+          value: value?.label ?? "",
+          onChange: (event) => updateSlot(slot, { label: event.target.value }),
+          onBlur: persist,
+          maxLength: 20
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "text",
+          placeholder: "내선/번호",
+          value: value?.target ?? "",
+          onChange: (event) => updateSlot(slot, { target: event.target.value }),
+          onBlur: persist,
+          maxLength: 32
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          value: value?.mode ?? "blind",
+          onChange: (event) => {
+            updateSlot(slot, { mode: event.target.value });
+            persist();
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "blind", children: "바로" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "attended", children: "상담" })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "secondary-button",
+          onClick: () => removeSlot(slot),
+          disabled: !filled,
+          "aria-label": `슬롯 ${slot} 비우기`,
+          children: "비우기"
+        }
+      )
+    ] }, slot);
+  }) });
 }
 function evaluateSoftphoneReadiness(input) {
   const softphone = input.softphone;
@@ -13068,6 +13780,12 @@ const AGENT_STATUS_OPTIONS = [
   { value: "AFTER_CALL_WORK", label: "후처리" }
 ];
 const TRANSFER_READY_STATUSES = /* @__PURE__ */ new Set(["TALKING", "HOLD", "TRANSFERRING"]);
+const STATUSES_REQUIRING_REASON = /* @__PURE__ */ new Set([
+  "BREAK",
+  "MEAL",
+  "TRAINING",
+  "MANUAL_PAUSED"
+]);
 function formatAgentStatus(status) {
   return AGENT_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "중지";
 }
@@ -13095,6 +13813,7 @@ function getCallSubtitle(activeCall, softphone) {
 function SoftphoneShell({
   config,
   agentName,
+  agentId,
   extension,
   agentStatus,
   runtimeConnection,
@@ -13115,6 +13834,7 @@ function SoftphoneShell({
   onOriginateInternal,
   onOpenCallHistoryPopup,
   onOpenAgentListPopup,
+  onOpenDialpadPopup,
   onMute,
   onHangup,
   onToggleHold,
@@ -13124,6 +13844,8 @@ function SoftphoneShell({
   onRefreshAudioDevices,
   onRequestAudioPermission,
   onChangeAudioPreferences,
+  generalPreferences,
+  onChangeGeneralPreferences,
   onPlayOutputPreview,
   onPlayRingPreview,
   onStartSoftphone,
@@ -13176,6 +13898,195 @@ function SoftphoneShell({
     const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
     void desktopApi?.setWindowMode?.(getWindowModeForConsoleState(consoleState));
   }, [consoleState]);
+  const [callContext, setCallContext] = reactExports.useState(null);
+  const [callContextLoading, setCallContextLoading] = reactExports.useState(false);
+  const [callContextError, setCallContextError] = reactExports.useState(null);
+  const [callPreferences, setCallPreferences] = reactExports.useState({
+    autoAnswerSeconds: 0,
+    autoRejectSeconds: 0,
+    autoStatusAfterCallSeconds: 0
+  });
+  reactExports.useEffect(() => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.getCallPreferences) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prefs = await desktopApi.getCallPreferences();
+        if (!cancelled) {
+          setCallPreferences(prefs);
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const updateCallPreferences = reactExports.useCallback(async (next) => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.saveCallPreferences) {
+      return;
+    }
+    const saved = await desktopApi.saveCallPreferences(next);
+    setCallPreferences(saved);
+  }, []);
+  const [transferHotkeys, setTransferHotkeys] = reactExports.useState([]);
+  reactExports.useEffect(() => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.getTransferHotkeys) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await desktopApi.getTransferHotkeys();
+        if (!cancelled) {
+          setTransferHotkeys(list);
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const updateTransferHotkeys = reactExports.useCallback(async (next) => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.saveTransferHotkeys) {
+      return;
+    }
+    const saved = await desktopApi.saveTransferHotkeys(next);
+    setTransferHotkeys(saved);
+  }, []);
+  const [pendingStatus, setPendingStatus] = reactExports.useState(null);
+  const [reasonDraft, setReasonDraft] = reactExports.useState("");
+  const triggerTransferHotkey = reactExports.useCallback(
+    (slotNumber) => {
+      const slot = transferHotkeys.find((entry) => entry.slot === slotNumber);
+      if (!slot || !slot.target) {
+        return;
+      }
+      if (!activeCall || !TRANSFER_READY_STATUSES.has(activeCall.sessionStatus)) {
+        return;
+      }
+      onTransfer(slot.target, slot.mode);
+    },
+    [transferHotkeys, activeCall, onTransfer]
+  );
+  reactExports.useEffect(() => {
+    if (consoleState !== "talking" && consoleState !== "transferring") {
+      return;
+    }
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
+      return;
+    }
+    const handler = (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      const target = event.target;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+          return;
+        }
+      }
+      if (event.key < "1" || event.key > "9") {
+        return;
+      }
+      const slot = Number(event.key);
+      const has = transferHotkeys.some((entry) => entry.slot === slot);
+      if (!has) {
+        return;
+      }
+      event.preventDefault();
+      triggerTransferHotkey(slot);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [consoleState, transferHotkeys, triggerTransferHotkey]);
+  const handleAgentStatusChange = reactExports.useCallback(
+    (statusCode) => {
+      if (STATUSES_REQUIRING_REASON.has(statusCode)) {
+        setPendingStatus(statusCode);
+        setReasonDraft("");
+        return;
+      }
+      onChangeAgentStatus(statusCode);
+    },
+    [onChangeAgentStatus]
+  );
+  const confirmStatusReason = reactExports.useCallback(() => {
+    if (!pendingStatus) {
+      return;
+    }
+    const reason = reasonDraft.trim();
+    onChangeAgentStatus(pendingStatus, reason || void 0);
+    setPendingStatus(null);
+    setReasonDraft("");
+  }, [pendingStatus, reasonDraft, onChangeAgentStatus]);
+  const cancelStatusReason = reactExports.useCallback(() => {
+    setPendingStatus(null);
+    setReasonDraft("");
+  }, []);
+  const activeCallId = activeCall?.callId ?? null;
+  const showCallInfo = consoleState === "talking" || consoleState === "transferring" || consoleState === "afterCall";
+  reactExports.useEffect(() => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!activeCallId || !desktopApi?.getCallContext || !showCallInfo) {
+      setCallContext(null);
+      setCallContextError(null);
+      return;
+    }
+    let cancelled = false;
+    setCallContextLoading(true);
+    setCallContextError(null);
+    void (async () => {
+      try {
+        const context = await desktopApi.getCallContext(activeCallId);
+        if (!cancelled) {
+          setCallContext(context);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCallContextError(error instanceof Error ? error.message : "알 수 없는 오류");
+        }
+      } finally {
+        if (!cancelled) {
+          setCallContextLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCallId, showCallInfo, activeCall?.sessionStatus]);
+  const handleSaveMemo = reactExports.useCallback(
+    async (memoText) => {
+      const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+      if (!desktopApi?.saveCallMemo || !activeCallId || !agentId) {
+        throw new Error("메모를 저장할 수 없습니다.");
+      }
+      const memo = await desktopApi.saveCallMemo({
+        callId: activeCallId,
+        agentId,
+        memoText,
+        memoType: "acw",
+        isFinal: false
+      });
+      setCallContext((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const filtered = prev.memos.filter((existing) => existing.callMemoId !== memo.callMemoId);
+        return { ...prev, memos: [memo, ...filtered] };
+      });
+    },
+    [activeCallId, agentId]
+  );
   const syncAudioDraft = (next) => {
     const merged = {
       ...audioDraft,
@@ -13236,7 +14147,7 @@ function SoftphoneShell({
           extension,
           statusLabel: formatAgentStatus(agentStatus),
           agentStatus,
-          onChangeAgentStatus,
+          onChangeAgentStatus: handleAgentStatusChange,
           onOpenSettings: () => setView("call"),
           settingsLabel: "통화"
         }
@@ -13314,6 +14225,146 @@ function SoftphoneShell({
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "일반 설정" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "시작 / 창 / 트레이 / 벨소리 음원." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "general-pref-grid", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.autoStart,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  autoStart: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "윈도우 시작 시 자동 실행" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.autoLogin,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  autoLogin: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "저장된 세션으로 자동 로그인" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.alwaysOnTop,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  alwaysOnTop: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "항상 위에 표시" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: generalPreferences.closeToTray,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  closeToTray: event.target.checked
+                })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "닫기 버튼 → 트레이로 최소화 (해제 시 종료)" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field general-pref-ringtone", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "벨소리 음원" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "select",
+              {
+                value: generalPreferences.ringTonePresetId,
+                onChange: (event) => onChangeGeneralPreferences({
+                  ...generalPreferences,
+                  ringTonePresetId: event.target.value
+                }),
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "클래식 (높은 톤)" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "soft", children: "소프트 (낮은 톤)" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "urgent", children: "긴급 (짧고 빠른 톤)" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "silent", children: "무음" })
+                ]
+              }
+            )
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "통화 자동 처리" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "수신 벨 울림 시 자동 응답/거절. 0초 = 사용 안 함 (1~60초)." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-pref-grid", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 응답" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 0,
+                max: 60,
+                value: callPreferences.autoAnswerSeconds,
+                onChange: (event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
+                }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 거절" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 0,
+                max: 60,
+                value: callPreferences.autoRejectSeconds,
+                onChange: (event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
+                }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "후처리 자동 종료" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 0,
+                max: 60,
+                value: callPreferences.autoStatusAfterCallSeconds,
+                onChange: (event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
+                }
+              }
+            )
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "전환 단축키" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "통화 중 1~9 키로 즉시 전환. 라벨/번호/방식 등록." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(TransferHotkeyEditor, { slots: transferHotkeys, onSave: updateTransferHotkeys })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "진단" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => setShowDiagnostics((current) => !current), children: showDiagnostics ? "숨기기" : "보기" })
@@ -13372,7 +14423,7 @@ function SoftphoneShell({
         extension,
         statusLabel: formatAgentStatus(agentStatus),
         agentStatus,
-        onChangeAgentStatus,
+        onChangeAgentStatus: handleAgentStatusChange,
         onOpenSettings: () => setView("settings"),
         settingsLabel: "설정"
       }
@@ -13384,33 +14435,73 @@ function SoftphoneShell({
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: getCallSubtitle(activeCall, softphone) })
       ] })
     ] }),
-    consoleState === "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          className: "primary-button",
-          disabled: !canAnswerRinging,
-          onClick: activeCall ? onPickup : onAnswerSoftphoneCall,
-          children: "받기"
+    consoleState === "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      (() => {
+        const answer = callPreferences.autoAnswerSeconds;
+        const reject = callPreferences.autoRejectSeconds;
+        if (answer <= 0 && reject <= 0) {
+          return null;
         }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          className: "danger-button",
-          disabled: !canAnswerRinging,
-          onClick: activeCall ? onHangup : onRejectSoftphoneCall,
-          children: "거절"
-        }
-      )
+        const autoAnswerWins = answer > 0 && (reject <= 0 || answer <= reject);
+        const action = autoAnswerWins ? "auto-answer" : "auto-reject";
+        const seconds = autoAnswerWins ? answer : reject;
+        const trigger = () => {
+          if (!canAnswerRinging) {
+            return;
+          }
+          if (autoAnswerWins) {
+            if (activeCall) {
+              onPickup();
+            } else {
+              onAnswerSoftphoneCall();
+            }
+          } else if (activeCall) {
+            onHangup();
+          } else {
+            onRejectSoftphoneCall();
+          }
+        };
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          RingingAutoTimer,
+          {
+            active: consoleState === "ringing",
+            totalSeconds: seconds,
+            action,
+            onTrigger: trigger
+          }
+        );
+      })(),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "primary-button",
+            disabled: !canAnswerRinging,
+            onClick: activeCall ? onPickup : onAnswerSoftphoneCall,
+            children: "받기"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "danger-button",
+            disabled: !canAnswerRinging,
+            onClick: activeCall ? onHangup : onRejectSoftphoneCall,
+            children: "거절"
+          }
+        )
+      ] })
     ] }) : null,
     consoleState === "idle" || consoleState === "afterCall" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "외부 발신" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenCallHistoryPopup, children: "내역" })
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-actions", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenDialpadPopup, "aria-label": "발신 키패드 열기", children: "키패드" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenCallHistoryPopup, children: "내역" })
+          ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dial-grid", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -13476,6 +14567,16 @@ function SoftphoneShell({
         })()) })
       ] })
     ] }) : null,
+    showCallInfo && activeCall ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CallInfoPanel,
+      {
+        context: callContext,
+        loading: callContextLoading,
+        error: callContextError,
+        agentId: agentId ?? null,
+        onSaveMemo: handleSaveMemo
+      }
+    ) : null,
     consoleState === "talking" || consoleState === "transferring" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-control-row", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onMute, children: softphone?.session ? softphone.localMuted ? "음소거 해제" : "음소거" : activeCall?.isMuted ? "음소거 해제" : "음소거" }),
@@ -13520,6 +14621,21 @@ function SoftphoneShell({
             }
           )
         ] }),
+        transferHotkeys.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "transfer-hotkey-strip", children: transferHotkeys.map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            className: `hotkey-chip hotkey-chip--${slot.mode}`,
+            onClick: () => triggerTransferHotkey(slot.slot),
+            disabled: !transferAvailable,
+            title: `${slot.mode === "attended" ? "상담" : "바로"} 전환 / ${slot.target}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hotkey-chip__index", children: slot.slot }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hotkey-chip__label", children: slot.label })
+            ]
+          },
+          slot.slot
+        )) }) : null,
         agentDirectory.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "transfer-agent-strip", children: availableAgents.slice(0, 3).map((agent) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => setTransferTarget(agent.extension), children: agent.agentName }, agent.agentId)) }) : null,
         activeCall.latestTransfer ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onCompleteAttendedTransfer, children: "완료" }),
@@ -13527,6 +14643,27 @@ function SoftphoneShell({
         ] }) : null
       ] }) : null
     ] }) : null,
+    pendingStatus ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "status-reason-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "status-reason-title", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "status-reason-dialog", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { id: "status-reason-title", children: [
+        formatAgentStatus(pendingStatus),
+        " 사유"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "필요 시 짧게 입력 (선택). 비워두면 사유 없이 변경됩니다." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          autoFocus: true,
+          value: reasonDraft,
+          onChange: (event) => setReasonDraft(event.target.value),
+          placeholder: "예: 점심, 휴식, 교육 등",
+          rows: 3
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "primary-button", onClick: confirmStatusReason, children: "변경" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "secondary-button", onClick: cancelStatusReason, children: "취소" })
+      ] })
+    ] }) }) : null,
     internalTarget ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "confirm-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "internal-call-title", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "confirm-dialog", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { id: "internal-call-title", children: "내선 통화" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
@@ -13693,14 +14830,26 @@ function normalizeCenterConfig(input) {
   };
 }
 const OUTPUT_TONE_DATA_URI = buildToneDataUri(660, 220);
-const RING_TONE_DATA_URI$1 = buildToneDataUri(880, 420);
-function buildToneDataUri(frequency, durationMs) {
+const RING_TONE_PRESET_PARAMS = {
+  classic: { frequency: 880, durationMs: 420, gain: 0.28 },
+  soft: { frequency: 540, durationMs: 600, gain: 0.18 },
+  urgent: { frequency: 1100, durationMs: 220, gain: 0.32 },
+  silent: { frequency: 0, durationMs: 0, gain: 0 }
+};
+function getRingTonePresetUri(presetId) {
+  const params = RING_TONE_PRESET_PARAMS[presetId] ?? RING_TONE_PRESET_PARAMS.classic;
+  if (params.durationMs === 0) {
+    return buildToneDataUri(0, 1, 0);
+  }
+  return buildToneDataUri(params.frequency, params.durationMs, params.gain);
+}
+function buildToneDataUri(frequency, durationMs, gain = 0.28) {
   const sampleRate = 8e3;
   const sampleCount = Math.max(1, Math.floor(sampleRate * durationMs / 1e3));
   const pcm = new Int16Array(sampleCount);
   for (let index = 0; index < sampleCount; index += 1) {
     const time = index / sampleRate;
-    pcm[index] = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * 0.28);
+    pcm[index] = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * gain);
   }
   const wav = new Uint8Array(44 + pcm.byteLength);
   const view = new DataView(wav.buffer);
@@ -13740,12 +14889,23 @@ class AudioDeviceController {
     this.outputPreviewAudio.src = OUTPUT_TONE_DATA_URI;
     this.outputPreviewAudio.loop = false;
     this.ringPreviewAudio = options.createAudioElement();
-    this.ringPreviewAudio.src = RING_TONE_DATA_URI$1;
+    this.ringPreviewAudio.src = getRingTonePresetUri("classic");
     this.ringPreviewAudio.loop = false;
   }
   outputPreviewAudio;
   ringPreviewAudio;
   activeInputStream = null;
+  currentRingTonePresetId = "classic";
+  applyRingTonePreset(presetId) {
+    if (this.currentRingTonePresetId === presetId) {
+      return;
+    }
+    this.currentRingTonePresetId = presetId;
+    this.ringPreviewAudio.src = getRingTonePresetUri(presetId);
+  }
+  getRingTonePresetId() {
+    return this.currentRingTonePresetId;
+  }
   getCapabilities() {
     return {
       sinkSelectionSupported: typeof this.outputPreviewAudio.setSinkId === "function"
@@ -13775,6 +14935,9 @@ class AudioDeviceController {
     await this.outputPreviewAudio.play();
   }
   async playRingPreview() {
+    if (this.currentRingTonePresetId === "silent") {
+      return;
+    }
     this.ringPreviewAudio.currentTime = 0;
     await this.ringPreviewAudio.play();
   }
@@ -26858,6 +28021,7 @@ function formatCandidate(candidate) {
   const type = candidate.candidateType ?? "unknown";
   return `${type}/${protocol}/${address}:${candidate.port ?? "unknown"}`;
 }
+const MAX_ANNOUNCEMENTS = 5;
 let detachRuntimeListener = null;
 let audioController = null;
 let softphoneMediaController = null;
@@ -26880,6 +28044,13 @@ const DEFAULT_AUDIO_CAPABILITIES = {
 const EMPTY_CALLER_ID_CONFIG = {
   callerIds: [],
   defaultCallerId: null
+};
+const DEFAULT_GENERAL_PREFERENCES = {
+  autoStart: false,
+  autoLogin: true,
+  alwaysOnTop: false,
+  closeToTray: true,
+  ringTonePresetId: "classic"
 };
 function getMediaDevices() {
   if (typeof navigator === "undefined" || !navigator.mediaDevices) {
@@ -27138,28 +28309,40 @@ function resolveRuntimeConnection(hasSession, currentRuntimeConnection) {
   }
   return currentRuntimeConnection === "idle" ? "connected" : currentRuntimeConnection;
 }
-function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, currentRuntimeConnection, currentAgentId) {
+function totalWaiting(rows) {
+  return rows.reduce((sum, row) => sum + (row.waitingCount ?? 0), 0);
+}
+function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, currentRuntimeConnection, currentAgentId, currentAnnouncements, currentQueueSummary, currentQueueArrivalFlashAt) {
   switch (event.type) {
     case "call.created":
       return {
         activeCall: event.payload,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`)
+        events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "call.updated":
       return {
         activeCall: event.payload,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`)
+        events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "call.ended":
       return {
         activeCall: currentCall?.callId === event.payload.callId ? null : currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`)
+        events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "screenpop.customer":
       return {
@@ -27169,22 +28352,60 @@ function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, curr
         } : currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`)
+        events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "agent.status.changed":
       return {
         activeCall: currentCall,
         agentStatus: !currentAgentId || currentAgentId === event.payload.agentId ? event.payload.statusCode : currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`)
+        events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
-    case "queue.summary.updated":
+    case "queue.summary.updated": {
+      const next = event.payload;
+      const arrived = totalWaiting(next) > totalWaiting(currentQueueSummary);
       return {
         activeCall: currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `큐 요약 갱신 ${event.payload.length}건`)
+        events: pushEvent(currentEvents, `큐 요약 갱신 ${next.length}건`),
+        announcements: currentAnnouncements,
+        queueSummary: next,
+        queueArrivalFlashAt: arrived ? (/* @__PURE__ */ new Date()).toISOString() : currentQueueArrivalFlashAt
       };
+    }
+    case "announcement.pushed": {
+      const incoming = {
+        announcementId: event.payload.announcementId,
+        title: event.payload.title,
+        body: event.payload.body,
+        authorName: event.payload.authorName ?? null,
+        pinned: event.payload.pinned ?? false,
+        receivedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const filtered = currentAnnouncements.filter(
+        (item) => item.announcementId !== incoming.announcementId
+      );
+      const next = [incoming, ...filtered].slice(0, MAX_ANNOUNCEMENTS);
+      return {
+        activeCall: currentCall,
+        agentStatus: currentAgentStatus,
+        runtimeConnection: currentRuntimeConnection,
+        events: pushEvent(
+          currentEvents,
+          `공지 ${event.payload.action === "updated" ? "수정" : "신규"} ${event.payload.title}`
+        ),
+        announcements: next,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
+      };
+    }
     case "runtime.connection.changed":
       return {
         activeCall: currentCall,
@@ -27193,7 +28414,10 @@ function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, curr
         events: pushEvent(
           currentEvents,
           `runtime ${event.payload.state}${event.payload.reason ? ` / ${event.payload.reason}` : ""}`
-        )
+        ),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
   }
 }
@@ -27206,7 +28430,10 @@ function bindRuntimeEvents(setState) {
       state.events,
       state.agentStatus,
       state.runtimeConnection,
-      state.agent?.agentId
+      state.agent?.agentId,
+      state.announcements,
+      state.queueSummary,
+      state.queueArrivalFlashAt
     ));
   });
 }
@@ -27273,9 +28500,13 @@ const useDesktopStore = create((set) => ({
   config: null,
   activeCall: null,
   events: [],
+  announcements: [],
+  queueSummary: [],
+  queueArrivalFlashAt: null,
   audioPermission: "unknown",
   refreshingAudioDevices: false,
   audioPreferences: null,
+  generalPreferences: DEFAULT_GENERAL_PREFERENCES,
   audioDevices: EMPTY_AUDIO_DEVICES,
   audioCapabilities: DEFAULT_AUDIO_CAPABILITIES,
   softphone: null,
@@ -27285,7 +28516,13 @@ const useDesktopStore = create((set) => ({
   updateState: null,
   async initialize() {
     const controller = getAudioController();
-    const [configResult, audioPreferencesResult, sessionResult, audioDevicesResult] = await Promise.all([
+    const [
+      configResult,
+      audioPreferencesResult,
+      sessionResult,
+      audioDevicesResult,
+      generalPreferencesResult
+    ] = await Promise.all([
       safeBootstrapLoad(() => getDesktopApi().getConfig(), null, "desktop config"),
       safeBootstrapLoad(
         () => getDesktopApi().getAudioPreferences(),
@@ -27293,15 +28530,22 @@ const useDesktopStore = create((set) => ({
         "audio preferences"
       ),
       safeBootstrapLoad(() => getDesktopApi().getSession(), null, "desktop session"),
-      safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, "audio devices")
+      safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, "audio devices"),
+      safeBootstrapLoad(
+        () => getDesktopApi().getGeneralPreferences?.() ?? Promise.resolve(DEFAULT_GENERAL_PREFERENCES),
+        DEFAULT_GENERAL_PREFERENCES,
+        "general preferences"
+      )
     ]);
     const config = configResult.value;
     const audioPreferences = audioPreferencesResult.value;
-    const storedSession = sessionResult.value;
+    const generalPreferences = generalPreferencesResult.value;
+    const storedSession = generalPreferences.autoLogin ? sessionResult.value : null;
     const audioDevices = audioDevicesResult.value;
     const bootstrapError = configResult.error ?? audioPreferencesResult.error ?? sessionResult.error ?? audioDevicesResult.error;
     if (controller) {
       await controller.applyPreferences(audioPreferences);
+      controller.applyRingTonePreset(generalPreferences.ringTonePresetId);
     }
     await getSoftphoneMediaController()?.applyOutputDevice(audioPreferences.outputDeviceId);
     await getSoftphoneMediaController()?.applyRingDevice(audioPreferences.ringDeviceId);
@@ -27312,6 +28556,7 @@ const useDesktopStore = create((set) => ({
         loginPending: false,
         authError: bootstrapError,
         audioPreferences,
+        generalPreferences,
         audioDevices,
         audioPermission: getMediaDevices()?.enumerateDevices ? "unknown" : "unsupported",
         audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -27389,6 +28634,7 @@ const useDesktopStore = create((set) => ({
       runtimeConnection: sessionBootstrapError ? "error" : resolveRuntimeConnection(Boolean(session), current.runtimeConnection),
       config,
       audioPreferences,
+      generalPreferences,
       audioDevices,
       audioPermission: getMediaDevices()?.enumerateDevices ? "unknown" : "unsupported",
       audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -27569,15 +28815,15 @@ const useDesktopStore = create((set) => ({
       }));
     }
   },
-  async changeAgentStatus(statusCode) {
+  async changeAgentStatus(statusCode, reasonCode) {
     const agent = useDesktopStore.getState().agent;
     if (!agent) {
       return;
     }
-    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode);
+    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode, reasonCode);
     set((current) => ({
       agentStatus: result.statusCode,
-      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}`)
+      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}${reasonCode ? ` (${reasonCode})` : ""}`)
     }));
   },
   async originate(phoneNumber, callerId) {
@@ -27623,6 +28869,9 @@ const useDesktopStore = create((set) => ({
   },
   async openAgentListPopup() {
     await getDesktopApi().openAgentListPopup();
+  },
+  async openDialpadPopup() {
+    await getDesktopApi().openDialpadPopup();
   },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
@@ -27950,6 +29199,14 @@ const useDesktopStore = create((set) => ({
       events: pushEvent(current.events, "오디오 설정을 저장했습니다.")
     }));
   },
+  async updateGeneralPreferences(input) {
+    const generalPreferences = await getDesktopApi().saveGeneralPreferences(input);
+    getAudioController()?.applyRingTonePreset(generalPreferences.ringTonePresetId);
+    set((current) => ({
+      generalPreferences,
+      events: pushEvent(current.events, "일반 설정을 저장했습니다.")
+    }));
+  },
   async playOutputPreview() {
     await getAudioController()?.playOutputPreview();
     set((current) => ({
@@ -28021,6 +29278,13 @@ const useDesktopStore = create((set) => ({
       events: pushEvent(current.events, "softphone 종료 요청")
     }));
     getSoftphoneMediaController()?.stopRingtone();
+  },
+  dismissAnnouncement(announcementId) {
+    set((current) => ({
+      announcements: current.announcements.filter(
+        (item) => item.announcementId !== announcementId
+      )
+    }));
   }
 }));
 function App() {
@@ -28030,6 +29294,9 @@ function App() {
   }
   if (hash === "#/agent-list-popup") {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(AgentListPopup, {});
+  }
+  if (hash === "#/dialpad-popup") {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(DialpadPopup, {});
   }
   const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
   const {
@@ -28048,6 +29315,7 @@ function App() {
     audioPreferences,
     audioDevices,
     audioCapabilities,
+    generalPreferences,
     softphone,
     callerIds,
     defaultCallerId,
@@ -28065,6 +29333,7 @@ function App() {
     originateInternal,
     openCallHistoryPopup,
     openAgentListPopup,
+    openDialpadPopup,
     pickup,
     mute,
     hangup,
@@ -28078,13 +29347,18 @@ function App() {
     refreshAudioDevices,
     requestAudioPermission,
     updateAudioPreferences,
+    updateGeneralPreferences,
     playOutputPreview,
     playRingPreview,
     startSoftphone,
     stopSoftphone,
     answerSoftphoneCall,
     rejectSoftphoneCall,
-    hangupSoftphoneCall
+    hangupSoftphoneCall,
+    announcements,
+    dismissAnnouncement,
+    queueSummary,
+    queueArrivalFlashAt
   } = useDesktopStore();
   const updateBlockReason = activeCall && activeCall.sessionStatus !== "ENDED" ? "CTI 통화 종료 후 적용" : softphone?.session ? "softphone 통화 종료 후 적용" : runtimeConnection === "reconnecting" ? "runtime 재연결 후 적용" : "지금 적용 가능";
   reactExports.useEffect(() => {
@@ -28146,6 +29420,14 @@ function App() {
     );
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "desktop-layout", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "desktop-main", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(QueueMonitorPanel, { queueSummary, flashAt: queueArrivalFlashAt }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      AnnouncementBannerStack,
+      {
+        announcements,
+        onDismiss: dismissAnnouncement
+      }
+    ),
     updateState ? /* @__PURE__ */ jsxRuntimeExports.jsx(
       UpdateBanner,
       {
@@ -28164,6 +29446,7 @@ function App() {
       {
         config,
         agentName: agent.agentName,
+        agentId: agent.agentId,
         extension: agent.extension,
         agentStatus,
         runtimeConnection,
@@ -28184,6 +29467,7 @@ function App() {
         onOriginateInternal: originateInternal,
         onOpenCallHistoryPopup: openCallHistoryPopup,
         onOpenAgentListPopup: openAgentListPopup,
+        onOpenDialpadPopup: openDialpadPopup,
         onMute: mute,
         onHangup: hangup,
         onToggleHold: toggleHold,
@@ -28193,6 +29477,8 @@ function App() {
         onRefreshAudioDevices: refreshAudioDevices,
         onRequestAudioPermission: requestAudioPermission,
         onChangeAudioPreferences: updateAudioPreferences,
+        generalPreferences,
+        onChangeGeneralPreferences: updateGeneralPreferences,
         onPlayOutputPreview: playOutputPreview,
         onPlayRingPreview: playRingPreview,
         onStartSoftphone: startSoftphone,

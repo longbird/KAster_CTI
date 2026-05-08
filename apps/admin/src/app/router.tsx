@@ -4,7 +4,11 @@ import { AdminDashboardPage } from '../features/dashboard/components/AdminDashbo
 import { ForwardingSettingsPage } from '../features/forwarding-settings/ForwardingSettingsPage';
 import { LiveCallsPage } from '../features/live-calls/LiveCallsPage';
 import { KpiPage } from '../features/kpi/KpiPage';
+import { AgentGroupsPage } from '../features/agent-groups/AgentGroupsPage';
+import { AgentMonitoringPage } from '../features/agent-monitoring/AgentMonitoringPage';
 import { AgentSettingsPage } from '../features/agent-settings/AgentSettingsPage';
+import { OutboundRulesPage } from '../features/outbound-rules/OutboundRulesPage';
+import { ShareRulesPage } from '../features/share-rules/ShareRulesPage';
 import { QueueSettingsPage } from '../features/queue-settings/QueueSettingsPage';
 import { BranchSettingsPage } from '../features/branch-settings/BranchSettingsPage';
 import { CustomersPage } from '../features/customers/CustomersPage';
@@ -38,6 +42,9 @@ export const router = createBrowserRouter([
       { path: 'live-calls',           element: <LiveCallsPage /> },
       { path: 'kpi',                  element: <KpiPage /> },
       { path: 'settings/agents',      element: <AgentSettingsPage /> },
+      { path: 'settings/agent-groups', element: <AgentGroupsPage /> },
+      { path: 'settings/outbound-rules', element: <OutboundRulesPage /> },
+      { path: 'settings/share-rules', element: <ShareRulesPage /> },
       { path: 'settings/queues',      element: <QueueSettingsPage /> },
       { path: 'settings/forwarding',  element: <ForwardingSettingsPage /> },
       { path: 'settings/prompts',     element: <PromptSettingsPage /> },
@@ -57,6 +64,7 @@ export const router = createBrowserRouter([
       { path: 'queues',               element: <QueuesPage /> },
       { path: 'agents',               element: <AgentsPage /> },
       { path: 'monitoring',           element: <MonitoringPage /> },
+      { path: 'monitoring/agents',    element: <AgentMonitoringPage /> },
       { path: 'asterisk',             element: <AsteriskConfigPage /> },
       { path: 'numbers',              element: <NumbersPage /> },
       { path: 'history',              element: <HistoryPage /> },

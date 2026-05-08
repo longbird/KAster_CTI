@@ -16,6 +16,13 @@ enum SmsTemplateCategory {
   RESERVATION_ALERT
 }
 
+enum OutboundCallerIdMatchType {
+  EXACT
+  PREFIX
+  REGEX
+  DIALPLAN_PATTERN
+}
+
 model tenants {
   tenantId     String    @id @default(uuid()) @db.Uuid
   tenantCode   String    @unique @db.VarChar(32)
@@ -56,6 +63,33 @@ model tenants {
   asteriskDids         AsteriskDid[]
   asteriskIvrMenus     AsteriskIvrMenu[]
   smsTemplates         tenantSmsTemplate[]
+  agentGroups          agentGroups[]
+  agentBranchCallerIds agentBranchCallerIds[]
+  outboundCallerIdRules outboundCallerIdRules[]
+  shareRules           shareRules[]
+  shareRuleAgents      shareRuleAgents[]
+  shareRuleAgentGroups shareRuleAgentGroups[]
+  shareRuleBranches    shareRuleBranches[]
+  integrationAutomations integrationAutomations[]
+}
+
+model agentGroups {
+  agentGroupId String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  groupCode    String   @db.VarChar(32)
+  groupName    String   @db.VarChar(128)
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedById  String?  @db.Uuid
+
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId])
+  agents       agents[] @relation("agent_group")
+  shareRuleAgentGroups shareRuleAgentGroups[]
+
+  @@unique([tenantId, groupCode])
+  @@index([tenantId, isActive])
 }
 
 model agents {
@@ -72,6 +106,7 @@ model agents {
   role               String    @default("agent") @db.VarChar(32)
   employmentStatus   String    @default("active") @db.VarChar(16)
   defaultQueueId     String?   @db.Uuid
+  agentGroupId       String?   @db.Uuid
   lastLoginAt        DateTime? @db.Timestamptz(6)
   isActive           Boolean   @default(true)
   createdAt          DateTime  @default(now()) @db.Timestamptz(6)
@@ -79,6 +114,7 @@ model agents {
 
   tenant             tenants   @relation(fields: [tenantId], references: [tenantId])
   defaultQueue       queues?   @relation("agent_default_queue", fields: [defaultQueueId], references: [queueId])
+  agentGroup         agentGroups? @relation("agent_group", fields: [agentGroupId], references: [agentGroupId])
   statusHistory      agentStatusHistory[]
   callSessions       callSessions[] @relation("primary_agent")
   callLegs           callLegs[]
@@ -91,6 +127,8 @@ model agents {
   refreshTokens      refreshTokens[]
   agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
   menuPermissions    agentMenuPermissions[]
+  branchCallerIds    agentBranchCallerIds[]
+  shareRuleAgents    shareRuleAgents[]
 
   @@unique([tenantId, loginId])
   @@unique([tenantId, agentCode])
@@ -149,6 +187,7 @@ model customers {
   grade          String?   @default("NORMAL") @db.VarChar(32)
   status         String?   @default("active") @db.VarChar(32)
   memo           String?
+  shareRuleId    String?   @db.Uuid
   lastCalledAt   DateTime? @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @db.Timestamptz(6)
@@ -157,6 +196,9 @@ model customers {
   phones         customerPhones[]
   callSessions   callSessions[]
   callMemos      callMemos[]
+  shareRule      shareRules? @relation("customer_share_rule", fields: [shareRuleId], references: [shareRuleId], onDelete: SetNull)
+
+  @@index([tenantId, shareRuleId])
 }
 
 model customerPhones {
@@ -529,6 +571,8 @@ model branches {
   branchName    String   @db.VarChar(128)
   description   String?
   settingsProfile Json?
+  vipPromptId   String?  @db.Uuid
+  defaultShareRuleId String? @db.Uuid
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @default(now()) @db.Timestamptz(6)
@@ -537,9 +581,15 @@ model branches {
   agentMappings branchAgents[]
   queueMappings branchQueues[]
   didMappings   branchDids[]
+  agentCallerIds agentBranchCallerIds[]
+  outboundCallerIdRules outboundCallerIdRules[]
+  vipPrompt     AsteriskPrompt? @relation("branch_vip_prompt", fields: [vipPromptId], references: [id], onDelete: SetNull)
+  defaultShareRule shareRules? @relation("branch_default_share_rule", fields: [defaultShareRuleId], references: [shareRuleId], onDelete: SetNull)
+  shareRuleBranches shareRuleBranches[]
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
+  @@index([tenantId, defaultShareRuleId])
 }
 
 model branchAgents {
@@ -585,6 +635,52 @@ model branchDids {
 
   @@unique([branchId, didId])
   @@index([tenantId, branchId])
+}
+
+// 아웃바운드 발신번호 매핑 룰 (BlueSky Outbound 등가)
+model outboundCallerIdRules {
+  outboundCallerIdRuleId String                    @id @default(uuid()) @db.Uuid
+  tenantId               String                    @db.Uuid
+  branchId               String?                   @db.Uuid
+  matchType              OutboundCallerIdMatchType
+  sourceNumberPattern    String                    @db.VarChar(64)
+  callerIdNumber         String                    @db.VarChar(32)
+  displayName            String?                   @db.VarChar(64)
+  memo                   String?
+  priority               Int                       @default(0)
+  enabled                Boolean                   @default(true)
+  createdAt              DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime                  @default(now()) @db.Timestamptz(6)
+
+  tenant tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch branches? @relation(fields: [branchId], references: [branchId], onDelete: SetNull)
+
+  @@index([tenantId, branchId, priority])
+  @@index([tenantId, enabled])
+}
+
+// 상담원-지사 CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가)
+model agentBranchCallerIds {
+  agentBranchCallerIdId String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  branchId              String   @db.Uuid
+  agentId               String   @db.Uuid
+  callerIdNumber        String   @db.VarChar(32)
+  displayName           String?  @db.VarChar(64)
+  allowedInbound        Boolean  @default(true)
+  allowedOutbound       Boolean  @default(true)
+  allowedTransfer       Boolean  @default(true)
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  agent  agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([tenantId, branchId, agentId, callerIdNumber])
+  @@index([tenantId, branchId, agentId])
+  @@index([tenantId, agentId])
 }
 
 model rolePermissions {
@@ -753,7 +849,8 @@ model AsteriskPrompt {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant       tenants    @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  vipBranches  branches[] @relation("branch_vip_prompt")
 
   @@unique([tenantId, promptKey])
   @@index([tenantId, category, isActive])
@@ -795,4 +892,99 @@ model tenantSmsTemplate {
 
   @@unique([tenantId, templateName], map: "tenantSmsTemplate_tenantId_templateName_key")
   @@index([tenantId, category], map: "tenantSmsTemplate_tenantId_category_idx")
+}
+
+// 공유규칙 마스터 (BlueSky ShareRule)
+model shareRules {
+  shareRuleId  String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  ruleCode     String   @db.VarChar(32)
+  ruleName     String   @db.VarChar(128)
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedById  String?  @db.Uuid
+
+  tenant            tenants               @relation(fields: [tenantId], references: [tenantId])
+  agents            shareRuleAgents[]
+  agentGroups       shareRuleAgentGroups[]
+  branches          shareRuleBranches[]
+  customers         customers[]           @relation("customer_share_rule")
+  defaultForBranches branches[]           @relation("branch_default_share_rule")
+
+  @@unique([tenantId, ruleCode])
+  @@index([tenantId, isActive])
+}
+
+// 공유규칙 → 상담원 매트릭스
+model shareRuleAgents {
+  shareRuleAgentId String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  shareRuleId      String   @db.Uuid
+  agentId          String   @db.Uuid
+  priority         Int      @default(0)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant           tenants    @relation(fields: [tenantId], references: [tenantId])
+  shareRule        shareRules @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
+  agent            agents     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([tenantId, shareRuleId, agentId])
+  @@index([shareRuleId, priority])
+}
+
+// 공유규칙 → 상담원 그룹 매트릭스
+model shareRuleAgentGroups {
+  shareRuleAgentGroupId String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  shareRuleId           String   @db.Uuid
+  agentGroupId          String   @db.Uuid
+  priority              Int      @default(0)
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant                tenants     @relation(fields: [tenantId], references: [tenantId])
+  shareRule             shareRules  @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
+  agentGroup            agentGroups @relation(fields: [agentGroupId], references: [agentGroupId], onDelete: Cascade)
+
+  @@unique([tenantId, shareRuleId, agentGroupId])
+  @@index([shareRuleId, priority])
+}
+
+// 외부 연동 자동화 (BlueSky DlgVixActionPhone / DlgVixActionSms 등가)
+model integrationAutomations {
+  integrationAutomationId String   @id @default(uuid()) @db.Uuid
+  tenantId                String   @db.Uuid
+  type                    String   @db.VarChar(32)
+  name                    String   @db.VarChar(128)
+  description             String?
+  config                  Json     @default("{}")
+  enabled                 Boolean  @default(true)
+  lastTriggeredAt         DateTime? @db.Timestamptz(6)
+  createdAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedById             String?  @db.Uuid
+
+  tenant                  tenants  @relation(fields: [tenantId], references: [tenantId])
+
+  @@index([tenantId, type, enabled])
+  @@index([tenantId, name])
+}
+
+// 공유규칙 → 지사 매트릭스 (mainPhone/transferPhone 부속)
+model shareRuleBranches {
+  shareRuleBranchId String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @db.Uuid
+  shareRuleId       String   @db.Uuid
+  branchId          String   @db.Uuid
+  mainPhone         String?  @db.VarChar(32)
+  transferPhone     String?  @db.VarChar(32)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant            tenants    @relation(fields: [tenantId], references: [tenantId])
+  shareRule         shareRules @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
+  branch            branches   @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+
+  @@unique([tenantId, shareRuleId, branchId])
+  @@index([shareRuleId])
 }

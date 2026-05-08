@@ -66,6 +66,16 @@ export interface ScreenPopPayload {
   customer: Customer;
 }
 
+export interface AnnouncementPushPayload {
+  action: 'created' | 'updated';
+  announcementId: string;
+  title: string;
+  body: string;
+  authorName?: string | null;
+  pinned?: boolean;
+  createdAt?: string;
+}
+
 export type CtiEvent =
   | { type: 'call.created'; payload: ActiveCall }
   | { type: 'call.updated'; payload: ActiveCall }
@@ -73,6 +83,7 @@ export type CtiEvent =
   | { type: 'screenpop.customer'; payload: ScreenPopPayload }
   | { type: 'agent.status.changed'; payload: { agentId: string; statusCode: AgentStatusCode } }
   | { type: 'queue.summary.updated'; payload: QueueSummary[] }
+  | { type: 'announcement.pushed'; payload: AnnouncementPushPayload }
   | {
       type: 'runtime.connection.changed';
       payload: {

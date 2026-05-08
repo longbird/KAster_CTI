@@ -7,6 +7,7 @@ import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
+import { RecordingPlayer } from './RecordingPlayer';
 
 interface RecRow {
   recordingId: string;
@@ -453,9 +454,7 @@ export function RecordingsPage() {
           {playerLoading ? <Typography.Text type="secondary">녹취 파일을 불러오는 중입니다.</Typography.Text> : null}
           {playerError ? <Typography.Text type="danger">{playerError}</Typography.Text> : null}
           {!playerLoading && !playerError && playerUrl ? (
-            <audio controls autoPlay src={playerUrl} style={{ width: '100%' }}>
-              브라우저가 오디오 재생을 지원하지 않습니다.
-            </audio>
+            <RecordingPlayer src={playerUrl} autoPlay />
           ) : null}
         </Space>
       </Modal>

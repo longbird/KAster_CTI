@@ -48,6 +48,10 @@ export class CreateAgentDto {
   defaultQueueId?: string;
 
   @IsOptional()
+  @IsUUID()
+  agentGroupId?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(64)
   sipPassword?: string;

@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import type { ActiveCall, AgentStatusCode, CtiEvent } from '../../../shared/cti';
+import type { ActiveCall, AgentStatusCode, CtiEvent, QueueSummary } from '../../../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
   DesktopAgentProfile,
   DesktopAudioPreferences,
   DesktopCallerIdConfig,
   DesktopConfig,
+  DesktopGeneralPreferences,
   DesktopProtocolConnectPayload,
   DesktopSessionSummary,
 } from '../../../shared/ipc';
@@ -51,6 +52,17 @@ interface LoginParams {
 
 type AuthView = 'login' | 'pairing';
 
+export interface AnnouncementBanner {
+  announcementId: string;
+  title: string;
+  body: string;
+  authorName?: string | null;
+  pinned?: boolean;
+  receivedAt: string;
+}
+
+const MAX_ANNOUNCEMENTS = 5;
+
 interface DesktopStore {
   bootstrapped: boolean;
   pairing: boolean;
@@ -63,9 +75,13 @@ interface DesktopStore {
   config: DesktopConfig | null;
   activeCall: ActiveCall | null;
   events: string[];
+  announcements: AnnouncementBanner[];
+  queueSummary: QueueSummary[];
+  queueArrivalFlashAt: string | null;
   audioPermission: AudioPermissionState;
   refreshingAudioDevices: boolean;
   audioPreferences: DesktopAudioPreferences | null;
+  generalPreferences: DesktopGeneralPreferences;
   audioDevices: AudioDeviceCatalog;
   audioCapabilities: AudioCapabilities;
   softphone: SoftphoneState | null;
@@ -88,11 +104,12 @@ interface DesktopStore {
   showPairingDiagnostics(): void;
   showLogin(): void;
   reconnectRuntime(): Promise<void>;
-  changeAgentStatus(statusCode: AgentStatusCode): Promise<void>;
+  changeAgentStatus(statusCode: AgentStatusCode, reasonCode?: string): Promise<void>;
   originate(phoneNumber: string, callerId?: string): Promise<void>;
   originateInternal(target: DesktopAgentDirectoryItem): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
+  openDialpadPopup(): Promise<void>;
   pickup(): Promise<void>;
   mute(): Promise<void>;
   hangup(): Promise<void>;
@@ -107,6 +124,7 @@ interface DesktopStore {
   refreshAudioDevices(): Promise<void>;
   requestAudioPermission(): Promise<void>;
   updateAudioPreferences(input: DesktopAudioPreferences): Promise<void>;
+  updateGeneralPreferences(input: DesktopGeneralPreferences): Promise<void>;
   playOutputPreview(): Promise<void>;
   playRingPreview(): Promise<void>;
   startSoftphone(): Promise<void>;
@@ -114,6 +132,7 @@ interface DesktopStore {
   answerSoftphoneCall(): Promise<void>;
   rejectSoftphoneCall(): Promise<void>;
   hangupSoftphoneCall(): Promise<void>;
+  dismissAnnouncement(announcementId: string): void;
 }
 
 let detachRuntimeListener: (() => void) | null = null;
@@ -138,6 +157,13 @@ const DEFAULT_AUDIO_CAPABILITIES: AudioCapabilities = {
 const EMPTY_CALLER_ID_CONFIG: DesktopCallerIdConfig = {
   callerIds: [],
   defaultCallerId: null,
+};
+const DEFAULT_GENERAL_PREFERENCES: DesktopGeneralPreferences = {
+  autoStart: false,
+  autoLogin: true,
+  alwaysOnTop: false,
+  closeToTray: true,
+  ringTonePresetId: 'classic',
 };
 
 function getMediaDevices() {
@@ -477,14 +503,30 @@ function resolveRuntimeConnection(
   return currentRuntimeConnection === 'idle' ? 'connected' : currentRuntimeConnection;
 }
 
+function totalWaiting(rows: QueueSummary[]): number {
+  return rows.reduce((sum, row) => sum + (row.waitingCount ?? 0), 0);
+}
+
 function reduceEvent(
   event: CtiEvent,
   currentCall: ActiveCall | null,
   currentEvents: string[],
   currentAgentStatus: AgentStatusCode | null,
   currentRuntimeConnection: DesktopStore['runtimeConnection'],
-  currentAgentId?: string | null,
-): Pick<DesktopStore, 'activeCall' | 'events' | 'agentStatus' | 'runtimeConnection'> {
+  currentAgentId: string | null | undefined,
+  currentAnnouncements: AnnouncementBanner[],
+  currentQueueSummary: QueueSummary[],
+  currentQueueArrivalFlashAt: string | null,
+): Pick<
+  DesktopStore,
+  | 'activeCall'
+  | 'events'
+  | 'agentStatus'
+  | 'runtimeConnection'
+  | 'announcements'
+  | 'queueSummary'
+  | 'queueArrivalFlashAt'
+> {
   switch (event.type) {
     case 'call.created':
       return {
@@ -492,6 +534,9 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'call.updated':
       return {
@@ -499,6 +544,9 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'call.ended':
       return {
@@ -506,6 +554,9 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'screenpop.customer':
       return {
@@ -518,6 +569,9 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'agent.status.changed':
       return {
@@ -527,14 +581,49 @@ function reduceEvent(
           : currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
-    case 'queue.summary.updated':
+    case 'queue.summary.updated': {
+      const next = event.payload;
+      const arrived = totalWaiting(next) > totalWaiting(currentQueueSummary);
       return {
         activeCall: currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `큐 요약 갱신 ${event.payload.length}건`),
+        events: pushEvent(currentEvents, `큐 요약 갱신 ${next.length}건`),
+        announcements: currentAnnouncements,
+        queueSummary: next,
+        queueArrivalFlashAt: arrived ? new Date().toISOString() : currentQueueArrivalFlashAt,
       };
+    }
+    case 'announcement.pushed': {
+      const incoming: AnnouncementBanner = {
+        announcementId: event.payload.announcementId,
+        title: event.payload.title,
+        body: event.payload.body,
+        authorName: event.payload.authorName ?? null,
+        pinned: event.payload.pinned ?? false,
+        receivedAt: new Date().toISOString(),
+      };
+      const filtered = currentAnnouncements.filter(
+        (item) => item.announcementId !== incoming.announcementId,
+      );
+      const next = [incoming, ...filtered].slice(0, MAX_ANNOUNCEMENTS);
+      return {
+        activeCall: currentCall,
+        agentStatus: currentAgentStatus,
+        runtimeConnection: currentRuntimeConnection,
+        events: pushEvent(
+          currentEvents,
+          `공지 ${event.payload.action === 'updated' ? '수정' : '신규'} ${event.payload.title}`,
+        ),
+        announcements: next,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
+      };
+    }
     case 'runtime.connection.changed':
       return {
         activeCall: currentCall,
@@ -544,6 +633,9 @@ function reduceEvent(
           currentEvents,
           `runtime ${event.payload.state}${event.payload.reason ? ` / ${event.payload.reason}` : ''}`,
         ),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
   }
 }
@@ -564,6 +656,9 @@ function bindRuntimeEvents(
       state.agentStatus,
       state.runtimeConnection,
       state.agent?.agentId,
+      state.announcements,
+      state.queueSummary,
+      state.queueArrivalFlashAt,
     ));
   });
 }
@@ -647,9 +742,13 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   config: null,
   activeCall: null,
   events: [],
+  announcements: [],
+  queueSummary: [],
+  queueArrivalFlashAt: null,
   audioPermission: 'unknown',
   refreshingAudioDevices: false,
   audioPreferences: null,
+  generalPreferences: DEFAULT_GENERAL_PREFERENCES,
   audioDevices: EMPTY_AUDIO_DEVICES,
   audioCapabilities: DEFAULT_AUDIO_CAPABILITIES,
   softphone: null,
@@ -659,7 +758,13 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   updateState: null,
   async initialize() {
     const controller = getAudioController();
-    const [configResult, audioPreferencesResult, sessionResult, audioDevicesResult] = await Promise.all([
+    const [
+      configResult,
+      audioPreferencesResult,
+      sessionResult,
+      audioDevicesResult,
+      generalPreferencesResult,
+    ] = await Promise.all([
       safeBootstrapLoad(() => getDesktopApi().getConfig(), null, 'desktop config'),
       safeBootstrapLoad(
         () => getDesktopApi().getAudioPreferences(),
@@ -668,10 +773,17 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       ),
       safeBootstrapLoad(() => getDesktopApi().getSession(), null, 'desktop session'),
       safeBootstrapLoad(() => enumerateAudioDevices(), EMPTY_AUDIO_DEVICES, 'audio devices'),
+      safeBootstrapLoad(
+        () => getDesktopApi().getGeneralPreferences?.() ?? Promise.resolve(DEFAULT_GENERAL_PREFERENCES),
+        DEFAULT_GENERAL_PREFERENCES,
+        'general preferences',
+      ),
     ]);
     const config = configResult.value;
     const audioPreferences = audioPreferencesResult.value;
-    const storedSession = sessionResult.value;
+    const generalPreferences = generalPreferencesResult.value;
+    // 자동 로그인 OFF 인 경우, 저장된 세션을 무시하고 로그인 화면 강제.
+    const storedSession = generalPreferences.autoLogin ? sessionResult.value : null;
     const audioDevices = audioDevicesResult.value;
     const bootstrapError =
       configResult.error ??
@@ -680,6 +792,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       audioDevicesResult.error;
     if (controller) {
       await controller.applyPreferences(audioPreferences);
+      controller.applyRingTonePreset(generalPreferences.ringTonePresetId);
     }
     await getSoftphoneMediaController()?.applyOutputDevice(audioPreferences.outputDeviceId);
     await getSoftphoneMediaController()?.applyRingDevice(audioPreferences.ringDeviceId);
@@ -691,6 +804,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         loginPending: false,
         authError: bootstrapError,
         audioPreferences,
+        generalPreferences,
         audioDevices,
         audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
         audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -774,6 +888,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         : resolveRuntimeConnection(Boolean(session), current.runtimeConnection),
       config,
       audioPreferences,
+      generalPreferences,
       audioDevices,
       audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
       audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
@@ -978,16 +1093,16 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       }));
     }
   },
-  async changeAgentStatus(statusCode) {
+  async changeAgentStatus(statusCode, reasonCode) {
     const agent = useDesktopStore.getState().agent;
     if (!agent) {
       return;
     }
 
-    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode);
+    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode, reasonCode);
     set((current) => ({
       agentStatus: result.statusCode,
-      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}`),
+      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}${reasonCode ? ` (${reasonCode})` : ''}`),
     }));
   },
   async originate(phoneNumber, callerId) {
@@ -1037,6 +1152,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   },
   async openAgentListPopup() {
     await getDesktopApi().openAgentListPopup();
+  },
+  async openDialpadPopup() {
+    await getDesktopApi().openDialpadPopup();
   },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
@@ -1423,6 +1541,14 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       events: pushEvent(current.events, '오디오 설정을 저장했습니다.'),
     }));
   },
+  async updateGeneralPreferences(input) {
+    const generalPreferences = await getDesktopApi().saveGeneralPreferences(input);
+    getAudioController()?.applyRingTonePreset(generalPreferences.ringTonePresetId);
+    set((current) => ({
+      generalPreferences,
+      events: pushEvent(current.events, '일반 설정을 저장했습니다.'),
+    }));
+  },
   async playOutputPreview() {
     await getAudioController()?.playOutputPreview();
     set((current) => ({
@@ -1502,5 +1628,12 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       events: pushEvent(current.events, 'softphone 종료 요청'),
     }));
     getSoftphoneMediaController()?.stopRingtone();
+  },
+  dismissAnnouncement(announcementId: string) {
+    set((current) => ({
+      announcements: current.announcements.filter(
+        (item) => item.announcementId !== announcementId,
+      ),
+    }));
   },
 }));

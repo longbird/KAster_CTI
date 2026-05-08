@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateBranchDto {
   @ApiProperty({ example: 'seoul' })
@@ -17,6 +17,22 @@ export class CreateBranchDto {
   @IsString()
   @MaxLength(1000)
   description?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'VIP 고객 통화 시 사용할 멘트 (AsteriskPrompt FK). BlueSky Jisa.m_nMentVipCD 등가.',
+  })
+  @IsOptional()
+  @IsUUID()
+  vipPromptId?: string | null;
+
+  @ApiProperty({
+    required: false,
+    description: '지사 기본 공유규칙 (shareRules FK). BlueSky ShareRule 매트릭스.',
+  })
+  @IsOptional()
+  @IsUUID()
+  defaultShareRuleId?: string | null;
 
   @ApiProperty({ required: false, example: true })
   @IsOptional()

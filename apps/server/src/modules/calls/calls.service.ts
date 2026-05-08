@@ -444,10 +444,15 @@ export class CallsService {
       where: { callId, tenantId },
       include: {
         callLegs: true,
-        callMemos: true,
+        callMemos: { orderBy: { createdAt: 'desc' } },
         callTransfers: true,
         callRecordings: true,
         queueEvents: true,
+        customer: {
+          include: {
+            phones: { where: { isActive: true }, orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
+          },
+        },
       },
     });
 
@@ -465,12 +470,32 @@ export class CallsService {
     const didMetaMap = await this.getDidMetaMap( call.tenantId, [call.didNumber ?? call.dnis] );
     const didMeta = didMetaMap.get(call.didNumber ?? call.dnis ?? '');
 
+    const customerHistory = call.customerId
+      ? await this.prisma.callSessions.findMany({
+          where: { tenantId, customerId: call.customerId, callId: { not: callId } },
+          orderBy: { startedAt: 'desc' },
+          take: 5,
+          select: {
+            callId: true,
+            direction: true,
+            sessionStatus: true,
+            startedAt: true,
+            answeredAt: true,
+            endedAt: true,
+            talkSeconds: true,
+            queueName: true,
+            primaryAgent: { select: { agentName: true } },
+          },
+        })
+      : [];
+
     return {
       success: true,
       data: {
         ...call,
         representativeNumber: didMeta?.representativeNumber ?? null,
         transferCandidates,
+        customerHistory,
       },
       error: null,
     };
@@ -1060,6 +1085,7 @@ export class CallsService {
     if (q.mode === 'missed') { where.sessionStatus = 'ENDED'; where.answeredAt = null; }
     if (q.resultCode)        where.resultCode = q.resultCode;
     if (q.queueName)         where.queueName = q.queueName;
+    if (q.direction)         where.direction = q.direction;
     const abandon = this.parseBooleanFilter(q.abandon);
     if (abandon !== undefined) where.abandonFlag = abandon;
     const recording = this.parseBooleanFilter(q.recording);

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   MENU_KEYS,
@@ -10,13 +10,19 @@ import {
 import { parseAllowedCallerIds, serializeAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
+import { EventBusService } from '../events/event-bus.service';
 import { HealthSummaryService } from '../health/health-summary.service';
+import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { QueuesService } from '../queues/queues.service';
+import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-ids.dto';
+import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
+import { ListAgentWorkTimeQueryDto } from './dto/list-agent-work-time-query.dto';
 import { ListRecordingDownloadAuditsQueryDto } from './dto/list-recording-download-audits-query.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { UpdateAgentPermissionsDto } from './dto/update-agent-permissions.dto';
@@ -734,6 +740,7 @@ export class AdminService {
     private readonly asteriskReloadService: AsteriskReloadService,
     private readonly healthSummary: HealthSummaryService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly eventBus: EventBusService,
   ) {}
 
   private buildPermissionMatrix(
@@ -1783,6 +1790,20 @@ export class AdminService {
       },
     });
 
+    await this.eventBus.publish(
+      REALTIME_EVENTS.ANNOUNCEMENT_PUSHED,
+      {
+        action: 'created',
+        announcementId: row.announcementId,
+        title: row.title,
+        body: row.body,
+        authorName: row.authorName,
+        pinned: row.pinned,
+        createdAt: row.createdAt,
+      },
+      tenantId,
+    );
+
     return { success: true, data: row, error: null };
   }
 
@@ -1803,6 +1824,21 @@ export class AdminService {
       },
     });
 
+    if (row.count > 0) {
+      await this.eventBus.publish(
+        REALTIME_EVENTS.ANNOUNCEMENT_PUSHED,
+        {
+          action: 'updated',
+          announcementId,
+          title: dto.title,
+          body: dto.body,
+          authorName: dto.authorName || actor?.agentName || '관리자',
+          pinned: dto.pinned ?? false,
+        },
+        tenantId,
+      );
+    }
+
     return { success: true, data: { updated: row.count > 0, announcementId }, error: null };
   }
 
@@ -1822,7 +1858,8 @@ export class AdminService {
         agentMappings: true,
         queueMappings: true,
         didMappings: true,
-      },
+        vipPrompt: { select: { id: true, promptKey: true, displayName: true } },
+      } as any,
     });
 
     return {
@@ -1849,6 +1886,12 @@ export class AdminService {
   }
 
   async createBranch(tenantId: string, dto: CreateBranchDto) {
+    if (dto.vipPromptId) {
+      await this.assertPromptBelongsToTenant(tenantId, dto.vipPromptId);
+    }
+    if (dto.defaultShareRuleId) {
+      await this.assertShareRuleBelongsToTenant(tenantId, dto.defaultShareRuleId);
+    }
     const row = await this.prisma.branches.create({
       data: {
         tenantId,
@@ -1856,23 +1899,57 @@ export class AdminService {
         branchName: dto.branchName,
         description: dto.description ?? null,
         isActive: dto.isActive ?? true,
-      },
+        ...(dto.vipPromptId !== undefined ? { vipPromptId: dto.vipPromptId ?? null } : {}),
+        ...(dto.defaultShareRuleId !== undefined
+          ? { defaultShareRuleId: dto.defaultShareRuleId ?? null }
+          : {}),
+      } as any,
     });
     return { success: true, data: row, error: null };
   }
 
   async updateBranch(tenantId: string, branchId: string, dto: UpdateBranchDto) {
+    if (dto.vipPromptId) {
+      await this.assertPromptBelongsToTenant(tenantId, dto.vipPromptId);
+    }
+    if (dto.defaultShareRuleId) {
+      await this.assertShareRuleBelongsToTenant(tenantId, dto.defaultShareRuleId);
+    }
     const row = await this.prisma.branches.updateMany({
       where: { tenantId, branchId },
       data: {
         ...(dto.branchCode !== undefined ? { branchCode: dto.branchCode } : {}),
         ...(dto.branchName !== undefined ? { branchName: dto.branchName } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.vipPromptId !== undefined ? { vipPromptId: dto.vipPromptId ?? null } : {}),
+        ...(dto.defaultShareRuleId !== undefined
+          ? { defaultShareRuleId: dto.defaultShareRuleId ?? null }
+          : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         updatedAt: new Date(),
-      },
+      } as any,
     });
     return { success: true, data: { updated: row.count > 0, branchId }, error: null };
+  }
+
+  private async assertShareRuleBelongsToTenant(tenantId: string, shareRuleId: string) {
+    const rule = await (this.prisma as any).shareRules.findFirst({
+      where: { tenantId, shareRuleId },
+      select: { shareRuleId: true },
+    });
+    if (!rule) {
+      throw new BadRequestException('선택한 공유규칙(shareRule)을 찾을 수 없습니다.');
+    }
+  }
+
+  private async assertPromptBelongsToTenant(tenantId: string, promptId: string) {
+    const prompt = await (this.prisma as any).asteriskPrompt.findFirst({
+      where: { id: promptId, tenantId },
+      select: { id: true },
+    });
+    if (!prompt) {
+      throw new BadRequestException('선택한 VIP 멘트(prompt)를 찾을 수 없습니다.');
+    }
   }
 
   async deleteBranch(tenantId: string, branchId: string) {
@@ -2004,6 +2081,8 @@ export class AdminService {
               branchName: branch.branchName,
               description: branch.description,
               isActive: branch.isActive,
+              vipPromptId: (branch as any).vipPromptId ?? null,
+              defaultShareRuleId: (branch as any).defaultShareRuleId ?? null,
             }
           : null,
         assignedAgentIds: branch?.agentMappings.map((item) => item.agentId) ?? [],
@@ -2508,4 +2587,370 @@ export class AdminService {
       throw new BadRequestException('선택한 SMS 템플릿을 찾을 수 없습니다.');
     }
   }
+
+  // ===========================================================================
+  // Agent groups (BlueSky StaffGroup 등가)
+  // ===========================================================================
+
+  async listAgentGroups(tenantId: string) {
+    const rows = await (this.prisma as any).agentGroups.findMany({
+      where: { tenantId },
+      orderBy: [{ isActive: 'desc' }, { groupName: 'asc' }],
+    });
+
+    const memberCounts = await this.prisma.agents.groupBy({
+      by: ['agentGroupId'],
+      where: { tenantId, agentGroupId: { not: null }, isActive: true },
+      _count: { agentId: true },
+    });
+    const countByGroup = new Map<string, number>(
+      memberCounts
+        .filter((row) => row.agentGroupId)
+        .map((row) => [row.agentGroupId as string, row._count.agentId]),
+    );
+
+    return {
+      success: true,
+      data: rows.map((row: any) => ({
+        ...row,
+        memberCount: countByGroup.get(row.agentGroupId) ?? 0,
+      })),
+      error: null,
+    };
+  }
+
+  async createAgentGroup(
+    tenantId: string,
+    dto: CreateAgentGroupDto,
+    actor?: { agentId?: string },
+  ) {
+    const existing = await (this.prisma as any).agentGroups.findUnique({
+      where: { tenantId_groupCode: { tenantId, groupCode: dto.groupCode } },
+    });
+    if (existing) {
+      throw new BadRequestException('이미 존재하는 그룹 코드입니다.');
+    }
+
+    const row = await (this.prisma as any).agentGroups.create({
+      data: {
+        tenantId,
+        groupCode: dto.groupCode,
+        groupName: dto.groupName,
+        description: dto.description ?? null,
+        isActive: dto.isActive ?? true,
+        updatedById: actor?.agentId ?? null,
+      },
+    });
+
+    return { success: true, data: row, error: null };
+  }
+
+  async updateAgentGroup(
+    tenantId: string,
+    agentGroupId: string,
+    dto: UpdateAgentGroupDto,
+    actor?: { agentId?: string },
+  ) {
+    // 테넌트 범위 밖 그룹 갱신 방지: where: { agentGroupId } 만으로는
+    // 다른 테넌트 행을 건드릴 수 있다. 먼저 (tenantId, agentGroupId) 존재 확인.
+    const existing = await (this.prisma as any).agentGroups.findFirst({
+      where: { tenantId, agentGroupId },
+      select: { agentGroupId: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('상담원 그룹을 찾을 수 없습니다.');
+    }
+
+    if (dto.groupCode) {
+      const conflict = await (this.prisma as any).agentGroups.findFirst({
+        where: {
+          tenantId,
+          groupCode: dto.groupCode,
+          NOT: { agentGroupId },
+        },
+      });
+      if (conflict) {
+        throw new BadRequestException('이미 존재하는 그룹 코드입니다.');
+      }
+    }
+
+    const row = await (this.prisma as any).agentGroups.update({
+      where: { agentGroupId },
+      data: {
+        groupCode: dto.groupCode,
+        groupName: dto.groupName,
+        description: dto.description,
+        isActive: dto.isActive,
+        updatedAt: new Date(),
+        updatedById: actor?.agentId ?? null,
+      },
+    });
+
+    return { success: true, data: row, error: null };
+  }
+
+  async deleteAgentGroup(tenantId: string, agentGroupId: string) {
+    const target = await (this.prisma as any).agentGroups.findFirst({
+      where: { tenantId, agentGroupId },
+    });
+    if (!target) {
+      return { success: true, data: { deleted: false, agentGroupId }, error: null };
+    }
+
+    // 그룹 삭제 시 소속 상담원의 agentGroupId 는 SET NULL (FK ON DELETE SET NULL)
+    await (this.prisma as any).agentGroups.delete({
+      where: { agentGroupId },
+    });
+
+    return { success: true, data: { deleted: true, agentGroupId }, error: null };
+  }
+
+  // ===========================================================================
+  // Agent-branch CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가)
+  // ===========================================================================
+
+  /** 지사 단위 매트릭스 조회 — 행=상담원, 컬럼=callerIdNumber */
+  async listBranchAgentCallerIds(tenantId: string, branchId: string) {
+    const branch = await this.prisma.branches.findFirst({
+      where: { tenantId, branchId },
+      select: { branchId: true, branchCode: true, branchName: true },
+    });
+    if (!branch) {
+      throw new BadRequestException('지사를 찾을 수 없습니다.');
+    }
+
+    const rows = await (this.prisma as any).agentBranchCallerIds.findMany({
+      where: { tenantId, branchId },
+      orderBy: [{ sortOrder: 'asc' }, { callerIdNumber: 'asc' }],
+    });
+
+    const agents = await this.prisma.agents.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: { extension: 'asc' },
+      select: {
+        agentId: true,
+        agentCode: true,
+        agentName: true,
+        extension: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: { branch, agents, entries: rows },
+      error: null,
+    };
+  }
+
+  /** 지사 단위 bulk upsert — 매트릭스 한 번에 저장 */
+  async updateBranchAgentCallerIds(
+    tenantId: string,
+    branchId: string,
+    dto: UpdateAgentBranchCallerIdsDto,
+  ) {
+    const branch = await this.prisma.branches.findFirst({
+      where: { tenantId, branchId },
+      select: { branchId: true },
+    });
+    if (!branch) {
+      throw new BadRequestException('지사를 찾을 수 없습니다.');
+    }
+
+    const agentIds = Array.from(new Set(dto.entries.map((e) => e.agentId)));
+    if (agentIds.length > 0) {
+      const validAgents = await this.prisma.agents.findMany({
+        where: { tenantId, agentId: { in: agentIds } },
+        select: { agentId: true },
+      });
+      if (validAgents.length !== agentIds.length) {
+        throw new BadRequestException('알 수 없는 상담원이 포함되어 있습니다.');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await (tx as any).agentBranchCallerIds.deleteMany({
+        where: { tenantId, branchId },
+      });
+      if (dto.entries.length === 0) return;
+      await (tx as any).agentBranchCallerIds.createMany({
+        data: dto.entries.map((e) => ({
+          tenantId,
+          branchId,
+          agentId: e.agentId,
+          callerIdNumber: e.callerIdNumber,
+          displayName: e.displayName ?? null,
+          allowedInbound: e.allowedInbound ?? true,
+          allowedOutbound: e.allowedOutbound ?? true,
+          allowedTransfer: e.allowedTransfer ?? true,
+          sortOrder: e.sortOrder ?? 0,
+        })),
+      });
+    });
+
+    return { success: true, data: { branchId, count: dto.entries.length }, error: null };
+  }
+
+  /** 상담원 시점 — 관리자 조회 (전 지사 합본) */
+  async listAgentCallerIdPermissions(tenantId: string, agentId: string) {
+    const agent = await this.prisma.agents.findFirst({
+      where: { tenantId, agentId },
+      select: {
+        agentId: true,
+        agentCode: true,
+        agentName: true,
+        extension: true,
+      },
+    });
+    if (!agent) {
+      throw new BadRequestException('상담원을 찾을 수 없습니다.');
+    }
+
+    const rows = await (this.prisma as any).agentBranchCallerIds.findMany({
+      where: { tenantId, agentId },
+      include: {
+        branch: { select: { branchId: true, branchCode: true, branchName: true } },
+      },
+      orderBy: [{ branchId: 'asc' }, { sortOrder: 'asc' }],
+    });
+
+    return {
+      success: true,
+      data: { agent, entries: rows },
+      error: null,
+    };
+  }
+
+  /**
+   * BlueSky ViewSearchStaffWorkTime 등가.
+   * agentStatusHistory(startedAt, endedAt, statusCode) 행을 윈도우와 교차 후
+   * granularity bucket 별로 prorate 합산.
+   * - 열린 구간(endedAt IS NULL): min(now(), to) 로 닫음
+   * - 윈도우 경계: max(startedAt, from), min(endedAt, to)
+   * Postgres generate_series + tstzrange 교차로 한 쿼리에 산출.
+   */
+  async listAgentWorkTime(tenantId: string, query: ListAgentWorkTimeQueryDto) {
+    const granularity = query.granularity ?? 'hour';
+    const groupBy = query.groupBy ?? 'agent';
+    const fromDate = new Date(query.from);
+    const toDate = new Date(query.to);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate >= toDate) {
+      throw new BadRequestException('from/to 가 유효하지 않습니다.');
+    }
+    const bucketSqlMap: Record<string, { interval: string; bucketSeconds: number }> = {
+      hour: { interval: '1 hour', bucketSeconds: 3600 },
+      half_hour: { interval: '30 minutes', bucketSeconds: 1800 },
+      day: { interval: '1 day', bucketSeconds: 86400 },
+    };
+    const bucket = bucketSqlMap[granularity];
+
+    const agentFilter = query.agentId ?? null;
+    const groupFilter = query.agentGroupId ?? null;
+
+    // Prisma raw — bucketStart × agentId × statusCode → seconds
+    const truncUnit = granularity === 'half_hour' ? 'hour' : granularity;
+    const intervalSql = Prisma.raw(`interval '${bucket.interval}'`);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        bucketStart: Date;
+        agentId: string;
+        agentName: string;
+        agentGroupId: string | null;
+        agentGroupName: string | null;
+        statusCode: string;
+        seconds: number;
+      }>
+    >`
+      WITH window_bounds AS (
+        SELECT ${fromDate}::timestamptz AS w_from, ${toDate}::timestamptz AS w_to
+      ),
+      buckets AS (
+        SELECT generate_series(
+          date_trunc(${truncUnit}, w_from),
+          w_to,
+          ${intervalSql}
+        ) AS "bucketStart"
+        FROM window_bounds
+      ),
+      history AS (
+        SELECT
+          h."agentId",
+          h."statusCode",
+          GREATEST(h."startedAt", (SELECT w_from FROM window_bounds)) AS eff_start,
+          LEAST(COALESCE(h."endedAt", NOW()), (SELECT w_to FROM window_bounds)) AS eff_end
+        FROM "agentStatusHistory" h
+        WHERE h."tenantId" = ${tenantId}::uuid
+          AND h."startedAt" < (SELECT w_to FROM window_bounds)
+          AND COALESCE(h."endedAt", NOW()) > (SELECT w_from FROM window_bounds)
+          ${agentFilter ? Prisma.sql`AND h."agentId" = ${agentFilter}::uuid` : Prisma.empty}
+      ),
+      sliced AS (
+        SELECT
+          b."bucketStart",
+          h."agentId",
+          h."statusCode",
+          EXTRACT(EPOCH FROM (
+            LEAST(h.eff_end, b."bucketStart" + ${intervalSql})
+            - GREATEST(h.eff_start, b."bucketStart")
+          ))::int AS seconds
+        FROM buckets b
+        JOIN history h
+          ON h.eff_start < b."bucketStart" + ${intervalSql}
+         AND h.eff_end   > b."bucketStart"
+      )
+      SELECT
+        s."bucketStart",
+        s."agentId",
+        a."agentName",
+        a."agentGroupId",
+        g."groupName" AS "agentGroupName",
+        s."statusCode",
+        SUM(s.seconds)::int AS seconds
+      FROM sliced s
+      JOIN "agents" a ON a."agentId" = s."agentId" AND a."tenantId" = ${tenantId}::uuid
+      LEFT JOIN "agentGroups" g ON g."agentGroupId" = a."agentGroupId"
+      WHERE s.seconds > 0
+        ${groupFilter ? Prisma.sql`AND a."agentGroupId" = ${groupFilter}::uuid` : Prisma.empty}
+      GROUP BY s."bucketStart", s."agentId", a."agentName", a."agentGroupId", g."groupName", s."statusCode"
+      ORDER BY s."bucketStart" ASC, a."agentName" ASC, s."statusCode" ASC
+    `;
+
+    const buckets: Array<{
+      bucketStart: string;
+      seriesKey: string;
+      seriesLabel: string;
+      statusCode: string;
+      seconds: number;
+    }> = rows.map((r) => {
+      const seriesKey =
+        groupBy === 'group'
+          ? r.agentGroupId ?? '__no_group__'
+          : r.agentId;
+      const seriesLabel =
+        groupBy === 'group'
+          ? r.agentGroupName ?? '(그룹 없음)'
+          : r.agentName;
+      return {
+        bucketStart: r.bucketStart.toISOString(),
+        seriesKey,
+        seriesLabel,
+        statusCode: r.statusCode,
+        seconds: r.seconds,
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        granularity,
+        groupBy,
+        windowSeconds: bucket.bucketSeconds,
+        from: fromDate.toISOString(),
+        to: toDate.toISOString(),
+        buckets,
+      },
+      error: null,
+    };
+  }
+
 }

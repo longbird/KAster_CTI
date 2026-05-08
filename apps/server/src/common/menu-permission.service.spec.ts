@@ -40,4 +40,55 @@ describe('defaultPermissionFlags', () => {
       }),
     );
   });
+
+  it('adds agent group management under operations settings permissions', () => {
+    expect(MENU_KEYS).toContain('settings/agent-groups');
+    expect(defaultPermissionFlags('supervisor', 'settings/agent-groups')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+      }),
+    );
+    expect(defaultPermissionFlags('agent', 'settings/agent-groups')).toEqual(
+      expect.objectContaining({
+        canView: false,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+      }),
+    );
+  });
+
+  it('adds outbound caller-id rules under operations settings permissions', () => {
+    expect(MENU_KEYS).toContain('settings/outbound-rules');
+    expect(defaultPermissionFlags('supervisor', 'settings/outbound-rules')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+      }),
+    );
+  });
+
+  it('adds supervisor agent monitoring view as an operable view-only menu', () => {
+    expect(MENU_KEYS).toContain('monitoring/agents');
+    expect(defaultPermissionFlags('supervisor', 'monitoring/agents')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canOperate: true,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+      }),
+    );
+    expect(defaultPermissionFlags('agent', 'monitoring/agents')).toEqual(
+      expect.objectContaining({
+        canView: false,
+        canOperate: false,
+      }),
+    );
+  });
 });

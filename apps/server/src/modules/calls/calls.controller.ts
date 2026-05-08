@@ -68,6 +68,7 @@ export class CallsController {
   @ApiQuery({ name: 'branchId', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'mode', required: false })
+  @ApiQuery({ name: 'direction', required: false, enum: ['inbound', 'outbound', 'internal'] })
   @ApiOkResponse({ type: ApiResponseDto })
   async listHistory(@Req() req: any, @Query() q: ListCallsQueryDto) {
     if (req.user.role === 'supervisor' || req.user.role === 'admin') {

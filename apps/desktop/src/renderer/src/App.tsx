@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
 import { AgentListPopup } from './components/AgentListPopup';
+import { AnnouncementBannerStack } from './components/AnnouncementBannerStack';
 import { CallHistoryPopup } from './components/CallHistoryPopup';
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
+import { DialpadPopup } from './components/DialpadPopup';
 import { PairingScreen } from './components/PairingScreen';
+import { QueueMonitorPanel } from './components/QueueMonitorPanel';
 import { SoftphoneShell } from './components/SoftphoneShell';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useDesktopStore } from './store/useDesktopStore';
@@ -14,6 +17,9 @@ export default function App() {
   }
   if (hash === '#/agent-list-popup') {
     return <AgentListPopup />;
+  }
+  if (hash === '#/dialpad-popup') {
+    return <DialpadPopup />;
   }
 
   const desktopApi =
@@ -34,6 +40,7 @@ export default function App() {
     audioPreferences,
     audioDevices,
     audioCapabilities,
+    generalPreferences,
     softphone,
     callerIds,
     defaultCallerId,
@@ -51,6 +58,7 @@ export default function App() {
     originateInternal,
     openCallHistoryPopup,
     openAgentListPopup,
+    openDialpadPopup,
     pickup,
     mute,
     hangup,
@@ -64,6 +72,7 @@ export default function App() {
     refreshAudioDevices,
     requestAudioPermission,
     updateAudioPreferences,
+    updateGeneralPreferences,
     playOutputPreview,
     playRingPreview,
     startSoftphone,
@@ -71,6 +80,10 @@ export default function App() {
     answerSoftphoneCall,
     rejectSoftphoneCall,
     hangupSoftphoneCall,
+    announcements,
+    dismissAnnouncement,
+    queueSummary,
+    queueArrivalFlashAt,
   } = useDesktopStore();
   const updateBlockReason =
     activeCall && activeCall.sessionStatus !== 'ENDED'
@@ -153,6 +166,11 @@ export default function App() {
   return (
     <main className="desktop-layout">
       <div className="desktop-main">
+        <QueueMonitorPanel queueSummary={queueSummary} flashAt={queueArrivalFlashAt} />
+        <AnnouncementBannerStack
+          announcements={announcements}
+          onDismiss={dismissAnnouncement}
+        />
         {updateState ? (
           <UpdateBanner
             message={updateState.message}
@@ -168,6 +186,7 @@ export default function App() {
         <SoftphoneShell
           config={config}
           agentName={agent.agentName}
+          agentId={agent.agentId}
           extension={agent.extension}
           agentStatus={agentStatus}
           runtimeConnection={runtimeConnection}
@@ -188,6 +207,7 @@ export default function App() {
           onOriginateInternal={originateInternal}
           onOpenCallHistoryPopup={openCallHistoryPopup}
           onOpenAgentListPopup={openAgentListPopup}
+          onOpenDialpadPopup={openDialpadPopup}
           onMute={mute}
           onHangup={hangup}
           onToggleHold={toggleHold}
@@ -197,6 +217,8 @@ export default function App() {
           onRefreshAudioDevices={refreshAudioDevices}
           onRequestAudioPermission={requestAudioPermission}
           onChangeAudioPreferences={updateAudioPreferences}
+          generalPreferences={generalPreferences}
+          onChangeGeneralPreferences={updateGeneralPreferences}
           onPlayOutputPreview={playOutputPreview}
           onPlayRingPreview={playRingPreview}
           onStartSoftphone={startSoftphone}

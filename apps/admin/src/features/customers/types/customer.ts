@@ -22,6 +22,7 @@ export interface CustomerRow {
   customerName: string | null;
   grade: 'NORMAL' | 'VIP' | 'BLACK';
   memo?: string | null;
+  shareRuleId?: string | null;
   createdAt: string;
   updatedAt: string;
   lastCalledAt?: string | null;
@@ -38,6 +39,7 @@ export interface CustomerFormInput {
   customerName: string;
   grade?: 'NORMAL' | 'VIP' | 'BLACK';
   memo?: string;
+  shareRuleId?: string | null;
   primaryPhoneNumber: string;
   extraPhoneNumbers?: string[];
 }

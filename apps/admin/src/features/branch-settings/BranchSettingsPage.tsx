@@ -1,14 +1,16 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PhoneOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { BranchAgentCidAuthDrawer } from './BranchAgentCidAuthDrawer';
 import { BranchEditModal, type BranchRow } from './BranchEditModal';
 
 export function BranchSettingsPage() {
   const [rows, setRows] = useState<BranchRow[] | null>(null);
   const [editing, setEditing] = useState<BranchRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [cidAuthBranch, setCidAuthBranch] = useState<BranchRow | null>(null);
   const permission = usePermissionStore((s) => s.permissionsByMenu['settings/branches']);
   const canCreate = permission?.canCreate ?? true;
   const canUpdate = permission?.canUpdate ?? true;
@@ -144,13 +146,22 @@ export function BranchSettingsPage() {
           },
           {
             title: headerLabel('관리'),
-            width: 120,
+            width: 200,
             fixed: 'right',
             render: (_: unknown, row: BranchRow) => (
               <Space>
                 {canUpdate ? (
                   <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(row)}>
                     설정
+                  </Button>
+                ) : null}
+                {canUpdate ? (
+                  <Button
+                    size="small"
+                    icon={<PhoneOutlined />}
+                    onClick={() => setCidAuthBranch(row)}
+                  >
+                    발신권한
                   </Button>
                 ) : null}
                 {canDelete ? (
@@ -176,6 +187,12 @@ export function BranchSettingsPage() {
         branch={editing}
         onClose={() => setEditing(null)}
         onSaved={() => void load()}
+      />
+      <BranchAgentCidAuthDrawer
+        open={!!cidAuthBranch}
+        branchId={cidAuthBranch?.branchId ?? null}
+        branchName={cidAuthBranch?.branchName}
+        onClose={() => setCidAuthBranch(null)}
       />
     </div>
   );

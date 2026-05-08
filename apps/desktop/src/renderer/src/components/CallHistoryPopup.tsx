@@ -99,9 +99,39 @@ function canDialFromHistory(row: DesktopCallHistoryItem, field: 'ani' | 'dnis') 
   return false;
 }
 
+type CallHistoryTab = 'connected' | 'missed' | 'internal';
+
+const TAB_LABELS: Record<CallHistoryTab, string> = {
+  connected: '연결',
+  missed: '미연결',
+  internal: '내선',
+};
+
+function isMissed(row: DesktopCallHistoryItem): boolean {
+  return !row.answeredAt && row.sessionStatus === 'ENDED';
+}
+
+function isInternal(row: DesktopCallHistoryItem): boolean {
+  return (row.direction ?? '').toLowerCase() === 'internal';
+}
+
+function matchesTab(row: DesktopCallHistoryItem, tab: CallHistoryTab): boolean {
+  if (isInternal(row)) {
+    return tab === 'internal';
+  }
+  if (tab === 'internal') {
+    return false;
+  }
+  if (tab === 'missed') {
+    return isMissed(row);
+  }
+  return !isMissed(row);
+}
+
 export function CallHistoryPopup() {
   const [rows, setRows] = useState<DesktopCallHistoryItem[]>([]);
   const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<CallHistoryTab>('connected');
   const [loading, setLoading] = useState(true);
   const [dialingNumber, setDialingNumber] = useState<string | null>(null);
   const [dialStatus, setDialStatus] = useState<string | null>(null);
@@ -134,7 +164,14 @@ export function CallHistoryPopup() {
     };
   }, [loadHistory]);
 
-  const filtered = rows.filter((row) => {
+  const tabRows = rows.filter((row) => matchesTab(row, tab));
+  const tabCounts: Record<CallHistoryTab, number> = {
+    connected: rows.filter((row) => matchesTab(row, 'connected')).length,
+    missed: rows.filter((row) => matchesTab(row, 'missed')).length,
+    internal: rows.filter((row) => matchesTab(row, 'internal')).length,
+  };
+
+  const filtered = tabRows.filter((row) => {
     const keyword = query.trim();
     if (!keyword) {
       return true;
@@ -224,6 +261,21 @@ export function CallHistoryPopup() {
         </div>
       </header>
 
+      <nav className="popup-tab-strip" aria-label="통화 종류">
+        {(Object.keys(TAB_LABELS) as CallHistoryTab[]).map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={`popup-tab${tab === value ? ' popup-tab--active' : ''}`}
+            onClick={() => setTab(value)}
+            aria-pressed={tab === value}
+          >
+            {TAB_LABELS[value]}
+            <span className="popup-tab__count">{tabCounts[value]}</span>
+          </button>
+        ))}
+      </nav>
+
       <section className="popup-table-shell">
         <table className="popup-table">
           <thead>
@@ -237,20 +289,19 @@ export function CallHistoryPopup() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
-              (() => {
-                return (
-                  <tr key={row.callId}>
-                    <td>{formatTime(row.startedAt)}</td>
-                    <td>{formatStatus(row.sessionStatus)}</td>
-                    <td>{renderPhoneCell(row, 'ani', '발신번호')}</td>
-                    <td>{renderPhoneCell(row, 'dnis', '수신번호', row.queueName)}</td>
-                    <td>{row.primaryAgent?.agentName ?? '-'}</td>
-                    <td>{formatDuration(row)}</td>
-                  </tr>
-                );
-              })()
-            ))}
+            {filtered.map((row) => {
+              const missedRow = isMissed(row);
+              return (
+                <tr key={row.callId} className={missedRow ? 'popup-row--missed' : undefined}>
+                  <td>{formatTime(row.startedAt)}</td>
+                  <td>{missedRow ? '미연결' : formatStatus(row.sessionStatus)}</td>
+                  <td>{renderPhoneCell(row, 'ani', '발신번호')}</td>
+                  <td>{renderPhoneCell(row, 'dnis', '수신번호', row.queueName)}</td>
+                  <td>{row.primaryAgent?.agentName ?? '-'}</td>
+                  <td>{formatDuration(row)}</td>
+                </tr>
+              );
+            })}
             {!loading && filtered.length === 0 ? (
               <tr>
                 <td colSpan={6}>표시할 통화내역이 없습니다.</td>

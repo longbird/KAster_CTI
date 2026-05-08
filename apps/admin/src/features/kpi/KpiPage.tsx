@@ -1,6 +1,7 @@
 import { Card, Col, Row, Skeleton, Statistic, Table, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { AgentWorkTimeChart } from './AgentWorkTimeChart';
 
 interface QueueKpi {
   queueName: string;
@@ -132,6 +133,8 @@ export function KpiPage() {
           ]}
         />
       </Card>
+
+      <AgentWorkTimeChart />
 
       {data.traffic && data.traffic.length > 0 && (
         <Card title="시간대별 트래픽">

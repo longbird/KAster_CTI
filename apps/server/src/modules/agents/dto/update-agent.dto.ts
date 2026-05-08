@@ -40,6 +40,10 @@ export class UpdateAgentDto {
   defaultQueueId?: string | null;
 
   @IsOptional()
+  @IsUUID()
+  agentGroupId?: string | null;
+
+  @IsOptional()
   @IsString()
   @MaxLength(64)
   sipPassword?: string | null;

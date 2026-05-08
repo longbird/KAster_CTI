@@ -1,8 +1,17 @@
 import { Form, Input, Select } from 'antd';
+import { useEffect, useState } from 'react';
+import { apiClient } from '../../shared/lib/apiClient';
 import type { CustomerDetail, CustomerFormInput, CustomerRow } from './types/customer';
 
 export interface CustomerFormValues extends CustomerFormInput {
   extraPhoneNumbersText?: string;
+}
+
+interface ShareRuleOption {
+  shareRuleId: string;
+  ruleCode: string;
+  ruleName: string;
+  isActive: boolean;
 }
 
 export function buildCustomerFormValues(
@@ -13,6 +22,7 @@ export function buildCustomerFormValues(
     customerName: customer?.customerName ?? '',
     grade: customer?.grade ?? defaultGrade,
     memo: customer?.memo ?? '',
+    shareRuleId: customer?.shareRuleId ?? null,
     primaryPhoneNumber: customer?.phones.find((phone) => phone.isPrimary)?.phoneNumber ?? customer?.primaryPhoneNumber ?? '',
     extraPhoneNumbersText: (customer?.phones ?? [])
       .filter((phone) => !phone.isPrimary)
@@ -26,6 +36,7 @@ export function normalizeCustomerFormValues(values: CustomerFormValues): Custome
     customerName: values.customerName,
     grade: values.grade,
     memo: values.memo,
+    shareRuleId: values.shareRuleId ?? null,
     primaryPhoneNumber: values.primaryPhoneNumber,
     extraPhoneNumbers: (values.extraPhoneNumbersText ?? '')
       .split(/\r?\n|,/)
@@ -35,6 +46,19 @@ export function normalizeCustomerFormValues(values: CustomerFormValues): Custome
 }
 
 export function CustomerFormFields() {
+  const [shareRules, setShareRules] = useState<ShareRuleOption[]>([]);
+
+  useEffect(() => {
+    void apiClient
+      .get('/admin/settings/share-rules')
+      .then((res) => {
+        setShareRules(
+          (res.data?.data ?? []).filter((r: ShareRuleOption) => r.isActive !== false),
+        );
+      })
+      .catch(() => setShareRules([]));
+  }, []);
+
   return (
     <>
       <Form.Item name="customerName" label="성명" rules={[{ required: true, message: '성명을 입력하세요.' }]}>
@@ -50,6 +74,22 @@ export function CustomerFormFields() {
             { value: 'VIP', label: 'VIP' },
             { value: 'BLACK', label: 'BLACK' },
           ]}
+        />
+      </Form.Item>
+      <Form.Item
+        name="shareRuleId"
+        label="공유규칙 (오버라이드)"
+        tooltip="고객별로 지사 기본 공유규칙을 덮어쓸 때 지정. 비우면 지사 기본을 따름."
+      >
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="지사 기본 사용"
+          options={shareRules.map((r) => ({
+            value: r.shareRuleId,
+            label: `${r.ruleName} (${r.ruleCode})`,
+          }))}
         />
       </Form.Item>
       <Form.Item name="extraPhoneNumbersText" label="추가 전화번호">

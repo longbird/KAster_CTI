@@ -238,6 +238,7 @@ export class CustomersService {
         grade: normalizeGrade(dto.grade),
         memo: dto.memo?.trim() || null,
         status: 'active',
+        ...(dto.shareRuleId !== undefined ? { shareRuleId: dto.shareRuleId ?? null } : {}),
         phones: {
           create: phones.map((phone) => ({
             phoneNumber: phone.phoneNumber,
@@ -246,7 +247,7 @@ export class CustomersService {
             isActive: true,
           })),
         },
-      },
+      } as any,
       include: {
         phones: {
           where: { isActive: true },
@@ -291,6 +292,7 @@ export class CustomersService {
           customerName: dto.customerName?.trim() || null,
           grade: normalizeGrade(dto.grade),
           memo: dto.memo?.trim() || null,
+          ...(dto.shareRuleId !== undefined ? { shareRuleId: dto.shareRuleId ?? null } : {}),
           phones: {
             create: phones.map((phone) => ({
               phoneNumber: phone.phoneNumber,
@@ -299,7 +301,7 @@ export class CustomersService {
               isActive: true,
             })),
           },
-        },
+        } as any,
         include: {
           phones: {
             where: { isActive: true },

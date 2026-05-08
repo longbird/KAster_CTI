@@ -22,11 +22,53 @@ export interface DesktopAudioPreferences {
   noiseSuppression: boolean;
 }
 
+export interface DesktopCallPreferences {
+  /** 0 = off, 1~60 = 자동 응답까지 남은 초 */
+  autoAnswerSeconds: number;
+  /** 0 = off, 1~60 = 자동 거절까지 남은 초 */
+  autoRejectSeconds: number;
+  /** 통화 종료 후 후처리(AFTER_CALL_WORK) → 자동으로 다음 상태 전환할 초 (0=off) */
+  autoStatusAfterCallSeconds: number;
+}
+
+export type DesktopRingTonePresetId = 'classic' | 'soft' | 'urgent' | 'silent';
+
+export interface DesktopGeneralPreferences {
+  /** 부팅 시 자동 시작 (OS 로그인 항목 등록) */
+  autoStart: boolean;
+  /** 저장된 세션으로 자동 로그인. false 면 매 실행 시 로그인 화면 강제 */
+  autoLogin: boolean;
+  /** 메인 창 항상 위 표시 */
+  alwaysOnTop: boolean;
+  /** 닫기 버튼 누를 때 종료 대신 트레이 최소화 (기본 true — 기존 동작 유지) */
+  closeToTray: boolean;
+  /** 벨소리 음원 프리셋 */
+  ringTonePresetId: DesktopRingTonePresetId;
+}
+
+export type DesktopTransferHotkeyMode = 'blind' | 'attended';
+
+export interface DesktopTransferHotkeySlot {
+  /** 1~9 — 통화 중 키보드 1~9 키와 매핑 */
+  slot: number;
+  /** UI 표시용 라벨 (예: "팀장님", "지사 A") */
+  label: string;
+  /** 전환 대상 내선/번호 */
+  target: string;
+  mode: DesktopTransferHotkeyMode;
+}
+
 export interface DesktopAgentProfile {
   agentId: string;
   agentName: string;
   extension: string;
   role: string;
+}
+
+export interface DesktopAgentGroupSummary {
+  agentGroupId: string;
+  groupCode: string;
+  groupName: string;
 }
 
 export interface DesktopAgentDirectoryItem {
@@ -47,6 +89,7 @@ export interface DesktopAgentDirectoryItem {
   currentStatus?: {
     statusCode: import('./cti').AgentStatusCode;
   } | null;
+  agentGroup?: DesktopAgentGroupSummary | null;
 }
 
 export interface DesktopCallerIdConfig {
@@ -79,6 +122,54 @@ export interface DesktopCallHistoryItem {
 export interface DesktopHistoryOriginateRequest {
   requestId: string;
   phoneNumber: string;
+}
+
+export interface DesktopCallContextHistoryItem {
+  callId: string;
+  direction: string | null;
+  sessionStatus: string;
+  startedAt: string;
+  answeredAt: string | null;
+  endedAt: string | null;
+  talkSeconds: number | null;
+  queueName: string | null;
+  primaryAgentName: string | null;
+}
+
+export interface DesktopCallContextMemo {
+  callMemoId: string;
+  agentId: string | null;
+  memoType: string | null;
+  resultCode: string | null;
+  subResultCode: string | null;
+  memoText: string | null;
+  isFinal: boolean | null;
+  createdAt: string;
+}
+
+export interface DesktopCallContext {
+  callId: string;
+  customer: {
+    customerId: string;
+    customerName: string;
+    grade: string | null;
+    memo: string | null;
+    primaryPhoneNumber: string | null;
+    extraPhoneNumbers: string[];
+  } | null;
+  representativeNumber: string | null;
+  history: DesktopCallContextHistoryItem[];
+  memos: DesktopCallContextMemo[];
+}
+
+export interface DesktopSaveCallMemoInput {
+  callId: string;
+  agentId: string;
+  memoText?: string;
+  resultCode?: string;
+  subResultCode?: string;
+  memoType?: string;
+  isFinal?: boolean;
 }
 
 export interface DesktopHistoryOriginateResult {
@@ -129,6 +220,12 @@ export interface DesktopApi {
   saveConfig(input: { serverUrl: string; channel?: string }): Promise<DesktopConfig>;
   getAudioPreferences(): Promise<DesktopAudioPreferences>;
   saveAudioPreferences(input: DesktopAudioPreferences): Promise<DesktopAudioPreferences>;
+  getCallPreferences(): Promise<DesktopCallPreferences>;
+  saveCallPreferences(input: DesktopCallPreferences): Promise<DesktopCallPreferences>;
+  getGeneralPreferences(): Promise<DesktopGeneralPreferences>;
+  saveGeneralPreferences(input: DesktopGeneralPreferences): Promise<DesktopGeneralPreferences>;
+  getTransferHotkeys(): Promise<DesktopTransferHotkeySlot[]>;
+  saveTransferHotkeys(input: DesktopTransferHotkeySlot[]): Promise<DesktopTransferHotkeySlot[]>;
   exchangeHandoff(handoffToken: string): Promise<DesktopSessionSummary>;
   login(input: {
     serverUrl: string;
@@ -147,6 +244,7 @@ export interface DesktopApi {
   changeAgentStatus(
     agentId: string,
     statusCode: import('./cti').AgentStatusCode,
+    reasonCode?: string,
   ): Promise<{ statusCode: import('./cti').AgentStatusCode }>;
   mute(
     callId: string,
@@ -166,10 +264,13 @@ export interface DesktopApi {
   getCallerIds(): Promise<DesktopCallerIdConfig>;
   getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]>;
   getCallHistory(): Promise<DesktopCallHistoryItem[]>;
+  getCallContext(callId: string): Promise<DesktopCallContext | null>;
+  saveCallMemo(input: DesktopSaveCallMemoInput): Promise<DesktopCallContextMemo>;
   requestHistoryOriginate(input: { phoneNumber: string }): Promise<DesktopHistoryOriginateResult>;
   completeHistoryOriginateRequest(input: DesktopHistoryOriginateResult): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
+  openDialpadPopup(): Promise<void>;
   transfer(
     callId: string,
     params: {

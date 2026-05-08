@@ -22,4 +22,6 @@ export class ListCallsQueryDto {
   @IsOptional() @IsIn(['true', 'false']) abandon?: string;
   @ApiPropertyOptional({ enum: ['true', 'false'] })
   @IsOptional() @IsIn(['true', 'false']) recording?: string;
+  @ApiPropertyOptional({ enum: ['inbound', 'outbound', 'internal'] })
+  @IsOptional() @IsIn(['inbound', 'outbound', 'internal']) direction?: string;
 }

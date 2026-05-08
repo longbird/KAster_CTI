@@ -4,6 +4,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { AttentionService } from './attention-service';
 import { AudioPreferencesStore } from './audio-preferences-store';
+import { CallPreferencesStore } from './call-preferences-store';
+import { GeneralPreferencesStore } from './general-preferences-store';
+import { TransferHotkeysStore } from './transfer-hotkeys-store';
 import { DesktopAuthClient } from './auth-client';
 import { DesktopBridgeServer } from './desktop-bridge-server';
 import { DesktopConfigStore } from './config-store';
@@ -14,14 +17,19 @@ import { TokenVault } from './token-vault';
 import { TrayService } from './tray-service';
 import { UpdateClient } from './update-client';
 import type {
+  DesktopGeneralPreferences,
   DesktopHistoryOriginateResult,
   DesktopProtocolConnectPayload,
+  DesktopSaveCallMemoInput,
   DesktopWindowMode,
 } from '../shared/ipc';
 import { normalizeCenterConfig } from '../shared/center-config';
 
 const configStore = new DesktopConfigStore(app.getPath('userData'));
 const audioPreferencesStore = new AudioPreferencesStore(app.getPath('userData'));
+const callPreferencesStore = new CallPreferencesStore(app.getPath('userData'));
+const generalPreferencesStore = new GeneralPreferencesStore(app.getPath('userData'));
+const transferHotkeysStore = new TransferHotkeysStore(app.getPath('userData'));
 const tokenVault = new TokenVault(app.getPath('userData'));
 const attentionService = new AttentionService({
   getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
@@ -84,11 +92,31 @@ function getPrimaryWindow() {
   }) ?? null;
 }
 
-function getUtilityWindowTitle(kind: 'history' | 'agents') {
-  return kind === 'history' ? 'KAster 통화내역' : 'KAster 상담원 리스트';
+type UtilityWindowKind = 'history' | 'agents' | 'dialpad';
+
+function getUtilityWindowTitle(kind: UtilityWindowKind) {
+  if (kind === 'history') return 'KAster 통화내역';
+  if (kind === 'agents') return 'KAster 상담원 리스트';
+  return 'KAster 발신 키패드';
 }
 
-function openUtilityWindow(kind: 'history' | 'agents') {
+function getUtilityWindowBounds(kind: UtilityWindowKind) {
+  if (kind === 'history') {
+    return { width: 920, height: 640, minWidth: 760, minHeight: 520 };
+  }
+  if (kind === 'agents') {
+    return { width: 440, height: 560, minWidth: 380, minHeight: 460 };
+  }
+  return { width: 360, height: 560, minWidth: 320, minHeight: 520 };
+}
+
+function getUtilityWindowRoute(kind: UtilityWindowKind) {
+  if (kind === 'history') return '#/history-popup';
+  if (kind === 'agents') return '#/agent-list-popup';
+  return '#/dialpad-popup';
+}
+
+function openUtilityWindow(kind: UtilityWindowKind) {
   const title = getUtilityWindowTitle(kind);
   const existing = BrowserWindow.getAllWindows().find((win) => win.getTitle() === title);
   if (existing) {
@@ -97,9 +125,7 @@ function openUtilityWindow(kind: 'history' | 'agents') {
     return;
   }
 
-  const bounds = kind === 'history'
-    ? { width: 920, height: 640, minWidth: 760, minHeight: 520 }
-    : { width: 440, height: 560, minWidth: 380, minHeight: 460 };
+  const bounds = getUtilityWindowBounds(kind);
   const win = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
@@ -116,7 +142,7 @@ function openUtilityWindow(kind: 'history' | 'agents') {
   win.setMenuBarVisibility(false);
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  const route = kind === 'history' ? '#/history-popup' : '#/agent-list-popup';
+  const route = getUtilityWindowRoute(kind);
   if (rendererUrl) {
     void win.loadURL(`${rendererUrl}${route}`);
     return;
@@ -285,10 +311,31 @@ function createTrayIcon() {
   return nativeImage.createFromDataURL(dataUrl);
 }
 
+let closeToTrayEnabled = true;
+
+function applyGeneralPreferenceSideEffects(preferences: DesktopGeneralPreferences) {
+  closeToTrayEnabled = preferences.closeToTray;
+  try {
+    app.setLoginItemSettings({ openAtLogin: preferences.autoStart });
+  } catch {
+    // 일부 OS / 개발 환경에서 loginItem 미지원 — 조용히 무시.
+  }
+  const win = getPrimaryWindow();
+  if (win) {
+    win.setAlwaysOnTop(preferences.alwaysOnTop);
+  }
+}
+
 function attachTrayBehavior(win: BrowserWindow) {
   let allowClose = false;
   win.on('close', (event) => {
     if (isQuitting || allowClose) {
+      return;
+    }
+    if (!closeToTrayEnabled) {
+      isQuitting = true;
+      allowClose = true;
+      app.quit();
       return;
     }
     event.preventDefault();
@@ -415,7 +462,7 @@ app.on('open-url', (event, url) => {
   }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   registerProtocolClient();
   allowMediaPermissions();
@@ -433,6 +480,16 @@ app.whenReady().then(() => {
   ipcMain.handle('desktop:save-config', (_event, input) => configStore.save(input));
   ipcMain.handle('desktop:get-audio-preferences', () => audioPreferencesStore.load());
   ipcMain.handle('desktop:save-audio-preferences', (_event, input) => audioPreferencesStore.save(input));
+  ipcMain.handle('desktop:get-call-preferences', () => callPreferencesStore.load());
+  ipcMain.handle('desktop:save-call-preferences', (_event, input) => callPreferencesStore.save(input));
+  ipcMain.handle('desktop:get-general-preferences', () => generalPreferencesStore.load());
+  ipcMain.handle('desktop:save-general-preferences', async (_event, input: DesktopGeneralPreferences) => {
+    const saved = await generalPreferencesStore.save(input);
+    applyGeneralPreferenceSideEffects(saved);
+    return saved;
+  });
+  ipcMain.handle('desktop:get-transfer-hotkeys', () => transferHotkeysStore.load());
+  ipcMain.handle('desktop:save-transfer-hotkeys', (_event, input) => transferHotkeysStore.save(input));
   ipcMain.handle('desktop:get-session', async () => toSessionSummary(await tokenVault.load()));
   ipcMain.handle('desktop:get-desktop-session', async (_event, accessToken?: string) => {
     const config = await configStore.load();
@@ -537,11 +594,11 @@ app.whenReady().then(() => {
     }
     return runtime.pickup(callId);
   });
-  ipcMain.handle('desktop:change-agent-status', (_event, agentId: string, statusCode) => {
+  ipcMain.handle('desktop:change-agent-status', (_event, agentId: string, statusCode, reasonCode?: string) => {
     if (!runtime) {
       throw new Error('Runtime is not connected.');
     }
-    return runtime.changeAgentStatus(agentId, statusCode);
+    return runtime.changeAgentStatus(agentId, statusCode, reasonCode);
   });
   ipcMain.handle('desktop:originate', (_event, params: {
     agentExtension: string;
@@ -615,6 +672,9 @@ app.whenReady().then(() => {
   ipcMain.handle('desktop:open-agent-list-popup', () => {
     openUtilityWindow('agents');
   });
+  ipcMain.handle('desktop:open-dialpad-popup', () => {
+    openUtilityWindow('dialpad');
+  });
   ipcMain.handle('desktop:transfer', (_event, callId: string, params: {
     target: string;
     transferType: 'blind' | 'attended';
@@ -636,6 +696,18 @@ app.whenReady().then(() => {
       throw new Error('Runtime is not connected.');
     }
     return runtime.completeAttendedTransfer(callId);
+  });
+  ipcMain.handle('desktop:get-call-context', (_event, callId: string) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.getCallContext(callId);
+  });
+  ipcMain.handle('desktop:save-call-memo', (_event, input: DesktopSaveCallMemoInput) => {
+    if (!runtime) {
+      throw new Error('Runtime is not connected.');
+    }
+    return runtime.saveCallMemo(input);
   });
   ipcMain.handle('desktop:hold', (_event, callId: string) => {
     if (!runtime) {
@@ -706,6 +778,13 @@ app.whenReady().then(() => {
   ipcMain.handle('desktop:open-external', (_event, url: string) => {
     return shell.openExternal(url);
   });
+
+  try {
+    const initialPrefs = await generalPreferencesStore.load();
+    applyGeneralPreferenceSideEffects(initialPrefs);
+  } catch {
+    // 부팅 시 환경설정 로드 실패해도 앱은 기본값으로 계속.
+  }
 
   createWindow();
 

@@ -207,7 +207,7 @@ describe('useDesktopStore pairing', () => {
 
     await useDesktopStore.getState().changeAgentStatus('BREAK');
 
-    expect(desktopApi.changeAgentStatus).toHaveBeenCalledWith('agent-login', 'BREAK');
+    expect(desktopApi.changeAgentStatus).toHaveBeenCalledWith('agent-login', 'BREAK', undefined);
     expect(useDesktopStore.getState().agentStatus).toBe('BREAK');
   });
 
@@ -975,5 +975,161 @@ describe('useDesktopStore pairing', () => {
     await useDesktopStore.getState().cancelAttendedTransfer();
     expect(desktopApi.cancelAttendedTransfer).toHaveBeenCalledWith('call-1');
     expect(useDesktopStore.getState().activeCall?.latestTransfer).toBeNull();
+  });
+
+  it('announcement.pushed 는 배너에 추가하고 같은 id 갱신은 dedupe 한다', async () => {
+    desktopApi.getConfig.mockResolvedValueOnce({
+      serverUrl: 'https://cti-center-a.example.com',
+      channel: 'stable',
+      deviceId: 'device-1',
+    });
+    desktopApi.getSession.mockResolvedValueOnce({
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+    });
+    desktopApi.onEvent.mockImplementationOnce((listener) => {
+      listener({
+        type: 'announcement.pushed',
+        payload: {
+          action: 'created',
+          announcementId: 'a-1',
+          title: '점검 안내',
+          body: '23시 정기 점검',
+          authorName: '운영팀',
+          pinned: true,
+        },
+      });
+      listener({
+        type: 'announcement.pushed',
+        payload: {
+          action: 'updated',
+          announcementId: 'a-1',
+          title: '점검 안내(연기)',
+          body: '24시로 변경',
+          authorName: '운영팀',
+          pinned: true,
+        },
+      });
+      listener({
+        type: 'announcement.pushed',
+        payload: {
+          action: 'created',
+          announcementId: 'a-2',
+          title: '교육 일정',
+          body: '내일 10시',
+          pinned: false,
+        },
+      });
+      return () => undefined;
+    });
+
+    await useDesktopStore.getState().initialize();
+
+    const state = useDesktopStore.getState();
+    expect(state.announcements).toHaveLength(2);
+    expect(state.announcements[0].announcementId).toBe('a-2');
+    expect(state.announcements[1].announcementId).toBe('a-1');
+    expect(state.announcements[1].title).toBe('점검 안내(연기)');
+
+    useDesktopStore.getState().dismissAnnouncement('a-1');
+    expect(useDesktopStore.getState().announcements.map((it) => it.announcementId)).toEqual(['a-2']);
+  });
+
+  it('queue.summary.updated 는 큐 요약을 저장하고 대기 증가 시 flashAt 을 갱신한다', async () => {
+    const dateSpy = vi.spyOn(Date.prototype, 'toISOString');
+    let counter = 0;
+    dateSpy.mockImplementation(() => {
+      counter += 1;
+      return `2026-05-08T00:00:${String(counter).padStart(2, '0')}.000Z`;
+    });
+
+    try {
+      desktopApi.getConfig.mockResolvedValueOnce({
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      });
+      desktopApi.getSession.mockResolvedValueOnce({
+        agent: {
+          agentId: 'agent-1',
+          agentName: '상담원1',
+          extension: '1001',
+          role: 'agent',
+        },
+      });
+      desktopApi.onEvent.mockImplementationOnce((listener) => {
+        listener({
+          type: 'queue.summary.updated',
+          payload: [
+            {
+              queueId: 'q-1',
+              queueName: '대표',
+              waitingCount: 1,
+              talkingCount: 0,
+              availableAgents: 2,
+              longestWaitSeconds: 12,
+            },
+          ],
+        });
+        return () => undefined;
+      });
+
+      await useDesktopStore.getState().initialize();
+
+      const after1 = useDesktopStore.getState();
+      expect(after1.queueSummary).toHaveLength(1);
+      expect(after1.queueSummary[0]?.waitingCount).toBe(1);
+      expect(after1.queueArrivalFlashAt).not.toBeNull();
+      const firstFlashAt = after1.queueArrivalFlashAt;
+
+      desktopApi.onEvent.mockImplementationOnce((listener) => {
+        listener({
+          type: 'queue.summary.updated',
+          payload: [
+            {
+              queueId: 'q-1',
+              queueName: '대표',
+              waitingCount: 0,
+              talkingCount: 1,
+              availableAgents: 2,
+              longestWaitSeconds: 0,
+            },
+          ],
+        });
+        return () => undefined;
+      });
+      await useDesktopStore.getState().reconnectRuntime();
+      const after2 = useDesktopStore.getState();
+      expect(after2.queueSummary[0]?.waitingCount).toBe(0);
+      expect(after2.queueArrivalFlashAt).toBe(firstFlashAt);
+
+      desktopApi.onEvent.mockImplementationOnce((listener) => {
+        listener({
+          type: 'queue.summary.updated',
+          payload: [
+            {
+              queueId: 'q-1',
+              queueName: '대표',
+              waitingCount: 2,
+              talkingCount: 1,
+              availableAgents: 2,
+              longestWaitSeconds: 8,
+            },
+          ],
+        });
+        return () => undefined;
+      });
+      await useDesktopStore.getState().reconnectRuntime();
+      const after3 = useDesktopStore.getState();
+      expect(after3.queueSummary[0]?.waitingCount).toBe(2);
+      expect(after3.queueArrivalFlashAt).not.toBe(firstFlashAt);
+      expect(after3.queueArrivalFlashAt).not.toBeNull();
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 });

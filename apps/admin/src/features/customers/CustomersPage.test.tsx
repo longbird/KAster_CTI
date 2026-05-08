@@ -171,6 +171,7 @@ describe('customer form helpers', () => {
       customerName: '김고객',
       grade: 'NORMAL',
       memo: '메모',
+      shareRuleId: null,
       primaryPhoneNumber: '01012345678',
       extraPhoneNumbers: ['021234567', '0312345678'],
     });
