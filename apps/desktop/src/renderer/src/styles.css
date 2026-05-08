@@ -1517,3 +1517,62 @@ button {
   color: var(--danger);
   font-weight: 600;
 }
+
+.queue-monitor {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.84rem;
+  transition: background 240ms ease, border-color 240ms ease, color 240ms ease;
+}
+
+.queue-monitor--has-waiting {
+  color: var(--text);
+  border-color: rgba(255, 196, 89, 0.42);
+  background: rgba(255, 196, 89, 0.08);
+}
+
+.queue-monitor--flash {
+  animation: queue-monitor-flash 1.2s ease-in-out 2;
+  border-color: #c9474f;
+}
+
+@keyframes queue-monitor-flash {
+  0% {
+    background: rgba(201, 71, 79, 0.32);
+    color: #ffffff;
+  }
+  50% {
+    background: rgba(201, 71, 79, 0.08);
+    color: var(--text);
+  }
+  100% {
+    background: rgba(201, 71, 79, 0.32);
+    color: #ffffff;
+  }
+}
+
+.queue-monitor__metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.queue-monitor__label {
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.queue-monitor__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+}

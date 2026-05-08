@@ -12590,6 +12590,49 @@ function AgentListPopup() {
     ] })
   ] });
 }
+function formatReceived(receivedAt) {
+  const date = new Date(receivedAt);
+  if (Number.isNaN(date.getTime())) return "";
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+function AnnouncementBannerStack({
+  announcements,
+  onDismiss
+}) {
+  if (announcements.length === 0) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "announcement-stack", role: "region", "aria-label": "공지사항", children: announcements.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: `announcement-banner${item.pinned ? " announcement-banner--pinned" : ""}`,
+      role: "alert",
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "announcement-banner__head", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "announcement-banner__badge", children: item.pinned ? "📌 고정" : "공지" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "announcement-banner__title", children: item.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "announcement-banner__meta", children: [
+            item.authorName ?? "",
+            " ",
+            formatReceived(item.receivedAt)
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              className: "announcement-banner__close",
+              "aria-label": "공지 닫기",
+              onClick: () => onDismiss(item.announcementId),
+              children: "×"
+            }
+          )
+        ] }),
+        item.body ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "announcement-banner__body", children: item.body }) : null
+      ]
+    },
+    item.announcementId
+  )) });
+}
 function formatTime(value) {
   if (!value) {
     return "-";
@@ -12676,9 +12719,33 @@ function canDialFromHistory(row, field) {
   }
   return false;
 }
+const TAB_LABELS = {
+  connected: "연결",
+  missed: "미연결",
+  internal: "내선"
+};
+function isMissed(row) {
+  return !row.answeredAt && row.sessionStatus === "ENDED";
+}
+function isInternal(row) {
+  return (row.direction ?? "").toLowerCase() === "internal";
+}
+function matchesTab(row, tab) {
+  if (isInternal(row)) {
+    return tab === "internal";
+  }
+  if (tab === "internal") {
+    return false;
+  }
+  if (tab === "missed") {
+    return isMissed(row);
+  }
+  return !isMissed(row);
+}
 function CallHistoryPopup() {
   const [rows, setRows] = reactExports.useState([]);
   const [query, setQuery] = reactExports.useState("");
+  const [tab, setTab] = reactExports.useState("connected");
   const [loading, setLoading] = reactExports.useState(true);
   const [dialingNumber, setDialingNumber] = reactExports.useState(null);
   const [dialStatus, setDialStatus] = reactExports.useState(null);
@@ -12707,7 +12774,13 @@ function CallHistoryPopup() {
       mountedRef.current = false;
     };
   }, [loadHistory]);
-  const filtered = rows.filter((row) => {
+  const tabRows = rows.filter((row) => matchesTab(row, tab));
+  const tabCounts = {
+    connected: rows.filter((row) => matchesTab(row, "connected")).length,
+    missed: rows.filter((row) => matchesTab(row, "missed")).length,
+    internal: rows.filter((row) => matchesTab(row, "internal")).length
+  };
+  const filtered = tabRows.filter((row) => {
     const keyword = query.trim();
     if (!keyword) {
       return true;
@@ -12787,6 +12860,20 @@ function CallHistoryPopup() {
         )
       ] })
     ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "popup-tab-strip", "aria-label": "통화 종류", children: Object.keys(TAB_LABELS).map((value) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        type: "button",
+        className: `popup-tab${tab === value ? " popup-tab--active" : ""}`,
+        onClick: () => setTab(value),
+        "aria-pressed": tab === value,
+        children: [
+          TAB_LABELS[value],
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "popup-tab__count", children: tabCounts[value] })
+        ]
+      },
+      value
+    )) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "popup-table-shell", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "popup-table", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "시간" }),
@@ -12797,16 +12884,17 @@ function CallHistoryPopup() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "통화" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-        filtered.map((row) => (() => {
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+        filtered.map((row) => {
+          const missedRow = isMissed(row);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: missedRow ? "popup-row--missed" : void 0, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatTime(row.startedAt) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatStatus(row.sessionStatus) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: missedRow ? "미연결" : formatStatus(row.sessionStatus) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: renderPhoneCell(row, "ani", "발신번호") }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: renderPhoneCell(row, "dnis", "수신번호", row.queueName) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: row.primaryAgent?.agentName ?? "-" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatDuration(row) })
           ] }, row.callId);
-        })()),
+        }),
         !loading && filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 6, children: "표시할 통화내역이 없습니다." }) }) : null
       ] })
     ] }) })
@@ -12991,6 +13079,341 @@ function PairingScreen({
     ] })
   ] }) });
 }
+const FLASH_DURATION_MS = 2400;
+function formatWait(seconds) {
+  const safe = Math.max(0, Math.floor(seconds));
+  const mm = Math.floor(safe / 60);
+  const ss = safe % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+function totalWaiting$1(rows) {
+  return rows.reduce((sum, row) => sum + (row.waitingCount ?? 0), 0);
+}
+function longestWait(rows) {
+  return rows.reduce((max, row) => Math.max(max, row.longestWaitSeconds ?? 0), 0);
+}
+function QueueMonitorPanel({
+  queueSummary,
+  flashAt
+}) {
+  const [flashing, setFlashing] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (!flashAt) {
+      return;
+    }
+    setFlashing(true);
+    const timer = setTimeout(() => setFlashing(false), FLASH_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [flashAt]);
+  if (queueSummary.length === 0) {
+    return null;
+  }
+  const waiting = totalWaiting$1(queueSummary);
+  const longest = longestWait(queueSummary);
+  const className = `queue-monitor${flashing ? " queue-monitor--flash" : ""}${waiting > 0 ? " queue-monitor--has-waiting" : ""}`;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className,
+      role: "status",
+      "aria-live": "polite",
+      "aria-label": "대기열 상태",
+      "data-testid": "queue-monitor",
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "queue-monitor__metric", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__label", children: "대기" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__value", children: waiting })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "queue-monitor__metric", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__label", children: "최대대기" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "queue-monitor__value", children: formatWait(longest) })
+        ] })
+      ]
+    }
+  );
+}
+const MEMO_DEBOUNCE_MS = 800;
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${month}/${day} ${hour}:${minute}`;
+}
+function formatTalkSeconds(seconds) {
+  if (seconds == null) {
+    return "-";
+  }
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+function formatGrade(grade) {
+  if (!grade) {
+    return "일반";
+  }
+  switch (grade) {
+    case "VIP":
+      return "VIP";
+    case "BLACK":
+      return "블랙";
+    case "NORMAL":
+    default:
+      return "일반";
+  }
+}
+function CallInfoPanel({
+  context,
+  loading,
+  error,
+  agentId,
+  onSaveMemo
+}) {
+  const initialMemo = context?.memos?.[0]?.memoText ?? "";
+  const [memoDraft, setMemoDraft] = reactExports.useState(initialMemo);
+  const [savingState, setSavingState] = reactExports.useState("idle");
+  const lastSavedRef = reactExports.useRef(initialMemo);
+  const timerRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    const next = context?.memos?.[0]?.memoText ?? "";
+    setMemoDraft(next);
+    lastSavedRef.current = next;
+    setSavingState("idle");
+  }, [context?.callId, context?.memos]);
+  reactExports.useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+  const scheduleSave = (next) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      void (async () => {
+        if (!agentId) {
+          setSavingState("error");
+          return;
+        }
+        if (next === lastSavedRef.current) {
+          return;
+        }
+        setSavingState("saving");
+        try {
+          await onSaveMemo(next);
+          lastSavedRef.current = next;
+          setSavingState("saved");
+        } catch {
+          setSavingState("error");
+        }
+      })();
+    }, MEMO_DEBOUNCE_MS);
+  };
+  const handleMemoChange = (value) => {
+    setMemoDraft(value);
+    scheduleSave(value);
+  };
+  if (loading && !context) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "console-section call-info-panel", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "고객 정보 조회 중..." }) });
+  }
+  if (error && !context) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "console-section call-info-panel", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "console-muted dial-error", children: [
+      "고객 정보 조회 실패: ",
+      error
+    ] }) });
+  }
+  const customer = context?.customer;
+  const history = context?.history ?? [];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section call-info-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "고객 정보" }),
+      customer ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `grade-badge grade-${customer.grade ?? "NORMAL"}`, children: formatGrade(customer.grade) }) : null
+    ] }),
+    customer ? /* @__PURE__ */ jsxRuntimeExports.jsxs("dl", { className: "call-info-grid", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "이름" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: customer.customerName || "-" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "대표번호" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: customer.primaryPhoneNumber || "-" })
+      ] }),
+      context?.representativeNumber ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "수신 대표" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: context.representativeNumber })
+      ] }) : null,
+      customer.memo ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-info-grid__full", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "고객 메모" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: customer.memo })
+      ] }) : null
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "등록된 고객 정보가 없습니다." }),
+    history.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-history-mini", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "최근 통화" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { children: history.map((row) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__time", children: formatDateTime(row.startedAt) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__direction", children: row.direction === "outbound" ? "발신" : "수신" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__agent", children: row.primaryAgentName ?? "-" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "call-history-mini__duration", children: formatTalkSeconds(row.talkSeconds) })
+      ] }, row.callId)) })
+    ] }) : null,
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "call-memo-field", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+        "상담 메모",
+        /* @__PURE__ */ jsxRuntimeExports.jsx("small", { className: `memo-status memo-status--${savingState}`, children: savingState === "saving" ? "저장 중..." : savingState === "saved" ? "저장됨" : savingState === "error" ? "저장 실패" : "" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          value: memoDraft,
+          onChange: (event) => handleMemoChange(event.target.value),
+          placeholder: "통화 메모를 입력하세요. 자동 저장됩니다.",
+          rows: 3,
+          disabled: !agentId
+        }
+      )
+    ] })
+  ] });
+}
+const TICK_MS = 100;
+function RingingAutoTimer({
+  active,
+  totalSeconds,
+  action,
+  onTrigger
+}) {
+  const [remainingMs, setRemainingMs] = reactExports.useState(totalSeconds * 1e3);
+  const triggeredRef = reactExports.useRef(false);
+  reactExports.useEffect(() => {
+    triggeredRef.current = false;
+    setRemainingMs(totalSeconds * 1e3);
+  }, [active, totalSeconds]);
+  reactExports.useEffect(() => {
+    if (!active || totalSeconds <= 0) {
+      return;
+    }
+    const startedAt = Date.now();
+    const totalMs2 = totalSeconds * 1e3;
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const next = Math.max(0, totalMs2 - elapsed);
+      setRemainingMs(next);
+      if (next <= 0 && !triggeredRef.current) {
+        triggeredRef.current = true;
+        clearInterval(interval);
+        onTrigger();
+      }
+    }, TICK_MS);
+    return () => clearInterval(interval);
+  }, [active, totalSeconds, onTrigger]);
+  if (!active || totalSeconds <= 0) {
+    return null;
+  }
+  const totalMs = totalSeconds * 1e3;
+  const percent = Math.max(0, Math.min(100, remainingMs / totalMs * 100));
+  const remainingSeconds = Math.ceil(remainingMs / 1e3);
+  const label = action === "auto-answer" ? "자동 응답" : "자동 거절";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `ringing-auto-timer ringing-auto-timer--${action}`, role: "status", "aria-live": "polite", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ringing-auto-timer__label", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ringing-auto-timer__count", children: [
+        remainingSeconds,
+        "초"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ringing-auto-timer__bar", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ringing-auto-timer__fill", style: { width: `${percent}%` } }) })
+  ] });
+}
+const ALL_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+function TransferHotkeyEditor({
+  slots,
+  onSave
+}) {
+  const [draft, setDraft] = reactExports.useState(() => {
+    const map = {};
+    for (const slot of slots) {
+      map[slot.slot] = slot;
+    }
+    return map;
+  });
+  const updateSlot = (slot, patch) => {
+    const current = draft[slot] ?? { slot, label: "", target: "", mode: "blind" };
+    const next = { ...current, ...patch };
+    setDraft({ ...draft, [slot]: next });
+  };
+  const removeSlot = (slot) => {
+    const next = { ...draft };
+    delete next[slot];
+    setDraft(next);
+    void onSave(Object.values(next));
+  };
+  const persist = () => {
+    const list = Object.values(draft).filter((s) => s.target.trim().length > 0);
+    void onSave(list);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hotkey-editor", children: ALL_SLOTS.map((slot) => {
+    const value = draft[slot];
+    const filled = Boolean(value?.target);
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `hotkey-row${filled ? " hotkey-row--filled" : ""}`, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hotkey-row__index", children: slot }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "text",
+          placeholder: "라벨",
+          value: value?.label ?? "",
+          onChange: (event) => updateSlot(slot, { label: event.target.value }),
+          onBlur: persist,
+          maxLength: 20
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "text",
+          placeholder: "내선/번호",
+          value: value?.target ?? "",
+          onChange: (event) => updateSlot(slot, { target: event.target.value }),
+          onBlur: persist,
+          maxLength: 32
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          value: value?.mode ?? "blind",
+          onChange: (event) => {
+            updateSlot(slot, { mode: event.target.value });
+            persist();
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "blind", children: "바로" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "attended", children: "상담" })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "secondary-button",
+          onClick: () => removeSlot(slot),
+          disabled: !filled,
+          "aria-label": `슬롯 ${slot} 비우기`,
+          children: "비우기"
+        }
+      )
+    ] }, slot);
+  }) });
+}
 function evaluateSoftphoneReadiness(input) {
   const softphone = input.softphone;
   const latestDiagnostic = softphone?.diagnostics[0] ?? null;
@@ -13068,6 +13491,12 @@ const AGENT_STATUS_OPTIONS = [
   { value: "AFTER_CALL_WORK", label: "후처리" }
 ];
 const TRANSFER_READY_STATUSES = /* @__PURE__ */ new Set(["TALKING", "HOLD", "TRANSFERRING"]);
+const STATUSES_REQUIRING_REASON = /* @__PURE__ */ new Set([
+  "BREAK",
+  "MEAL",
+  "TRAINING",
+  "MANUAL_PAUSED"
+]);
 function formatAgentStatus(status) {
   return AGENT_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? "중지";
 }
@@ -13095,6 +13524,7 @@ function getCallSubtitle(activeCall, softphone) {
 function SoftphoneShell({
   config,
   agentName,
+  agentId,
   extension,
   agentStatus,
   runtimeConnection,
@@ -13176,6 +13606,195 @@ function SoftphoneShell({
     const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
     void desktopApi?.setWindowMode?.(getWindowModeForConsoleState(consoleState));
   }, [consoleState]);
+  const [callContext, setCallContext] = reactExports.useState(null);
+  const [callContextLoading, setCallContextLoading] = reactExports.useState(false);
+  const [callContextError, setCallContextError] = reactExports.useState(null);
+  const [callPreferences, setCallPreferences] = reactExports.useState({
+    autoAnswerSeconds: 0,
+    autoRejectSeconds: 0,
+    autoStatusAfterCallSeconds: 0
+  });
+  reactExports.useEffect(() => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.getCallPreferences) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prefs = await desktopApi.getCallPreferences();
+        if (!cancelled) {
+          setCallPreferences(prefs);
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const updateCallPreferences = reactExports.useCallback(async (next) => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.saveCallPreferences) {
+      return;
+    }
+    const saved = await desktopApi.saveCallPreferences(next);
+    setCallPreferences(saved);
+  }, []);
+  const [transferHotkeys, setTransferHotkeys] = reactExports.useState([]);
+  reactExports.useEffect(() => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.getTransferHotkeys) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await desktopApi.getTransferHotkeys();
+        if (!cancelled) {
+          setTransferHotkeys(list);
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const updateTransferHotkeys = reactExports.useCallback(async (next) => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.saveTransferHotkeys) {
+      return;
+    }
+    const saved = await desktopApi.saveTransferHotkeys(next);
+    setTransferHotkeys(saved);
+  }, []);
+  const [pendingStatus, setPendingStatus] = reactExports.useState(null);
+  const [reasonDraft, setReasonDraft] = reactExports.useState("");
+  const triggerTransferHotkey = reactExports.useCallback(
+    (slotNumber) => {
+      const slot = transferHotkeys.find((entry) => entry.slot === slotNumber);
+      if (!slot || !slot.target) {
+        return;
+      }
+      if (!activeCall || !TRANSFER_READY_STATUSES.has(activeCall.sessionStatus)) {
+        return;
+      }
+      onTransfer(slot.target, slot.mode);
+    },
+    [transferHotkeys, activeCall, onTransfer]
+  );
+  reactExports.useEffect(() => {
+    if (consoleState !== "talking" && consoleState !== "transferring") {
+      return;
+    }
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
+      return;
+    }
+    const handler = (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      const target = event.target;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+          return;
+        }
+      }
+      if (event.key < "1" || event.key > "9") {
+        return;
+      }
+      const slot = Number(event.key);
+      const has = transferHotkeys.some((entry) => entry.slot === slot);
+      if (!has) {
+        return;
+      }
+      event.preventDefault();
+      triggerTransferHotkey(slot);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [consoleState, transferHotkeys, triggerTransferHotkey]);
+  const handleAgentStatusChange = reactExports.useCallback(
+    (statusCode) => {
+      if (STATUSES_REQUIRING_REASON.has(statusCode)) {
+        setPendingStatus(statusCode);
+        setReasonDraft("");
+        return;
+      }
+      onChangeAgentStatus(statusCode);
+    },
+    [onChangeAgentStatus]
+  );
+  const confirmStatusReason = reactExports.useCallback(() => {
+    if (!pendingStatus) {
+      return;
+    }
+    const reason = reasonDraft.trim();
+    onChangeAgentStatus(pendingStatus, reason || void 0);
+    setPendingStatus(null);
+    setReasonDraft("");
+  }, [pendingStatus, reasonDraft, onChangeAgentStatus]);
+  const cancelStatusReason = reactExports.useCallback(() => {
+    setPendingStatus(null);
+    setReasonDraft("");
+  }, []);
+  const activeCallId = activeCall?.callId ?? null;
+  const showCallInfo = consoleState === "talking" || consoleState === "transferring" || consoleState === "afterCall";
+  reactExports.useEffect(() => {
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!activeCallId || !desktopApi?.getCallContext || !showCallInfo) {
+      setCallContext(null);
+      setCallContextError(null);
+      return;
+    }
+    let cancelled = false;
+    setCallContextLoading(true);
+    setCallContextError(null);
+    void (async () => {
+      try {
+        const context = await desktopApi.getCallContext(activeCallId);
+        if (!cancelled) {
+          setCallContext(context);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCallContextError(error instanceof Error ? error.message : "알 수 없는 오류");
+        }
+      } finally {
+        if (!cancelled) {
+          setCallContextLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCallId, showCallInfo, activeCall?.sessionStatus]);
+  const handleSaveMemo = reactExports.useCallback(
+    async (memoText) => {
+      const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+      if (!desktopApi?.saveCallMemo || !activeCallId || !agentId) {
+        throw new Error("메모를 저장할 수 없습니다.");
+      }
+      const memo = await desktopApi.saveCallMemo({
+        callId: activeCallId,
+        agentId,
+        memoText,
+        memoType: "acw",
+        isFinal: false
+      });
+      setCallContext((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const filtered = prev.memos.filter((existing) => existing.callMemoId !== memo.callMemoId);
+        return { ...prev, memos: [memo, ...filtered] };
+      });
+    },
+    [activeCallId, agentId]
+  );
   const syncAudioDraft = (next) => {
     const merged = {
       ...audioDraft,
@@ -13236,7 +13855,7 @@ function SoftphoneShell({
           extension,
           statusLabel: formatAgentStatus(agentStatus),
           agentStatus,
-          onChangeAgentStatus,
+          onChangeAgentStatus: handleAgentStatusChange,
           onOpenSettings: () => setView("call"),
           settingsLabel: "통화"
         }
@@ -13314,6 +13933,65 @@ function SoftphoneShell({
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "통화 자동 처리" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "수신 벨 울림 시 자동 응답/거절. 0초 = 사용 안 함 (1~60초)." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-pref-grid", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 응답" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 0,
+                max: 60,
+                value: callPreferences.autoAnswerSeconds,
+                onChange: (event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
+                }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 거절" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 0,
+                max: 60,
+                value: callPreferences.autoRejectSeconds,
+                onChange: (event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
+                }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "후처리 자동 종료" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 0,
+                max: 60,
+                value: callPreferences.autoStatusAfterCallSeconds,
+                onChange: (event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
+                }
+              }
+            )
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "전환 단축키" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "통화 중 1~9 키로 즉시 전환. 라벨/번호/방식 등록." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(TransferHotkeyEditor, { slots: transferHotkeys, onSave: updateTransferHotkeys })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "진단" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => setShowDiagnostics((current) => !current), children: showDiagnostics ? "숨기기" : "보기" })
@@ -13372,7 +14050,7 @@ function SoftphoneShell({
         extension,
         statusLabel: formatAgentStatus(agentStatus),
         agentStatus,
-        onChangeAgentStatus,
+        onChangeAgentStatus: handleAgentStatusChange,
         onOpenSettings: () => setView("settings"),
         settingsLabel: "설정"
       }
@@ -13384,27 +14062,64 @@ function SoftphoneShell({
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: getCallSubtitle(activeCall, softphone) })
       ] })
     ] }),
-    consoleState === "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          className: "primary-button",
-          disabled: !canAnswerRinging,
-          onClick: activeCall ? onPickup : onAnswerSoftphoneCall,
-          children: "받기"
+    consoleState === "ringing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      (() => {
+        const answer = callPreferences.autoAnswerSeconds;
+        const reject = callPreferences.autoRejectSeconds;
+        if (answer <= 0 && reject <= 0) {
+          return null;
         }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          className: "danger-button",
-          disabled: !canAnswerRinging,
-          onClick: activeCall ? onHangup : onRejectSoftphoneCall,
-          children: "거절"
-        }
-      )
+        const autoAnswerWins = answer > 0 && (reject <= 0 || answer <= reject);
+        const action = autoAnswerWins ? "auto-answer" : "auto-reject";
+        const seconds = autoAnswerWins ? answer : reject;
+        const trigger = () => {
+          if (!canAnswerRinging) {
+            return;
+          }
+          if (autoAnswerWins) {
+            if (activeCall) {
+              onPickup();
+            } else {
+              onAnswerSoftphoneCall();
+            }
+          } else if (activeCall) {
+            onHangup();
+          } else {
+            onRejectSoftphoneCall();
+          }
+        };
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          RingingAutoTimer,
+          {
+            active: consoleState === "ringing",
+            totalSeconds: seconds,
+            action,
+            onTrigger: trigger
+          }
+        );
+      })(),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "primary-button",
+            disabled: !canAnswerRinging,
+            onClick: activeCall ? onPickup : onAnswerSoftphoneCall,
+            children: "받기"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            className: "danger-button",
+            disabled: !canAnswerRinging,
+            onClick: activeCall ? onHangup : onRejectSoftphoneCall,
+            children: "거절"
+          }
+        )
+      ] })
     ] }) : null,
     consoleState === "idle" || consoleState === "afterCall" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
@@ -13476,6 +14191,16 @@ function SoftphoneShell({
         })()) })
       ] })
     ] }) : null,
+    showCallInfo && activeCall ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CallInfoPanel,
+      {
+        context: callContext,
+        loading: callContextLoading,
+        error: callContextError,
+        agentId: agentId ?? null,
+        onSaveMemo: handleSaveMemo
+      }
+    ) : null,
     consoleState === "talking" || consoleState === "transferring" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-control-row", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onMute, children: softphone?.session ? softphone.localMuted ? "음소거 해제" : "음소거" : activeCall?.isMuted ? "음소거 해제" : "음소거" }),
@@ -13520,6 +14245,21 @@ function SoftphoneShell({
             }
           )
         ] }),
+        transferHotkeys.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "transfer-hotkey-strip", children: transferHotkeys.map((slot) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            className: `hotkey-chip hotkey-chip--${slot.mode}`,
+            onClick: () => triggerTransferHotkey(slot.slot),
+            disabled: !transferAvailable,
+            title: `${slot.mode === "attended" ? "상담" : "바로"} 전환 / ${slot.target}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hotkey-chip__index", children: slot.slot }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hotkey-chip__label", children: slot.label })
+            ]
+          },
+          slot.slot
+        )) }) : null,
         agentDirectory.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "transfer-agent-strip", children: availableAgents.slice(0, 3).map((agent) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => setTransferTarget(agent.extension), children: agent.agentName }, agent.agentId)) }) : null,
         activeCall.latestTransfer ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onCompleteAttendedTransfer, children: "완료" }),
@@ -13527,6 +14267,27 @@ function SoftphoneShell({
         ] }) : null
       ] }) : null
     ] }) : null,
+    pendingStatus ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "status-reason-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "status-reason-title", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "status-reason-dialog", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { id: "status-reason-title", children: [
+        formatAgentStatus(pendingStatus),
+        " 사유"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "필요 시 짧게 입력 (선택). 비워두면 사유 없이 변경됩니다." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          autoFocus: true,
+          value: reasonDraft,
+          onChange: (event) => setReasonDraft(event.target.value),
+          placeholder: "예: 점심, 휴식, 교육 등",
+          rows: 3
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "primary-action-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "primary-button", onClick: confirmStatusReason, children: "변경" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "secondary-button", onClick: cancelStatusReason, children: "취소" })
+      ] })
+    ] }) }) : null,
     internalTarget ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "confirm-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "internal-call-title", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "confirm-dialog", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { id: "internal-call-title", children: "내선 통화" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
@@ -26858,6 +27619,7 @@ function formatCandidate(candidate) {
   const type = candidate.candidateType ?? "unknown";
   return `${type}/${protocol}/${address}:${candidate.port ?? "unknown"}`;
 }
+const MAX_ANNOUNCEMENTS = 5;
 let detachRuntimeListener = null;
 let audioController = null;
 let softphoneMediaController = null;
@@ -27138,28 +27900,40 @@ function resolveRuntimeConnection(hasSession, currentRuntimeConnection) {
   }
   return currentRuntimeConnection === "idle" ? "connected" : currentRuntimeConnection;
 }
-function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, currentRuntimeConnection, currentAgentId) {
+function totalWaiting(rows) {
+  return rows.reduce((sum, row) => sum + (row.waitingCount ?? 0), 0);
+}
+function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, currentRuntimeConnection, currentAgentId, currentAnnouncements, currentQueueSummary, currentQueueArrivalFlashAt) {
   switch (event.type) {
     case "call.created":
       return {
         activeCall: event.payload,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`)
+        events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "call.updated":
       return {
         activeCall: event.payload,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`)
+        events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "call.ended":
       return {
         activeCall: currentCall?.callId === event.payload.callId ? null : currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`)
+        events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "screenpop.customer":
       return {
@@ -27169,22 +27943,60 @@ function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, curr
         } : currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`)
+        events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
     case "agent.status.changed":
       return {
         activeCall: currentCall,
         agentStatus: !currentAgentId || currentAgentId === event.payload.agentId ? event.payload.statusCode : currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`)
+        events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
-    case "queue.summary.updated":
+    case "queue.summary.updated": {
+      const next = event.payload;
+      const arrived = totalWaiting(next) > totalWaiting(currentQueueSummary);
       return {
         activeCall: currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `큐 요약 갱신 ${event.payload.length}건`)
+        events: pushEvent(currentEvents, `큐 요약 갱신 ${next.length}건`),
+        announcements: currentAnnouncements,
+        queueSummary: next,
+        queueArrivalFlashAt: arrived ? (/* @__PURE__ */ new Date()).toISOString() : currentQueueArrivalFlashAt
       };
+    }
+    case "announcement.pushed": {
+      const incoming = {
+        announcementId: event.payload.announcementId,
+        title: event.payload.title,
+        body: event.payload.body,
+        authorName: event.payload.authorName ?? null,
+        pinned: event.payload.pinned ?? false,
+        receivedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const filtered = currentAnnouncements.filter(
+        (item) => item.announcementId !== incoming.announcementId
+      );
+      const next = [incoming, ...filtered].slice(0, MAX_ANNOUNCEMENTS);
+      return {
+        activeCall: currentCall,
+        agentStatus: currentAgentStatus,
+        runtimeConnection: currentRuntimeConnection,
+        events: pushEvent(
+          currentEvents,
+          `공지 ${event.payload.action === "updated" ? "수정" : "신규"} ${event.payload.title}`
+        ),
+        announcements: next,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
+      };
+    }
     case "runtime.connection.changed":
       return {
         activeCall: currentCall,
@@ -27193,7 +28005,10 @@ function reduceEvent(event, currentCall, currentEvents, currentAgentStatus, curr
         events: pushEvent(
           currentEvents,
           `runtime ${event.payload.state}${event.payload.reason ? ` / ${event.payload.reason}` : ""}`
-        )
+        ),
+        announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt
       };
   }
 }
@@ -27206,7 +28021,10 @@ function bindRuntimeEvents(setState) {
       state.events,
       state.agentStatus,
       state.runtimeConnection,
-      state.agent?.agentId
+      state.agent?.agentId,
+      state.announcements,
+      state.queueSummary,
+      state.queueArrivalFlashAt
     ));
   });
 }
@@ -27273,6 +28091,9 @@ const useDesktopStore = create((set) => ({
   config: null,
   activeCall: null,
   events: [],
+  announcements: [],
+  queueSummary: [],
+  queueArrivalFlashAt: null,
   audioPermission: "unknown",
   refreshingAudioDevices: false,
   audioPreferences: null,
@@ -27569,15 +28390,15 @@ const useDesktopStore = create((set) => ({
       }));
     }
   },
-  async changeAgentStatus(statusCode) {
+  async changeAgentStatus(statusCode, reasonCode) {
     const agent = useDesktopStore.getState().agent;
     if (!agent) {
       return;
     }
-    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode);
+    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode, reasonCode);
     set((current) => ({
       agentStatus: result.statusCode,
-      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}`)
+      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}${reasonCode ? ` (${reasonCode})` : ""}`)
     }));
   },
   async originate(phoneNumber, callerId) {
@@ -28021,6 +28842,13 @@ const useDesktopStore = create((set) => ({
       events: pushEvent(current.events, "softphone 종료 요청")
     }));
     getSoftphoneMediaController()?.stopRingtone();
+  },
+  dismissAnnouncement(announcementId) {
+    set((current) => ({
+      announcements: current.announcements.filter(
+        (item) => item.announcementId !== announcementId
+      )
+    }));
   }
 }));
 function App() {
@@ -28084,7 +28912,11 @@ function App() {
     stopSoftphone,
     answerSoftphoneCall,
     rejectSoftphoneCall,
-    hangupSoftphoneCall
+    hangupSoftphoneCall,
+    announcements,
+    dismissAnnouncement,
+    queueSummary,
+    queueArrivalFlashAt
   } = useDesktopStore();
   const updateBlockReason = activeCall && activeCall.sessionStatus !== "ENDED" ? "CTI 통화 종료 후 적용" : softphone?.session ? "softphone 통화 종료 후 적용" : runtimeConnection === "reconnecting" ? "runtime 재연결 후 적용" : "지금 적용 가능";
   reactExports.useEffect(() => {
@@ -28146,6 +28978,14 @@ function App() {
     );
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "desktop-layout", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "desktop-main", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(QueueMonitorPanel, { queueSummary, flashAt: queueArrivalFlashAt }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      AnnouncementBannerStack,
+      {
+        announcements,
+        onDismiss: dismissAnnouncement
+      }
+    ),
     updateState ? /* @__PURE__ */ jsxRuntimeExports.jsx(
       UpdateBanner,
       {
@@ -28164,6 +29004,7 @@ function App() {
       {
         config,
         agentName: agent.agentName,
+        agentId: agent.agentId,
         extension: agent.extension,
         agentStatus,
         runtimeConnection,

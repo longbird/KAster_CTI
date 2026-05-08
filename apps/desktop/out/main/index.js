@@ -73,6 +73,123 @@ class AudioPreferencesStore {
     return next;
   }
 }
+const DEFAULT_CALL_PREFERENCES = {
+  autoAnswerSeconds: 0,
+  autoRejectSeconds: 0,
+  autoStatusAfterCallSeconds: 0
+};
+const MIN_SECONDS = 0;
+const MAX_SECONDS = 60;
+function clampSeconds(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return 0;
+  }
+  return Math.max(MIN_SECONDS, Math.min(MAX_SECONDS, Math.floor(value)));
+}
+function normalize(input) {
+  return {
+    autoAnswerSeconds: clampSeconds(input.autoAnswerSeconds),
+    autoRejectSeconds: clampSeconds(input.autoRejectSeconds),
+    autoStatusAfterCallSeconds: clampSeconds(input.autoStatusAfterCallSeconds)
+  };
+}
+class CallPreferencesStore {
+  constructor(userDataDir) {
+    this.userDataDir = userDataDir;
+    this.filePath = join(userDataDir, "call-preferences.json");
+  }
+  filePath;
+  async load() {
+    try {
+      const raw = await readFile(this.filePath, "utf8");
+      return normalize({
+        ...DEFAULT_CALL_PREFERENCES,
+        ...JSON.parse(raw)
+      });
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") {
+        return DEFAULT_CALL_PREFERENCES;
+      }
+      throw error;
+    }
+  }
+  async save(input) {
+    const next = normalize(input);
+    await mkdir(this.userDataDir, { recursive: true });
+    await writeFile(this.filePath, JSON.stringify(next, null, 2), "utf8");
+    return next;
+  }
+}
+const MIN_SLOT = 1;
+const MAX_SLOT = 9;
+const MAX_LABEL = 20;
+const MAX_TARGET = 32;
+function clamp(value, min, max) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+function sanitizeText(value, maxLen) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.replace(/[\r\n]/g, "").trim().slice(0, maxLen);
+}
+function normalizeSlots(input) {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const result = [];
+  for (const raw of input) {
+    if (!raw || typeof raw !== "object") {
+      continue;
+    }
+    const r = raw;
+    const slot = clamp(r.slot, MIN_SLOT, MAX_SLOT);
+    if (seen.has(slot)) {
+      continue;
+    }
+    const target = sanitizeText(r.target, MAX_TARGET);
+    if (!target) {
+      continue;
+    }
+    seen.add(slot);
+    result.push({
+      slot,
+      label: sanitizeText(r.label, MAX_LABEL) || target,
+      target,
+      mode: r.mode === "attended" ? "attended" : "blind"
+    });
+  }
+  result.sort((a, b) => a.slot - b.slot);
+  return result;
+}
+class TransferHotkeysStore {
+  constructor(userDataDir) {
+    this.userDataDir = userDataDir;
+    this.filePath = join(userDataDir, "transfer-hotkeys.json");
+  }
+  filePath;
+  async load() {
+    try {
+      const raw = await readFile(this.filePath, "utf8");
+      return normalizeSlots(JSON.parse(raw));
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
+  }
+  async save(input) {
+    const next = normalizeSlots(input);
+    await mkdir(this.userDataDir, { recursive: true });
+    await writeFile(this.filePath, JSON.stringify(next, null, 2), "utf8");
+    return next;
+  }
+}
 function toDesktopAuthError(error) {
   if (error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object") {
     const response = error.response;
@@ -316,7 +433,8 @@ const EVENT_NAMES = [
   "call.ended",
   "screenpop.customer",
   "agent.status.changed",
-  "queue.summary.updated"
+  "queue.summary.updated",
+  "announcement.pushed"
 ];
 class CtiRuntime {
   constructor(options) {
@@ -392,8 +510,11 @@ class CtiRuntime {
   async pickup(callId) {
     return this.sendSimpleCommand(`/calls/${callId}/pickup`);
   }
-  async changeAgentStatus(agentId, statusCode) {
-    const response = await this.http.post(`/agents/${agentId}/status`, { statusCode });
+  async changeAgentStatus(agentId, statusCode, reasonCode) {
+    const response = await this.http.post(`/agents/${agentId}/status`, {
+      statusCode,
+      ...reasonCode ? { reasonCode } : {}
+    });
     return response.data.data;
   }
   async originate(params) {
@@ -474,6 +595,71 @@ class CtiRuntime {
       primaryAgent: row.primaryAgent?.agentName ? { agentName: row.primaryAgent.agentName } : null,
       customer: row.customer?.customerName ? { customerName: row.customer.customerName } : null
     }));
+  }
+  async getCallContext(callId) {
+    const response = await this.http.get(`/calls/${callId}`);
+    const data = response.data?.data;
+    if (!data) {
+      return null;
+    }
+    const customer = data.customer ? {
+      customerId: String(data.customer.customerId ?? ""),
+      customerName: String(data.customer.customerName ?? ""),
+      grade: data.customer.grade ?? null,
+      memo: data.customer.memo ?? null,
+      primaryPhoneNumber: data.customer.phones?.find((p) => p.isPrimary)?.phoneNumber ?? data.customer.phones?.[0]?.phoneNumber ?? null,
+      extraPhoneNumbers: Array.isArray(data.customer.phones) ? data.customer.phones.filter((p) => !p.isPrimary).map((p) => p.phoneNumber ?? "").filter(Boolean) : []
+    } : null;
+    const history = Array.isArray(data.customerHistory) ? data.customerHistory.map((row) => ({
+      callId: row.callId ?? "",
+      direction: row.direction ?? null,
+      sessionStatus: row.sessionStatus ?? "",
+      startedAt: String(row.startedAt ?? ""),
+      answeredAt: row.answeredAt ? String(row.answeredAt) : null,
+      endedAt: row.endedAt ? String(row.endedAt) : null,
+      talkSeconds: typeof row.talkSeconds === "number" ? row.talkSeconds : null,
+      queueName: row.queueName ?? null,
+      primaryAgentName: row.primaryAgent?.agentName ?? null
+    })) : [];
+    const memos = Array.isArray(data.callMemos) ? data.callMemos.map((memo) => ({
+      callMemoId: memo.callMemoId ?? "",
+      agentId: memo.agentId ?? null,
+      memoType: memo.memoType ?? null,
+      resultCode: memo.resultCode ?? null,
+      subResultCode: memo.subResultCode ?? null,
+      memoText: memo.memoText ?? null,
+      isFinal: memo.isFinal ?? null,
+      createdAt: String(memo.createdAt ?? "")
+    })) : [];
+    return {
+      callId: String(data.callId ?? callId),
+      customer,
+      representativeNumber: data.representativeNumber ?? null,
+      history,
+      memos
+    };
+  }
+  async saveCallMemo(input) {
+    const { callId, ...body } = input;
+    const response = await this.http.post(`/calls/${callId}/memo`, {
+      agentId: body.agentId,
+      memoType: body.memoType ?? "acw",
+      memoText: body.memoText,
+      resultCode: body.resultCode,
+      subResultCode: body.subResultCode,
+      isFinal: body.isFinal ?? true
+    });
+    const memo = response.data?.data ?? {};
+    return {
+      callMemoId: memo.callMemoId ?? "",
+      agentId: memo.agentId ?? null,
+      memoType: memo.memoType ?? null,
+      resultCode: memo.resultCode ?? null,
+      subResultCode: memo.subResultCode ?? null,
+      memoText: memo.memoText ?? null,
+      isFinal: memo.isFinal ?? null,
+      createdAt: String(memo.createdAt ?? "")
+    };
   }
   async hold(callId) {
     return this.sendSimpleCommand(`/calls/${callId}/hold`);
@@ -875,6 +1061,8 @@ class UpdateClient {
 }
 const configStore = new DesktopConfigStore(app.getPath("userData"));
 const audioPreferencesStore = new AudioPreferencesStore(app.getPath("userData"));
+const callPreferencesStore = new CallPreferencesStore(app.getPath("userData"));
+const transferHotkeysStore = new TransferHotkeysStore(app.getPath("userData"));
 const tokenVault = new TokenVault(app.getPath("userData"));
 const attentionService = new AttentionService({
   getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
@@ -1196,6 +1384,10 @@ app.whenReady().then(() => {
   ipcMain.handle("desktop:save-config", (_event, input) => configStore.save(input));
   ipcMain.handle("desktop:get-audio-preferences", () => audioPreferencesStore.load());
   ipcMain.handle("desktop:save-audio-preferences", (_event, input) => audioPreferencesStore.save(input));
+  ipcMain.handle("desktop:get-call-preferences", () => callPreferencesStore.load());
+  ipcMain.handle("desktop:save-call-preferences", (_event, input) => callPreferencesStore.save(input));
+  ipcMain.handle("desktop:get-transfer-hotkeys", () => transferHotkeysStore.load());
+  ipcMain.handle("desktop:save-transfer-hotkeys", (_event, input) => transferHotkeysStore.save(input));
   ipcMain.handle("desktop:get-session", async () => toSessionSummary(await tokenVault.load()));
   ipcMain.handle("desktop:get-desktop-session", async (_event, accessToken) => {
     const config = await configStore.load();
@@ -1295,11 +1487,11 @@ app.whenReady().then(() => {
     }
     return runtime.pickup(callId);
   });
-  ipcMain.handle("desktop:change-agent-status", (_event, agentId, statusCode) => {
+  ipcMain.handle("desktop:change-agent-status", (_event, agentId, statusCode, reasonCode) => {
     if (!runtime) {
       throw new Error("Runtime is not connected.");
     }
-    return runtime.changeAgentStatus(agentId, statusCode);
+    return runtime.changeAgentStatus(agentId, statusCode, reasonCode);
   });
   ipcMain.handle("desktop:originate", (_event, params) => {
     if (!runtime) {
@@ -1380,6 +1572,18 @@ app.whenReady().then(() => {
       throw new Error("Runtime is not connected.");
     }
     return runtime.completeAttendedTransfer(callId);
+  });
+  ipcMain.handle("desktop:get-call-context", (_event, callId) => {
+    if (!runtime) {
+      throw new Error("Runtime is not connected.");
+    }
+    return runtime.getCallContext(callId);
+  });
+  ipcMain.handle("desktop:save-call-memo", (_event, input) => {
+    if (!runtime) {
+      throw new Error("Runtime is not connected.");
+    }
+    return runtime.saveCallMemo(input);
   });
   ipcMain.handle("desktop:hold", (_event, callId) => {
     if (!runtime) {

@@ -1038,4 +1038,98 @@ describe('useDesktopStore pairing', () => {
     useDesktopStore.getState().dismissAnnouncement('a-1');
     expect(useDesktopStore.getState().announcements.map((it) => it.announcementId)).toEqual(['a-2']);
   });
+
+  it('queue.summary.updated 는 큐 요약을 저장하고 대기 증가 시 flashAt 을 갱신한다', async () => {
+    const dateSpy = vi.spyOn(Date.prototype, 'toISOString');
+    let counter = 0;
+    dateSpy.mockImplementation(() => {
+      counter += 1;
+      return `2026-05-08T00:00:${String(counter).padStart(2, '0')}.000Z`;
+    });
+
+    try {
+      desktopApi.getConfig.mockResolvedValueOnce({
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      });
+      desktopApi.getSession.mockResolvedValueOnce({
+        agent: {
+          agentId: 'agent-1',
+          agentName: '상담원1',
+          extension: '1001',
+          role: 'agent',
+        },
+      });
+      desktopApi.onEvent.mockImplementationOnce((listener) => {
+        listener({
+          type: 'queue.summary.updated',
+          payload: [
+            {
+              queueId: 'q-1',
+              queueName: '대표',
+              waitingCount: 1,
+              talkingCount: 0,
+              availableAgents: 2,
+              longestWaitSeconds: 12,
+            },
+          ],
+        });
+        return () => undefined;
+      });
+
+      await useDesktopStore.getState().initialize();
+
+      const after1 = useDesktopStore.getState();
+      expect(after1.queueSummary).toHaveLength(1);
+      expect(after1.queueSummary[0]?.waitingCount).toBe(1);
+      expect(after1.queueArrivalFlashAt).not.toBeNull();
+      const firstFlashAt = after1.queueArrivalFlashAt;
+
+      desktopApi.onEvent.mockImplementationOnce((listener) => {
+        listener({
+          type: 'queue.summary.updated',
+          payload: [
+            {
+              queueId: 'q-1',
+              queueName: '대표',
+              waitingCount: 0,
+              talkingCount: 1,
+              availableAgents: 2,
+              longestWaitSeconds: 0,
+            },
+          ],
+        });
+        return () => undefined;
+      });
+      await useDesktopStore.getState().reconnectRuntime();
+      const after2 = useDesktopStore.getState();
+      expect(after2.queueSummary[0]?.waitingCount).toBe(0);
+      expect(after2.queueArrivalFlashAt).toBe(firstFlashAt);
+
+      desktopApi.onEvent.mockImplementationOnce((listener) => {
+        listener({
+          type: 'queue.summary.updated',
+          payload: [
+            {
+              queueId: 'q-1',
+              queueName: '대표',
+              waitingCount: 2,
+              talkingCount: 1,
+              availableAgents: 2,
+              longestWaitSeconds: 8,
+            },
+          ],
+        });
+        return () => undefined;
+      });
+      await useDesktopStore.getState().reconnectRuntime();
+      const after3 = useDesktopStore.getState();
+      expect(after3.queueSummary[0]?.waitingCount).toBe(2);
+      expect(after3.queueArrivalFlashAt).not.toBe(firstFlashAt);
+      expect(after3.queueArrivalFlashAt).not.toBeNull();
+    } finally {
+      dateSpy.mockRestore();
+    }
+  });
 });

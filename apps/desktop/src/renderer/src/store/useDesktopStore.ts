@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActiveCall, AgentStatusCode, CtiEvent } from '../../../shared/cti';
+import type { ActiveCall, AgentStatusCode, CtiEvent, QueueSummary } from '../../../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
   DesktopAgentProfile,
@@ -75,6 +75,8 @@ interface DesktopStore {
   activeCall: ActiveCall | null;
   events: string[];
   announcements: AnnouncementBanner[];
+  queueSummary: QueueSummary[];
+  queueArrivalFlashAt: string | null;
   audioPermission: AudioPermissionState;
   refreshingAudioDevices: boolean;
   audioPreferences: DesktopAudioPreferences | null;
@@ -490,6 +492,10 @@ function resolveRuntimeConnection(
   return currentRuntimeConnection === 'idle' ? 'connected' : currentRuntimeConnection;
 }
 
+function totalWaiting(rows: QueueSummary[]): number {
+  return rows.reduce((sum, row) => sum + (row.waitingCount ?? 0), 0);
+}
+
 function reduceEvent(
   event: CtiEvent,
   currentCall: ActiveCall | null,
@@ -498,7 +504,18 @@ function reduceEvent(
   currentRuntimeConnection: DesktopStore['runtimeConnection'],
   currentAgentId: string | null | undefined,
   currentAnnouncements: AnnouncementBanner[],
-): Pick<DesktopStore, 'activeCall' | 'events' | 'agentStatus' | 'runtimeConnection' | 'announcements'> {
+  currentQueueSummary: QueueSummary[],
+  currentQueueArrivalFlashAt: string | null,
+): Pick<
+  DesktopStore,
+  | 'activeCall'
+  | 'events'
+  | 'agentStatus'
+  | 'runtimeConnection'
+  | 'announcements'
+  | 'queueSummary'
+  | 'queueArrivalFlashAt'
+> {
   switch (event.type) {
     case 'call.created':
       return {
@@ -507,6 +524,8 @@ function reduceEvent(
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`),
         announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'call.updated':
       return {
@@ -515,6 +534,8 @@ function reduceEvent(
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`),
         announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'call.ended':
       return {
@@ -523,6 +544,8 @@ function reduceEvent(
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`),
         announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'screenpop.customer':
       return {
@@ -536,6 +559,8 @@ function reduceEvent(
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`),
         announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     case 'agent.status.changed':
       return {
@@ -546,15 +571,22 @@ function reduceEvent(
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`),
         announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
-    case 'queue.summary.updated':
+    case 'queue.summary.updated': {
+      const next = event.payload;
+      const arrived = totalWaiting(next) > totalWaiting(currentQueueSummary);
       return {
         activeCall: currentCall,
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
-        events: pushEvent(currentEvents, `큐 요약 갱신 ${event.payload.length}건`),
+        events: pushEvent(currentEvents, `큐 요약 갱신 ${next.length}건`),
         announcements: currentAnnouncements,
+        queueSummary: next,
+        queueArrivalFlashAt: arrived ? new Date().toISOString() : currentQueueArrivalFlashAt,
       };
+    }
     case 'announcement.pushed': {
       const incoming: AnnouncementBanner = {
         announcementId: event.payload.announcementId,
@@ -577,6 +609,8 @@ function reduceEvent(
           `공지 ${event.payload.action === 'updated' ? '수정' : '신규'} ${event.payload.title}`,
         ),
         announcements: next,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
     }
     case 'runtime.connection.changed':
@@ -589,6 +623,8 @@ function reduceEvent(
           `runtime ${event.payload.state}${event.payload.reason ? ` / ${event.payload.reason}` : ''}`,
         ),
         announcements: currentAnnouncements,
+        queueSummary: currentQueueSummary,
+        queueArrivalFlashAt: currentQueueArrivalFlashAt,
       };
   }
 }
@@ -610,6 +646,8 @@ function bindRuntimeEvents(
       state.runtimeConnection,
       state.agent?.agentId,
       state.announcements,
+      state.queueSummary,
+      state.queueArrivalFlashAt,
     ));
   });
 }
@@ -694,6 +732,8 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   activeCall: null,
   events: [],
   announcements: [],
+  queueSummary: [],
+  queueArrivalFlashAt: null,
   audioPermission: 'unknown',
   refreshingAudioDevices: false,
   audioPreferences: null,

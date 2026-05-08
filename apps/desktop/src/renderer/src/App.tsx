@@ -4,6 +4,7 @@ import { AnnouncementBannerStack } from './components/AnnouncementBannerStack';
 import { CallHistoryPopup } from './components/CallHistoryPopup';
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { PairingScreen } from './components/PairingScreen';
+import { QueueMonitorPanel } from './components/QueueMonitorPanel';
 import { SoftphoneShell } from './components/SoftphoneShell';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useDesktopStore } from './store/useDesktopStore';
@@ -74,6 +75,8 @@ export default function App() {
     hangupSoftphoneCall,
     announcements,
     dismissAnnouncement,
+    queueSummary,
+    queueArrivalFlashAt,
   } = useDesktopStore();
   const updateBlockReason =
     activeCall && activeCall.sessionStatus !== 'ENDED'
@@ -156,6 +159,7 @@ export default function App() {
   return (
     <main className="desktop-layout">
       <div className="desktop-main">
+        <QueueMonitorPanel queueSummary={queueSummary} flashAt={queueArrivalFlashAt} />
         <AnnouncementBannerStack
           announcements={announcements}
           onDismiss={dismissAnnouncement}
