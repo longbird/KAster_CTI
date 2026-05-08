@@ -27,7 +27,10 @@ export function deriveDesktopConsoleState(input: {
   if (
     input.activeCall?.sessionStatus === 'QUEUED' ||
     input.activeCall?.sessionStatus === 'RINGING_AGENT' ||
-    input.softphone?.session?.phase === 'ringing'
+    (
+      input.softphone?.session?.direction === 'incoming' &&
+      input.softphone.session.phase === 'ringing'
+    )
   ) {
     return 'ringing';
   }
@@ -35,7 +38,13 @@ export function deriveDesktopConsoleState(input: {
   if (
     input.activeCall?.sessionStatus === 'TALKING' ||
     input.activeCall?.sessionStatus === 'HOLD' ||
-    (input.softphone?.session && input.softphone.session.phase !== 'ringing')
+    (
+      input.softphone?.session &&
+      (
+        input.softphone.session.direction === 'outgoing' ||
+        input.softphone.session.phase !== 'ringing'
+      )
+    )
   ) {
     return 'talking';
   }

@@ -705,7 +705,7 @@ button {
 }
 
 .call-control-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
 }
 
 .console-section {
@@ -724,6 +724,25 @@ button {
 .console-section h2 {
   font-size: 14px;
   font-weight: 800;
+}
+
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.settings-tabs button {
+  min-height: 32px;
+  padding: 6px 4px;
+  border-color: var(--border);
+  font-size: 12px;
+}
+
+.settings-tabs button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-text);
 }
 
 .dial-grid {

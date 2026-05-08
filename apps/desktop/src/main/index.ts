@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu, Notification, Tray, nativeImage, session, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { AttentionService } from './attention-service';
 import { AudioPreferencesStore } from './audio-preferences-store';
@@ -18,9 +18,11 @@ import { TrayService } from './tray-service';
 import { UpdateClient } from './update-client';
 import type {
   DesktopGeneralPreferences,
+  DesktopDiagnosticEvent,
   DesktopHistoryOriginateResult,
   DesktopProtocolConnectPayload,
   DesktopSaveCallMemoInput,
+  DesktopSoftphoneDtmfResult,
   DesktopWindowMode,
 } from '../shared/ipc';
 import { normalizeCenterConfig } from '../shared/center-config';
@@ -31,6 +33,8 @@ const callPreferencesStore = new CallPreferencesStore(app.getPath('userData'));
 const generalPreferencesStore = new GeneralPreferencesStore(app.getPath('userData'));
 const transferHotkeysStore = new TransferHotkeysStore(app.getPath('userData'));
 const tokenVault = new TokenVault(app.getPath('userData'));
+const diagnosticLogPath = join(app.getPath('userData'), 'originate-diagnostics.jsonl');
+const diagnosticEvents: Array<DesktopDiagnosticEvent & { occurredAt: string }> = [];
 const attentionService = new AttentionService({
   getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
   NotificationCtor: Notification as unknown as new (options: { title: string; body: string }) => {
@@ -38,7 +42,15 @@ const attentionService = new AttentionService({
     on(event: 'click', listener: () => void): void;
   },
 });
-const desktopBridgeServer = new DesktopBridgeServer();
+const desktopBridgeServer = new DesktopBridgeServer({
+  getDiagnostics: () => ({
+    runtimeConnected: Boolean(runtime),
+    primaryWindowReady: Boolean(primaryWindow && !primaryWindow.isDestroyed()),
+    windowCount: BrowserWindow.getAllWindows().length,
+    logPath: diagnosticLogPath,
+    events: diagnosticEvents.slice(-80),
+  }),
+});
 const protocolConnectInbox = new ProtocolConnectInbox();
 let runtime: CtiRuntime | null = null;
 let isQuitting = false;
@@ -47,6 +59,11 @@ let runtimeSupervisor: RuntimeSupervisor | null = null;
 let primaryWindow: BrowserWindow | null = null;
 const historyOriginateRequests = new Map<string, {
   resolve: (result: DesktopHistoryOriginateResult) => void;
+  reject: (error: Error) => void;
+  timer: NodeJS.Timeout;
+}>();
+const softphoneDtmfRequests = new Map<string, {
+  resolve: (result: DesktopSoftphoneDtmfResult) => void;
   reject: (error: Error) => void;
   timer: NodeJS.Timeout;
 }>();
@@ -59,6 +76,23 @@ let preparedUpdate:
       mandatory: boolean;
     }
   | null = null;
+
+function recordDiagnosticEvent(input: DesktopDiagnosticEvent) {
+  const event = {
+    ...input,
+    occurredAt: new Date().toISOString(),
+  };
+  diagnosticEvents.push(event);
+  if (diagnosticEvents.length > 100) {
+    diagnosticEvents.splice(0, diagnosticEvents.length - 100);
+  }
+
+  try {
+    appendFileSync(diagnosticLogPath, `${JSON.stringify(event)}\n`, 'utf8');
+  } catch {
+    // 진단 로그 기록 실패가 통화 동작을 막으면 안 됩니다.
+  }
+}
 
 const DESKTOP_WINDOW_BOUNDS = {
   idle: { width: 440, height: 560, minWidth: 420, minHeight: 520 },
@@ -88,7 +122,11 @@ function getPrimaryWindow() {
 
   return BrowserWindow.getAllWindows().find((win) => {
     const title = win.getTitle();
-    return title !== getUtilityWindowTitle('history') && title !== getUtilityWindowTitle('agents');
+    return (
+      title !== getUtilityWindowTitle('history')
+      && title !== getUtilityWindowTitle('agents')
+      && title !== getUtilityWindowTitle('dialpad')
+    );
   }) ?? null;
 }
 
@@ -110,16 +148,30 @@ function getUtilityWindowBounds(kind: UtilityWindowKind) {
   return { width: 360, height: 560, minWidth: 320, minHeight: 520 };
 }
 
-function getUtilityWindowRoute(kind: UtilityWindowKind) {
+function getUtilityWindowRoute(kind: UtilityWindowKind, mode?: 'originate' | 'dtmf') {
   if (kind === 'history') return '#/history-popup';
   if (kind === 'agents') return '#/agent-list-popup';
-  return '#/dialpad-popup';
+  return mode === 'dtmf' ? '#/dialpad-popup?mode=dtmf' : '#/dialpad-popup';
 }
 
-function openUtilityWindow(kind: UtilityWindowKind) {
+function loadUtilityRoute(win: BrowserWindow, route: string) {
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  if (rendererUrl) {
+    void win.loadURL(`${rendererUrl}${route}`);
+    return;
+  }
+
+  void win.loadFile(join(__dirname, '../renderer/index.html'), { hash: route.slice(1) });
+}
+
+function openUtilityWindow(kind: UtilityWindowKind, mode?: 'originate' | 'dtmf') {
   const title = getUtilityWindowTitle(kind);
+  const route = getUtilityWindowRoute(kind, mode);
   const existing = BrowserWindow.getAllWindows().find((win) => win.getTitle() === title);
   if (existing) {
+    if (kind === 'dialpad') {
+      loadUtilityRoute(existing, route);
+    }
     existing.show();
     existing.focus();
     return;
@@ -140,15 +192,7 @@ function openUtilityWindow(kind: UtilityWindowKind) {
   });
   win.setTitle(title);
   win.setMenuBarVisibility(false);
-
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  const route = getUtilityWindowRoute(kind);
-  if (rendererUrl) {
-    void win.loadURL(`${rendererUrl}${route}`);
-    return;
-  }
-
-  void win.loadFile(join(__dirname, '../renderer/index.html'), { hash: route.slice(1) });
+  loadUtilityRoute(win, route);
 }
 
 function getProtocolArg(argv: string[]) {
@@ -605,10 +649,46 @@ app.whenReady().then(async () => {
     phoneNumber: string;
     callerId?: string;
   }) => {
+    recordDiagnosticEvent({
+      stage: 'main:originate-ipc',
+      detail: {
+        hasRuntime: Boolean(runtime),
+        agentExtension: params.agentExtension,
+        phoneNumber: params.phoneNumber,
+        callerId: params.callerId ?? null,
+      },
+    });
     if (!runtime) {
+      recordDiagnosticEvent({
+        stage: 'main:originate-no-runtime',
+        detail: {
+          phoneNumber: params.phoneNumber,
+        },
+      });
       throw new Error('Runtime is not connected.');
     }
-    return runtime.originate(params);
+    return runtime.originate(params)
+      .then((result) => {
+        recordDiagnosticEvent({
+          stage: 'main:originate-ok',
+          detail: {
+            phoneNumber: params.phoneNumber,
+            accepted: result.accepted,
+            correlationId: result.correlationId ?? null,
+          },
+        });
+        return result;
+      })
+      .catch((error) => {
+        recordDiagnosticEvent({
+          stage: 'main:originate-error',
+          detail: {
+            phoneNumber: params.phoneNumber,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+        throw error;
+      });
   });
   ipcMain.handle('desktop:originate-internal', (_event, input: {
     targetAgentId: string;
@@ -640,6 +720,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('desktop:request-history-originate', (_event, input: { phoneNumber: string }) => {
     const win = getPrimaryWindow();
     const phoneNumber = input.phoneNumber?.trim();
+    recordDiagnosticEvent({
+      stage: 'main:history-originate-request',
+      detail: {
+        hasPrimaryWindow: Boolean(win),
+        phoneNumber,
+      },
+    });
     if (!win || !phoneNumber) {
       throw new Error('상담원 화면으로 발신 요청을 전달할 수 없습니다.');
     }
@@ -658,6 +745,15 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('desktop:complete-history-originate', (_event, input: DesktopHistoryOriginateResult) => {
     const pending = historyOriginateRequests.get(input.requestId);
+    recordDiagnosticEvent({
+      stage: 'main:history-originate-complete',
+      detail: {
+        requestId: input.requestId,
+        ok: input.ok,
+        message: input.message ?? null,
+        hasPending: Boolean(pending),
+      },
+    });
     if (!pending) {
       return;
     }
@@ -666,14 +762,42 @@ app.whenReady().then(async () => {
     historyOriginateRequests.delete(input.requestId);
     pending.resolve(input);
   });
+  ipcMain.handle('desktop:request-softphone-dtmf', (_event, input: { digit: string }) => {
+    const win = getPrimaryWindow();
+    const digit = input.digit?.trim();
+    if (!win || !digit) {
+      throw new Error('상담원 화면으로 DTMF 요청을 전달할 수 없습니다.');
+    }
+
+    const requestId = randomUUID();
+    win.webContents.send('desktop:softphone-dtmf-request', { requestId, digit });
+
+    return new Promise<DesktopSoftphoneDtmfResult>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        softphoneDtmfRequests.delete(requestId);
+        reject(new Error('DTMF 전송 응답 시간이 초과되었습니다.'));
+      }, 5000);
+      softphoneDtmfRequests.set(requestId, { resolve, reject, timer });
+    });
+  });
+  ipcMain.handle('desktop:complete-softphone-dtmf', (_event, input: DesktopSoftphoneDtmfResult) => {
+    const pending = softphoneDtmfRequests.get(input.requestId);
+    if (!pending) {
+      return;
+    }
+
+    clearTimeout(pending.timer);
+    softphoneDtmfRequests.delete(input.requestId);
+    pending.resolve(input);
+  });
   ipcMain.handle('desktop:open-call-history-popup', () => {
     openUtilityWindow('history');
   });
   ipcMain.handle('desktop:open-agent-list-popup', () => {
     openUtilityWindow('agents');
   });
-  ipcMain.handle('desktop:open-dialpad-popup', () => {
-    openUtilityWindow('dialpad');
+  ipcMain.handle('desktop:open-dialpad-popup', (_event, mode?: 'originate' | 'dtmf') => {
+    openUtilityWindow('dialpad', mode === 'dtmf' ? 'dtmf' : 'originate');
   });
   ipcMain.handle('desktop:transfer', (_event, callId: string, params: {
     target: string;
@@ -777,6 +901,9 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('desktop:open-external', (_event, url: string) => {
     return shell.openExternal(url);
+  });
+  ipcMain.handle('desktop:diagnostic-event', (_event, input: DesktopDiagnosticEvent) => {
+    recordDiagnosticEvent(input);
   });
 
   try {

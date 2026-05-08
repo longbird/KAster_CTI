@@ -9,13 +9,14 @@ describe('RuntimeSupervisor', () => {
   let saveSession: ReturnType<typeof vi.fn>;
   let refreshSession: ReturnType<typeof vi.fn>;
   let runtimeConnect: ReturnType<typeof vi.fn>;
-  let runtimeDisconnect: ReturnType<typeof vi.fn>;
+  let runtimeDisconnects: Array<ReturnType<typeof vi.fn>>;
   let createRuntime: ReturnType<typeof vi.fn>;
   let broadcast: ReturnType<typeof vi.fn>;
   let scheduledRecovery: (() => Promise<void>) | null;
-  let runtimeLifecycleHandler:
+  let runtimeLifecycleHandlers: Array<
     | ((payload: { state: 'connected' | 'reconnecting' | 'disconnected' | 'error'; reason?: string }) => void)
-    | null;
+    | null
+  >;
 
   const storedSession: DesktopAuthSession = {
     accessToken: 'access-1',
@@ -30,7 +31,8 @@ describe('RuntimeSupervisor', () => {
 
   beforeEach(() => {
     scheduledRecovery = null;
-    runtimeLifecycleHandler = null;
+    runtimeLifecycleHandlers = [];
+    runtimeDisconnects = [];
     loadConfig = vi.fn().mockResolvedValue({
       serverUrl: 'https://cti-center-a.example.com',
       channel: 'stable',
@@ -47,12 +49,15 @@ describe('RuntimeSupervisor', () => {
       onEvent: (event: CtiEvent) => void;
       onConnectionState?: (payload: { state: 'connected' | 'reconnecting' | 'disconnected' | 'error'; reason?: string }) => void;
     }) => {
-      runtimeLifecycleHandler = _handlers.onConnectionState ?? null;
+      runtimeLifecycleHandlers.push(_handlers.onConnectionState ?? null);
     });
-    runtimeDisconnect = vi.fn();
-    createRuntime = vi.fn().mockReturnValue({
-      connect: runtimeConnect,
-      disconnect: runtimeDisconnect,
+    createRuntime = vi.fn().mockImplementation(() => {
+      const disconnect = vi.fn();
+      runtimeDisconnects.push(disconnect);
+      return {
+        connect: runtimeConnect,
+        disconnect,
+      };
     });
     broadcast = vi.fn();
   });
@@ -93,7 +98,7 @@ describe('RuntimeSupervisor', () => {
     });
 
     await supervisor.connect();
-    runtimeLifecycleHandler?.({ state: 'disconnected', reason: 'transport close' });
+    runtimeLifecycleHandlers[0]?.({ state: 'disconnected', reason: 'transport close' });
     await scheduledRecovery?.();
 
     expect(refreshSession).toHaveBeenCalledWith(storedSession);
@@ -102,7 +107,7 @@ describe('RuntimeSupervisor', () => {
       accessToken: 'access-2',
       refreshToken: 'refresh-2',
     });
-    expect(runtimeDisconnect).toHaveBeenCalled();
+    expect(runtimeDisconnects[0]).toHaveBeenCalled();
     expect(createRuntime).toHaveBeenLastCalledWith({
       baseUrl: 'https://cti-center-a.example.com',
       accessToken: 'access-2',
@@ -131,12 +136,37 @@ describe('RuntimeSupervisor', () => {
     });
 
     await supervisor.connect();
-    runtimeLifecycleHandler?.({ state: 'error', reason: 'unauthorized' });
+    runtimeLifecycleHandlers[0]?.({ state: 'error', reason: 'unauthorized' });
     await scheduledRecovery?.();
 
     expect(createRuntime).toHaveBeenLastCalledWith({
       baseUrl: 'https://cti-center-a.example.com',
       accessToken: 'access-1',
     });
+  });
+
+  it('runtime 교체 중 이전 socket disconnect 는 새 recovery 를 예약하지 않는다', async () => {
+    const supervisor = new RuntimeSupervisor({
+      loadConfig,
+      loadSession,
+      saveSession,
+      refreshSession,
+      createRuntime,
+      broadcast,
+      scheduleRecovery: (task) => {
+        scheduledRecovery = task;
+      },
+    });
+
+    await supervisor.connect();
+    runtimeLifecycleHandlers[0]?.({ state: 'disconnected', reason: 'transport close' });
+    const firstRecovery = scheduledRecovery;
+    scheduledRecovery = null;
+
+    await firstRecovery?.();
+    runtimeLifecycleHandlers[0]?.({ state: 'disconnected', reason: 'io client disconnect' });
+
+    expect(scheduledRecovery).toBeNull();
+    expect(createRuntime).toHaveBeenCalledTimes(2);
   });
 });

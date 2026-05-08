@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SoftphoneShell } from './SoftphoneShell';
 
 const desktopApi = {
   setWindowMode: vi.fn().mockResolvedValue(undefined),
+  recordDiagnosticEvent: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.stubGlobal('window', { desktopApi });
@@ -138,9 +139,21 @@ describe('SoftphoneShell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '설정' }));
 
+    const settingsTabs = within(screen.getByRole('navigation', { name: '설정 분류' }));
+    expect(settingsTabs.getByRole('button', { name: '통화' })).toBeTruthy();
+    expect(settingsTabs.getByRole('button', { name: '장치' })).toBeTruthy();
+    expect(settingsTabs.getByRole('button', { name: '일반' })).toBeTruthy();
+    expect(settingsTabs.getByRole('button', { name: '진단' })).toBeTruthy();
+    expect(screen.getByText('통화 자동 처리')).toBeTruthy();
+    expect(screen.queryByText('오디오')).toBeNull();
+
+    fireEvent.click(settingsTabs.getByRole('button', { name: '장치' }));
+
     expect(screen.getByText('오디오')).toBeTruthy();
     expect(screen.getByLabelText('마이크')).toBeTruthy();
     expect(screen.getByRole('button', { name: '새로고침' })).toBeTruthy();
+
+    fireEvent.click(settingsTabs.getByRole('button', { name: '진단' }));
 
     expect(screen.getByRole('button', { name: '보기' })).toBeTruthy();
     expect(screen.queryByText('Runtime 재연결')).toBeNull();
@@ -150,6 +163,36 @@ describe('SoftphoneShell', () => {
     expect(screen.getByRole('button', { name: 'Runtime 재연결' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Softphone 등록' })).toBeTruthy();
     expect(desktopApi.setWindowMode).toHaveBeenCalledWith('settings');
+  });
+
+  it('softphone 통화 중에는 DTMF 전송용 키패드를 열 수 있다', () => {
+    render(
+      <SoftphoneShell
+        {...baseProps}
+        softphone={{
+          ...baseProps.softphone,
+          session: {
+            id: 'sip-call-1',
+            direction: 'outgoing',
+            phase: 'active',
+            remoteDisplayName: '15881234',
+            remoteUri: 'sip:15881234@example.com',
+          },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '키패드' }));
+
+    expect(baseProps.onOpenDialpadPopup).toHaveBeenCalledWith('dtmf');
+  });
+
+  it('대기 상태 키패드는 클릭 이벤트가 아니라 발신 모드로 연다', () => {
+    render(<SoftphoneShell {...baseProps} />);
+
+    fireEvent.click(screen.getByLabelText('발신 키패드 열기'));
+
+    expect(baseProps.onOpenDialpadPopup).toHaveBeenCalledWith('originate');
   });
 
   it('changes agent status without reason for AVAILABLE', () => {
@@ -248,6 +291,28 @@ describe('SoftphoneShell', () => {
     expect(baseProps.onOriginate).toHaveBeenCalledWith('01012345678', '07052346380');
   });
 
+  it('softphone 미등록 상태여도 PBX runtime 연결 상태면 외부 발신을 허용한다', () => {
+    render(<SoftphoneShell {...baseProps} softphone={null} />);
+
+    fireEvent.change(screen.getByLabelText('외부 발신 번호'), {
+      target: { value: '01012345678' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '발신' }));
+
+    expect(baseProps.onOriginate).toHaveBeenCalledWith('01012345678', '15777893');
+  });
+
+  it('발신번호 목록이 비어 있어도 PBX runtime 연결 상태면 외부 발신을 허용한다', () => {
+    render(<SoftphoneShell {...baseProps} softphone={null} callerIds={[]} defaultCallerId={null} />);
+
+    fireEvent.change(screen.getByLabelText('외부 발신 번호'), {
+      target: { value: '01012345678' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '발신' }));
+
+    expect(baseProps.onOriginate).toHaveBeenCalledWith('01012345678', '');
+  });
+
   it('내선 상담원 클릭 후 확인 팝업에서 연결한다', async () => {
     render(<SoftphoneShell {...baseProps} />);
 
@@ -256,6 +321,17 @@ describe('SoftphoneShell', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('박지영 1002 연결을 시작할까요?')).toBeTruthy();
     expect(baseProps.onOriginateInternal).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '연결' }));
+
+    expect(baseProps.onOriginateInternal).toHaveBeenCalledWith(baseProps.agentDirectory[0]);
+  });
+
+  it('softphone 미등록 상태여도 PBX runtime 연결 상태면 내선 통화를 허용한다', async () => {
+    render(<SoftphoneShell {...baseProps} softphone={null} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /박지영/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '연결' }));
 

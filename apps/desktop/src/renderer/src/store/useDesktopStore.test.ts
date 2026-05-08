@@ -76,6 +76,7 @@ const desktopApi = {
   notifyIncomingCall: vi.fn(),
   focusWindow: vi.fn(),
   openExternal: vi.fn().mockResolvedValue(undefined),
+  recordDiagnosticEvent: vi.fn().mockResolvedValue(undefined),
   openCallHistoryPopup: vi.fn().mockResolvedValue(undefined),
   openAgentListPopup: vi.fn().mockResolvedValue(undefined),
 };
@@ -757,7 +758,7 @@ describe('useDesktopStore pairing', () => {
     expect(useDesktopStore.getState().activeCall?.sessionStatus).toBe('TRANSFERRING');
   });
 
-  it('originate 는 등록된 softphone 으로 외부 발신을 보낸다', async () => {
+  it('originate 는 등록된 softphone 상태여도 PBX runtime 으로 외부 발신을 보낸다', async () => {
     const inviteSpy = vi
       .spyOn(SipSoftphoneClient.prototype, 'invite')
       .mockResolvedValue(undefined);
@@ -833,12 +834,110 @@ describe('useDesktopStore pairing', () => {
 
     await useDesktopStore.getState().originate('01012345678', '15777893');
 
-    expect(inviteSpy).toHaveBeenCalledWith('01012345678', null);
-    expect(desktopApi.originate).not.toHaveBeenCalled();
+    expect(inviteSpy).not.toHaveBeenCalled();
+    expect(desktopApi.originate).toHaveBeenCalledWith({
+      agentExtension: '1001',
+      phoneNumber: '01012345678',
+      callerId: '15777893',
+    });
+    expect(useDesktopStore.getState().events[0]).toContain('PBX 외부 발신 01012345678');
     inviteSpy.mockRestore();
   });
 
-  it('originateInternal 은 등록된 softphone 으로 내선 발신을 보낸다', async () => {
+  it('originate 는 softphone 미등록 상태에서 PBX runtime 으로 외부 발신을 보낸다', async () => {
+    const inviteSpy = vi
+      .spyOn(SipSoftphoneClient.prototype, 'invite')
+      .mockResolvedValue(undefined);
+
+    useDesktopStore.setState({
+      bootstrapped: true,
+      pairing: false,
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'AVAILABLE',
+      config: {
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      },
+      activeCall: null,
+      audioPreferences: null,
+      softphone: {
+        registration: 'error',
+        transport: 'error',
+        config: {
+          enabled: true,
+          wsServer: 'wss://pbx.example.com/ws',
+          sipUri: 'sip:1001@pbx.example.com',
+          authorizationUsername: '1001',
+          authorizationPassword: 'secret',
+          displayName: '1001',
+          iceServers: [],
+        },
+        lastError: 'registration failed',
+        diagnostics: [],
+        session: null,
+        remoteAudioActive: false,
+        localMuted: false,
+        localHold: false,
+      },
+      defaultCallerId: '15777893',
+      events: [],
+      runtimeConnection: 'connected',
+      originate: useDesktopStore.getState().originate,
+    });
+
+    await useDesktopStore.getState().originate(' 01012345678 ');
+
+    expect(inviteSpy).not.toHaveBeenCalled();
+    expect(desktopApi.originate).toHaveBeenCalledWith({
+      agentExtension: '1001',
+      phoneNumber: '01012345678',
+      callerId: '15777893',
+    });
+    expect(useDesktopStore.getState().events[0]).toContain('PBX 외부 발신 01012345678');
+    inviteSpy.mockRestore();
+  });
+
+  it('originate 는 빈 발신번호 선택값을 PBX runtime 으로 넘기지 않는다', async () => {
+    useDesktopStore.setState({
+      bootstrapped: true,
+      pairing: false,
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'AVAILABLE',
+      config: {
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      },
+      activeCall: null,
+      audioPreferences: null,
+      softphone: null,
+      defaultCallerId: null,
+      events: [],
+      runtimeConnection: 'connected',
+      originate: useDesktopStore.getState().originate,
+    });
+
+    await useDesktopStore.getState().originate('01012345678', '');
+
+    expect(desktopApi.originate).toHaveBeenCalledWith({
+      agentExtension: '1001',
+      phoneNumber: '01012345678',
+      callerId: undefined,
+    });
+  });
+
+  it('originateInternal 은 등록된 softphone 상태여도 PBX runtime 으로 내선 발신을 보낸다', async () => {
     const inviteSpy = vi
       .spyOn(SipSoftphoneClient.prototype, 'invite')
       .mockResolvedValue(undefined);
@@ -895,8 +994,60 @@ describe('useDesktopStore pairing', () => {
       },
     });
 
-    expect(inviteSpy).toHaveBeenCalledWith('1002', null);
-    expect(desktopApi.originateInternal).not.toHaveBeenCalled();
+    expect(inviteSpy).not.toHaveBeenCalled();
+    expect(desktopApi.originateInternal).toHaveBeenCalledWith({
+      targetAgentId: 'agent-2',
+      targetExtension: '1002',
+    });
+    expect(useDesktopStore.getState().events[0]).toContain('PBX 내선 발신 상담원2 1002');
+    inviteSpy.mockRestore();
+  });
+
+  it('originateInternal 은 softphone 미등록 상태에서 PBX runtime 으로 내선 발신을 보낸다', async () => {
+    const inviteSpy = vi
+      .spyOn(SipSoftphoneClient.prototype, 'invite')
+      .mockResolvedValue(undefined);
+
+    useDesktopStore.setState({
+      bootstrapped: true,
+      pairing: false,
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+      agentStatus: 'AVAILABLE',
+      config: {
+        serverUrl: 'https://cti-center-a.example.com',
+        channel: 'stable',
+        deviceId: 'device-1',
+      },
+      activeCall: null,
+      audioPreferences: null,
+      softphone: null,
+      events: [],
+      runtimeConnection: 'connected',
+      originateInternal: useDesktopStore.getState().originateInternal,
+    });
+
+    await useDesktopStore.getState().originateInternal({
+      agentId: 'agent-2',
+      agentName: '상담원2',
+      extension: '1002',
+      role: 'agent',
+      isActive: true,
+      currentStatus: {
+        statusCode: 'AVAILABLE',
+      },
+    });
+
+    expect(inviteSpy).not.toHaveBeenCalled();
+    expect(desktopApi.originateInternal).toHaveBeenCalledWith({
+      targetAgentId: 'agent-2',
+      targetExtension: '1002',
+    });
+    expect(useDesktopStore.getState().events[0]).toContain('PBX 내선 발신 상담원2 1002');
     inviteSpy.mockRestore();
   });
 

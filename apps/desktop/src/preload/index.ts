@@ -34,9 +34,11 @@ const desktopApi: DesktopApi = {
   saveCallMemo: (input) => ipcRenderer.invoke('desktop:save-call-memo', input),
   requestHistoryOriginate: (input) => ipcRenderer.invoke('desktop:request-history-originate', input),
   completeHistoryOriginateRequest: (input) => ipcRenderer.invoke('desktop:complete-history-originate', input),
+  requestSoftphoneDtmf: (input) => ipcRenderer.invoke('desktop:request-softphone-dtmf', input),
+  completeSoftphoneDtmfRequest: (input) => ipcRenderer.invoke('desktop:complete-softphone-dtmf', input),
   openCallHistoryPopup: () => ipcRenderer.invoke('desktop:open-call-history-popup'),
   openAgentListPopup: () => ipcRenderer.invoke('desktop:open-agent-list-popup'),
-  openDialpadPopup: () => ipcRenderer.invoke('desktop:open-dialpad-popup'),
+  openDialpadPopup: (mode) => ipcRenderer.invoke('desktop:open-dialpad-popup', mode),
   transfer: (callId, params) => ipcRenderer.invoke('desktop:transfer', callId, params),
   cancelAttendedTransfer: (callId) => ipcRenderer.invoke('desktop:cancel-attended-transfer', callId),
   completeAttendedTransfer: (callId) => ipcRenderer.invoke('desktop:complete-attended-transfer', callId),
@@ -49,11 +51,19 @@ const desktopApi: DesktopApi = {
   notifyIncomingCall: (input) => ipcRenderer.invoke('desktop:notify-incoming-call', input),
   focusWindow: () => ipcRenderer.invoke('desktop:focus-window'),
   openExternal: (url) => ipcRenderer.invoke('desktop:open-external', url),
+  recordDiagnosticEvent: (input) => ipcRenderer.invoke('desktop:diagnostic-event', input),
   onHistoryOriginateRequest: (listener) => {
     const handler = (_event: unknown, payload: Parameters<typeof listener>[0]) => listener(payload);
     ipcRenderer.on('desktop:history-originate-request', handler);
     return () => {
       ipcRenderer.removeListener('desktop:history-originate-request', handler);
+    };
+  },
+  onSoftphoneDtmfRequest: (listener) => {
+    const handler = (_event: unknown, payload: Parameters<typeof listener>[0]) => listener(payload);
+    ipcRenderer.on('desktop:softphone-dtmf-request', handler);
+    return () => {
+      ipcRenderer.removeListener('desktop:softphone-dtmf-request', handler);
     };
   },
   onProtocolConnect: (listener) => {

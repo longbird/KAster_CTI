@@ -148,7 +148,7 @@ export function SoftphoneShell({
   onOriginateInternal: (target: DesktopAgentDirectoryItem) => Promise<void> | void;
   onOpenCallHistoryPopup: () => void;
   onOpenAgentListPopup: () => void;
-  onOpenDialpadPopup: () => void;
+  onOpenDialpadPopup: (mode?: 'originate' | 'dtmf') => void;
   onMute: () => void;
   onHangup: () => void;
   onToggleHold: () => void;
@@ -169,6 +169,7 @@ export function SoftphoneShell({
   onHangupSoftphoneCall: () => void;
 }) {
   const [view, setView] = useState<'call' | 'settings'>('call');
+  const [settingsTab, setSettingsTab] = useState<'call' | 'device' | 'general' | 'diagnostics'>('call');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [dialPending, setDialPending] = useState(false);
   const [dialError, setDialError] = useState<string | null>(null);
@@ -451,23 +452,61 @@ export function SoftphoneShell({
   );
   const canDialExternal =
     runtimeReady
-    && softphone?.registration === 'registered'
     && Boolean(dialNumber.trim())
-    && callerIds.length > 0
     && !dialPending;
   const canAnswerRinging =
     activeCall
       ? runtimeReady
       : Boolean(softphone?.session && softphone.session.phase === 'ringing');
 
+  useEffect(() => {
+    void window.desktopApi?.recordDiagnosticEvent?.({
+      stage: 'renderer:originate-ui-state',
+      detail: {
+        runtimeReady,
+        canDialExternal,
+        hasDialNumber: Boolean(dialNumber.trim()),
+        callerIdsCount: callerIds.length,
+        softphoneRegistration: softphone?.registration ?? null,
+        dialPending,
+      },
+    });
+  }, [
+    runtimeReady,
+    canDialExternal,
+    dialNumber,
+    callerIds.length,
+    softphone?.registration,
+    dialPending,
+  ]);
+
   const handleExternalOriginate = async () => {
     if (!canDialExternal) {
+      void window.desktopApi?.recordDiagnosticEvent?.({
+        stage: 'renderer:originate-ui-blocked',
+        detail: {
+          runtimeReady,
+          hasDialNumber: Boolean(dialNumber.trim()),
+          callerIdsCount: callerIds.length,
+          softphoneRegistration: softphone?.registration ?? null,
+          dialPending,
+        },
+      });
       return;
     }
 
     setDialPending(true);
     setDialError(null);
     try {
+      void window.desktopApi?.recordDiagnosticEvent?.({
+        stage: 'renderer:originate-click',
+        detail: {
+          phoneNumber: dialNumber.trim(),
+          callerId: selectedCallerId || null,
+          softphoneRegistration: softphone?.registration ?? null,
+          runtimeReady,
+        },
+      });
       await onOriginate(dialNumber, selectedCallerId);
     } catch (error) {
       setDialError(error instanceof Error ? error.message : '발신 요청 실패');
@@ -511,251 +550,279 @@ export function SoftphoneShell({
           settingsLabel="통화"
         />
 
-        <section className="console-section">
-          <div className="console-section-title">
-            <h2>오디오</h2>
+        <nav className="settings-tabs" aria-label="설정 분류">
+          {[
+            ['call', '통화'],
+            ['device', '장치'],
+            ['general', '일반'],
+            ['diagnostics', '진단'],
+          ].map(([tab, label]) => (
+            <button
+              key={tab}
+              type="button"
+              className={settingsTab === tab ? 'active' : ''}
+              aria-pressed={settingsTab === tab}
+              onClick={() => setSettingsTab(tab as typeof settingsTab)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {settingsTab === 'call' ? (
+          <>
+            <section className="console-section">
+              <div className="console-section-title">
+                <h2>통화 자동 처리</h2>
+              </div>
+              <p className="console-muted">0초 = 사용 안 함. 각 항목은 1~60초로 제한됩니다.</p>
+              <div className="call-pref-grid">
+                <label className="field">
+                  <span>자동 응답</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={callPreferences.autoAnswerSeconds}
+                    onChange={(event) => {
+                      const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                      void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
+                    }}
+                  />
+                </label>
+                <label className="field">
+                  <span>자동 거절</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={callPreferences.autoRejectSeconds}
+                    onChange={(event) => {
+                      const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                      void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
+                    }}
+                  />
+                </label>
+                <label className="field">
+                  <span>후처리 자동 종료</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={callPreferences.autoStatusAfterCallSeconds}
+                    onChange={(event) => {
+                      const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                      void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
+                    }}
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="console-section">
+              <div className="console-section-title">
+                <h2>전환 단축키</h2>
+              </div>
+              <p className="console-muted">통화 중 1~9 키로 즉시 전환.</p>
+              <TransferHotkeyEditor slots={transferHotkeys} onSave={updateTransferHotkeys} />
+            </section>
+          </>
+        ) : null}
+
+        {settingsTab === 'device' ? (
+          <section className="console-section">
+            <div className="console-section-title">
+              <h2>오디오</h2>
+              <div className="console-actions">
+                <button type="button" onClick={onRequestAudioPermission}>
+                  권한
+                </button>
+                <button type="button" onClick={onRefreshAudioDevices} disabled={refreshingAudioDevices}>
+                  {refreshingAudioDevices ? '갱신 중' : '새로고침'}
+                </button>
+              </div>
+            </div>
+            <p className="console-muted">권한 {audioPermission} / 출력 라우팅 {audioCapabilities.sinkSelectionSupported ? '지원' : '미지원'}</p>
+            <div className="audio-settings-grid">
+              <DeviceSelect
+                label="마이크"
+                value={audioDraft.inputDeviceId ?? ''}
+                options={audioDevices.inputs}
+                onChange={(value) => syncAudioDraft({ inputDeviceId: value || null })}
+              />
+              <DeviceSelect
+                label="스피커"
+                value={audioDraft.outputDeviceId ?? ''}
+                options={audioDevices.outputs}
+                onChange={(value) => syncAudioDraft({ outputDeviceId: value || null })}
+              />
+              <DeviceSelect
+                label="벨소리"
+                value={audioDraft.ringDeviceId ?? ''}
+                options={audioDevices.outputs}
+                onChange={(value) => syncAudioDraft({ ringDeviceId: value || null })}
+              />
+            </div>
+            <div className="toggle-grid">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={audioDraft.echoCancellation}
+                  onChange={(event) => syncAudioDraft({ echoCancellation: event.target.checked })}
+                />
+                Echo cancellation
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={audioDraft.noiseSuppression}
+                  onChange={(event) => syncAudioDraft({ noiseSuppression: event.target.checked })}
+                />
+                Noise suppression
+              </label>
+            </div>
             <div className="console-actions">
-              <button type="button" onClick={onRequestAudioPermission}>
-                권한
+              <button type="button" disabled={!audioCapabilities.sinkSelectionSupported} onClick={onPlayOutputPreview}>
+                스피커 테스트
               </button>
-              <button type="button" onClick={onRefreshAudioDevices} disabled={refreshingAudioDevices}>
-                {refreshingAudioDevices ? '갱신 중' : '새로고침'}
+              <button type="button" disabled={!audioCapabilities.sinkSelectionSupported} onClick={onPlayRingPreview}>
+                벨소리 테스트
               </button>
             </div>
-          </div>
-          <p className="console-muted">권한 {audioPermission} / 출력 라우팅 {audioCapabilities.sinkSelectionSupported ? '지원' : '미지원'}</p>
-          <div className="audio-settings-grid">
-            <DeviceSelect
-              label="마이크"
-              value={audioDraft.inputDeviceId ?? ''}
-              options={audioDevices.inputs}
-              onChange={(value) => syncAudioDraft({ inputDeviceId: value || null })}
-            />
-            <DeviceSelect
-              label="스피커"
-              value={audioDraft.outputDeviceId ?? ''}
-              options={audioDevices.outputs}
-              onChange={(value) => syncAudioDraft({ outputDeviceId: value || null })}
-            />
-            <DeviceSelect
-              label="벨소리"
-              value={audioDraft.ringDeviceId ?? ''}
-              options={audioDevices.outputs}
-              onChange={(value) => syncAudioDraft({ ringDeviceId: value || null })}
-            />
-          </div>
-          <div className="toggle-grid">
-            <label>
-              <input
-                type="checkbox"
-                checked={audioDraft.echoCancellation}
-                onChange={(event) => syncAudioDraft({ echoCancellation: event.target.checked })}
-              />
-              Echo cancellation
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={audioDraft.noiseSuppression}
-                onChange={(event) => syncAudioDraft({ noiseSuppression: event.target.checked })}
-              />
-              Noise suppression
-            </label>
-          </div>
-          <div className="console-actions">
-            <button type="button" disabled={!audioCapabilities.sinkSelectionSupported} onClick={onPlayOutputPreview}>
-              스피커 테스트
-            </button>
-            <button type="button" disabled={!audioCapabilities.sinkSelectionSupported} onClick={onPlayRingPreview}>
-              벨소리 테스트
-            </button>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
-        <section className="console-section">
-          <div className="console-section-title">
-            <h2>일반 설정</h2>
-          </div>
-          <p className="console-muted">시작 / 창 / 트레이 / 벨소리 음원.</p>
-          <div className="general-pref-grid">
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={generalPreferences.autoStart}
-                onChange={(event) =>
-                  onChangeGeneralPreferences({
-                    ...generalPreferences,
-                    autoStart: event.target.checked,
-                  })
-                }
-              />
-              <span>윈도우 시작 시 자동 실행</span>
-            </label>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={generalPreferences.autoLogin}
-                onChange={(event) =>
-                  onChangeGeneralPreferences({
-                    ...generalPreferences,
-                    autoLogin: event.target.checked,
-                  })
-                }
-              />
-              <span>저장된 세션으로 자동 로그인</span>
-            </label>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={generalPreferences.alwaysOnTop}
-                onChange={(event) =>
-                  onChangeGeneralPreferences({
-                    ...generalPreferences,
-                    alwaysOnTop: event.target.checked,
-                  })
-                }
-              />
-              <span>항상 위에 표시</span>
-            </label>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={generalPreferences.closeToTray}
-                onChange={(event) =>
-                  onChangeGeneralPreferences({
-                    ...generalPreferences,
-                    closeToTray: event.target.checked,
-                  })
-                }
-              />
-              <span>닫기 버튼 → 트레이로 최소화 (해제 시 종료)</span>
-            </label>
-            <label className="field general-pref-ringtone">
-              <span>벨소리 음원</span>
-              <select
-                value={generalPreferences.ringTonePresetId}
-                onChange={(event) =>
-                  onChangeGeneralPreferences({
-                    ...generalPreferences,
-                    ringTonePresetId: event.target.value as DesktopRingTonePresetId,
-                  })
-                }
-              >
-                <option value="classic">클래식 (높은 톤)</option>
-                <option value="soft">소프트 (낮은 톤)</option>
-                <option value="urgent">긴급 (짧고 빠른 톤)</option>
-                <option value="silent">무음</option>
-              </select>
-            </label>
-          </div>
-        </section>
+        {settingsTab === 'general' ? (
+          <section className="console-section">
+            <div className="console-section-title">
+              <h2>일반 설정</h2>
+            </div>
+            <div className="general-pref-grid">
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={generalPreferences.autoStart}
+                  onChange={(event) =>
+                    onChangeGeneralPreferences({
+                      ...generalPreferences,
+                      autoStart: event.target.checked,
+                    })
+                  }
+                />
+                <span>윈도우 시작 시 자동 실행</span>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={generalPreferences.autoLogin}
+                  onChange={(event) =>
+                    onChangeGeneralPreferences({
+                      ...generalPreferences,
+                      autoLogin: event.target.checked,
+                    })
+                  }
+                />
+                <span>저장된 세션으로 자동 로그인</span>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={generalPreferences.alwaysOnTop}
+                  onChange={(event) =>
+                    onChangeGeneralPreferences({
+                      ...generalPreferences,
+                      alwaysOnTop: event.target.checked,
+                    })
+                  }
+                />
+                <span>항상 위에 표시</span>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={generalPreferences.closeToTray}
+                  onChange={(event) =>
+                    onChangeGeneralPreferences({
+                      ...generalPreferences,
+                      closeToTray: event.target.checked,
+                    })
+                  }
+                />
+                <span>닫기 버튼 → 트레이로 최소화 (해제 시 종료)</span>
+              </label>
+              <label className="field general-pref-ringtone">
+                <span>벨소리 음원</span>
+                <select
+                  value={generalPreferences.ringTonePresetId}
+                  onChange={(event) =>
+                    onChangeGeneralPreferences({
+                      ...generalPreferences,
+                      ringTonePresetId: event.target.value as DesktopRingTonePresetId,
+                    })
+                  }
+                >
+                  <option value="classic">클래식 (높은 톤)</option>
+                  <option value="soft">소프트 (낮은 톤)</option>
+                  <option value="urgent">긴급 (짧고 빠른 톤)</option>
+                  <option value="silent">무음</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        ) : null}
 
-        <section className="console-section">
-          <div className="console-section-title">
-            <h2>통화 자동 처리</h2>
-          </div>
-          <p className="console-muted">수신 벨 울림 시 자동 응답/거절. 0초 = 사용 안 함 (1~60초).</p>
-          <div className="call-pref-grid">
-            <label className="field">
-              <span>자동 응답</span>
-              <input
-                type="number"
-                min={0}
-                max={60}
-                value={callPreferences.autoAnswerSeconds}
-                onChange={(event) => {
-                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
-                  void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
-                }}
-              />
-            </label>
-            <label className="field">
-              <span>자동 거절</span>
-              <input
-                type="number"
-                min={0}
-                max={60}
-                value={callPreferences.autoRejectSeconds}
-                onChange={(event) => {
-                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
-                  void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
-                }}
-              />
-            </label>
-            <label className="field">
-              <span>후처리 자동 종료</span>
-              <input
-                type="number"
-                min={0}
-                max={60}
-                value={callPreferences.autoStatusAfterCallSeconds}
-                onChange={(event) => {
-                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
-                  void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
-                }}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="console-section">
-          <div className="console-section-title">
-            <h2>전환 단축키</h2>
-          </div>
-          <p className="console-muted">통화 중 1~9 키로 즉시 전환. 라벨/번호/방식 등록.</p>
-          <TransferHotkeyEditor slots={transferHotkeys} onSave={updateTransferHotkeys} />
-        </section>
-
-        <section className="console-section">
-          <div className="console-section-title">
-            <h2>진단</h2>
-            <button type="button" onClick={() => setShowDiagnostics((current) => !current)}>
-              {showDiagnostics ? '숨기기' : '보기'}
-            </button>
-          </div>
-          {showDiagnostics ? (
-            <>
-              <p className={`readiness-summary readiness-${readiness.overall}`}>
-                준비 상태 {readiness.overall}
-              </p>
-              <ul className="softphone-readiness-list">
-                {readiness.items.map((item) => (
-                  <li key={item.key} className={`readiness-item readiness-item-${item.status}`}>
-                    <span>{item.label} / {item.detail}</span>
-                    {item.hint ? <small>{item.hint}</small> : null}
-                  </li>
-                ))}
-              </ul>
-              {softphone?.lastError ? <p className="console-muted">오류 {softphone.lastError}</p> : null}
-              {softphone?.diagnostics.length ? (
+        {settingsTab === 'diagnostics' ? (
+          <section className="console-section">
+            <div className="console-section-title">
+              <h2>진단</h2>
+              <button type="button" onClick={() => setShowDiagnostics((current) => !current)}>
+                {showDiagnostics ? '숨기기' : '보기'}
+              </button>
+            </div>
+            {showDiagnostics ? (
+              <>
+                <p className={`readiness-summary readiness-${readiness.overall}`}>
+                  준비 상태 {readiness.overall}
+                </p>
                 <ul className="softphone-readiness-list">
-                  {softphone.diagnostics.slice(0, 3).map((diagnostic) => (
-                    <li key={`${diagnostic.code}-${diagnostic.occurredAt}`} className={`readiness-item readiness-item-${diagnostic.severity === 'error' ? 'error' : diagnostic.severity === 'warning' ? 'warning' : 'ok'}`}>
-                      <span>{diagnostic.code} / {diagnostic.message}</span>
-                      {diagnostic.hint ? <small>{diagnostic.hint}</small> : null}
+                  {readiness.items.map((item) => (
+                    <li key={item.key} className={`readiness-item readiness-item-${item.status}`}>
+                      <span>{item.label} / {item.detail}</span>
+                      {item.hint ? <small>{item.hint}</small> : null}
                     </li>
                   ))}
                 </ul>
-              ) : null}
-              <div className="console-actions">
-                <button type="button" disabled={runtimeConnection === 'reconnecting'} onClick={onReconnectRuntime}>
-                  Runtime 재연결
-                </button>
-                <button
-                  type="button"
-                  disabled={!softphone?.config.enabled || !softphone.config.authorizationPassword}
-                  onClick={onStartSoftphone}
-                >
-                  Softphone 등록
-                </button>
-                <button type="button" disabled={!softphone?.config.enabled} onClick={onStopSoftphone}>
-                  Softphone 중지
-                </button>
-              </div>
-            </>
-          ) : null}
-          <p className="console-muted">센터 {config.serverUrl}</p>
-        </section>
+                {softphone?.lastError ? <p className="console-muted">오류 {softphone.lastError}</p> : null}
+                {softphone?.diagnostics.length ? (
+                  <ul className="softphone-readiness-list">
+                    {softphone.diagnostics.slice(0, 3).map((diagnostic) => (
+                      <li key={`${diagnostic.code}-${diagnostic.occurredAt}`} className={`readiness-item readiness-item-${diagnostic.severity === 'error' ? 'error' : diagnostic.severity === 'warning' ? 'warning' : 'ok'}`}>
+                        <span>{diagnostic.code} / {diagnostic.message}</span>
+                        {diagnostic.hint ? <small>{diagnostic.hint}</small> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <div className="console-actions">
+                  <button type="button" disabled={runtimeConnection === 'reconnecting'} onClick={onReconnectRuntime}>
+                    Runtime 재연결
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!softphone?.config.enabled || !softphone.config.authorizationPassword}
+                    onClick={onStartSoftphone}
+                  >
+                    Softphone 등록
+                  </button>
+                  <button type="button" disabled={!softphone?.config.enabled} onClick={onStopSoftphone}>
+                    Softphone 중지
+                  </button>
+                </div>
+              </>
+            ) : null}
+            <p className="console-muted">센터 {config.serverUrl}</p>
+          </section>
+        ) : null}
       </section>
     );
   }
@@ -843,7 +910,7 @@ export function SoftphoneShell({
             <div className="console-section-title">
               <h2>외부 발신</h2>
               <div className="console-section-actions">
-                <button type="button" onClick={onOpenDialpadPopup} aria-label="발신 키패드 열기">
+                <button type="button" onClick={() => onOpenDialpadPopup('originate')} aria-label="발신 키패드 열기">
                   키패드
                 </button>
                 <button type="button" onClick={onOpenCallHistoryPopup}>
@@ -902,7 +969,7 @@ export function SoftphoneShell({
                     type="button"
                     key={agent.agentId}
                     className="agent-row"
-                    disabled={!runtimeReady || softphone?.registration !== 'registered' || Boolean(blockReason)}
+                    disabled={!runtimeReady || Boolean(blockReason)}
                     onClick={() => {
                       setInternalError(null);
                       setInternalTarget(agent);
@@ -940,6 +1007,11 @@ export function SoftphoneShell({
             <button type="button" onClick={onToggleHold}>
               {softphone?.session ? (softphone.localHold ? '재개' : '보류') : activeCall?.sessionStatus === 'HOLD' ? '재개' : '보류'}
             </button>
+            {softphone?.session ? (
+              <button type="button" onClick={() => onOpenDialpadPopup('dtmf')}>
+                키패드
+              </button>
+            ) : null}
             <button type="button" className="danger-button" onClick={softphone?.session ? onHangupSoftphoneCall : onHangup}>
               종료
             </button>

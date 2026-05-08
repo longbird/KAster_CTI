@@ -18,7 +18,7 @@ export default function App() {
   if (hash === '#/agent-list-popup') {
     return <AgentListPopup />;
   }
-  if (hash === '#/dialpad-popup') {
+  if (hash.startsWith('#/dialpad-popup')) {
     return <DialpadPopup />;
   }
 
@@ -80,6 +80,7 @@ export default function App() {
     answerSoftphoneCall,
     rejectSoftphoneCall,
     hangupSoftphoneCall,
+    sendSoftphoneDtmf,
     announcements,
     dismissAnnouncement,
     queueSummary,
@@ -132,6 +133,31 @@ export default function App() {
       })();
     });
   }, [desktopApi, originate]);
+
+  useEffect(() => {
+    if (!desktopApi?.onSoftphoneDtmfRequest) {
+      return;
+    }
+
+    return desktopApi.onSoftphoneDtmfRequest((payload) => {
+      void (async () => {
+        try {
+          await sendSoftphoneDtmf(payload.digit);
+          await desktopApi.completeSoftphoneDtmfRequest({
+            requestId: payload.requestId,
+            ok: true,
+            message: `${payload.digit} 전송 완료`,
+          });
+        } catch (error) {
+          await desktopApi.completeSoftphoneDtmfRequest({
+            requestId: payload.requestId,
+            ok: false,
+            message: error instanceof Error ? error.message : 'DTMF 전송 실패',
+          });
+        }
+      })();
+    });
+  }, [desktopApi, sendSoftphoneDtmf]);
 
   if (!bootstrapped) {
     return (

@@ -5,6 +5,7 @@ import { DialpadPopup } from './DialpadPopup';
 
 afterEach(() => {
   cleanup();
+  window.location.hash = '';
   Reflect.deleteProperty(window, 'desktopApi');
   vi.restoreAllMocks();
 });
@@ -17,10 +18,18 @@ function installDesktopApi(overrides: Partial<{
     ok: boolean;
     message?: string;
   }>;
+  requestSoftphoneDtmf: (input: { digit: string }) => Promise<{
+    requestId: string;
+    ok: boolean;
+    message?: string;
+  }>;
 }> = {}) {
   const requestHistoryOriginate =
     overrides.requestHistoryOriginate ??
     vi.fn(async ({ phoneNumber }) => ({ requestId: 'r1', ok: true, message: `${phoneNumber} ok` }));
+  const requestSoftphoneDtmf =
+    overrides.requestSoftphoneDtmf ??
+    vi.fn(async ({ digit }) => ({ requestId: 'd1', ok: true, message: `${digit} 전송 완료` }));
   Object.defineProperty(window, 'desktopApi', {
     configurable: true,
     value: {
@@ -29,9 +38,10 @@ function installDesktopApi(overrides: Partial<{
         defaultCallerId: overrides.defaultCallerId ?? '027001234',
       })),
       requestHistoryOriginate,
+      requestSoftphoneDtmf,
     },
   });
-  return { requestHistoryOriginate };
+  return { requestHistoryOriginate, requestSoftphoneDtmf };
 }
 
 describe('DialpadPopup', () => {
@@ -87,5 +97,21 @@ describe('DialpadPopup', () => {
     expect(screen.getByText('회선 없음')).toBeTruthy();
     // 실패 시엔 입력값 유지
     expect((screen.getByLabelText('발신 번호') as HTMLInputElement).value).toBe('9');
+  });
+
+  it('DTMF 모드에서는 키 입력을 발신이 아니라 DTMF 로 전송한다', async () => {
+    window.location.hash = '#/dialpad-popup?mode=dtmf';
+    const { requestHistoryOriginate, requestSoftphoneDtmf } = installDesktopApi();
+    render(<DialpadPopup />);
+
+    expect(await screen.findByText('DTMF 키패드')).toBeTruthy();
+    expect(screen.queryByLabelText('발신번호')).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('키 5'));
+    });
+
+    expect(requestSoftphoneDtmf).toHaveBeenCalledWith({ digit: '5' });
+    expect(requestHistoryOriginate).not.toHaveBeenCalled();
   });
 });

@@ -284,6 +284,54 @@ describe('SipSoftphoneClient', () => {
     expect(sipMocks.sessionBye).toHaveBeenCalled();
   });
 
+  it('연결된 세션에서는 RTP DTMF 를 전송한다', async () => {
+    const sendDtmf = vi.fn(() => true);
+    const client = new SipSoftphoneClient({
+      onTransportState: () => undefined,
+      onRegistrationState: () => undefined,
+      onCallState: () => undefined,
+      onRemoteStream: () => undefined,
+      onError: () => undefined,
+      onDiagnostic: () => undefined,
+    });
+
+    await client.start({
+      enabled: true,
+      sipUri: 'sip:1001@pbx.example.com',
+      wsServer: 'wss://pbx.example.com:8089/ws',
+      authorizationUsername: '1001',
+      authorizationPassword: 'sip-secret-1001',
+      displayName: '상담원1',
+      iceServers: [],
+    });
+
+    const invitation = {
+      id: 'invite-dtmf',
+      state: 'Initial',
+      remoteIdentity: {
+        displayName: '고객C',
+        uri: { toString: () => 'sip:customer-c@pbx.example.com' },
+      },
+      stateChange: {
+        addListener: sipMocks.sessionStateListener,
+      },
+      reject: sipMocks.invitationReject,
+      bye: sipMocks.sessionBye,
+      sessionDescriptionHandler: {
+        sendDtmf,
+      },
+    };
+
+    await (client as unknown as { handleIncomingInvitation: (session: unknown) => Promise<void> })
+      .handleIncomingInvitation(invitation);
+    const listener = sipMocks.sessionStateListener.mock.calls.at(-1)?.[0] as ((state: string) => void) | undefined;
+    invitation.state = 'Established';
+    listener?.('Established');
+
+    expect(client.sendDtmf('5')).toBe(true);
+    expect(sendDtmf).toHaveBeenCalledWith('5', { duration: 160 });
+  });
+
   it('stop 은 등록 해제 후 user agent 종료를 호출한다', async () => {
     const client = new SipSoftphoneClient({
       onTransportState: () => undefined,

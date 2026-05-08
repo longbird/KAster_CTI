@@ -59,4 +59,12 @@ describe('desktop window mode bounds', () => {
 
     expect(openUtilityWindowSource).not.toMatch(/parent:/);
   });
+
+  it('does not focus the main window while forwarding DTMF from the keypad popup', () => {
+    const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
+    const dtmfHandlerSource = source.match(/ipcMain\.handle\(['"]desktop:request-softphone-dtmf['"][\s\S]*?\n  }\);/)?.[0] ?? '';
+
+    expect(dtmfHandlerSource).toContain("win.webContents.send('desktop:softphone-dtmf-request'");
+    expect(dtmfHandlerSource).not.toMatch(/focusPrimaryWindow\(\)/);
+  });
 });

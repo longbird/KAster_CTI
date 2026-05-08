@@ -17,12 +17,21 @@ const KEYS: ReadonlyArray<{ value: string; label: string; sub?: string }> = [
 ];
 
 const ALLOWED_INPUT_CHARS = /^[0-9*#+]+$/;
+const DTMF_INPUT_CHARS = /^[0-9*#]$/;
 
 function sanitizeNumber(input: string): string {
   return input.replace(/[^0-9*#+]/g, '');
 }
 
+function isDtmfMode() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('mode') === 'dtmf';
+}
+
 export function DialpadPopup() {
+  const dtmfMode = isDtmfMode();
   const [number, setNumber] = useState('');
   const [callerIds, setCallerIds] = useState<string[]>([]);
   const [selectedCallerId, setSelectedCallerId] = useState<string>('');
@@ -35,7 +44,7 @@ export function DialpadPopup() {
     void (async () => {
       const desktopApi =
         typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
-      if (!desktopApi?.getCallerIds) {
+      if (dtmfMode || !desktopApi?.getCallerIds) {
         return;
       }
 
@@ -57,13 +66,45 @@ export function DialpadPopup() {
     return () => {
       alive = false;
     };
+  }, [dtmfMode]);
+
+  const handleDtmf = useCallback(async (digit: string) => {
+    if (!DTMF_INPUT_CHARS.test(digit)) {
+      return;
+    }
+
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!desktopApi?.requestSoftphoneDtmf) {
+      setErrorMessage('DTMF 전송 IPC 를 사용할 수 없습니다.');
+      return;
+    }
+
+    setPending(true);
+    setErrorMessage(null);
+    setStatus(null);
+    try {
+      const result = await desktopApi.requestSoftphoneDtmf({ digit });
+      if (!result.ok) {
+        throw new Error(result.message ?? 'DTMF 전송 실패');
+      }
+      setStatus(result.message ?? `${digit} 전송 완료`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'DTMF 전송 실패');
+    } finally {
+      setPending(false);
+    }
   }, []);
 
   const handleAppend = useCallback((digit: string) => {
+    if (dtmfMode) {
+      void handleDtmf(digit);
+      return;
+    }
     setNumber((current) => current + digit);
     setErrorMessage(null);
     setStatus(null);
-  }, []);
+  }, [dtmfMode, handleDtmf]);
 
   const handleBackspace = useCallback(() => {
     setNumber((current) => current.slice(0, -1));
@@ -113,7 +154,7 @@ export function DialpadPopup() {
       if (event.defaultPrevented) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-      if (event.key === 'Enter') {
+      if (!dtmfMode && event.key === 'Enter') {
         event.preventDefault();
         void handleDial();
         return;
@@ -138,18 +179,18 @@ export function DialpadPopup() {
     return () => {
       window.removeEventListener('keydown', handleKey);
     };
-  }, [handleAppend, handleBackspace, handleClear, handleDial]);
+  }, [dtmfMode, handleAppend, handleBackspace, handleClear, handleDial]);
 
   return (
     <main className="popup-layout dialpad-popup-layout">
       <header className="popup-header">
         <div>
-          <h1>발신 키패드</h1>
-          <p>{status ?? '번호를 입력하고 발신을 누르세요.'}</p>
+          <h1>{dtmfMode ? 'DTMF 키패드' : '발신 키패드'}</h1>
+          <p>{status ?? (dtmfMode ? '통화 중 필요한 숫자를 누르면 즉시 전송됩니다.' : '번호를 입력하고 발신을 누르세요.')}</p>
         </div>
       </header>
 
-      <section className="dialpad-display-row">
+      {!dtmfMode ? <section className="dialpad-display-row">
         <select
           aria-label="발신번호"
           value={selectedCallerId}
@@ -171,7 +212,7 @@ export function DialpadPopup() {
           onChange={(event) => setNumber(sanitizeNumber(event.target.value))}
           placeholder="번호 입력"
         />
-      </section>
+      </section> : null}
 
       <section className="dialpad-grid" aria-label="키패드">
         {KEYS.map((key) => (
@@ -189,6 +230,17 @@ export function DialpadPopup() {
       </section>
 
       <section className="dialpad-actions">
+        {dtmfMode ? (
+          <button
+            type="button"
+            className="primary-button dialpad-call"
+            disabled={pending}
+            aria-label="DTMF 전송 상태"
+          >
+            {pending ? '전송 중' : 'DTMF'}
+          </button>
+        ) : (
+          <>
         <button
           type="button"
           className="dialpad-secondary"
@@ -216,6 +268,8 @@ export function DialpadPopup() {
         >
           C
         </button>
+          </>
+        )}
       </section>
 
       {errorMessage ? <p className="dial-error console-muted">{errorMessage}</p> : null}

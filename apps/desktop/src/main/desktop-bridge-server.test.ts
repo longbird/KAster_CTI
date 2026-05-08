@@ -51,6 +51,26 @@ describe('DesktopBridgeServer', () => {
     expect(unknownPayload.state).toBe('unknown');
   });
 
+  it('returns diagnostics payload when a provider is configured', async () => {
+    server = new DesktopBridgeServer({
+      port: 0,
+      getDiagnostics: () => ({
+        runtimeConnected: true,
+        events: [{ stage: 'test' }],
+      }),
+    });
+
+    await server.start();
+    const address = server.getAddress();
+    const response = await fetch(`http://${address.host}:${address.port}/diagnostics`);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.diagnostics.runtimeConnected).toBe(true);
+    expect(payload.diagnostics.events[0].stage).toBe('test');
+  });
+
   it('supports start-stop lifecycle without leaking the listening port', async () => {
     server = new DesktopBridgeServer({
       port: 0,

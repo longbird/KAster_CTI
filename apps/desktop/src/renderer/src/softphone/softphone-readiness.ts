@@ -13,12 +13,40 @@ export interface SoftphoneReadiness {
   items: SoftphoneReadinessItem[];
 }
 
+function hasInboundRtp(diagnostics: SoftphoneState['diagnostics']) {
+  return diagnostics.some((diagnostic) => (
+    diagnostic.code === 'MEDIA_RTP_STATS'
+    && diagnostic.severity === 'info'
+    && /inbound=(?!0\/0)([1-9][0-9]*)\//.test(diagnostic.message)
+  ));
+}
+
+function selectReadinessDiagnostic(softphone: SoftphoneState | null) {
+  const diagnostics = softphone?.diagnostics ?? [];
+  if (!diagnostics.length) {
+    return null;
+  }
+
+  if (hasInboundRtp(diagnostics)) {
+    return diagnostics.find((diagnostic) => diagnostic.code === 'MEDIA_RTP_STATS' && diagnostic.severity === 'info')
+      ?? diagnostics[0];
+  }
+
+  return diagnostics[0];
+}
+
 export function evaluateSoftphoneReadiness(input: {
   runtimeConnection: 'idle' | 'connected' | 'reconnecting' | 'disconnected' | 'error';
   softphone: SoftphoneState | null;
 }): SoftphoneReadiness {
   const softphone = input.softphone;
-  const latestDiagnostic = softphone?.diagnostics[0] ?? null;
+  const latestDiagnostic = selectReadinessDiagnostic(softphone);
+  const configReady = Boolean(
+    softphone?.config.enabled
+    && softphone.config.sipUri
+    && softphone.config.wsServer
+    && softphone.config.authorizationUsername,
+  );
 
   const items: SoftphoneReadinessItem[] = [
     {
@@ -39,16 +67,12 @@ export function evaluateSoftphoneReadiness(input: {
     {
       key: 'config',
       label: 'Softphone 설정',
-      status:
-        softphone?.config.enabled
-        && Boolean(softphone.config.sipUri)
-        && Boolean(softphone.config.wsServer)
-        && Boolean(softphone.config.authorizationUsername)
-          ? 'ok'
-          : 'error',
+      status: configReady ? 'ok' : 'error',
       detail: softphone?.config.enabled ? 'enabled' : 'disabled',
       hint:
-        softphone?.config.enabled
+        configReady
+          ? null
+          : softphone?.config.enabled
           ? 'SIP URI, WSS 주소, 인증 계정 누락 여부를 확인하세요.'
           : '콜센터 서버에서 desktop softphone 설정이 내려오는지 확인하세요.',
     },

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 interface DesktopBridgeServerOptions {
   host?: string;
   port?: number;
+  getDiagnostics?: () => unknown;
 }
 
 interface DesktopBridgeAddress {
@@ -18,6 +19,7 @@ interface HandoffStatus {
 export class DesktopBridgeServer {
   private readonly host: string;
   private readonly port: number;
+  private readonly getDiagnostics?: () => unknown;
   private server: ReturnType<typeof createServer> | null = null;
   private address: DesktopBridgeAddress | null = null;
   private startPromise: Promise<void> | null = null;
@@ -26,6 +28,7 @@ export class DesktopBridgeServer {
   constructor(options?: DesktopBridgeServerOptions) {
     this.host = options?.host ?? '127.0.0.1';
     this.port = options?.port ?? 48125;
+    this.getDiagnostics = options?.getDiagnostics;
   }
 
   async start(): Promise<void> {
@@ -145,6 +148,15 @@ export class DesktopBridgeServer {
         ok: true,
         handoffToken,
         ...status,
+      }));
+      return;
+    }
+
+    if (request.method === 'GET' && requestUrl.pathname === '/diagnostics') {
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({
+        ok: true,
+        diagnostics: this.getDiagnostics?.() ?? null,
       }));
       return;
     }

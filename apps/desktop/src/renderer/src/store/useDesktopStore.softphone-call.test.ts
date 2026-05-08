@@ -124,6 +124,7 @@ const desktopApi = {
   resume: vi.fn(),
   notifyIncomingCall: vi.fn(),
   focusWindow: vi.fn(),
+  recordDiagnosticEvent: vi.fn().mockResolvedValue(undefined),
   checkForUpdates: vi.fn().mockResolvedValue(null),
   prepareUpdate: vi.fn().mockResolvedValue(null),
   applyPreparedUpdate: vi.fn().mockResolvedValue(null),
@@ -214,6 +215,8 @@ describe('useDesktopStore softphone call state', () => {
     softphoneMediaControllerMocks.stopRingtone.mockClear();
     desktopApi.notifyIncomingCall.mockClear();
     desktopApi.focusWindow.mockClear();
+    desktopApi.originate.mockClear();
+    desktopApi.recordDiagnosticEvent.mockClear();
     resetStore();
   });
 
@@ -266,6 +269,46 @@ describe('useDesktopStore softphone call state', () => {
     softphoneClientMocks.getCallbacks()?.onCallState(null);
 
     expect(softphoneMediaControllerMocks.stopRingtone).toHaveBeenCalled();
+  });
+
+  it('PBX 발신 직후 들어온 상담원 INVITE 는 수신 알림 없이 발신 연결로 자동 응답한다', async () => {
+    await useDesktopStore.getState().initialize();
+
+    await useDesktopStore.getState().originate('01034623453', '07052346380');
+    softphoneClientMocks.getCallbacks()?.onCallState({
+      id: 'invite-outbound-leg',
+      direction: 'incoming',
+      phase: 'ringing',
+      remoteDisplayName: '07052346380',
+      remoteUri: 'sip:07052346380@pbx.example.com',
+    });
+
+    expect(useDesktopStore.getState().softphone?.session).toEqual({
+      id: 'invite-outbound-leg',
+      direction: 'outgoing',
+      phase: 'establishing',
+      remoteDisplayName: '01034623453',
+      remoteUri: 'sip:07052346380@pbx.example.com',
+    });
+    expect(softphoneClientMocks.answer).toHaveBeenCalledWith({
+      inputDeviceId: null,
+      outputDeviceId: 'speaker-1',
+      ringDeviceId: null,
+      echoCancellation: true,
+      noiseSuppression: true,
+    });
+    expect(desktopApi.notifyIncomingCall).not.toHaveBeenCalled();
+    expect(desktopApi.focusWindow).not.toHaveBeenCalled();
+    expect(desktopApi.recordDiagnosticEvent).toHaveBeenCalledWith({
+      stage: 'store:originate-softphone-matched',
+      detail: {
+        callId: 'invite-outbound-leg',
+        phoneNumber: '01034623453',
+        callerId: '07052346380',
+        remoteDisplayName: '07052346380',
+        remoteUri: 'sip:07052346380@pbx.example.com',
+      },
+    });
   });
 
   it('answerSoftphoneCall 은 softphone client answer 를 호출한다', async () => {

@@ -27,6 +27,7 @@ describe('evaluateSoftphoneReadiness', () => {
 
     expect(readiness.overall).toBe('ready');
     expect(readiness.items.map((item) => item.status)).toEqual(['ok', 'ok', 'ok', 'ok', 'ok']);
+    expect(readiness.items[1].hint).toBeNull();
   });
 
   it('runtime 단절과 softphone 진단이 있으면 blocked 상태와 조치 문구를 반환한다', () => {
@@ -143,6 +144,54 @@ describe('evaluateSoftphoneReadiness', () => {
     expect(readiness.items[4]).toMatchObject({
       key: 'diagnostics',
       status: 'ok',
+    });
+  });
+
+  it('RTP 수신 성공이 있으면 ICE 후보쌍 카운터 오류만으로 blocked 처리하지 않는다', () => {
+    const readiness = evaluateSoftphoneReadiness({
+      runtimeConnection: 'connected',
+      softphone: {
+        registration: 'registered',
+        transport: 'connected',
+        config: {
+          enabled: true,
+          sipUri: 'sip:1001@pbx.example.com',
+          wsServer: 'wss://pbx.example.com:8089/ws',
+          authorizationUsername: '1001',
+          displayName: '상담원1',
+          iceServers: [],
+        },
+        lastError: null,
+        diagnostics: [
+          {
+            code: 'MEDIA_ICE_CANDIDATE_PAIR',
+            message: 'ICE pair waiting local=relay/udp/49.247.46.86:49196 remote=prflx/udp/:14238 sent=0 recv=0',
+            hint: 'ICE 후보쌍에서 수신 바이트가 없습니다.',
+            source: 'media',
+            severity: 'error',
+            occurredAt: '2026-05-08T09:45:01.000Z',
+          },
+          {
+            code: 'MEDIA_RTP_STATS',
+            message: 'RTP audio stats inbound=12480/78, outbound=39520/247',
+            hint: '데스크톱까지 오디오 패킷이 도착했고 마이크 송신도 확인됐습니다.',
+            source: 'media',
+            severity: 'info',
+            occurredAt: '2026-05-08T09:45:00.000Z',
+          },
+        ],
+        session: null,
+        remoteAudioActive: true,
+        localMuted: false,
+        localHold: false,
+      },
+    });
+
+    expect(readiness.overall).toBe('ready');
+    expect(readiness.items[4]).toMatchObject({
+      key: 'diagnostics',
+      status: 'ok',
+      detail: 'RTP audio stats inbound=12480/78, outbound=39520/247',
     });
   });
 });

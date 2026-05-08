@@ -40,19 +40,25 @@ export class RuntimeSupervisor {
   }
 
   disconnect() {
-    this.runtime?.disconnect();
+    const runtime = this.runtime;
     this.runtime = null;
+    runtime?.disconnect();
   }
 
   private startRuntime(config: DesktopConfig, session: DesktopAuthSession) {
-    this.runtime?.disconnect();
-    this.runtime = this.options.createRuntime({
+    const previousRuntime = this.runtime;
+    const runtime = this.options.createRuntime({
       baseUrl: config.serverUrl,
       accessToken: session.accessToken,
     });
-    this.runtime.connect({
+    this.runtime = runtime;
+    previousRuntime?.disconnect();
+    runtime.connect({
       onEvent: (event) => this.options.broadcast(event),
       onConnectionState: (payload) => {
+        if (this.runtime !== runtime) {
+          return;
+        }
         this.options.broadcast({
           type: 'runtime.connection.changed',
           payload,

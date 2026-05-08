@@ -15,6 +15,7 @@ import { AudioDeviceController } from '../audio/audio-device-controller';
 import { WEB_BASE_URL } from '../config';
 import {
   createSoftphoneState,
+  type SoftphoneCallState,
   type SoftphoneDiagnostic,
   type SoftphoneState,
 } from '../softphone/softphone-runtime';
@@ -109,7 +110,7 @@ interface DesktopStore {
   originateInternal(target: DesktopAgentDirectoryItem): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
-  openDialpadPopup(): Promise<void>;
+  openDialpadPopup(mode?: 'originate' | 'dtmf'): Promise<void>;
   pickup(): Promise<void>;
   mute(): Promise<void>;
   hangup(): Promise<void>;
@@ -132,6 +133,7 @@ interface DesktopStore {
   answerSoftphoneCall(): Promise<void>;
   rejectSoftphoneCall(): Promise<void>;
   hangupSoftphoneCall(): Promise<void>;
+  sendSoftphoneDtmf(digit: string): Promise<void>;
   dismissAnnouncement(announcementId: string): void;
 }
 
@@ -140,6 +142,11 @@ let audioController: AudioDeviceController | null = null;
 let softphoneMediaController: SoftphoneMediaController | null = null;
 let softphoneClient: SipSoftphoneClient | null = null;
 let lastIncomingAttentionCallId: string | null = null;
+let pendingRuntimeOriginate: {
+  phoneNumber: string;
+  callerId?: string | null;
+  requestedAt: number;
+} | null = null;
 const EMPTY_AUDIO_DEVICES: AudioDeviceCatalog = {
   inputs: [],
   outputs: [],
@@ -165,6 +172,34 @@ const DEFAULT_GENERAL_PREFERENCES: DesktopGeneralPreferences = {
   closeToTray: true,
   ringTonePresetId: 'classic',
 };
+const OUTBOUND_SOFTPHONE_MATCH_WINDOW_MS = 15_000;
+
+function markPendingRuntimeOriginate(phoneNumber: string, callerId?: string | null) {
+  pendingRuntimeOriginate = {
+    phoneNumber,
+    callerId: callerId ?? null,
+    requestedAt: Date.now(),
+  };
+}
+
+function clearPendingRuntimeOriginate() {
+  pendingRuntimeOriginate = null;
+}
+
+function consumePendingRuntimeOriginateFor(call: SoftphoneCallState | null) {
+  if (!pendingRuntimeOriginate || !call || call.direction !== 'incoming' || call.phase !== 'ringing') {
+    return null;
+  }
+
+  if (Date.now() - pendingRuntimeOriginate.requestedAt > OUTBOUND_SOFTPHONE_MATCH_WINDOW_MS) {
+    clearPendingRuntimeOriginate();
+    return null;
+  }
+
+  const matched = pendingRuntimeOriginate;
+  clearPendingRuntimeOriginate();
+  return matched;
+}
 
 function getMediaDevices() {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
@@ -242,18 +277,49 @@ function getSoftphoneClient() {
     },
     onCallState: (call) => {
       const previousCall = useDesktopStore.getState().softphone?.session ?? null;
-      const shouldPlayProgressTone = call?.phase === 'ringing'
-        || (call?.direction === 'outgoing' && call.phase === 'establishing');
+      const matchedOriginate = consumePendingRuntimeOriginateFor(call);
+      const displayCall: SoftphoneCallState | null = matchedOriginate && call
+        ? {
+            ...call,
+            direction: 'outgoing',
+            phase: 'establishing',
+            remoteDisplayName: matchedOriginate.phoneNumber,
+          }
+        : call;
+      if (matchedOriginate) {
+        const desktopApi = getDesktopApi();
+        void desktopApi.recordDiagnosticEvent({
+          stage: 'store:originate-softphone-matched',
+          detail: {
+            callId: call?.id ?? null,
+            phoneNumber: matchedOriginate.phoneNumber,
+            callerId: matchedOriginate.callerId ?? null,
+            remoteDisplayName: call?.remoteDisplayName ?? null,
+            remoteUri: call?.remoteUri ?? null,
+          },
+        });
+        void getSoftphoneClient().answer(useDesktopStore.getState().audioPreferences).catch((error) => {
+          void desktopApi.recordDiagnosticEvent({
+            stage: 'store:originate-softphone-auto-answer-error',
+            detail: {
+              callId: call?.id ?? null,
+              message: toErrorMessage(error),
+            },
+          });
+        });
+      }
+      const shouldPlayProgressTone = displayCall?.phase === 'ringing'
+        || (displayCall?.direction === 'outgoing' && displayCall.phase === 'establishing');
       if (shouldPlayProgressTone) {
         void getSoftphoneMediaController()?.startRingtone();
-        if (call.direction === 'incoming' && call.id !== lastIncomingAttentionCallId) {
-          lastIncomingAttentionCallId = call.id;
+        if (displayCall.direction === 'incoming' && displayCall.id !== lastIncomingAttentionCallId) {
+          lastIncomingAttentionCallId = displayCall.id;
           const desktopApi = getDesktopApi();
           void desktopApi.notifyIncomingCall({
             title: '착신 전화',
-            body: call.remoteUri
-              ? `${call.remoteDisplayName} / ${call.remoteUri}`
-              : call.remoteDisplayName,
+            body: displayCall.remoteUri
+              ? `${displayCall.remoteDisplayName} / ${displayCall.remoteUri}`
+              : displayCall.remoteDisplayName,
           });
           void desktopApi.focusWindow();
         }
@@ -266,19 +332,19 @@ function getSoftphoneClient() {
         softphone: current.softphone
           ? {
               ...current.softphone,
-              session: call,
-              lastError: call
+              session: displayCall,
+              lastError: displayCall
                 ? null
                 : previousCall?.direction === 'outgoing' && previousCall.phase !== 'active'
                   ? '통화 연결 실패: 대상 내선 등록 또는 PBX 라우트를 확인하세요.'
                   : current.softphone.lastError,
-              remoteAudioActive: call ? current.softphone.remoteAudioActive : false,
-              localMuted: call ? current.softphone.localMuted : false,
-              localHold: call ? current.softphone.localHold : false,
+              remoteAudioActive: displayCall ? current.softphone.remoteAudioActive : false,
+              localMuted: displayCall ? current.softphone.localMuted : false,
+              localHold: displayCall ? current.softphone.localHold : false,
             }
           : current.softphone,
-        events: call
-          ? pushEvent(current.events, `softphone ${call.phase} ${call.remoteDisplayName}`)
+        events: displayCall
+          ? pushEvent(current.events, `softphone ${displayCall.phase} ${displayCall.remoteDisplayName}`)
           : pushEvent(
               current.events,
               previousCall?.direction === 'outgoing' && previousCall.phase !== 'active'
@@ -1108,23 +1174,59 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   async originate(phoneNumber, callerId) {
     const agent = useDesktopStore.getState().agent;
     const normalized = phoneNumber.trim();
+    void getDesktopApi().recordDiagnosticEvent({
+      stage: 'store:originate-enter',
+      detail: {
+        hasAgent: Boolean(agent),
+        phoneNumber: normalized,
+        callerId: callerId || null,
+        softphoneRegistration: useDesktopStore.getState().softphone?.registration ?? null,
+        runtimeConnection: useDesktopStore.getState().runtimeConnection,
+      },
+    });
     if (!agent || !normalized) {
+      void getDesktopApi().recordDiagnosticEvent({
+        stage: 'store:originate-ignored',
+        detail: {
+          hasAgent: Boolean(agent),
+          hasPhoneNumber: Boolean(normalized),
+        },
+      });
       return;
     }
 
-    const softphone = useDesktopStore.getState().softphone;
-    if (softphone?.registration !== 'registered') {
-      set((current) => ({
-        events: pushEvent(current.events, 'softphone 미등록: 외부 발신 불가'),
-      }));
-      throw new Error('Softphone must be registered before outbound calling');
+    const effectiveCallerId = callerId || useDesktopStore.getState().defaultCallerId || undefined;
+    void getDesktopApi().recordDiagnosticEvent({
+      stage: 'store:originate-runtime',
+      detail: {
+        agentExtension: agent.extension,
+        phoneNumber: normalized,
+        callerId: effectiveCallerId ?? null,
+      },
+    });
+    markPendingRuntimeOriginate(normalized, effectiveCallerId);
+    void getDesktopApi().recordDiagnosticEvent({
+      stage: 'store:originate-softphone-pending',
+      detail: {
+        agentExtension: agent.extension,
+        phoneNumber: normalized,
+        callerId: effectiveCallerId ?? null,
+      },
+    });
+    try {
+      await getDesktopApi().originate({
+        agentExtension: agent.extension,
+        phoneNumber: normalized,
+        callerId: effectiveCallerId,
+      });
+    } catch (error) {
+      clearPendingRuntimeOriginate();
+      throw error;
     }
-
-    await getSoftphoneClient().invite(normalized, useDesktopStore.getState().audioPreferences);
     set((current) => ({
       events: pushEvent(
         current.events,
-        `softphone 외부 발신 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ''}`,
+        `PBX 외부 발신 ${normalized}${effectiveCallerId ? ` / 발신번호 ${effectiveCallerId}` : ''}`,
       ),
     }));
   },
@@ -1134,17 +1236,12 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       return;
     }
 
-    const softphone = useDesktopStore.getState().softphone;
-    if (softphone?.registration !== 'registered') {
-      set((current) => ({
-        events: pushEvent(current.events, 'softphone 미등록: 내선 통화 불가'),
-      }));
-      throw new Error('Softphone must be registered before internal calling');
-    }
-
-    await getSoftphoneClient().invite(normalizedExtension, useDesktopStore.getState().audioPreferences);
+    await getDesktopApi().originateInternal({
+      targetAgentId: target.agentId,
+      targetExtension: normalizedExtension,
+    });
     set((current) => ({
-      events: pushEvent(current.events, `softphone 내선 통화 ${target.agentName} ${normalizedExtension}`),
+      events: pushEvent(current.events, `PBX 내선 발신 ${target.agentName} ${normalizedExtension}`),
     }));
   },
   async openCallHistoryPopup() {
@@ -1153,8 +1250,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   async openAgentListPopup() {
     await getDesktopApi().openAgentListPopup();
   },
-  async openDialpadPopup() {
-    await getDesktopApi().openDialpadPopup();
+  async openDialpadPopup(mode = 'originate') {
+    const normalizedMode = mode === 'dtmf' ? 'dtmf' : 'originate';
+    await getDesktopApi().openDialpadPopup(normalizedMode);
   },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
@@ -1628,6 +1726,18 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       events: pushEvent(current.events, 'softphone 종료 요청'),
     }));
     getSoftphoneMediaController()?.stopRingtone();
+  },
+  async sendSoftphoneDtmf(digit) {
+    const sent = getSoftphoneClient().sendDtmf(digit);
+    set((current) => ({
+      events: pushEvent(
+        current.events,
+        sent ? `softphone DTMF ${digit} 전송` : `softphone DTMF ${digit} 전송 실패`,
+      ),
+    }));
+    if (!sent) {
+      throw new Error('DTMF 전송 실패');
+    }
   },
   dismissAnnouncement(announcementId: string) {
     set((current) => ({

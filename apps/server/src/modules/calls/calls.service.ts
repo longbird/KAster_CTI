@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { extname } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
@@ -7,6 +7,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
+import { SessionEngineService } from './session-engine.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
 import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
@@ -27,6 +28,7 @@ export class CallsService {
     private readonly eventBus: EventBusService,
     private readonly asteriskManager: AsteriskManagerService,
     private readonly transferDetector: TransferDetectorService,
+    @Optional() private readonly sessionEngine?: SessionEngineService,
   ) {}
 
   private muteStateKey(callId: string) {
@@ -556,6 +558,13 @@ export class CallsService {
   async originate(tenantId: string, dto: OriginateDto, metaInput?: CommandMetaInput) {
     const meta = normalizeCommandMeta(metaInput);
     const callerId = await this.resolveAllowedOutboundCallerId(tenantId, dto.callerId);
+    this.sessionEngine?.registerPendingOriginate({
+      tenantId,
+      agentExtension: dto.agentExtension,
+      phoneNumber: dto.phoneNumber,
+      callerId,
+      customerId: dto.customerId,
+    });
     const { channel } = this.asteriskManager.originate({
       agentExtension: dto.agentExtension,
       phoneNumber: dto.phoneNumber,

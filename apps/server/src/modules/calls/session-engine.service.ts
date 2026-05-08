@@ -70,10 +70,21 @@ export function computeFingerprint(event: Record<string, any>): string {
 }
 
 const DEDUPE_TTL_SECONDS = 21600; // 6h — conv 44 권장값
+const PENDING_ORIGINATE_TTL_MS = 60000;
+
+interface PendingOriginate {
+  tenantId: string;
+  agentExtension: string;
+  phoneNumber: string;
+  callerId?: string | null;
+  customerId?: string | null;
+  registeredAt: number;
+}
 
 @Injectable()
 export class SessionEngineService {
   private readonly logger = new Logger(SessionEngineService.name);
+  private readonly pendingOriginates = new Map<string, PendingOriginate[]>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -138,6 +149,74 @@ export class SessionEngineService {
     return agent?.agentId;
   }
 
+  registerPendingOriginate(input: {
+    tenantId: string;
+    agentExtension: string;
+    phoneNumber: string;
+    callerId?: string | null;
+    customerId?: string | null;
+  }) {
+    const agentExtension = input.agentExtension.trim();
+    const phoneNumber = input.phoneNumber.trim();
+    if (!input.tenantId || !agentExtension || !phoneNumber) {
+      return;
+    }
+
+    this.prunePendingOriginates();
+    const key = `${input.tenantId}:${agentExtension}`;
+    const pending = this.pendingOriginates.get(key) ?? [];
+    pending.push({
+      tenantId: input.tenantId,
+      agentExtension,
+      phoneNumber,
+      callerId: input.callerId?.trim() || null,
+      customerId: input.customerId?.trim() || null,
+      registeredAt: Date.now(),
+    });
+    this.pendingOriginates.set(key, pending.slice(-5));
+  }
+
+  private prunePendingOriginates(now = Date.now()) {
+    for (const [key, pending] of this.pendingOriginates.entries()) {
+      const fresh = pending.filter((item) => now - item.registeredAt <= PENDING_ORIGINATE_TTL_MS);
+      if (fresh.length > 0) {
+        this.pendingOriginates.set(key, fresh);
+      } else {
+        this.pendingOriginates.delete(key);
+      }
+    }
+  }
+
+  private consumePendingOriginateForNewChannel(event: Record<string, any>): PendingOriginate | null {
+    const raw = event.raw ?? {};
+    const channel = typeof raw.Channel === 'string' ? raw.Channel : '';
+    const context = typeof raw.Context === 'string' ? raw.Context : '';
+    const exten = typeof raw.Exten === 'string' ? raw.Exten : '';
+    const agentExtension =
+      context.match(/^agent-phone-(.+)$/)?.[1]
+      ?? channel.match(/^PJSIP\/([^-]+)/i)?.[1]
+      ?? '';
+
+    if (!agentExtension || context !== `agent-phone-${agentExtension}` || exten !== 's') {
+      return null;
+    }
+
+    this.prunePendingOriginates();
+    const key = `${event.tenantId}:${agentExtension}`;
+    const pending = this.pendingOriginates.get(key);
+    if (!pending?.length) {
+      return null;
+    }
+
+    const [next, ...rest] = pending;
+    if (rest.length > 0) {
+      this.pendingOriginates.set(key, rest);
+    } else {
+      this.pendingOriginates.delete(key);
+    }
+    return next;
+  }
+
   async processNormalizedEvent(event: Record<string, any>) {
     const linkedid = event.linkedid || event.Linkedid;
     if (!linkedid) return;
@@ -185,14 +264,19 @@ export class SessionEngineService {
 
     switch (event.eventName) {
       case 'Newchannel':
-        await this.ensureSessionStarted(
+        {
+          const pendingOriginate = this.consumePendingOriginateForNewChannel(event);
+          await this.ensureSessionStarted(
           linkedid,
           {
-            ani: event.ani,
-            dnis: event.dnis,
+              ani: pendingOriginate?.phoneNumber ?? event.ani,
+              dnis: pendingOriginate?.callerId ?? event.dnis,
+              direction: pendingOriginate ? 'outbound' : 'inbound',
+              customerId: pendingOriginate?.customerId ?? undefined,
           },
           event.tenantId,
-        );
+          );
+        }
         break;
       case 'QueueCallerJoin':
         await this.upsertSession(
@@ -298,19 +382,24 @@ export class SessionEngineService {
 
   private async ensureSessionStarted(
     linkedid: string,
-    patch: { ani?: string | null; dnis?: string | null },
+    patch: {
+      ani?: string | null;
+      dnis?: string | null;
+      direction?: string;
+      customerId?: string | null;
+    },
     tenantId: string,
   ) {
     await this.prisma.$transaction(async (tx) => {
       const found = await tx.callSessions.findFirst({ where: { linkedid, tenantId } });
-      const customerId = await this.resolveCustomerId(tx, tenantId, patch.ani);
+      const customerId = patch.customerId || await this.resolveCustomerId(tx, tenantId, patch.ani);
 
       if (!found) {
         const created = await tx.callSessions.create({
           data: {
             tenantId,
             linkedid,
-            direction: 'inbound',
+            direction: patch.direction ?? 'inbound',
             sessionStatus: 'NEW',
             ani: patch.ani ?? undefined,
             aniNormalized: normalizePhone(patch.ani ?? ''),

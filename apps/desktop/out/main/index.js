@@ -1,6 +1,6 @@
-import { safeStorage, app, Menu, ipcMain, shell, BrowserWindow, session, Notification, nativeImage, Tray } from "electron";
+import { safeStorage, app, BrowserWindow, Menu, ipcMain, shell, session, Notification, nativeImage, Tray } from "electron";
 import { randomUUID, createHash } from "node:crypto";
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, appendFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
 import axios from "axios";
@@ -323,6 +323,7 @@ class DesktopAuthClient {
 class DesktopBridgeServer {
   host;
   port;
+  getDiagnostics;
   server = null;
   address = null;
   startPromise = null;
@@ -330,6 +331,7 @@ class DesktopBridgeServer {
   constructor(options) {
     this.host = options?.host ?? "127.0.0.1";
     this.port = options?.port ?? 48125;
+    this.getDiagnostics = options?.getDiagnostics;
   }
   async start() {
     if (this.server && this.address) {
@@ -432,6 +434,14 @@ class DesktopBridgeServer {
         ok: true,
         handoffToken,
         ...status
+      }));
+      return;
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/diagnostics") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({
+        ok: true,
+        diagnostics: this.getDiagnostics?.() ?? null
       }));
       return;
     }
@@ -863,18 +873,24 @@ class RuntimeSupervisor {
     this.startRuntime(config, session2);
   }
   disconnect() {
-    this.runtime?.disconnect();
+    const runtime2 = this.runtime;
     this.runtime = null;
+    runtime2?.disconnect();
   }
   startRuntime(config, session2) {
-    this.runtime?.disconnect();
-    this.runtime = this.options.createRuntime({
+    const previousRuntime = this.runtime;
+    const runtime2 = this.options.createRuntime({
       baseUrl: config.serverUrl,
       accessToken: session2.accessToken
     });
-    this.runtime.connect({
+    this.runtime = runtime2;
+    previousRuntime?.disconnect();
+    runtime2.connect({
       onEvent: (event) => this.options.broadcast(event),
       onConnectionState: (payload) => {
+        if (this.runtime !== runtime2) {
+          return;
+        }
         this.options.broadcast({
           type: "runtime.connection.changed",
           payload
@@ -1131,11 +1147,21 @@ const callPreferencesStore = new CallPreferencesStore(app.getPath("userData"));
 const generalPreferencesStore = new GeneralPreferencesStore(app.getPath("userData"));
 const transferHotkeysStore = new TransferHotkeysStore(app.getPath("userData"));
 const tokenVault = new TokenVault(app.getPath("userData"));
+const diagnosticLogPath = join(app.getPath("userData"), "originate-diagnostics.jsonl");
+const diagnosticEvents = [];
 const attentionService = new AttentionService({
   getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
   NotificationCtor: Notification
 });
-const desktopBridgeServer = new DesktopBridgeServer();
+const desktopBridgeServer = new DesktopBridgeServer({
+  getDiagnostics: () => ({
+    runtimeConnected: Boolean(runtime),
+    primaryWindowReady: Boolean(primaryWindow && !primaryWindow.isDestroyed()),
+    windowCount: BrowserWindow.getAllWindows().length,
+    logPath: diagnosticLogPath,
+    events: diagnosticEvents.slice(-80)
+  })
+});
 const protocolConnectInbox = new ProtocolConnectInbox();
 let runtime = null;
 let isQuitting = false;
@@ -1143,7 +1169,23 @@ let trayService = null;
 let runtimeSupervisor = null;
 let primaryWindow = null;
 const historyOriginateRequests = /* @__PURE__ */ new Map();
+const softphoneDtmfRequests = /* @__PURE__ */ new Map();
 let preparedUpdate = null;
+function recordDiagnosticEvent(input) {
+  const event = {
+    ...input,
+    occurredAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  diagnosticEvents.push(event);
+  if (diagnosticEvents.length > 100) {
+    diagnosticEvents.splice(0, diagnosticEvents.length - 100);
+  }
+  try {
+    appendFileSync(diagnosticLogPath, `${JSON.stringify(event)}
+`, "utf8");
+  } catch {
+  }
+}
 const DESKTOP_WINDOW_BOUNDS = {
   idle: { width: 440, height: 560, minWidth: 420, minHeight: 520 },
   ringing: { width: 440, height: 420, minWidth: 400, minHeight: 380 },
@@ -1167,7 +1209,7 @@ function getPrimaryWindow() {
   }
   return BrowserWindow.getAllWindows().find((win) => {
     const title = win.getTitle();
-    return title !== getUtilityWindowTitle("history") && title !== getUtilityWindowTitle("agents");
+    return title !== getUtilityWindowTitle("history") && title !== getUtilityWindowTitle("agents") && title !== getUtilityWindowTitle("dialpad");
   }) ?? null;
 }
 function getUtilityWindowTitle(kind) {
@@ -1184,15 +1226,27 @@ function getUtilityWindowBounds(kind) {
   }
   return { width: 360, height: 560, minWidth: 320, minHeight: 520 };
 }
-function getUtilityWindowRoute(kind) {
+function getUtilityWindowRoute(kind, mode) {
   if (kind === "history") return "#/history-popup";
   if (kind === "agents") return "#/agent-list-popup";
-  return "#/dialpad-popup";
+  return mode === "dtmf" ? "#/dialpad-popup?mode=dtmf" : "#/dialpad-popup";
 }
-function openUtilityWindow(kind) {
+function loadUtilityRoute(win, route) {
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  if (rendererUrl) {
+    void win.loadURL(`${rendererUrl}${route}`);
+    return;
+  }
+  void win.loadFile(join(__dirname, "../renderer/index.html"), { hash: route.slice(1) });
+}
+function openUtilityWindow(kind, mode) {
   const title = getUtilityWindowTitle(kind);
+  const route = getUtilityWindowRoute(kind, mode);
   const existing = BrowserWindow.getAllWindows().find((win2) => win2.getTitle() === title);
   if (existing) {
+    if (kind === "dialpad") {
+      loadUtilityRoute(existing, route);
+    }
     existing.show();
     existing.focus();
     return;
@@ -1212,13 +1266,7 @@ function openUtilityWindow(kind) {
   });
   win.setTitle(title);
   win.setMenuBarVisibility(false);
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  const route = getUtilityWindowRoute(kind);
-  if (rendererUrl) {
-    void win.loadURL(`${rendererUrl}${route}`);
-    return;
-  }
-  void win.loadFile(join(__dirname, "../renderer/index.html"), { hash: route.slice(1) });
+  loadUtilityRoute(win, route);
 }
 function getProtocolArg(argv) {
   return argv.find((value) => value.startsWith("kaster-agent://")) ?? null;
@@ -1601,10 +1649,44 @@ app.whenReady().then(async () => {
     return runtime.changeAgentStatus(agentId, statusCode, reasonCode);
   });
   ipcMain.handle("desktop:originate", (_event, params) => {
+    recordDiagnosticEvent({
+      stage: "main:originate-ipc",
+      detail: {
+        hasRuntime: Boolean(runtime),
+        agentExtension: params.agentExtension,
+        phoneNumber: params.phoneNumber,
+        callerId: params.callerId ?? null
+      }
+    });
     if (!runtime) {
+      recordDiagnosticEvent({
+        stage: "main:originate-no-runtime",
+        detail: {
+          phoneNumber: params.phoneNumber
+        }
+      });
       throw new Error("Runtime is not connected.");
     }
-    return runtime.originate(params);
+    return runtime.originate(params).then((result) => {
+      recordDiagnosticEvent({
+        stage: "main:originate-ok",
+        detail: {
+          phoneNumber: params.phoneNumber,
+          accepted: result.accepted,
+          correlationId: result.correlationId ?? null
+        }
+      });
+      return result;
+    }).catch((error) => {
+      recordDiagnosticEvent({
+        stage: "main:originate-error",
+        detail: {
+          phoneNumber: params.phoneNumber,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      });
+      throw error;
+    });
   });
   ipcMain.handle("desktop:originate-internal", (_event, input) => {
     if (!runtime) {
@@ -1633,6 +1715,13 @@ app.whenReady().then(async () => {
   ipcMain.handle("desktop:request-history-originate", (_event, input) => {
     const win = getPrimaryWindow();
     const phoneNumber = input.phoneNumber?.trim();
+    recordDiagnosticEvent({
+      stage: "main:history-originate-request",
+      detail: {
+        hasPrimaryWindow: Boolean(win),
+        phoneNumber
+      }
+    });
     if (!win || !phoneNumber) {
       throw new Error("상담원 화면으로 발신 요청을 전달할 수 없습니다.");
     }
@@ -1649,11 +1738,45 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle("desktop:complete-history-originate", (_event, input) => {
     const pending = historyOriginateRequests.get(input.requestId);
+    recordDiagnosticEvent({
+      stage: "main:history-originate-complete",
+      detail: {
+        requestId: input.requestId,
+        ok: input.ok,
+        message: input.message ?? null,
+        hasPending: Boolean(pending)
+      }
+    });
     if (!pending) {
       return;
     }
     clearTimeout(pending.timer);
     historyOriginateRequests.delete(input.requestId);
+    pending.resolve(input);
+  });
+  ipcMain.handle("desktop:request-softphone-dtmf", (_event, input) => {
+    const win = getPrimaryWindow();
+    const digit = input.digit?.trim();
+    if (!win || !digit) {
+      throw new Error("상담원 화면으로 DTMF 요청을 전달할 수 없습니다.");
+    }
+    const requestId = randomUUID();
+    win.webContents.send("desktop:softphone-dtmf-request", { requestId, digit });
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        softphoneDtmfRequests.delete(requestId);
+        reject(new Error("DTMF 전송 응답 시간이 초과되었습니다."));
+      }, 5e3);
+      softphoneDtmfRequests.set(requestId, { resolve, reject, timer });
+    });
+  });
+  ipcMain.handle("desktop:complete-softphone-dtmf", (_event, input) => {
+    const pending = softphoneDtmfRequests.get(input.requestId);
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timer);
+    softphoneDtmfRequests.delete(input.requestId);
     pending.resolve(input);
   });
   ipcMain.handle("desktop:open-call-history-popup", () => {
@@ -1662,8 +1785,8 @@ app.whenReady().then(async () => {
   ipcMain.handle("desktop:open-agent-list-popup", () => {
     openUtilityWindow("agents");
   });
-  ipcMain.handle("desktop:open-dialpad-popup", () => {
-    openUtilityWindow("dialpad");
+  ipcMain.handle("desktop:open-dialpad-popup", (_event, mode) => {
+    openUtilityWindow("dialpad", mode === "dtmf" ? "dtmf" : "originate");
   });
   ipcMain.handle("desktop:transfer", (_event, callId, params) => {
     if (!runtime) {
@@ -1759,6 +1882,9 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle("desktop:open-external", (_event, url) => {
     return shell.openExternal(url);
+  });
+  ipcMain.handle("desktop:diagnostic-event", (_event, input) => {
+    recordDiagnosticEvent(input);
   });
   try {
     const initialPrefs = await generalPreferencesStore.load();

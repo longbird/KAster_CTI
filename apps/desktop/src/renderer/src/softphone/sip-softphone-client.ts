@@ -47,6 +47,7 @@ interface WebSessionDescriptionHandlerLike {
       track?: MediaStreamTrack | null;
     }>;
   };
+  sendDtmf?: (tones: string, options?: unknown) => boolean;
 }
 
 type CandidateStats = RTCStats & {
@@ -333,6 +334,39 @@ export class SipSoftphoneClient {
     return true;
   }
 
+  sendDtmf(digit: string) {
+    if (!/^[0-9*#]$/.test(digit)) {
+      throw new Error('Invalid DTMF digit');
+    }
+
+    const currentSession = this.currentSession;
+    if (!currentSession || currentSession.state !== SessionState.Established) {
+      this.emitMediaDiagnosticOnce({
+        code: 'MEDIA_DTMF_SESSION_NOT_READY',
+        message: 'DTMF 를 전송할 수 있는 연결된 SIP 세션이 없습니다.',
+        hint: '통화가 연결된 뒤 다시 시도하세요.',
+        source: 'media',
+        severity: 'warning',
+      });
+      return false;
+    }
+
+    const sent = (currentSession.sessionDescriptionHandler as WebSessionDescriptionHandlerLike | undefined)
+      ?.sendDtmf?.(digit, { duration: 160 });
+    if (!sent) {
+      this.emitMediaDiagnosticOnce({
+        code: 'MEDIA_DTMF_SEND_FAILED',
+        message: 'DTMF 전송에 실패했습니다.',
+        hint: 'PBX/WebRTC DTMF(RFC4733) 지원 여부와 통화 미디어 상태를 확인하세요.',
+        source: 'media',
+        severity: 'error',
+      });
+      return false;
+    }
+
+    return true;
+  }
+
   private async handleIncomingInvitation(invitation: Invitation) {
     if (this.currentSession && this.currentSession.state !== SessionState.Terminated) {
       await invitation.reject();
@@ -542,10 +576,13 @@ export class SipSoftphoneClient {
       source: 'media',
       severity: inboundBytes > 0 ? 'info' : 'error',
     });
-    await this.reportIceCandidatePair(peerConnection);
+    await this.reportIceCandidatePair(peerConnection, inboundBytes > 0);
   }
 
-  private async reportIceCandidatePair(peerConnection: NonNullable<WebSessionDescriptionHandlerLike['peerConnection']>) {
+  private async reportIceCandidatePair(
+    peerConnection: NonNullable<WebSessionDescriptionHandlerLike['peerConnection']>,
+    inboundRtpConfirmed = false,
+  ) {
     if (!peerConnection.getStats) {
       return;
     }
@@ -594,23 +631,28 @@ export class SipSoftphoneClient {
       this.callbacks.onDiagnostic({
         code: 'MEDIA_ICE_CANDIDATE_PAIR',
         message: '선택된 ICE 후보쌍을 찾지 못했습니다.',
-        hint: 'ICE 연결이 후보 선택 전에 중단됐습니다. PC 방화벽, NAT, TURN 필요 여부를 확인하세요.',
+        hint: inboundRtpConfirmed
+          ? 'RTP 수신이 확인되어 ICE 후보쌍 카운터는 참고 정보로만 표시합니다.'
+          : 'ICE 연결이 후보 선택 전에 중단됐습니다. PC 방화벽, NAT, TURN 필요 여부를 확인하세요.',
         source: 'media',
-        severity: 'error',
+        severity: inboundRtpConfirmed ? 'info' : 'error',
       });
       return;
     }
 
     const local = reports.get(selectedPair.localCandidateId ?? '') as CandidateStats | undefined;
     const remote = reports.get(selectedPair.remoteCandidateId ?? '') as CandidateStats | undefined;
+    const pairHasReceivedBytes = Boolean(selectedPair.bytesReceived && selectedPair.bytesReceived > 0);
     this.callbacks.onDiagnostic({
       code: 'MEDIA_ICE_CANDIDATE_PAIR',
       message: `ICE pair ${selectedPair.state ?? 'unknown'} local=${formatCandidate(local)} remote=${formatCandidate(remote)} sent=${selectedPair.bytesSent ?? 0} recv=${selectedPair.bytesReceived ?? 0}`,
-      hint: selectedPair.bytesReceived && selectedPair.bytesReceived > 0
+      hint: pairHasReceivedBytes
         ? 'ICE 후보쌍이 선택됐고 미디어 바이트 송수신이 확인됐습니다.'
-        : 'ICE 후보쌍에서 수신 바이트가 없습니다. PBX RTP 포트 또는 PC/공유기 UDP 경로를 확인하세요.',
+        : inboundRtpConfirmed
+          ? 'RTP 수신이 확인되어 ICE 후보쌍 카운터는 참고 정보로만 표시합니다.'
+          : 'ICE 후보쌍에서 수신 바이트가 없습니다. PBX RTP 포트 또는 PC/공유기 UDP 경로를 확인하세요.',
       source: 'media',
-      severity: selectedPair.bytesReceived && selectedPair.bytesReceived > 0 ? 'info' : 'error',
+      severity: pairHasReceivedBytes || inboundRtpConfirmed ? 'info' : 'error',
     });
   }
 

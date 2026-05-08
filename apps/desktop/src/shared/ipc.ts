@@ -124,6 +124,11 @@ export interface DesktopHistoryOriginateRequest {
   phoneNumber: string;
 }
 
+export interface DesktopSoftphoneDtmfRequest {
+  requestId: string;
+  digit: string;
+}
+
 export interface DesktopCallContextHistoryItem {
   callId: string;
   direction: string | null;
@@ -176,6 +181,17 @@ export interface DesktopHistoryOriginateResult {
   requestId: string;
   ok: boolean;
   message?: string;
+}
+
+export interface DesktopSoftphoneDtmfResult {
+  requestId: string;
+  ok: boolean;
+  message?: string;
+}
+
+export interface DesktopDiagnosticEvent {
+  stage: string;
+  detail?: Record<string, unknown>;
 }
 
 export interface DesktopSoftphoneConfig {
@@ -268,9 +284,11 @@ export interface DesktopApi {
   saveCallMemo(input: DesktopSaveCallMemoInput): Promise<DesktopCallContextMemo>;
   requestHistoryOriginate(input: { phoneNumber: string }): Promise<DesktopHistoryOriginateResult>;
   completeHistoryOriginateRequest(input: DesktopHistoryOriginateResult): Promise<void>;
+  requestSoftphoneDtmf(input: { digit: string }): Promise<DesktopSoftphoneDtmfResult>;
+  completeSoftphoneDtmfRequest(input: DesktopSoftphoneDtmfResult): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
-  openDialpadPopup(): Promise<void>;
+  openDialpadPopup(mode?: 'originate' | 'dtmf'): Promise<void>;
   transfer(
     callId: string,
     params: {
@@ -299,7 +317,9 @@ export interface DesktopApi {
   notifyIncomingCall(input: { title: string; body: string }): Promise<void>;
   focusWindow(): Promise<void>;
   openExternal(url: string): Promise<void>;
+  recordDiagnosticEvent(input: DesktopDiagnosticEvent): Promise<void>;
   onHistoryOriginateRequest(listener: (input: DesktopHistoryOriginateRequest) => void): () => void;
+  onSoftphoneDtmfRequest(listener: (input: DesktopSoftphoneDtmfRequest) => void): () => void;
   onProtocolConnect(listener: (payload: DesktopProtocolConnectPayload) => void): () => void;
   onEvent(listener: (event: import('./cti').CtiEvent) => void): () => void;
 }

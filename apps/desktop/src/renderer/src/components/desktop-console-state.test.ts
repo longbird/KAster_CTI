@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ActiveCall } from '../../../shared/cti';
+import type { SoftphoneState } from '../softphone/softphone-runtime';
 import { deriveDesktopConsoleState, getWindowModeForConsoleState } from './desktop-console-state';
 
 const baseCall: ActiveCall = {
@@ -11,6 +12,26 @@ const baseCall: ActiveCall = {
   sessionStatus: 'TALKING',
   startedAt: '2026-05-02T10:00:00.000Z',
   answeredAt: '2026-05-02T10:00:10.000Z',
+};
+
+const baseSoftphone: SoftphoneState = {
+  registration: 'registered',
+  transport: 'connected',
+  config: {
+    enabled: true,
+    sipUri: 'sip:1001@pbx.example.com',
+    wsServer: 'wss://pbx.example.com/ws',
+    authorizationUsername: '1001',
+    authorizationPassword: 'secret',
+    displayName: '상담원1',
+    iceServers: [],
+  },
+  lastError: null,
+  diagnostics: [],
+  session: null,
+  remoteAudioActive: false,
+  localMuted: false,
+  localHold: false,
 };
 
 describe('deriveDesktopConsoleState', () => {
@@ -36,6 +57,38 @@ describe('deriveDesktopConsoleState', () => {
     expect(deriveDesktopConsoleState({
       activeCall: { ...baseCall, sessionStatus: 'HOLD' },
       softphone: null,
+      settingsOpen: false,
+    })).toBe('talking');
+  });
+
+  it('returns ringing only for incoming softphone ringing, not outgoing setup', () => {
+    expect(deriveDesktopConsoleState({
+      activeCall: null,
+      softphone: {
+        ...baseSoftphone,
+        session: {
+          id: 'invite-in',
+          direction: 'incoming',
+          phase: 'ringing',
+          remoteDisplayName: '고객A',
+          remoteUri: 'sip:customer-a@pbx.example.com',
+        },
+      },
+      settingsOpen: false,
+    })).toBe('ringing');
+
+    expect(deriveDesktopConsoleState({
+      activeCall: null,
+      softphone: {
+        ...baseSoftphone,
+        session: {
+          id: 'invite-out',
+          direction: 'outgoing',
+          phase: 'ringing',
+          remoteDisplayName: '01012345678',
+          remoteUri: 'sip:01012345678@pbx.example.com',
+        },
+      },
       settingsOpen: false,
     })).toBe('talking');
   });

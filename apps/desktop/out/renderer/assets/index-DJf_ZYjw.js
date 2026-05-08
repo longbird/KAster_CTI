@@ -13128,10 +13128,18 @@ const KEYS = [
   { value: "#", label: "#" }
 ];
 const ALLOWED_INPUT_CHARS = /^[0-9*#+]+$/;
+const DTMF_INPUT_CHARS = /^[0-9*#]$/;
 function sanitizeNumber(input) {
   return input.replace(/[^0-9*#+]/g, "");
 }
+function isDtmfMode() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("mode") === "dtmf";
+}
 function DialpadPopup() {
+  const dtmfMode = isDtmfMode();
   const [number, setNumber] = reactExports.useState("");
   const [callerIds, setCallerIds] = reactExports.useState([]);
   const [selectedCallerId, setSelectedCallerId] = reactExports.useState("");
@@ -13142,7 +13150,7 @@ function DialpadPopup() {
     let alive = true;
     void (async () => {
       const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
-      if (!desktopApi?.getCallerIds) {
+      if (dtmfMode || !desktopApi?.getCallerIds) {
         return;
       }
       try {
@@ -13162,12 +13170,40 @@ function DialpadPopup() {
     return () => {
       alive = false;
     };
+  }, [dtmfMode]);
+  const handleDtmf = reactExports.useCallback(async (digit) => {
+    if (!DTMF_INPUT_CHARS.test(digit)) {
+      return;
+    }
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi?.requestSoftphoneDtmf) {
+      setErrorMessage("DTMF 전송 IPC 를 사용할 수 없습니다.");
+      return;
+    }
+    setPending(true);
+    setErrorMessage(null);
+    setStatus(null);
+    try {
+      const result = await desktopApi.requestSoftphoneDtmf({ digit });
+      if (!result.ok) {
+        throw new Error(result.message ?? "DTMF 전송 실패");
+      }
+      setStatus(result.message ?? `${digit} 전송 완료`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "DTMF 전송 실패");
+    } finally {
+      setPending(false);
+    }
   }, []);
   const handleAppend = reactExports.useCallback((digit) => {
+    if (dtmfMode) {
+      void handleDtmf(digit);
+      return;
+    }
     setNumber((current) => current + digit);
     setErrorMessage(null);
     setStatus(null);
-  }, []);
+  }, [dtmfMode, handleDtmf]);
   const handleBackspace = reactExports.useCallback(() => {
     setNumber((current) => current.slice(0, -1));
     setErrorMessage(null);
@@ -13209,7 +13245,7 @@ function DialpadPopup() {
     function handleKey(event) {
       if (event.defaultPrevented) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (event.key === "Enter") {
+      if (!dtmfMode && event.key === "Enter") {
         event.preventDefault();
         void handleDial();
         return;
@@ -13233,13 +13269,13 @@ function DialpadPopup() {
     return () => {
       window.removeEventListener("keydown", handleKey);
     };
-  }, [handleAppend, handleBackspace, handleClear, handleDial]);
+  }, [dtmfMode, handleAppend, handleBackspace, handleClear, handleDial]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "popup-layout dialpad-popup-layout", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "popup-header", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "발신 키패드" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: status ?? "번호를 입력하고 발신을 누르세요." })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: dtmfMode ? "DTMF 키패드" : "발신 키패드" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: status ?? (dtmfMode ? "통화 중 필요한 숫자를 누르면 즉시 전송됩니다." : "번호를 입력하고 발신을 누르세요.") })
     ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-display-row", children: [
+    !dtmfMode ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-display-row", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "select",
         {
@@ -13264,7 +13300,7 @@ function DialpadPopup() {
           placeholder: "번호 입력"
         }
       )
-    ] }),
+    ] }) : null,
     /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "dialpad-grid", "aria-label": "키패드", children: KEYS.map((key) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "button",
       {
@@ -13279,7 +13315,16 @@ function DialpadPopup() {
       },
       key.value
     )) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-actions", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "dialpad-actions", children: dtmfMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        type: "button",
+        className: "primary-button dialpad-call",
+        disabled: pending,
+        "aria-label": "DTMF 전송 상태",
+        children: pending ? "전송 중" : "DTMF"
+      }
+    ) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
@@ -13313,7 +13358,7 @@ function DialpadPopup() {
           children: "C"
         }
       )
-    ] }),
+    ] }) }),
     errorMessage ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "dial-error console-muted", children: errorMessage }) : null
   ] });
 }
@@ -13703,9 +13748,25 @@ function TransferHotkeyEditor({
     ] }, slot);
   }) });
 }
+function hasInboundRtp(diagnostics) {
+  return diagnostics.some((diagnostic) => diagnostic.code === "MEDIA_RTP_STATS" && diagnostic.severity === "info" && /inbound=(?!0\/0)([1-9][0-9]*)\//.test(diagnostic.message));
+}
+function selectReadinessDiagnostic(softphone) {
+  const diagnostics = softphone?.diagnostics ?? [];
+  if (!diagnostics.length) {
+    return null;
+  }
+  if (hasInboundRtp(diagnostics)) {
+    return diagnostics.find((diagnostic) => diagnostic.code === "MEDIA_RTP_STATS" && diagnostic.severity === "info") ?? diagnostics[0];
+  }
+  return diagnostics[0];
+}
 function evaluateSoftphoneReadiness(input) {
   const softphone = input.softphone;
-  const latestDiagnostic = softphone?.diagnostics[0] ?? null;
+  const latestDiagnostic = selectReadinessDiagnostic(softphone);
+  const configReady = Boolean(
+    softphone?.config.enabled && softphone.config.sipUri && softphone.config.wsServer && softphone.config.authorizationUsername
+  );
   const items = [
     {
       key: "runtime",
@@ -13717,9 +13778,9 @@ function evaluateSoftphoneReadiness(input) {
     {
       key: "config",
       label: "Softphone 설정",
-      status: softphone?.config.enabled && Boolean(softphone.config.sipUri) && Boolean(softphone.config.wsServer) && Boolean(softphone.config.authorizationUsername) ? "ok" : "error",
+      status: configReady ? "ok" : "error",
       detail: softphone?.config.enabled ? "enabled" : "disabled",
-      hint: softphone?.config.enabled ? "SIP URI, WSS 주소, 인증 계정 누락 여부를 확인하세요." : "콜센터 서버에서 desktop softphone 설정이 내려오는지 확인하세요."
+      hint: configReady ? null : softphone?.config.enabled ? "SIP URI, WSS 주소, 인증 계정 누락 여부를 확인하세요." : "콜센터 서버에서 desktop softphone 설정이 내려오는지 확인하세요."
     },
     {
       key: "transport",
@@ -13757,10 +13818,10 @@ function deriveDesktopConsoleState(input) {
   if (input.activeCall?.sessionStatus === "TRANSFERRING") {
     return "transferring";
   }
-  if (input.activeCall?.sessionStatus === "QUEUED" || input.activeCall?.sessionStatus === "RINGING_AGENT" || input.softphone?.session?.phase === "ringing") {
+  if (input.activeCall?.sessionStatus === "QUEUED" || input.activeCall?.sessionStatus === "RINGING_AGENT" || input.softphone?.session?.direction === "incoming" && input.softphone.session.phase === "ringing") {
     return "ringing";
   }
-  if (input.activeCall?.sessionStatus === "TALKING" || input.activeCall?.sessionStatus === "HOLD" || input.softphone?.session && input.softphone.session.phase !== "ringing") {
+  if (input.activeCall?.sessionStatus === "TALKING" || input.activeCall?.sessionStatus === "HOLD" || input.softphone?.session && (input.softphone.session.direction === "outgoing" || input.softphone.session.phase !== "ringing")) {
     return "talking";
   }
   if (input.activeCall?.sessionStatus === "AFTER_CALL_WORK") {
@@ -13855,6 +13916,7 @@ function SoftphoneShell({
   onHangupSoftphoneCall
 }) {
   const [view, setView] = reactExports.useState("call");
+  const [settingsTab, setSettingsTab] = reactExports.useState("call");
   const [showDiagnostics, setShowDiagnostics] = reactExports.useState(false);
   const [dialPending, setDialPending] = reactExports.useState(false);
   const [dialError, setDialError] = reactExports.useState(null);
@@ -14102,15 +14164,54 @@ function SoftphoneShell({
     () => agentDirectory.filter((agent) => agent.extension !== extension).slice(0, 5),
     [agentDirectory, extension]
   );
-  const canDialExternal = runtimeReady && softphone?.registration === "registered" && Boolean(dialNumber.trim()) && callerIds.length > 0 && !dialPending;
+  const canDialExternal = runtimeReady && Boolean(dialNumber.trim()) && !dialPending;
   const canAnswerRinging = activeCall ? runtimeReady : Boolean(softphone?.session && softphone.session.phase === "ringing");
+  reactExports.useEffect(() => {
+    void window.desktopApi?.recordDiagnosticEvent?.({
+      stage: "renderer:originate-ui-state",
+      detail: {
+        runtimeReady,
+        canDialExternal,
+        hasDialNumber: Boolean(dialNumber.trim()),
+        callerIdsCount: callerIds.length,
+        softphoneRegistration: softphone?.registration ?? null,
+        dialPending
+      }
+    });
+  }, [
+    runtimeReady,
+    canDialExternal,
+    dialNumber,
+    callerIds.length,
+    softphone?.registration,
+    dialPending
+  ]);
   const handleExternalOriginate = async () => {
     if (!canDialExternal) {
+      void window.desktopApi?.recordDiagnosticEvent?.({
+        stage: "renderer:originate-ui-blocked",
+        detail: {
+          runtimeReady,
+          hasDialNumber: Boolean(dialNumber.trim()),
+          callerIdsCount: callerIds.length,
+          softphoneRegistration: softphone?.registration ?? null,
+          dialPending
+        }
+      });
       return;
     }
     setDialPending(true);
     setDialError(null);
     try {
+      void window.desktopApi?.recordDiagnosticEvent?.({
+        stage: "renderer:originate-click",
+        detail: {
+          phoneNumber: dialNumber.trim(),
+          callerId: selectedCallerId || null,
+          softphoneRegistration: softphone?.registration ?? null,
+          runtimeReady
+        }
+      });
       await onOriginate(dialNumber, selectedCallerId);
     } catch (error) {
       setDialError(error instanceof Error ? error.message : "발신 요청 실패");
@@ -14152,7 +14253,84 @@ function SoftphoneShell({
           settingsLabel: "통화"
         }
       ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "settings-tabs", "aria-label": "설정 분류", children: [
+        ["call", "통화"],
+        ["device", "장치"],
+        ["general", "일반"],
+        ["diagnostics", "진단"]
+      ].map(([tab, label]) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: settingsTab === tab ? "active" : "",
+          "aria-pressed": settingsTab === tab,
+          onClick: () => setSettingsTab(tab),
+          children: label
+        },
+        tab
+      )) }),
+      settingsTab === "call" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "통화 자동 처리" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "0초 = 사용 안 함. 각 항목은 1~60초로 제한됩니다." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-pref-grid", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 응답" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "number",
+                  min: 0,
+                  max: 60,
+                  value: callPreferences.autoAnswerSeconds,
+                  onChange: (event) => {
+                    const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                    void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
+                  }
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 거절" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "number",
+                  min: 0,
+                  max: 60,
+                  value: callPreferences.autoRejectSeconds,
+                  onChange: (event) => {
+                    const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                    void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
+                  }
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "후처리 자동 종료" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "number",
+                  min: 0,
+                  max: 60,
+                  value: callPreferences.autoStatusAfterCallSeconds,
+                  onChange: (event) => {
+                    const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                    void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
+                  }
+                }
+              )
+            ] })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "전환 단축키" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "통화 중 1~9 키로 즉시 전환." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(TransferHotkeyEditor, { slots: transferHotkeys, onSave: updateTransferHotkeys })
+        ] })
+      ] }) : null,
+      settingsTab === "device" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "오디오" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-actions", children: [
@@ -14223,10 +14401,9 @@ function SoftphoneShell({
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !audioCapabilities.sinkSelectionSupported, onClick: onPlayOutputPreview, children: "스피커 테스트" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", disabled: !audioCapabilities.sinkSelectionSupported, onClick: onPlayRingPreview, children: "벨소리 테스트" })
         ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+      ] }) : null,
+      settingsTab === "general" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "일반 설정" }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "시작 / 창 / 트레이 / 벨소리 음원." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "general-pref-grid", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "toggle-row", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -14304,67 +14481,8 @@ function SoftphoneShell({
             )
           ] })
         ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "통화 자동 처리" }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "수신 벨 울림 시 자동 응답/거절. 0초 = 사용 안 함 (1~60초)." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-pref-grid", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 응답" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                min: 0,
-                max: 60,
-                value: callPreferences.autoAnswerSeconds,
-                onChange: (event) => {
-                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
-                  void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
-                }
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "자동 거절" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                min: 0,
-                max: 60,
-                value: callPreferences.autoRejectSeconds,
-                onChange: (event) => {
-                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
-                  void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
-                }
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "field", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "후처리 자동 종료" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                min: 0,
-                max: 60,
-                value: callPreferences.autoStatusAfterCallSeconds,
-                onChange: (event) => {
-                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
-                  void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
-                }
-              }
-            )
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "console-section-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "전환 단축키" }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "통화 중 1~9 키로 즉시 전환. 라벨/번호/방식 등록." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(TransferHotkeyEditor, { slots: transferHotkeys, onSave: updateTransferHotkeys })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
+      ] }) : null,
+      settingsTab === "diagnostics" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "진단" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => setShowDiagnostics((current) => !current), children: showDiagnostics ? "숨기기" : "보기" })
@@ -14412,7 +14530,7 @@ function SoftphoneShell({
           "센터 ",
           config.serverUrl
         ] })
-      ] })
+      ] }) : null
     ] });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: `desktop-console desktop-console-${consoleState}`, children: [
@@ -14499,7 +14617,7 @@ function SoftphoneShell({
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "외부 발신" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-actions", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenDialpadPopup, "aria-label": "발신 키패드 열기", children: "키패드" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => onOpenDialpadPopup("originate"), "aria-label": "발신 키패드 열기", children: "키패드" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenCallHistoryPopup, children: "내역" })
           ] })
         ] }),
@@ -14551,7 +14669,7 @@ function SoftphoneShell({
             {
               type: "button",
               className: "agent-row",
-              disabled: !runtimeReady || softphone?.registration !== "registered" || Boolean(blockReason),
+              disabled: !runtimeReady || Boolean(blockReason),
               onClick: () => {
                 setInternalError(null);
                 setInternalTarget(agent);
@@ -14581,6 +14699,7 @@ function SoftphoneShell({
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "call-control-row", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onMute, children: softphone?.session ? softphone.localMuted ? "음소거 해제" : "음소거" : activeCall?.isMuted ? "음소거 해제" : "음소거" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onToggleHold, children: softphone?.session ? softphone.localHold ? "재개" : "보류" : activeCall?.sessionStatus === "HOLD" ? "재개" : "보류" }),
+        softphone?.session ? /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => onOpenDialpadPopup("dtmf"), children: "키패드" }) : null,
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "danger-button", onClick: softphone?.session ? onHangupSoftphoneCall : onHangup, children: "종료" })
       ] }),
       activeCall ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section transfer-section", children: [
@@ -27740,6 +27859,34 @@ class SipSoftphoneClient {
     });
     return true;
   }
+  sendDtmf(digit) {
+    if (!/^[0-9*#]$/.test(digit)) {
+      throw new Error("Invalid DTMF digit");
+    }
+    const currentSession = this.currentSession;
+    if (!currentSession || currentSession.state !== SessionState.Established) {
+      this.emitMediaDiagnosticOnce({
+        code: "MEDIA_DTMF_SESSION_NOT_READY",
+        message: "DTMF 를 전송할 수 있는 연결된 SIP 세션이 없습니다.",
+        hint: "통화가 연결된 뒤 다시 시도하세요.",
+        source: "media",
+        severity: "warning"
+      });
+      return false;
+    }
+    const sent = currentSession.sessionDescriptionHandler?.sendDtmf?.(digit, { duration: 160 });
+    if (!sent) {
+      this.emitMediaDiagnosticOnce({
+        code: "MEDIA_DTMF_SEND_FAILED",
+        message: "DTMF 전송에 실패했습니다.",
+        hint: "PBX/WebRTC DTMF(RFC4733) 지원 여부와 통화 미디어 상태를 확인하세요.",
+        source: "media",
+        severity: "error"
+      });
+      return false;
+    }
+    return true;
+  }
   async handleIncomingInvitation(invitation) {
     if (this.currentSession && this.currentSession.state !== SessionState.Terminated) {
       await invitation.reject();
@@ -27909,9 +28056,9 @@ class SipSoftphoneClient {
       source: "media",
       severity: inboundBytes > 0 ? "info" : "error"
     });
-    await this.reportIceCandidatePair(peerConnection);
+    await this.reportIceCandidatePair(peerConnection, inboundBytes > 0);
   }
-  async reportIceCandidatePair(peerConnection) {
+  async reportIceCandidatePair(peerConnection, inboundRtpConfirmed = false) {
     if (!peerConnection.getStats) {
       return;
     }
@@ -27946,20 +28093,21 @@ class SipSoftphoneClient {
       this.callbacks.onDiagnostic({
         code: "MEDIA_ICE_CANDIDATE_PAIR",
         message: "선택된 ICE 후보쌍을 찾지 못했습니다.",
-        hint: "ICE 연결이 후보 선택 전에 중단됐습니다. PC 방화벽, NAT, TURN 필요 여부를 확인하세요.",
+        hint: inboundRtpConfirmed ? "RTP 수신이 확인되어 ICE 후보쌍 카운터는 참고 정보로만 표시합니다." : "ICE 연결이 후보 선택 전에 중단됐습니다. PC 방화벽, NAT, TURN 필요 여부를 확인하세요.",
         source: "media",
-        severity: "error"
+        severity: inboundRtpConfirmed ? "info" : "error"
       });
       return;
     }
     const local = reports.get(selectedPair.localCandidateId ?? "");
     const remote = reports.get(selectedPair.remoteCandidateId ?? "");
+    const pairHasReceivedBytes = Boolean(selectedPair.bytesReceived && selectedPair.bytesReceived > 0);
     this.callbacks.onDiagnostic({
       code: "MEDIA_ICE_CANDIDATE_PAIR",
       message: `ICE pair ${selectedPair.state ?? "unknown"} local=${formatCandidate(local)} remote=${formatCandidate(remote)} sent=${selectedPair.bytesSent ?? 0} recv=${selectedPair.bytesReceived ?? 0}`,
-      hint: selectedPair.bytesReceived && selectedPair.bytesReceived > 0 ? "ICE 후보쌍이 선택됐고 미디어 바이트 송수신이 확인됐습니다." : "ICE 후보쌍에서 수신 바이트가 없습니다. PBX RTP 포트 또는 PC/공유기 UDP 경로를 확인하세요.",
+      hint: pairHasReceivedBytes ? "ICE 후보쌍이 선택됐고 미디어 바이트 송수신이 확인됐습니다." : inboundRtpConfirmed ? "RTP 수신이 확인되어 ICE 후보쌍 카운터는 참고 정보로만 표시합니다." : "ICE 후보쌍에서 수신 바이트가 없습니다. PBX RTP 포트 또는 PC/공유기 UDP 경로를 확인하세요.",
       source: "media",
-      severity: selectedPair.bytesReceived && selectedPair.bytesReceived > 0 ? "info" : "error"
+      severity: pairHasReceivedBytes || inboundRtpConfirmed ? "info" : "error"
     });
   }
   clearMediaStatsTimer() {
@@ -28027,6 +28175,7 @@ let audioController = null;
 let softphoneMediaController = null;
 let softphoneClient = null;
 let lastIncomingAttentionCallId = null;
+let pendingRuntimeOriginate = null;
 const EMPTY_AUDIO_DEVICES = {
   inputs: [],
   outputs: []
@@ -28052,6 +28201,29 @@ const DEFAULT_GENERAL_PREFERENCES = {
   closeToTray: true,
   ringTonePresetId: "classic"
 };
+const OUTBOUND_SOFTPHONE_MATCH_WINDOW_MS = 15e3;
+function markPendingRuntimeOriginate(phoneNumber, callerId) {
+  pendingRuntimeOriginate = {
+    phoneNumber,
+    callerId: callerId ?? null,
+    requestedAt: Date.now()
+  };
+}
+function clearPendingRuntimeOriginate() {
+  pendingRuntimeOriginate = null;
+}
+function consumePendingRuntimeOriginateFor(call) {
+  if (!pendingRuntimeOriginate || !call || call.direction !== "incoming" || call.phase !== "ringing") {
+    return null;
+  }
+  if (Date.now() - pendingRuntimeOriginate.requestedAt > OUTBOUND_SOFTPHONE_MATCH_WINDOW_MS) {
+    clearPendingRuntimeOriginate();
+    return null;
+  }
+  const matched = pendingRuntimeOriginate;
+  clearPendingRuntimeOriginate();
+  return matched;
+}
 function getMediaDevices() {
   if (typeof navigator === "undefined" || !navigator.mediaDevices) {
     return null;
@@ -28111,15 +28283,44 @@ function getSoftphoneClient() {
     },
     onCallState: (call) => {
       const previousCall = useDesktopStore.getState().softphone?.session ?? null;
-      const shouldPlayProgressTone = call?.phase === "ringing" || call?.direction === "outgoing" && call.phase === "establishing";
+      const matchedOriginate = consumePendingRuntimeOriginateFor(call);
+      const displayCall = matchedOriginate && call ? {
+        ...call,
+        direction: "outgoing",
+        phase: "establishing",
+        remoteDisplayName: matchedOriginate.phoneNumber
+      } : call;
+      if (matchedOriginate) {
+        const desktopApi = getDesktopApi();
+        void desktopApi.recordDiagnosticEvent({
+          stage: "store:originate-softphone-matched",
+          detail: {
+            callId: call?.id ?? null,
+            phoneNumber: matchedOriginate.phoneNumber,
+            callerId: matchedOriginate.callerId ?? null,
+            remoteDisplayName: call?.remoteDisplayName ?? null,
+            remoteUri: call?.remoteUri ?? null
+          }
+        });
+        void getSoftphoneClient().answer(useDesktopStore.getState().audioPreferences).catch((error) => {
+          void desktopApi.recordDiagnosticEvent({
+            stage: "store:originate-softphone-auto-answer-error",
+            detail: {
+              callId: call?.id ?? null,
+              message: toErrorMessage(error)
+            }
+          });
+        });
+      }
+      const shouldPlayProgressTone = displayCall?.phase === "ringing" || displayCall?.direction === "outgoing" && displayCall.phase === "establishing";
       if (shouldPlayProgressTone) {
         void getSoftphoneMediaController()?.startRingtone();
-        if (call.direction === "incoming" && call.id !== lastIncomingAttentionCallId) {
-          lastIncomingAttentionCallId = call.id;
+        if (displayCall.direction === "incoming" && displayCall.id !== lastIncomingAttentionCallId) {
+          lastIncomingAttentionCallId = displayCall.id;
           const desktopApi = getDesktopApi();
           void desktopApi.notifyIncomingCall({
             title: "착신 전화",
-            body: call.remoteUri ? `${call.remoteDisplayName} / ${call.remoteUri}` : call.remoteDisplayName
+            body: displayCall.remoteUri ? `${displayCall.remoteDisplayName} / ${displayCall.remoteUri}` : displayCall.remoteDisplayName
           });
           void desktopApi.focusWindow();
         }
@@ -28130,13 +28331,13 @@ function getSoftphoneClient() {
       useDesktopStore.setState((current) => ({
         softphone: current.softphone ? {
           ...current.softphone,
-          session: call,
-          lastError: call ? null : previousCall?.direction === "outgoing" && previousCall.phase !== "active" ? "통화 연결 실패: 대상 내선 등록 또는 PBX 라우트를 확인하세요." : current.softphone.lastError,
-          remoteAudioActive: call ? current.softphone.remoteAudioActive : false,
-          localMuted: call ? current.softphone.localMuted : false,
-          localHold: call ? current.softphone.localHold : false
+          session: displayCall,
+          lastError: displayCall ? null : previousCall?.direction === "outgoing" && previousCall.phase !== "active" ? "통화 연결 실패: 대상 내선 등록 또는 PBX 라우트를 확인하세요." : current.softphone.lastError,
+          remoteAudioActive: displayCall ? current.softphone.remoteAudioActive : false,
+          localMuted: displayCall ? current.softphone.localMuted : false,
+          localHold: displayCall ? current.softphone.localHold : false
         } : current.softphone,
-        events: call ? pushEvent(current.events, `softphone ${call.phase} ${call.remoteDisplayName}`) : pushEvent(
+        events: displayCall ? pushEvent(current.events, `softphone ${displayCall.phase} ${displayCall.remoteDisplayName}`) : pushEvent(
           current.events,
           previousCall?.direction === "outgoing" && previousCall.phase !== "active" ? "softphone 통화 연결 실패" : "softphone 세션 종료"
         )
@@ -28829,21 +29030,58 @@ const useDesktopStore = create((set) => ({
   async originate(phoneNumber, callerId) {
     const agent = useDesktopStore.getState().agent;
     const normalized = phoneNumber.trim();
+    void getDesktopApi().recordDiagnosticEvent({
+      stage: "store:originate-enter",
+      detail: {
+        hasAgent: Boolean(agent),
+        phoneNumber: normalized,
+        callerId: callerId || null,
+        softphoneRegistration: useDesktopStore.getState().softphone?.registration ?? null,
+        runtimeConnection: useDesktopStore.getState().runtimeConnection
+      }
+    });
     if (!agent || !normalized) {
+      void getDesktopApi().recordDiagnosticEvent({
+        stage: "store:originate-ignored",
+        detail: {
+          hasAgent: Boolean(agent),
+          hasPhoneNumber: Boolean(normalized)
+        }
+      });
       return;
     }
-    const softphone = useDesktopStore.getState().softphone;
-    if (softphone?.registration !== "registered") {
-      set((current) => ({
-        events: pushEvent(current.events, "softphone 미등록: 외부 발신 불가")
-      }));
-      throw new Error("Softphone must be registered before outbound calling");
+    const effectiveCallerId = callerId || useDesktopStore.getState().defaultCallerId || void 0;
+    void getDesktopApi().recordDiagnosticEvent({
+      stage: "store:originate-runtime",
+      detail: {
+        agentExtension: agent.extension,
+        phoneNumber: normalized,
+        callerId: effectiveCallerId ?? null
+      }
+    });
+    markPendingRuntimeOriginate(normalized, effectiveCallerId);
+    void getDesktopApi().recordDiagnosticEvent({
+      stage: "store:originate-softphone-pending",
+      detail: {
+        agentExtension: agent.extension,
+        phoneNumber: normalized,
+        callerId: effectiveCallerId ?? null
+      }
+    });
+    try {
+      await getDesktopApi().originate({
+        agentExtension: agent.extension,
+        phoneNumber: normalized,
+        callerId: effectiveCallerId
+      });
+    } catch (error) {
+      clearPendingRuntimeOriginate();
+      throw error;
     }
-    await getSoftphoneClient().invite(normalized, useDesktopStore.getState().audioPreferences);
     set((current) => ({
       events: pushEvent(
         current.events,
-        `softphone 외부 발신 ${normalized}${callerId ? ` / 발신번호 ${callerId}` : ""}`
+        `PBX 외부 발신 ${normalized}${effectiveCallerId ? ` / 발신번호 ${effectiveCallerId}` : ""}`
       )
     }));
   },
@@ -28852,16 +29090,12 @@ const useDesktopStore = create((set) => ({
     if (!target.agentId || !normalizedExtension) {
       return;
     }
-    const softphone = useDesktopStore.getState().softphone;
-    if (softphone?.registration !== "registered") {
-      set((current) => ({
-        events: pushEvent(current.events, "softphone 미등록: 내선 통화 불가")
-      }));
-      throw new Error("Softphone must be registered before internal calling");
-    }
-    await getSoftphoneClient().invite(normalizedExtension, useDesktopStore.getState().audioPreferences);
+    await getDesktopApi().originateInternal({
+      targetAgentId: target.agentId,
+      targetExtension: normalizedExtension
+    });
     set((current) => ({
-      events: pushEvent(current.events, `softphone 내선 통화 ${target.agentName} ${normalizedExtension}`)
+      events: pushEvent(current.events, `PBX 내선 발신 ${target.agentName} ${normalizedExtension}`)
     }));
   },
   async openCallHistoryPopup() {
@@ -28870,8 +29104,9 @@ const useDesktopStore = create((set) => ({
   async openAgentListPopup() {
     await getDesktopApi().openAgentListPopup();
   },
-  async openDialpadPopup() {
-    await getDesktopApi().openDialpadPopup();
+  async openDialpadPopup(mode = "originate") {
+    const normalizedMode = mode === "dtmf" ? "dtmf" : "originate";
+    await getDesktopApi().openDialpadPopup(normalizedMode);
   },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
@@ -29279,6 +29514,18 @@ const useDesktopStore = create((set) => ({
     }));
     getSoftphoneMediaController()?.stopRingtone();
   },
+  async sendSoftphoneDtmf(digit) {
+    const sent = getSoftphoneClient().sendDtmf(digit);
+    set((current) => ({
+      events: pushEvent(
+        current.events,
+        sent ? `softphone DTMF ${digit} 전송` : `softphone DTMF ${digit} 전송 실패`
+      )
+    }));
+    if (!sent) {
+      throw new Error("DTMF 전송 실패");
+    }
+  },
   dismissAnnouncement(announcementId) {
     set((current) => ({
       announcements: current.announcements.filter(
@@ -29295,7 +29542,7 @@ function App() {
   if (hash === "#/agent-list-popup") {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(AgentListPopup, {});
   }
-  if (hash === "#/dialpad-popup") {
+  if (hash.startsWith("#/dialpad-popup")) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(DialpadPopup, {});
   }
   const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
@@ -29355,6 +29602,7 @@ function App() {
     answerSoftphoneCall,
     rejectSoftphoneCall,
     hangupSoftphoneCall,
+    sendSoftphoneDtmf,
     announcements,
     dismissAnnouncement,
     queueSummary,
@@ -29395,6 +29643,29 @@ function App() {
       })();
     });
   }, [desktopApi, originate]);
+  reactExports.useEffect(() => {
+    if (!desktopApi?.onSoftphoneDtmfRequest) {
+      return;
+    }
+    return desktopApi.onSoftphoneDtmfRequest((payload) => {
+      void (async () => {
+        try {
+          await sendSoftphoneDtmf(payload.digit);
+          await desktopApi.completeSoftphoneDtmfRequest({
+            requestId: payload.requestId,
+            ok: true,
+            message: `${payload.digit} 전송 완료`
+          });
+        } catch (error) {
+          await desktopApi.completeSoftphoneDtmfRequest({
+            requestId: payload.requestId,
+            ok: false,
+            message: error instanceof Error ? error.message : "DTMF 전송 실패"
+          });
+        }
+      })();
+    });
+  }, [desktopApi, sendSoftphoneDtmf]);
   if (!bootstrapped) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "auth-screen", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "login-card panel boot-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "KAster Agent Desktop" }),
