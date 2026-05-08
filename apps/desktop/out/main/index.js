@@ -1104,7 +1104,23 @@ function getPrimaryWindow() {
   }) ?? null;
 }
 function getUtilityWindowTitle(kind) {
-  return kind === "history" ? "KAster 통화내역" : "KAster 상담원 리스트";
+  if (kind === "history") return "KAster 통화내역";
+  if (kind === "agents") return "KAster 상담원 리스트";
+  return "KAster 발신 키패드";
+}
+function getUtilityWindowBounds(kind) {
+  if (kind === "history") {
+    return { width: 920, height: 640, minWidth: 760, minHeight: 520 };
+  }
+  if (kind === "agents") {
+    return { width: 440, height: 560, minWidth: 380, minHeight: 460 };
+  }
+  return { width: 360, height: 560, minWidth: 320, minHeight: 520 };
+}
+function getUtilityWindowRoute(kind) {
+  if (kind === "history") return "#/history-popup";
+  if (kind === "agents") return "#/agent-list-popup";
+  return "#/dialpad-popup";
 }
 function openUtilityWindow(kind) {
   const title = getUtilityWindowTitle(kind);
@@ -1114,7 +1130,7 @@ function openUtilityWindow(kind) {
     existing.focus();
     return;
   }
-  const bounds = kind === "history" ? { width: 920, height: 640, minWidth: 760, minHeight: 520 } : { width: 440, height: 560, minWidth: 380, minHeight: 460 };
+  const bounds = getUtilityWindowBounds(kind);
   const win = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
@@ -1130,7 +1146,7 @@ function openUtilityWindow(kind) {
   win.setTitle(title);
   win.setMenuBarVisibility(false);
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  const route = kind === "history" ? "#/history-popup" : "#/agent-list-popup";
+  const route = getUtilityWindowRoute(kind);
   if (rendererUrl) {
     void win.loadURL(`${rendererUrl}${route}`);
     return;
@@ -1554,6 +1570,9 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("desktop:open-agent-list-popup", () => {
     openUtilityWindow("agents");
+  });
+  ipcMain.handle("desktop:open-dialpad-popup", () => {
+    openUtilityWindow("dialpad");
   });
   ipcMain.handle("desktop:transfer", (_event, callId, params) => {
     if (!runtime) {

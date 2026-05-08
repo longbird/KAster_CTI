@@ -1576,3 +1576,116 @@ button {
   font-variant-numeric: tabular-nums;
   color: inherit;
 }
+
+.console-section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dialpad-popup-layout {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialpad-display-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialpad-caller-id {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+
+.dialpad-display {
+  width: 100%;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.dialpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.dialpad-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 80ms ease, transform 80ms ease;
+}
+
+.dialpad-key:hover:not(:disabled) {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+}
+
+.dialpad-key:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.dialpad-key__label {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dialpad-key__sub {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.dialpad-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 8px;
+}
+
+.dialpad-secondary {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.dialpad-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dialpad-call {
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 12px;
+}

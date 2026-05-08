@@ -84,6 +84,7 @@ const baseProps = {
   onOriginateInternal: vi.fn(),
   onOpenCallHistoryPopup: vi.fn(),
   onOpenAgentListPopup: vi.fn(),
+  onOpenDialpadPopup: vi.fn(),
   onMute: vi.fn(),
   onHangup: vi.fn(),
   onToggleHold: vi.fn(),

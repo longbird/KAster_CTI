@@ -246,6 +246,7 @@ export interface DesktopApi {
   completeHistoryOriginateRequest(input: DesktopHistoryOriginateResult): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
+  openDialpadPopup(): Promise<void>;
   transfer(
     callId: string,
     params: {

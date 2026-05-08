@@ -98,6 +98,7 @@ export function SoftphoneShell({
   onOriginateInternal,
   onOpenCallHistoryPopup,
   onOpenAgentListPopup,
+  onOpenDialpadPopup,
   onMute,
   onHangup,
   onToggleHold,
@@ -143,6 +144,7 @@ export function SoftphoneShell({
   onOriginateInternal: (target: DesktopAgentDirectoryItem) => Promise<void> | void;
   onOpenCallHistoryPopup: () => void;
   onOpenAgentListPopup: () => void;
+  onOpenDialpadPopup: () => void;
   onMute: () => void;
   onHangup: () => void;
   onToggleHold: () => void;
@@ -756,9 +758,14 @@ export function SoftphoneShell({
           <section className="console-section">
             <div className="console-section-title">
               <h2>외부 발신</h2>
-              <button type="button" onClick={onOpenCallHistoryPopup}>
-                내역
-              </button>
+              <div className="console-section-actions">
+                <button type="button" onClick={onOpenDialpadPopup} aria-label="발신 키패드 열기">
+                  키패드
+                </button>
+                <button type="button" onClick={onOpenCallHistoryPopup}>
+                  내역
+                </button>
+              </div>
             </div>
             <div className="dial-grid">
               <select

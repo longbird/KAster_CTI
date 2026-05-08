@@ -3,6 +3,7 @@ import { AgentListPopup } from './components/AgentListPopup';
 import { AnnouncementBannerStack } from './components/AnnouncementBannerStack';
 import { CallHistoryPopup } from './components/CallHistoryPopup';
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
+import { DialpadPopup } from './components/DialpadPopup';
 import { PairingScreen } from './components/PairingScreen';
 import { QueueMonitorPanel } from './components/QueueMonitorPanel';
 import { SoftphoneShell } from './components/SoftphoneShell';
@@ -16,6 +17,9 @@ export default function App() {
   }
   if (hash === '#/agent-list-popup') {
     return <AgentListPopup />;
+  }
+  if (hash === '#/dialpad-popup') {
+    return <DialpadPopup />;
   }
 
   const desktopApi =
@@ -53,6 +57,7 @@ export default function App() {
     originateInternal,
     openCallHistoryPopup,
     openAgentListPopup,
+    openDialpadPopup,
     pickup,
     mute,
     hangup,
@@ -200,6 +205,7 @@ export default function App() {
           onOriginateInternal={originateInternal}
           onOpenCallHistoryPopup={openCallHistoryPopup}
           onOpenAgentListPopup={openAgentListPopup}
+          onOpenDialpadPopup={openDialpadPopup}
           onMute={mute}
           onHangup={hangup}
           onToggleHold={toggleHold}

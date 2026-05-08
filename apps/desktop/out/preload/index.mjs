@@ -30,6 +30,7 @@ const desktopApi = {
   completeHistoryOriginateRequest: (input) => ipcRenderer.invoke("desktop:complete-history-originate", input),
   openCallHistoryPopup: () => ipcRenderer.invoke("desktop:open-call-history-popup"),
   openAgentListPopup: () => ipcRenderer.invoke("desktop:open-agent-list-popup"),
+  openDialpadPopup: () => ipcRenderer.invoke("desktop:open-dialpad-popup"),
   transfer: (callId, params) => ipcRenderer.invoke("desktop:transfer", callId, params),
   cancelAttendedTransfer: (callId) => ipcRenderer.invoke("desktop:cancel-attended-transfer", callId),
   completeAttendedTransfer: (callId) => ipcRenderer.invoke("desktop:complete-attended-transfer", callId),

@@ -13028,6 +13028,210 @@ function DesktopLoginScreen({
     }
   ) });
 }
+const KEYS = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2", sub: "ABC" },
+  { value: "3", label: "3", sub: "DEF" },
+  { value: "4", label: "4", sub: "GHI" },
+  { value: "5", label: "5", sub: "JKL" },
+  { value: "6", label: "6", sub: "MNO" },
+  { value: "7", label: "7", sub: "PQRS" },
+  { value: "8", label: "8", sub: "TUV" },
+  { value: "9", label: "9", sub: "WXYZ" },
+  { value: "*", label: "*" },
+  { value: "0", label: "0", sub: "+" },
+  { value: "#", label: "#" }
+];
+const ALLOWED_INPUT_CHARS = /^[0-9*#+]+$/;
+function sanitizeNumber(input) {
+  return input.replace(/[^0-9*#+]/g, "");
+}
+function DialpadPopup() {
+  const [number, setNumber] = reactExports.useState("");
+  const [callerIds, setCallerIds] = reactExports.useState([]);
+  const [selectedCallerId, setSelectedCallerId] = reactExports.useState("");
+  const [pending, setPending] = reactExports.useState(false);
+  const [status, setStatus] = reactExports.useState(null);
+  const [errorMessage, setErrorMessage] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+      if (!desktopApi?.getCallerIds) {
+        return;
+      }
+      try {
+        const config = await desktopApi.getCallerIds();
+        if (!alive) return;
+        setCallerIds(config.callerIds ?? []);
+        setSelectedCallerId(
+          config.defaultCallerId ?? config.callerIds?.[0] ?? ""
+        );
+      } catch {
+        if (alive) {
+          setCallerIds([]);
+          setSelectedCallerId("");
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const handleAppend = reactExports.useCallback((digit) => {
+    setNumber((current) => current + digit);
+    setErrorMessage(null);
+    setStatus(null);
+  }, []);
+  const handleBackspace = reactExports.useCallback(() => {
+    setNumber((current) => current.slice(0, -1));
+    setErrorMessage(null);
+    setStatus(null);
+  }, []);
+  const handleClear = reactExports.useCallback(() => {
+    setNumber("");
+    setErrorMessage(null);
+    setStatus(null);
+  }, []);
+  const handleDial = reactExports.useCallback(async () => {
+    const trimmed = sanitizeNumber(number);
+    if (trimmed.length === 0) {
+      setErrorMessage("번호를 입력하세요.");
+      return;
+    }
+    const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
+    if (!desktopApi) {
+      setErrorMessage("데스크톱 IPC 를 사용할 수 없습니다.");
+      return;
+    }
+    setPending(true);
+    setErrorMessage(null);
+    setStatus(null);
+    try {
+      const result = await desktopApi.requestHistoryOriginate({ phoneNumber: trimmed });
+      if (!result.ok) {
+        throw new Error(result.message ?? "발신 요청 실패");
+      }
+      setStatus(result.message ?? `${trimmed} 발신 요청 완료`);
+      setNumber("");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "발신 요청 실패");
+    } finally {
+      setPending(false);
+    }
+  }, [number]);
+  reactExports.useEffect(() => {
+    function handleKey(event) {
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleDial();
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        handleBackspace();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClear();
+        return;
+      }
+      if (event.key.length === 1 && ALLOWED_INPUT_CHARS.test(event.key)) {
+        event.preventDefault();
+        handleAppend(event.key);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [handleAppend, handleBackspace, handleClear, handleDial]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "popup-layout dialpad-popup-layout", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "popup-header", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "발신 키패드" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: status ?? "번호를 입력하고 발신을 누르세요." })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-display-row", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          "aria-label": "발신번호",
+          value: selectedCallerId,
+          onChange: (event) => setSelectedCallerId(event.target.value),
+          disabled: callerIds.length === 0,
+          className: "dialpad-caller-id",
+          children: [
+            callerIds.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "등록된 발신번호 없음" }) : null,
+            callerIds.map((callerId) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: callerId, children: callerId }, callerId))
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          "aria-label": "발신 번호",
+          className: "dialpad-display",
+          value: number,
+          onChange: (event) => setNumber(sanitizeNumber(event.target.value)),
+          placeholder: "번호 입력"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "dialpad-grid", "aria-label": "키패드", children: KEYS.map((key) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        type: "button",
+        className: "dialpad-key",
+        onClick: () => handleAppend(key.value),
+        "aria-label": `키 ${key.value}`,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dialpad-key__label", children: key.label }),
+          key.sub ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dialpad-key__sub", children: key.sub }) : null
+        ]
+      },
+      key.value
+    )) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "dialpad-actions", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "dialpad-secondary",
+          onClick: handleBackspace,
+          disabled: number.length === 0,
+          "aria-label": "한 자리 지우기",
+          children: "⌫"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "primary-button dialpad-call",
+          onClick: () => void handleDial(),
+          disabled: pending || number.length === 0,
+          "aria-label": "발신",
+          children: pending ? "발신 중" : "📞 발신"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          className: "dialpad-secondary",
+          onClick: handleClear,
+          disabled: number.length === 0,
+          "aria-label": "모두 지우기",
+          children: "C"
+        }
+      )
+    ] }),
+    errorMessage ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "dial-error console-muted", children: errorMessage }) : null
+  ] });
+}
 function PairingScreen({
   onSubmit,
   busy,
@@ -13545,6 +13749,7 @@ function SoftphoneShell({
   onOriginateInternal,
   onOpenCallHistoryPopup,
   onOpenAgentListPopup,
+  onOpenDialpadPopup,
   onMute,
   onHangup,
   onToggleHold,
@@ -14125,7 +14330,10 @@ function SoftphoneShell({
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "console-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-title", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "외부 발신" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenCallHistoryPopup, children: "내역" })
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "console-section-actions", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenDialpadPopup, "aria-label": "발신 키패드 열기", children: "키패드" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: onOpenCallHistoryPopup, children: "내역" })
+          ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dial-grid", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -28445,6 +28653,9 @@ const useDesktopStore = create((set) => ({
   async openAgentListPopup() {
     await getDesktopApi().openAgentListPopup();
   },
+  async openDialpadPopup() {
+    await getDesktopApi().openDialpadPopup();
+  },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
     if (!currentCall) {
@@ -28859,6 +29070,9 @@ function App() {
   if (hash === "#/agent-list-popup") {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(AgentListPopup, {});
   }
+  if (hash === "#/dialpad-popup") {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(DialpadPopup, {});
+  }
   const desktopApi = typeof window !== "undefined" && "desktopApi" in window ? window.desktopApi : null;
   const {
     bootstrapped,
@@ -28893,6 +29107,7 @@ function App() {
     originateInternal,
     openCallHistoryPopup,
     openAgentListPopup,
+    openDialpadPopup,
     pickup,
     mute,
     hangup,
@@ -29025,6 +29240,7 @@ function App() {
         onOriginateInternal: originateInternal,
         onOpenCallHistoryPopup: openCallHistoryPopup,
         onOpenAgentListPopup: openAgentListPopup,
+        onOpenDialpadPopup: openDialpadPopup,
         onMute: mute,
         onHangup: hangup,
         onToggleHold: toggleHold,

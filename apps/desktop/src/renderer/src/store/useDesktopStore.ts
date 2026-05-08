@@ -107,6 +107,7 @@ interface DesktopStore {
   originateInternal(target: DesktopAgentDirectoryItem): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
   openAgentListPopup(): Promise<void>;
+  openDialpadPopup(): Promise<void>;
   pickup(): Promise<void>;
   mute(): Promise<void>;
   hangup(): Promise<void>;
@@ -1124,6 +1125,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   },
   async openAgentListPopup() {
     await getDesktopApi().openAgentListPopup();
+  },
+  async openDialpadPopup() {
+    await getDesktopApi().openDialpadPopup();
   },
   async pickup() {
     const currentCall = useDesktopStore.getState().activeCall;
