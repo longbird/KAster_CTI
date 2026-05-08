@@ -5,6 +5,7 @@ import { ForwardingSettingsPage } from '../features/forwarding-settings/Forwardi
 import { LiveCallsPage } from '../features/live-calls/LiveCallsPage';
 import { KpiPage } from '../features/kpi/KpiPage';
 import { AgentGroupsPage } from '../features/agent-groups/AgentGroupsPage';
+import { AgentMonitoringPage } from '../features/agent-monitoring/AgentMonitoringPage';
 import { AgentSettingsPage } from '../features/agent-settings/AgentSettingsPage';
 import { OutboundRulesPage } from '../features/outbound-rules/OutboundRulesPage';
 import { ShareRulesPage } from '../features/share-rules/ShareRulesPage';
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
       { path: 'queues',               element: <QueuesPage /> },
       { path: 'agents',               element: <AgentsPage /> },
       { path: 'monitoring',           element: <MonitoringPage /> },
+      { path: 'monitoring/agents',    element: <AgentMonitoringPage /> },
       { path: 'asterisk',             element: <AsteriskConfigPage /> },
       { path: 'numbers',              element: <NumbersPage /> },
       { path: 'history',              element: <HistoryPage /> },

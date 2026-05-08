@@ -72,4 +72,23 @@ describe('defaultPermissionFlags', () => {
       }),
     );
   });
+
+  it('adds supervisor agent monitoring view as an operable view-only menu', () => {
+    expect(MENU_KEYS).toContain('monitoring/agents');
+    expect(defaultPermissionFlags('supervisor', 'monitoring/agents')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canOperate: true,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+      }),
+    );
+    expect(defaultPermissionFlags('agent', 'monitoring/agents')).toEqual(
+      expect.objectContaining({
+        canView: false,
+        canOperate: false,
+      }),
+    );
+  });
 });

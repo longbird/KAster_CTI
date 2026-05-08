@@ -25,6 +25,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/kpi', label: '업무 현황 조회' },
       { key: '/queues', label: '큐 현황' },
       { key: '/agents', label: '상담원 현황' },
+      { key: '/monitoring/agents', label: '상담원 라이브 모니터' },
       { key: '/monitoring', label: '시스템 모니터링' },
     ],
   },

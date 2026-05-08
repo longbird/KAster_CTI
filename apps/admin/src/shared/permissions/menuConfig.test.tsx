@@ -20,6 +20,7 @@ const BASELINE_LEAF_KEYS = [
   '/kpi',
   '/live-calls',
   '/monitoring',
+  '/monitoring/agents',
   '/opt-out-customers',
   '/queues',
   '/reports/calls',
@@ -78,6 +79,7 @@ describe('ADMIN_MENU_CONFIG', () => {
       '/kpi',
       '/queues',
       '/agents',
+      '/monitoring/agents',
       '/monitoring',
     ]);
   });
