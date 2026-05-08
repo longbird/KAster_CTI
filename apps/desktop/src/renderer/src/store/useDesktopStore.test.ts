@@ -976,4 +976,66 @@ describe('useDesktopStore pairing', () => {
     expect(desktopApi.cancelAttendedTransfer).toHaveBeenCalledWith('call-1');
     expect(useDesktopStore.getState().activeCall?.latestTransfer).toBeNull();
   });
+
+  it('announcement.pushed 는 배너에 추가하고 같은 id 갱신은 dedupe 한다', async () => {
+    desktopApi.getConfig.mockResolvedValueOnce({
+      serverUrl: 'https://cti-center-a.example.com',
+      channel: 'stable',
+      deviceId: 'device-1',
+    });
+    desktopApi.getSession.mockResolvedValueOnce({
+      agent: {
+        agentId: 'agent-1',
+        agentName: '상담원1',
+        extension: '1001',
+        role: 'agent',
+      },
+    });
+    desktopApi.onEvent.mockImplementationOnce((listener) => {
+      listener({
+        type: 'announcement.pushed',
+        payload: {
+          action: 'created',
+          announcementId: 'a-1',
+          title: '점검 안내',
+          body: '23시 정기 점검',
+          authorName: '운영팀',
+          pinned: true,
+        },
+      });
+      listener({
+        type: 'announcement.pushed',
+        payload: {
+          action: 'updated',
+          announcementId: 'a-1',
+          title: '점검 안내(연기)',
+          body: '24시로 변경',
+          authorName: '운영팀',
+          pinned: true,
+        },
+      });
+      listener({
+        type: 'announcement.pushed',
+        payload: {
+          action: 'created',
+          announcementId: 'a-2',
+          title: '교육 일정',
+          body: '내일 10시',
+          pinned: false,
+        },
+      });
+      return () => undefined;
+    });
+
+    await useDesktopStore.getState().initialize();
+
+    const state = useDesktopStore.getState();
+    expect(state.announcements).toHaveLength(2);
+    expect(state.announcements[0].announcementId).toBe('a-2');
+    expect(state.announcements[1].announcementId).toBe('a-1');
+    expect(state.announcements[1].title).toBe('점검 안내(연기)');
+
+    useDesktopStore.getState().dismissAnnouncement('a-1');
+    expect(useDesktopStore.getState().announcements.map((it) => it.announcementId)).toEqual(['a-2']);
+  });
 });

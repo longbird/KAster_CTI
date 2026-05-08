@@ -5,6 +5,7 @@ export const REALTIME_EVENTS = {
   SCREENPOP_CUSTOMER: 'screenpop.customer',
   AGENT_STATUS_CHANGED: 'agent.status.changed',
   QUEUE_SUMMARY_UPDATED: 'queue.summary.updated',
+  ANNOUNCEMENT_PUSHED: 'announcement.pushed',
 } as const;
 
 export type RealtimeEventName =

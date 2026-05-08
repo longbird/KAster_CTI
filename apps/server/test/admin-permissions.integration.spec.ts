@@ -5,6 +5,7 @@ import { MenuPermissionService } from '../src/common/menu-permission.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AdminService } from '../src/modules/admin/admin.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
+import { EventBusService } from '../src/modules/events/event-bus.service';
 import { HealthSummaryService } from '../src/modules/health/health-summary.service';
 import { RealtimeGateway } from '../src/modules/realtime/realtime.gateway';
 
@@ -142,6 +143,9 @@ describe('Admin/Permission service integration', () => {
     const realtimeGateway = {
       getClientCount: jest.fn(),
     };
+    const eventBus = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    };
 
     beforeEach(async () => {
       jest.clearAllMocks();
@@ -153,6 +157,7 @@ describe('Admin/Permission service integration', () => {
           { provide: AsteriskReloadService, useValue: reloadService },
           { provide: HealthSummaryService, useValue: healthSummary },
           { provide: RealtimeGateway, useValue: realtimeGateway },
+          { provide: EventBusService, useValue: eventBus },
         ],
       }).compile();
 

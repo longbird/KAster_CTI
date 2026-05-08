@@ -51,6 +51,17 @@ interface LoginParams {
 
 type AuthView = 'login' | 'pairing';
 
+export interface AnnouncementBanner {
+  announcementId: string;
+  title: string;
+  body: string;
+  authorName?: string | null;
+  pinned?: boolean;
+  receivedAt: string;
+}
+
+const MAX_ANNOUNCEMENTS = 5;
+
 interface DesktopStore {
   bootstrapped: boolean;
   pairing: boolean;
@@ -63,6 +74,7 @@ interface DesktopStore {
   config: DesktopConfig | null;
   activeCall: ActiveCall | null;
   events: string[];
+  announcements: AnnouncementBanner[];
   audioPermission: AudioPermissionState;
   refreshingAudioDevices: boolean;
   audioPreferences: DesktopAudioPreferences | null;
@@ -114,6 +126,7 @@ interface DesktopStore {
   answerSoftphoneCall(): Promise<void>;
   rejectSoftphoneCall(): Promise<void>;
   hangupSoftphoneCall(): Promise<void>;
+  dismissAnnouncement(announcementId: string): void;
 }
 
 let detachRuntimeListener: (() => void) | null = null;
@@ -483,8 +496,9 @@ function reduceEvent(
   currentEvents: string[],
   currentAgentStatus: AgentStatusCode | null,
   currentRuntimeConnection: DesktopStore['runtimeConnection'],
-  currentAgentId?: string | null,
-): Pick<DesktopStore, 'activeCall' | 'events' | 'agentStatus' | 'runtimeConnection'> {
+  currentAgentId: string | null | undefined,
+  currentAnnouncements: AnnouncementBanner[],
+): Pick<DesktopStore, 'activeCall' | 'events' | 'agentStatus' | 'runtimeConnection' | 'announcements'> {
   switch (event.type) {
     case 'call.created':
       return {
@@ -492,6 +506,7 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `신규 콜 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
       };
     case 'call.updated':
       return {
@@ -499,6 +514,7 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 상태 변경 ${event.payload.ani} / ${event.payload.sessionStatus}`),
+        announcements: currentAnnouncements,
       };
     case 'call.ended':
       return {
@@ -506,6 +522,7 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `콜 종료 ${event.payload.callId}`),
+        announcements: currentAnnouncements,
       };
     case 'screenpop.customer':
       return {
@@ -518,6 +535,7 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `고객 팝업 ${event.payload.customer.customerName}`),
+        announcements: currentAnnouncements,
       };
     case 'agent.status.changed':
       return {
@@ -527,6 +545,7 @@ function reduceEvent(
           : currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `상태 변경 ${event.payload.agentId} / ${event.payload.statusCode}`),
+        announcements: currentAnnouncements,
       };
     case 'queue.summary.updated':
       return {
@@ -534,7 +553,32 @@ function reduceEvent(
         agentStatus: currentAgentStatus,
         runtimeConnection: currentRuntimeConnection,
         events: pushEvent(currentEvents, `큐 요약 갱신 ${event.payload.length}건`),
+        announcements: currentAnnouncements,
       };
+    case 'announcement.pushed': {
+      const incoming: AnnouncementBanner = {
+        announcementId: event.payload.announcementId,
+        title: event.payload.title,
+        body: event.payload.body,
+        authorName: event.payload.authorName ?? null,
+        pinned: event.payload.pinned ?? false,
+        receivedAt: new Date().toISOString(),
+      };
+      const filtered = currentAnnouncements.filter(
+        (item) => item.announcementId !== incoming.announcementId,
+      );
+      const next = [incoming, ...filtered].slice(0, MAX_ANNOUNCEMENTS);
+      return {
+        activeCall: currentCall,
+        agentStatus: currentAgentStatus,
+        runtimeConnection: currentRuntimeConnection,
+        events: pushEvent(
+          currentEvents,
+          `공지 ${event.payload.action === 'updated' ? '수정' : '신규'} ${event.payload.title}`,
+        ),
+        announcements: next,
+      };
+    }
     case 'runtime.connection.changed':
       return {
         activeCall: currentCall,
@@ -544,6 +588,7 @@ function reduceEvent(
           currentEvents,
           `runtime ${event.payload.state}${event.payload.reason ? ` / ${event.payload.reason}` : ''}`,
         ),
+        announcements: currentAnnouncements,
       };
   }
 }
@@ -564,6 +609,7 @@ function bindRuntimeEvents(
       state.agentStatus,
       state.runtimeConnection,
       state.agent?.agentId,
+      state.announcements,
     ));
   });
 }
@@ -647,6 +693,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   config: null,
   activeCall: null,
   events: [],
+  announcements: [],
   audioPermission: 'unknown',
   refreshingAudioDevices: false,
   audioPreferences: null,
@@ -1502,5 +1549,12 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       events: pushEvent(current.events, 'softphone 종료 요청'),
     }));
     getSoftphoneMediaController()?.stopRingtone();
+  },
+  dismissAnnouncement(announcementId: string) {
+    set((current) => ({
+      announcements: current.announcements.filter(
+        (item) => item.announcementId !== announcementId,
+      ),
+    }));
   },
 }));

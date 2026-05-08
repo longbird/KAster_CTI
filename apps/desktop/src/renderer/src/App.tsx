@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AgentListPopup } from './components/AgentListPopup';
+import { AnnouncementBannerStack } from './components/AnnouncementBannerStack';
 import { CallHistoryPopup } from './components/CallHistoryPopup';
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { PairingScreen } from './components/PairingScreen';
@@ -71,6 +72,8 @@ export default function App() {
     answerSoftphoneCall,
     rejectSoftphoneCall,
     hangupSoftphoneCall,
+    announcements,
+    dismissAnnouncement,
   } = useDesktopStore();
   const updateBlockReason =
     activeCall && activeCall.sessionStatus !== 'ENDED'
@@ -153,6 +156,10 @@ export default function App() {
   return (
     <main className="desktop-layout">
       <div className="desktop-main">
+        <AnnouncementBannerStack
+          announcements={announcements}
+          onDismiss={dismissAnnouncement}
+        />
         {updateState ? (
           <UpdateBanner
             message={updateState.message}

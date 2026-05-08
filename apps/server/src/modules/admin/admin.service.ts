@@ -10,7 +10,9 @@ import {
 import { parseAllowedCallerIds, serializeAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
+import { EventBusService } from '../events/event-bus.service';
 import { HealthSummaryService } from '../health/health-summary.service';
+import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { QueuesService } from '../queues/queues.service';
 import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
@@ -738,6 +740,7 @@ export class AdminService {
     private readonly asteriskReloadService: AsteriskReloadService,
     private readonly healthSummary: HealthSummaryService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly eventBus: EventBusService,
   ) {}
 
   private buildPermissionMatrix(
@@ -1787,6 +1790,20 @@ export class AdminService {
       },
     });
 
+    await this.eventBus.publish(
+      REALTIME_EVENTS.ANNOUNCEMENT_PUSHED,
+      {
+        action: 'created',
+        announcementId: row.announcementId,
+        title: row.title,
+        body: row.body,
+        authorName: row.authorName,
+        pinned: row.pinned,
+        createdAt: row.createdAt,
+      },
+      tenantId,
+    );
+
     return { success: true, data: row, error: null };
   }
 
@@ -1806,6 +1823,21 @@ export class AdminService {
         updatedAt: new Date(),
       },
     });
+
+    if (row.count > 0) {
+      await this.eventBus.publish(
+        REALTIME_EVENTS.ANNOUNCEMENT_PUSHED,
+        {
+          action: 'updated',
+          announcementId,
+          title: dto.title,
+          body: dto.body,
+          authorName: dto.authorName || actor?.agentName || '관리자',
+          pinned: dto.pinned ?? false,
+        },
+        tenantId,
+      );
+    }
 
     return { success: true, data: { updated: row.count > 0, announcementId }, error: null };
   }

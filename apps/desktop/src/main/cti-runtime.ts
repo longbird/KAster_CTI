@@ -21,6 +21,7 @@ const EVENT_NAMES: RuntimeEventName[] = [
   'screenpop.customer',
   'agent.status.changed',
   'queue.summary.updated',
+  'announcement.pushed',
 ];
 
 export class CtiRuntime {

@@ -66,6 +66,7 @@ function createService() {
   } as any;
   const healthSummary = {} as any;
   const realtimeGateway = {} as any;
+  const eventBus = { publish: jest.fn().mockResolvedValue(undefined) } as any;
 
   return {
     prisma,
@@ -76,6 +77,7 @@ function createService() {
       asteriskReloadService,
       healthSummary,
       realtimeGateway,
+      eventBus,
     ),
   };
 }
