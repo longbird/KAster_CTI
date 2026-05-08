@@ -143,14 +143,30 @@ describe('SoftphoneShell', () => {
     expect(desktopApi.setWindowMode).toHaveBeenCalledWith('settings');
   });
 
-  it('changes agent status from the compact header selector', () => {
+  it('changes agent status without reason for AVAILABLE', () => {
+    render(<SoftphoneShell {...baseProps} />);
+
+    fireEvent.change(screen.getByLabelText('상담원 상태'), {
+      target: { value: 'AVAILABLE' },
+    });
+
+    expect(baseProps.onChangeAgentStatus).toHaveBeenCalledWith('AVAILABLE');
+  });
+
+  it('opens reason modal for BREAK and forwards reasonCode on confirm', () => {
     render(<SoftphoneShell {...baseProps} />);
 
     fireEvent.change(screen.getByLabelText('상담원 상태'), {
       target: { value: 'BREAK' },
     });
 
-    expect(baseProps.onChangeAgentStatus).toHaveBeenCalledWith('BREAK');
+    // 모달이 열리고 콜백은 아직 호출되지 않음
+    expect(baseProps.onChangeAgentStatus).not.toHaveBeenCalled();
+    const textarea = screen.getByPlaceholderText('예: 점심, 휴식, 교육 등') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: '커피' } });
+    fireEvent.click(screen.getByRole('button', { name: '변경' }));
+
+    expect(baseProps.onChangeAgentStatus).toHaveBeenCalledWith('BREAK', '커피');
   });
 
   it('통화 중일 때만 전환 기능을 표시한다', () => {

@@ -207,7 +207,7 @@ describe('useDesktopStore pairing', () => {
 
     await useDesktopStore.getState().changeAgentStatus('BREAK');
 
-    expect(desktopApi.changeAgentStatus).toHaveBeenCalledWith('agent-login', 'BREAK');
+    expect(desktopApi.changeAgentStatus).toHaveBeenCalledWith('agent-login', 'BREAK', undefined);
     expect(useDesktopStore.getState().agentStatus).toBe('BREAK');
   });
 

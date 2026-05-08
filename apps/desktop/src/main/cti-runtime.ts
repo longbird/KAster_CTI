@@ -125,8 +125,12 @@ export class CtiRuntime {
   async changeAgentStatus(
     agentId: string,
     statusCode: AgentStatusCode,
+    reasonCode?: string,
   ): Promise<{ statusCode: AgentStatusCode }> {
-    const response = await this.http.post(`/agents/${agentId}/status`, { statusCode });
+    const response = await this.http.post(`/agents/${agentId}/status`, {
+      statusCode,
+      ...(reasonCode ? { reasonCode } : {}),
+    });
 
     return response.data.data as { statusCode: AgentStatusCode };
   }

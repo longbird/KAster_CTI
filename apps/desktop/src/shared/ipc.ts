@@ -22,6 +22,15 @@ export interface DesktopAudioPreferences {
   noiseSuppression: boolean;
 }
 
+export interface DesktopCallPreferences {
+  /** 0 = off, 1~60 = 자동 응답까지 남은 초 */
+  autoAnswerSeconds: number;
+  /** 0 = off, 1~60 = 자동 거절까지 남은 초 */
+  autoRejectSeconds: number;
+  /** 통화 종료 후 후처리(AFTER_CALL_WORK) → 자동으로 다음 상태 전환할 초 (0=off) */
+  autoStatusAfterCallSeconds: number;
+}
+
 export interface DesktopAgentProfile {
   agentId: string;
   agentName: string;
@@ -177,6 +186,8 @@ export interface DesktopApi {
   saveConfig(input: { serverUrl: string; channel?: string }): Promise<DesktopConfig>;
   getAudioPreferences(): Promise<DesktopAudioPreferences>;
   saveAudioPreferences(input: DesktopAudioPreferences): Promise<DesktopAudioPreferences>;
+  getCallPreferences(): Promise<DesktopCallPreferences>;
+  saveCallPreferences(input: DesktopCallPreferences): Promise<DesktopCallPreferences>;
   exchangeHandoff(handoffToken: string): Promise<DesktopSessionSummary>;
   login(input: {
     serverUrl: string;
@@ -195,6 +206,7 @@ export interface DesktopApi {
   changeAgentStatus(
     agentId: string,
     statusCode: import('./cti').AgentStatusCode,
+    reasonCode?: string,
   ): Promise<{ statusCode: import('./cti').AgentStatusCode }>;
   mute(
     callId: string,

@@ -88,7 +88,7 @@ interface DesktopStore {
   showPairingDiagnostics(): void;
   showLogin(): void;
   reconnectRuntime(): Promise<void>;
-  changeAgentStatus(statusCode: AgentStatusCode): Promise<void>;
+  changeAgentStatus(statusCode: AgentStatusCode, reasonCode?: string): Promise<void>;
   originate(phoneNumber: string, callerId?: string): Promise<void>;
   originateInternal(target: DesktopAgentDirectoryItem): Promise<void>;
   openCallHistoryPopup(): Promise<void>;
@@ -978,16 +978,16 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       }));
     }
   },
-  async changeAgentStatus(statusCode) {
+  async changeAgentStatus(statusCode, reasonCode) {
     const agent = useDesktopStore.getState().agent;
     if (!agent) {
       return;
     }
 
-    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode);
+    const result = await getDesktopApi().changeAgentStatus(agent.agentId, statusCode, reasonCode);
     set((current) => ({
       agentStatus: result.statusCode,
-      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}`),
+      events: pushEvent(current.events, `상담원 상태 변경 ${result.statusCode}${reasonCode ? ` (${reasonCode})` : ''}`),
     }));
   },
   async originate(phoneNumber, callerId) {

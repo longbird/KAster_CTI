@@ -4,9 +4,11 @@ import type {
   DesktopAgentDirectoryItem,
   DesktopAudioPreferences,
   DesktopCallContext,
+  DesktopCallPreferences,
   DesktopConfig,
 } from '../../../shared/ipc';
 import { CallInfoPanel } from './CallInfoPanel';
+import { RingingAutoTimer } from './RingingAutoTimer';
 import type { SoftphoneState } from '../softphone/softphone-runtime';
 import { evaluateSoftphoneReadiness } from '../softphone/softphone-readiness';
 import {
@@ -28,6 +30,13 @@ const AGENT_STATUS_OPTIONS: Array<{ value: AgentStatusCode; label: string }> = [
 ];
 
 const TRANSFER_READY_STATUSES = new Set(['TALKING', 'HOLD', 'TRANSFERRING']);
+
+const STATUSES_REQUIRING_REASON: Set<AgentStatusCode> = new Set([
+  'BREAK',
+  'MEAL',
+  'TRAINING',
+  'MANUAL_PAUSED',
+]);
 
 function formatAgentStatus(status: AgentStatusCode | null) {
   return AGENT_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? '중지';
@@ -126,7 +135,7 @@ export function SoftphoneShell({
   defaultCallerId: string | null;
   agentDirectory: DesktopAgentDirectoryItem[];
   onReconnectRuntime: () => void;
-  onChangeAgentStatus: (statusCode: AgentStatusCode) => void;
+  onChangeAgentStatus: (statusCode: AgentStatusCode, reasonCode?: string) => void;
   onPickup: () => void;
   onOriginate: (phoneNumber: string, callerId?: string) => Promise<void> | void;
   onOriginateInternal: (target: DesktopAgentDirectoryItem) => Promise<void> | void;
@@ -202,6 +211,73 @@ export function SoftphoneShell({
   const [callContext, setCallContext] = useState<DesktopCallContext | null>(null);
   const [callContextLoading, setCallContextLoading] = useState(false);
   const [callContextError, setCallContextError] = useState<string | null>(null);
+  const [callPreferences, setCallPreferences] = useState<DesktopCallPreferences>({
+    autoAnswerSeconds: 0,
+    autoRejectSeconds: 0,
+    autoStatusAfterCallSeconds: 0,
+  });
+
+  useEffect(() => {
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!desktopApi?.getCallPreferences) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prefs = await desktopApi.getCallPreferences();
+        if (!cancelled) {
+          setCallPreferences(prefs);
+        }
+      } catch {
+        // 설정 조회 실패 시 기본값 유지
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateCallPreferences = useCallback(async (next: DesktopCallPreferences) => {
+    const desktopApi =
+      typeof window !== 'undefined' && 'desktopApi' in window ? window.desktopApi : null;
+    if (!desktopApi?.saveCallPreferences) {
+      return;
+    }
+    const saved = await desktopApi.saveCallPreferences(next);
+    setCallPreferences(saved);
+  }, []);
+
+  const [pendingStatus, setPendingStatus] = useState<AgentStatusCode | null>(null);
+  const [reasonDraft, setReasonDraft] = useState('');
+
+  const handleAgentStatusChange = useCallback(
+    (statusCode: AgentStatusCode) => {
+      if (STATUSES_REQUIRING_REASON.has(statusCode)) {
+        setPendingStatus(statusCode);
+        setReasonDraft('');
+        return;
+      }
+      onChangeAgentStatus(statusCode);
+    },
+    [onChangeAgentStatus],
+  );
+
+  const confirmStatusReason = useCallback(() => {
+    if (!pendingStatus) {
+      return;
+    }
+    const reason = reasonDraft.trim();
+    onChangeAgentStatus(pendingStatus, reason || undefined);
+    setPendingStatus(null);
+    setReasonDraft('');
+  }, [pendingStatus, reasonDraft, onChangeAgentStatus]);
+
+  const cancelStatusReason = useCallback(() => {
+    setPendingStatus(null);
+    setReasonDraft('');
+  }, []);
 
   const activeCallId = activeCall?.callId ?? null;
   const showCallInfo = consoleState === 'talking' || consoleState === 'transferring' || consoleState === 'afterCall';
@@ -339,7 +415,7 @@ export function SoftphoneShell({
           extension={extension}
           statusLabel={formatAgentStatus(agentStatus)}
           agentStatus={agentStatus}
-          onChangeAgentStatus={onChangeAgentStatus}
+          onChangeAgentStatus={handleAgentStatusChange}
           onOpenSettings={() => setView('call')}
           settingsLabel="통화"
         />
@@ -407,6 +483,54 @@ export function SoftphoneShell({
 
         <section className="console-section">
           <div className="console-section-title">
+            <h2>통화 자동 처리</h2>
+          </div>
+          <p className="console-muted">수신 벨 울림 시 자동 응답/거절. 0초 = 사용 안 함 (1~60초).</p>
+          <div className="call-pref-grid">
+            <label className="field">
+              <span>자동 응답</span>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                value={callPreferences.autoAnswerSeconds}
+                onChange={(event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoAnswerSeconds: next });
+                }}
+              />
+            </label>
+            <label className="field">
+              <span>자동 거절</span>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                value={callPreferences.autoRejectSeconds}
+                onChange={(event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoRejectSeconds: next });
+                }}
+              />
+            </label>
+            <label className="field">
+              <span>후처리 자동 종료</span>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                value={callPreferences.autoStatusAfterCallSeconds}
+                onChange={(event) => {
+                  const next = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+                  void updateCallPreferences({ ...callPreferences, autoStatusAfterCallSeconds: next });
+                }}
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="console-section">
+          <div className="console-section-title">
             <h2>진단</h2>
             <button type="button" onClick={() => setShowDiagnostics((current) => !current)}>
               {showDiagnostics ? '숨기기' : '보기'}
@@ -466,7 +590,7 @@ export function SoftphoneShell({
         extension={extension}
         statusLabel={formatAgentStatus(agentStatus)}
         agentStatus={agentStatus}
-        onChangeAgentStatus={onChangeAgentStatus}
+        onChangeAgentStatus={handleAgentStatusChange}
         onOpenSettings={() => setView('settings')}
         settingsLabel="설정"
       />
@@ -480,24 +604,60 @@ export function SoftphoneShell({
       </section>
 
       {consoleState === 'ringing' ? (
-        <div className="primary-action-row">
-          <button
-            type="button"
-            className="primary-button"
-            disabled={!canAnswerRinging}
-            onClick={activeCall ? onPickup : onAnswerSoftphoneCall}
-          >
-            받기
-          </button>
-          <button
-            type="button"
-            className="danger-button"
-            disabled={!canAnswerRinging}
-            onClick={activeCall ? onHangup : onRejectSoftphoneCall}
-          >
-            거절
-          </button>
-        </div>
+        <>
+          {(() => {
+            const answer = callPreferences.autoAnswerSeconds;
+            const reject = callPreferences.autoRejectSeconds;
+            if (answer <= 0 && reject <= 0) {
+              return null;
+            }
+            const autoAnswerWins = answer > 0 && (reject <= 0 || answer <= reject);
+            const action: 'auto-answer' | 'auto-reject' = autoAnswerWins ? 'auto-answer' : 'auto-reject';
+            const seconds = autoAnswerWins ? answer : reject;
+            const trigger = () => {
+              if (!canAnswerRinging) {
+                return;
+              }
+              if (autoAnswerWins) {
+                if (activeCall) {
+                  onPickup();
+                } else {
+                  onAnswerSoftphoneCall();
+                }
+              } else if (activeCall) {
+                onHangup();
+              } else {
+                onRejectSoftphoneCall();
+              }
+            };
+            return (
+              <RingingAutoTimer
+                active={consoleState === 'ringing'}
+                totalSeconds={seconds}
+                action={action}
+                onTrigger={trigger}
+              />
+            );
+          })()}
+          <div className="primary-action-row">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!canAnswerRinging}
+              onClick={activeCall ? onPickup : onAnswerSoftphoneCall}
+            >
+              받기
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              disabled={!canAnswerRinging}
+              onClick={activeCall ? onHangup : onRejectSoftphoneCall}
+            >
+              거절
+            </button>
+          </div>
+        </>
       ) : null}
 
       {consoleState === 'idle' || consoleState === 'afterCall' ? (
@@ -657,6 +817,30 @@ export function SoftphoneShell({
         </>
       ) : null}
 
+      {pendingStatus ? (
+        <div className="status-reason-overlay" role="dialog" aria-modal="true" aria-labelledby="status-reason-title">
+          <section className="status-reason-dialog">
+            <h2 id="status-reason-title">{formatAgentStatus(pendingStatus)} 사유</h2>
+            <p className="console-muted">필요 시 짧게 입력 (선택). 비워두면 사유 없이 변경됩니다.</p>
+            <textarea
+              autoFocus
+              value={reasonDraft}
+              onChange={(event) => setReasonDraft(event.target.value)}
+              placeholder="예: 점심, 휴식, 교육 등"
+              rows={3}
+            />
+            <div className="primary-action-row">
+              <button type="button" className="primary-button" onClick={confirmStatusReason}>
+                변경
+              </button>
+              <button type="button" className="secondary-button" onClick={cancelStatusReason}>
+                취소
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {internalTarget ? (
         <div className="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="internal-call-title">
           <section className="confirm-dialog">
@@ -702,7 +886,7 @@ function ConsoleHeader({
   extension: string;
   statusLabel: string;
   agentStatus: AgentStatusCode | null;
-  onChangeAgentStatus: (statusCode: AgentStatusCode) => void;
+  onChangeAgentStatus: (statusCode: AgentStatusCode, reasonCode?: string) => void;
   onOpenSettings: () => void;
   settingsLabel: string;
 }) {
