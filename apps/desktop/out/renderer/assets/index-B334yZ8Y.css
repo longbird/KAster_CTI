@@ -1721,3 +1721,55 @@ button {
   background: var(--surface);
   color: inherit;
 }
+
+.agent-popup-filters {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.agent-popup-filters select,
+.agent-popup-filters input {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+
+.popup-agent-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.popup-agent-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-agent-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: inherit;
+}
+
+.popup-agent-group__header:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+}
+
+.popup-agent-group__count {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

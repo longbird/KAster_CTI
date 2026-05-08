@@ -65,6 +65,12 @@ export interface DesktopAgentProfile {
   role: string;
 }
 
+export interface DesktopAgentGroupSummary {
+  agentGroupId: string;
+  groupCode: string;
+  groupName: string;
+}
+
 export interface DesktopAgentDirectoryItem {
   agentId: string;
   agentName: string;
@@ -83,6 +89,7 @@ export interface DesktopAgentDirectoryItem {
   currentStatus?: {
     statusCode: import('./cti').AgentStatusCode;
   } | null;
+  agentGroup?: DesktopAgentGroupSummary | null;
 }
 
 export interface DesktopCallerIdConfig {

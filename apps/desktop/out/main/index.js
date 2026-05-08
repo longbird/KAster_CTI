@@ -633,7 +633,12 @@ class CtiRuntime {
         roundtripUsec: agent.sipRegistration?.roundtripUsec ?? null
       },
       canCall: agent.canCall === true,
-      currentStatus: agent.currentStatus?.statusCode ? { statusCode: agent.currentStatus.statusCode } : null
+      currentStatus: agent.currentStatus?.statusCode ? { statusCode: agent.currentStatus.statusCode } : null,
+      agentGroup: agent.agentGroup?.agentGroupId ? {
+        agentGroupId: agent.agentGroup.agentGroupId,
+        groupCode: agent.agentGroup.groupCode ?? "",
+        groupName: agent.agentGroup.groupName ?? ""
+      } : null
     }));
   }
   async getCallHistory() {

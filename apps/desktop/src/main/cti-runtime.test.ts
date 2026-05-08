@@ -373,7 +373,7 @@ describe('CtiRuntime', () => {
     expect(get).toHaveBeenCalledWith('/me/session');
   });
 
-  it('getAgentDirectory 는 상담원 목록을 데스크톱 타입으로 정규화한다', async () => {
+  it('getAgentDirectory 는 상담원 목록을 데스크톱 타입으로 정규화하고 그룹 정보를 보존한다', async () => {
     get.mockResolvedValueOnce({
       data: {
         data: [
@@ -384,6 +384,15 @@ describe('CtiRuntime', () => {
             role: 'agent',
             isActive: true,
             currentStatus: { statusCode: 'AVAILABLE' },
+            agentGroup: { agentGroupId: 'g-1', groupCode: 'TEAM_A', groupName: '1 팀' },
+          },
+          {
+            agentId: 'agent-3',
+            agentName: 'Agent Three',
+            extension: '1003',
+            role: 'agent',
+            isActive: true,
+            agentGroup: null,
           },
         ],
       },
@@ -394,25 +403,26 @@ describe('CtiRuntime', () => {
       accessToken: 'access-1',
     });
 
-    await expect(runtime.getAgentDirectory()).resolves.toEqual([
-      {
-        agentId: 'agent-2',
-        agentName: 'Agent Two',
-        extension: '1002',
-        role: 'agent',
-        isActive: true,
-        loginStatus: 'UNKNOWN',
-        sipRegistration: {
-          registered: false,
-          registrationStatus: 'UNKNOWN',
-          contactUri: null,
-          userAgent: null,
-          roundtripUsec: null,
-        },
-        canCall: false,
-        currentStatus: { statusCode: 'AVAILABLE' },
+    const directory = await runtime.getAgentDirectory();
+    expect(directory[0]).toEqual({
+      agentId: 'agent-2',
+      agentName: 'Agent Two',
+      extension: '1002',
+      role: 'agent',
+      isActive: true,
+      loginStatus: 'UNKNOWN',
+      sipRegistration: {
+        registered: false,
+        registrationStatus: 'UNKNOWN',
+        contactUri: null,
+        userAgent: null,
+        roundtripUsec: null,
       },
-    ]);
+      canCall: false,
+      currentStatus: { statusCode: 'AVAILABLE' },
+      agentGroup: { agentGroupId: 'g-1', groupCode: 'TEAM_A', groupName: '1 팀' },
+    });
+    expect(directory[1].agentGroup).toBeNull();
     expect(get).toHaveBeenCalledWith('/agents');
   });
 

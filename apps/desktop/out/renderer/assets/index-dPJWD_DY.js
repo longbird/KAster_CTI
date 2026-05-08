@@ -12527,9 +12527,53 @@ function formatDirectoryAgentAvailability(agent) {
 function formatDirectoryAgentSummary(agent) {
   return `${agent.extension} / ${formatDirectoryAgentAvailability(agent)}`;
 }
+const UNGROUPED_KEY = "__ungrouped__";
+const UNGROUPED_LABEL = "미지정";
+function groupKey(agent) {
+  return agent.agentGroup?.agentGroupId ?? UNGROUPED_KEY;
+}
+function groupLabel(agent) {
+  return agent.agentGroup?.groupName?.trim() || UNGROUPED_LABEL;
+}
+function bucketize(rows) {
+  const buckets = /* @__PURE__ */ new Map();
+  for (const agent of rows) {
+    const key = groupKey(agent);
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.members.push(agent);
+    } else {
+      buckets.set(key, { key, label: groupLabel(agent), members: [agent] });
+    }
+  }
+  const ordered = Array.from(buckets.values());
+  ordered.sort((left, right) => {
+    if (left.key === UNGROUPED_KEY && right.key !== UNGROUPED_KEY) return 1;
+    if (right.key === UNGROUPED_KEY && left.key !== UNGROUPED_KEY) return -1;
+    return left.label.localeCompare(right.label, "ko-KR");
+  });
+  for (const bucket of ordered) {
+    bucket.members.sort(
+      (left, right) => left.extension.localeCompare(right.extension, "ko-KR")
+    );
+  }
+  return ordered;
+}
+function matchesQuery(agent, keyword) {
+  if (!keyword) return true;
+  return [
+    agent.agentName,
+    agent.extension,
+    agent.currentStatus?.statusCode,
+    agent.agentGroup?.groupName,
+    agent.agentGroup?.groupCode
+  ].filter((value) => Boolean(value)).some((value) => value.includes(keyword));
+}
 function AgentListPopup() {
   const [rows, setRows] = reactExports.useState([]);
   const [query, setQuery] = reactExports.useState("");
+  const [groupFilter, setGroupFilter] = reactExports.useState("all");
+  const [collapsed, setCollapsed] = reactExports.useState({});
   reactExports.useEffect(() => {
     let alive = true;
     void (async () => {
@@ -12543,50 +12587,91 @@ function AgentListPopup() {
       alive = false;
     };
   }, []);
-  const filtered = rows.filter((agent) => {
+  const allGroups = reactExports.useMemo(() => bucketize(rows), [rows]);
+  const filteredBuckets = reactExports.useMemo(() => {
     const keyword = query.trim();
-    if (!keyword) {
-      return true;
-    }
-    return [agent.agentName, agent.extension, agent.currentStatus?.statusCode].filter(Boolean).some((value) => String(value).includes(keyword));
-  });
+    return allGroups.filter((bucket) => groupFilter === "all" || bucket.key === groupFilter).map((bucket) => ({
+      ...bucket,
+      members: bucket.members.filter((agent) => matchesQuery(agent, keyword))
+    })).filter((bucket) => bucket.members.length > 0);
+  }, [allGroups, query, groupFilter]);
+  const totalShown = filteredBuckets.reduce((sum, bucket) => sum + bucket.members.length, 0);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "popup-layout agent-popup-layout", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "popup-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "상담원 리스트" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-          filtered.length,
-          "명"
+          totalShown,
+          "명 / 그룹 ",
+          filteredBuckets.length
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          "aria-label": "상담원 검색",
-          value: query,
-          onChange: (event) => setQuery(event.target.value),
-          placeholder: "이름, 내선"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "popup-agent-list", children: [
-      filtered.map((agent) => {
-        const callBlockedReason = getAgentCallBlockReason(agent);
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "agent-popup-filters", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
           {
-            type: "button",
-            disabled: Boolean(callBlockedReason),
-            title: callBlockedReason ? `내선 통화 불가: ${callBlockedReason}` : "내선 통화 가능",
+            "aria-label": "그룹 선택",
+            value: groupFilter,
+            onChange: (event) => setGroupFilter(event.target.value),
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: formatDirectoryAgentSummary(agent) })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "전체 그룹" }),
+              allGroups.map((bucket) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: bucket.key, children: [
+                bucket.label,
+                " (",
+                bucket.members.length,
+                ")"
+              ] }, bucket.key))
             ]
-          },
-          agent.agentId
-        );
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            "aria-label": "상담원 검색",
+            value: query,
+            onChange: (event) => setQuery(event.target.value),
+            placeholder: "이름, 내선, 그룹"
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "popup-agent-tree", children: [
+      filteredBuckets.map((bucket) => {
+        const isCollapsed = Boolean(collapsed[bucket.key]);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "popup-agent-group", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              className: "popup-agent-group__header",
+              "aria-expanded": !isCollapsed,
+              onClick: () => setCollapsed((current) => ({ ...current, [bucket.key]: !current[bucket.key] })),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: isCollapsed ? "▶" : "▼" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: bucket.label }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "popup-agent-group__count", children: bucket.members.length })
+              ]
+            }
+          ),
+          isCollapsed ? null : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "popup-agent-list", children: bucket.members.map((agent) => {
+            const callBlockedReason = getAgentCallBlockReason(agent);
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                type: "button",
+                disabled: Boolean(callBlockedReason),
+                title: callBlockedReason ? `내선 통화 불가: ${callBlockedReason}` : "내선 통화 가능",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: agent.agentName }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: formatDirectoryAgentSummary(agent) })
+                ]
+              },
+              agent.agentId
+            );
+          }) })
+        ] }, bucket.key);
       }),
-      filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : null
+      filteredBuckets.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "console-muted", children: "표시할 상담원이 없습니다." }) : null
     ] })
   ] });
 }

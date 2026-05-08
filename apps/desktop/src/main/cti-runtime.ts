@@ -216,6 +216,11 @@ export class CtiRuntime {
       } | null;
       canCall?: boolean;
       currentStatus?: { statusCode?: AgentStatusCode } | null;
+      agentGroup?: {
+        agentGroupId?: string;
+        groupCode?: string;
+        groupName?: string;
+      } | null;
     }) => ({
       agentId: agent.agentId ?? '',
       agentName: agent.agentName ?? '',
@@ -233,6 +238,13 @@ export class CtiRuntime {
       canCall: agent.canCall === true,
       currentStatus: agent.currentStatus?.statusCode
         ? { statusCode: agent.currentStatus.statusCode }
+        : null,
+      agentGroup: agent.agentGroup?.agentGroupId
+        ? {
+            agentGroupId: agent.agentGroup.agentGroupId,
+            groupCode: agent.agentGroup.groupCode ?? '',
+            groupName: agent.agentGroup.groupName ?? '',
+          }
         : null,
     }));
   }
