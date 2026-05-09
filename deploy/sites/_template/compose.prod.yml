@@ -77,11 +77,7 @@ services:
       ASTERISK_CONF_DIR: ${ASTERISK_CONF_DIR}
       REST_CORS_ORIGIN: ${REST_CORS_ORIGIN}
       WS_CORS_ORIGIN: ${WS_CORS_ORIGIN}
-    command: >
-      sh -c "
-        npx prisma migrate deploy &&
-        node dist/main.js
-      "
+      AUTO_SEED_DEMO_DATA: ${AUTO_SEED_DEMO_DATA:-false}
 
   web:
     build:

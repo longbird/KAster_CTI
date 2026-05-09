@@ -24,7 +24,7 @@
 - 리허설 gateway는 API host header 기준으로 `GET /api/v1/health/ready`가 정상 응답한다.
 - PBX 설정 owner marker는 `/etc/asterisk/.kaster-cti-config-owner` 경로에 존재한다.
 - `deploy/sites`에는 현재 `_template`만 있고 실제 운영 site 디렉터리는 아직 없다.
-- 문서에서 언급된 `scripts/deploy-prod.sh`는 현재 저장소에 없다.
+- `scripts/deploy-prod.sh`가 추가되어 site별 compose config, backup, build/up, health gate를 한 번에 실행한다.
 
 따라서 P3-1의 첫 완료 목표는 실제 운영 배포가 아니라, 운영 site 값이 들어왔을 때 중단 조건과 검증 순서가 흔들리지 않도록 고정하는 것이다.
 
@@ -71,7 +71,7 @@ deploy/sites/prod-main/
 
 현재 template의 한계:
 
-- `deploy-prod.sh`가 없으므로 운영 배포는 현재 `docker compose -f compose.prod.yml --env-file .env ...` 기준으로 수행한다.
+- 운영 배포는 `scripts/deploy-prod.sh --site-dir deploy/sites/<site-code>` 기준으로 수행한다.
 - image registry push/pull 절차는 아직 자동화되어 있지 않다.
 - DB backup과 rollback은 별도 runbook 명령으로 수행해야 한다.
 
@@ -264,5 +264,5 @@ P3 착수 전 현재 기본 개발 stack에서 최소 확인할 항목은 다음
 1. 운영 site 값을 확정한다.
 2. `deploy/sites/<site-code>` 디렉터리를 생성한다.
 3. P3 preflight 결과 파일을 `docs/qa/`에 남긴다.
-4. `deploy-prod.sh`를 새로 만들지, compose 명령을 runbook 기준으로 유지할지 결정한다.
+4. `scripts/deploy-prod.sh`를 실제 site 값으로 dry-run 또는 staging site에 적용한다.
 5. 리허설 stack을 P2 최신 코드로 재빌드해 P3 smoke를 반복한다.

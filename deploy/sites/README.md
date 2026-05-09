@@ -32,6 +32,20 @@ cp deploy/sites/<site-code>/.env.example deploy/sites/<site-code>/.env
 - `VITE_API_BASE_URL`
 - `VITE_WS_URL`
 
+## 배포 명령
+
+리허설 또는 첫 기동:
+
+```bash
+scripts/deploy-prod.sh --site-dir deploy/sites/<site-code> --skip-backup
+```
+
+기존 운영 site 재배포:
+
+```bash
+scripts/deploy-prod.sh --site-dir deploy/sites/<site-code>
+```
+
 ## 배포 전 중단 조건
 
 다음 조건이면 배포를 중단한다.
@@ -58,6 +72,4 @@ marker가 다른 site code를 가리키면 설정 반영과 reload를 중단한�
 
 ## 현재 한계
 
-- 현재 저장소에는 `scripts/deploy-prod.sh`가 없다.
-- site별 배포는 당분간 `docker compose -f compose.prod.yml --env-file .env ...` 명령을 기준으로 수행한다.
 - image registry 기반 pull/restart 절차는 아직 별도 자동화가 필요하다.

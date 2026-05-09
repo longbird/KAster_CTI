@@ -2,18 +2,18 @@
 
 ## 목적
 
-이 문서는 현재 저장소의 개발형 배포(`docker-compose.dev.yml`)와 분리된 운영 표준안을 정의한다.
+이 문서는 현재 저장소의 원격 개발/검증 배포(`docker-compose.dev.yml`)와 분리된 운영 표준안을 정의한다.
 목표는 두 가지다.
 
-1. 실제 운영 서버를 개발형 watch/bind-mount 구조에서 분리한다.
+1. 실제 운영 site를 원격 개발/검증 배포 구조에서 분리한다.
 2. 다른 사이트에 재배포할 때 코드 변경 없이 사이트별 설정만 교체할 수 있게 한다.
 
 ## 현재 구조의 문제
 
-- `docker-compose.dev.yml`이 `npm install`, `prisma db push --accept-data-loss`, `seed`, `nest start --watch`, `vite dev`를 사용한다.
-- 프론트엔드 URL이 배포 파일에 IP로 하드코딩되어 있다.
-- 운영용 reverse proxy, immutable image, 롤링 재기동 절차가 없다.
-- 동일 서버에 올려도 "운영"과 "원격 개발"이 구분되지 않는다.
+- `docker-compose.dev.yml`은 이름과 달리 원격 서버에서 production image를 빌드/재기동하는 검증용 compose다.
+- 프론트엔드 URL이 검증 서버 IP 기준으로 하드코딩되어 있어 다른 site 재사용에 맞지 않는다.
+- site별 운영은 `deploy/sites/<site-code>/compose.prod.yml` + `.env` + `scripts/deploy-prod.sh` 기준으로 분리해야 한다.
+- 동일 서버에 올려도 "원격 개발/검증"과 "정식 운영 site"가 구분되어야 한다.
 
 이 상태는 빠른 실험에는 유리하지만, 실제 운영과 타 사이트 재배포 기준으로는 부적절하다.
 
@@ -21,10 +21,10 @@
 
 ### 1. 개발과 운영을 완전히 분리한다
 
-- 개발: `docker-compose.dev.yml`
+- 원격 개발/검증: `docker-compose.dev.yml`
 - 운영: `deploy/sites/<site-code>/compose.prod.yml`
 
-운영은 bind mount, HMR, `db push`, seed를 금지한다.
+운영은 bind mount, HMR, `db push`, demo seed를 금지한다.
 
 ### 2. 운영은 immutable image 기준으로 배포한다
 

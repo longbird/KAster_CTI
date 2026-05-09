@@ -56,7 +56,7 @@ docs/                 기획·설계 PDF + ChatGPT 세션 분석 + 보조 설계
   docs/reference/     원본 PDF (합본, 제안서)
 scripts/              운영 스크립트 (push_to_github 등)
 docker-compose.yml    로컬 개발용 Postgres 16 + Redis 7
-docker-compose.dev.yml 원격 운영 서버용 — server/web/admin 이미지 빌드 + nginx + coturn TURN 포함
+docker-compose.dev.yml 원격 개발/검증 서버용 — server/web/admin 이미지 빌드 + nginx + coturn TURN 포함
 ```
 
 ## 주요 개발 명령
@@ -68,7 +68,7 @@ docker compose up -d postgres redis
 - DB: `kaster_cti` / user `kaster` / pw `kaster` / 5432
 - Redis: 6379
 
-### 운영 배포 (`docker-compose.dev.yml`)
+### 원격 개발/검증 배포 (`docker-compose.dev.yml`)
 ```bash
 docker compose -f docker-compose.dev.yml up -d --build
 docker compose -f docker-compose.dev.yml logs -f server
@@ -76,7 +76,7 @@ docker compose -f docker-compose.dev.yml logs -f server
 - server/web/admin 을 모두 이미지로 빌드. server 컨테이너 부팅 시 `prisma migrate deploy` 후 앱 시작
 - 호스트 포트 충돌 회피: Postgres 5433, Redis 6380 (컨테이너 내부 통신은 5432/6379)
 - `coturn` (TURN/STUN) 컨테이너 포함 — 49160-49200/udp 미디어 릴레이. `TURN_USERNAME` / `TURN_PASSWORD` / `TURN_EXTERNAL_IP` env 필수
-- 사이트별 배포는 `deploy/sites/_template/` 을 복제해 site code 디렉터리(`deploy/sites/<site>/`)에서 `compose.prod.yml` + `.env` 로 기동. PBX 설정 반영 전 `/etc/asterisk/.kaster-cti-config-owner` marker 와 site code 일치 여부를 반드시 확인 (불일치 시 reload 중단)
+- 사이트별 운영 배포는 `deploy/sites/_template/` 을 복제해 site code 디렉터리(`deploy/sites/<site>/`)에서 `compose.prod.yml` + `.env` + `scripts/deploy-prod.sh` 로 기동. PBX 설정 반영 전 `/etc/asterisk/.kaster-cti-config-owner` marker 와 site code 일치 여부를 반드시 확인 (불일치 시 reload 중단)
 
 ### NestJS 서버 (`apps/server`)
 ```bash
