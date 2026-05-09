@@ -24,3 +24,9 @@ download/
 
 # Git worktrees
 .worktrees/
+
+# Local agent scratch/output
+.tmp/
+.tmp-*/
+.lazyweb/
+.claude/worktrees/
