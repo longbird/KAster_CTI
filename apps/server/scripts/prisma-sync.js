@@ -36,7 +36,20 @@ function main() {
     process.exit(migrateResult.status ?? 1);
   }
 
-  console.warn('[prisma:sync] prisma migrate deploy failed. Falling back to prisma db push.');
+  if (process.env.ALLOW_PRISMA_DB_PUSH_FALLBACK !== 'true') {
+    console.error(
+      '[prisma:sync] prisma migrate deploy failed with P3005. Refusing prisma db push fallback. ' +
+        'Set ALLOW_PRISMA_DB_PUSH_FALLBACK=true only for local/dev database repair.',
+    );
+    process.exit(migrateResult.status ?? 1);
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[prisma:sync] prisma db push fallback is forbidden when NODE_ENV=production.');
+    process.exit(1);
+  }
+
+  console.warn('[prisma:sync] prisma migrate deploy failed. Falling back to prisma db push by explicit opt-in.');
 
   const dbPushResult = run('npx', ['prisma', 'db', 'push']);
   if (dbPushResult.error) {

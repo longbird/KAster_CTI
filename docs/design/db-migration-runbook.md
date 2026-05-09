@@ -6,6 +6,7 @@
 
 - 운영 DB에는 `prisma migrate deploy`만 사용한다.
 - `prisma db push`는 운영 적용 절차가 아니다.
+- `npm run prisma:sync`의 `db push` fallback은 `ALLOW_PRISMA_DB_PUSH_FALLBACK=true`를 명시한 로컬/개발 DB 보정에만 허용한다.
 - schema 변경이 없는 배포와 있는 배포를 분리한다.
 - 실패 시 무리한 rollback보다 백업 복원 또는 forward-fix를 선택한다.
 

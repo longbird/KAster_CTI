@@ -13,31 +13,28 @@
 |------|----|
 | 원격 서버 | `blueadm@49.247.46.86` |
 | 원격 경로 | `/home/blueadm/kaster_cti` |
-| 배포 방식 | Docker Compose dev (`bind mount + hot reload`) |
+| 배포 방식 | Docker Compose dev 이름의 원격 개발/검증용 이미지 빌드 배포 |
 | Compose 파일 | [`docker-compose.dev.yml`](/D:/Work/AI_Projects/KAster_CTI/docker-compose.dev.yml) |
 | Compose 환경파일 | 루트 `.env` (운영 서버 로컬 파일, Git 제외) |
 | 기본 배포 도구 | [`scripts/deploy-dev.sh`](/D:/Work/AI_Projects/KAster_CTI/scripts/deploy-dev.sh) |
 
-## 현재 운영 방식의 핵심 전제
+## 현재 공유 개발/검증 방식의 핵심 전제
 
-- 이 서버는 전통적인 build artifact 배포가 아니라 `원격 bind mount + watch/HMR` 방식이다.
-- 코드가 원격 디렉터리에 반영되면 `server`는 `nest start --watch`, `web/admin`은 Vite dev server가 즉시 감지한다.
-- 따라서 핵심은 `파일 동기화`와 `로그 확인`이다.
+- 이 서버는 `docker-compose.dev.yml`이라는 파일명을 쓰지만, 실제로는 server/web/admin 이미지를 빌드해 컨테이너를 교체하는 원격 개발/검증 배포다.
+- 따라서 핵심은 `파일 동기화`, `이미지 재빌드`, `컨테이너 교체`, `로그 확인`이다.
 - 민감값은 `docker-compose.dev.yml`에 직접 넣지 않고, 원격 루트 `.env`에서 주입한다.
 - `server` 컨테이너는 시작 시 아래 순서를 수행한다.
-  - `npm install` 필요 시 수행
-  - `npx prisma generate`
-  - `npx prisma db push --accept-data-loss --skip-generate`
-  - `seed`
-  - `npm run start:dev`
+  - `npx prisma migrate deploy`
+  - `AUTO_SEED_DEMO_DATA=true`인 경우 demo seed
+  - `node dist/src/main.js`
 
 ## 이번 장애의 근본 원인
 
-이번 프론트 빈 화면/모듈 누락 장애의 핵심 원인은 `부분 반영이 가능한 운영 방식` 자체다.
+이번 프론트 빈 화면/모듈 누락 장애의 핵심 원인은 `부분 반영이 가능한 원격 개발/검증 방식` 자체다.
 
-- 현재 운영은 `bind mount + Vite/Nest watch` 기반이라 관련 파일 여러 개가 함께 배포되지 않으면 즉시 중간 불일치 상태가 노출된다.
+- 원격 디렉터리로 관련 파일 여러 개가 함께 배포되지 않으면 중간 불일치 상태가 이미지 빌드 또는 컨테이너 기동 시 노출된다.
 - `router`, `page`, `api helper`, `type`이 같이 바뀌는 프론트 변경에서 일부 파일만 수동 복사하면, import/export mismatch가 매우 쉽게 발생한다.
-- HMR은 개발 생산성에는 좋지만, 운영 반영 일관성을 보장하지는 않는다.
+- 수동 복사는 개발 생산성에는 편하지만, 반영 일관성을 보장하지는 않는다.
 
 완전한 근본 해결책은 운영을 `immutable build artifact 배포`로 전환하는 것이다.  
 다만 현재 구조를 유지하는 전제에서는 아래 `sync-safe`와 `verify`를 표준 절차로 사용하는 것이 현실적인 1차 해법이다.
@@ -56,8 +53,8 @@ git commit -m "feat: ..."
 메모:
 
 - 정상 환경에서는 `rsync` 기반이라 빠르게 끝난다.
-- 일반적인 프론트 변경은 별도 restart가 필요 없다.
-- 일반적인 Nest 소스 변경도 watch가 자동 재컴파일한다.
+- 일반적인 프론트 변경도 원격 반영 후 이미지 재빌드/컨테이너 교체가 필요하다.
+- 일반적인 Nest 소스 변경도 `release server` 또는 `sync-safe server`로 재빌드한다.
 
 ### 1-1. 프론트 안전 배포
 
@@ -99,7 +96,7 @@ cp .env.example .env   # 로컬 참고용. 운영 서버에는 실제 값으로 
 ./scripts/deploy-dev.sh sync
 ssh blueadm@49.247.46.86 "
   cd /home/blueadm/kaster_cti && \
-  docker exec kaster-server sh -c 'npx prisma db push --skip-generate'
+  docker exec kaster-server sh -c 'npx prisma migrate deploy'
 "
 ./scripts/deploy-dev.sh restart server
 ```
@@ -107,7 +104,8 @@ ssh blueadm@49.247.46.86 "
 메모:
 
 - watch가 살아 있더라도 Prisma 타입/런타임 mismatch가 있으면 `server restart`가 안전하다.
-- 현재 운영 절차는 `migrate deploy`가 아니라 `db push` 기준이다.
+- 운영과 공유 개발/검증 모두 schema 반영은 `migrate deploy` 기준이다.
+- 로컬/개발 DB 보정이 꼭 필요할 때만 `ALLOW_PRISMA_DB_PUSH_FALLBACK=true npm run prisma:sync`를 사용한다.
 
 ### 3-1. 서버 안전 배포
 
@@ -115,7 +113,7 @@ ssh blueadm@49.247.46.86 "
 ./scripts/deploy-dev.sh sync
 ssh blueadm@49.247.46.86 "
   cd /home/blueadm/kaster_cti && \
-  docker exec kaster-server sh -c 'npx prisma db push --skip-generate'
+  docker exec kaster-server sh -c 'npx prisma migrate deploy'
 "
 ./scripts/deploy-dev.sh sync-safe server
 ```
@@ -372,8 +370,8 @@ POST /api/v1/auth/login
 
 - 로컬에서 먼저 `build`와 `test` 통과 확인
 - 프론트 다중 파일 변경이면 `sync-safe admin|web`
-- 서버 변경이면 `sync` + 필요 시 `db push` + `sync-safe server`
-- Prisma 변경 시 `db push`
+- 서버 변경이면 `sync` + 필요 시 `migrate deploy` + `sync-safe server`
+- Prisma 변경 시 `migrate deploy`
 - `verify admin|web|server`로 원격 build 확인
 - 해당 서비스 로그 확인
 - `/health` 확인
@@ -384,5 +382,5 @@ POST /api/v1/auth/login
 
 ## 참고
 
-- 운영 배포 스크립트: [`scripts/deploy-dev.sh`](/D:/Work/AI_Projects/KAster_CTI/scripts/deploy-dev.sh)
-- 운영 Compose: [`docker-compose.dev.yml`](/D:/Work/AI_Projects/KAster_CTI/docker-compose.dev.yml)
+- 공유 개발/검증 배포 스크립트: [`scripts/deploy-dev.sh`](/D:/Work/AI_Projects/KAster_CTI/scripts/deploy-dev.sh)
+- 공유 개발/검증 Compose: [`docker-compose.dev.yml`](/D:/Work/AI_Projects/KAster_CTI/docker-compose.dev.yml)
