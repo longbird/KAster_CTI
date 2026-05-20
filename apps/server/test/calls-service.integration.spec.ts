@@ -49,6 +49,9 @@ describe('CallsService branch filter integration', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
     },
+    queueAgentMembers: {
+      findFirst: jest.fn(),
+    },
     queues: {
       findMany: jest.fn(),
     },
@@ -84,6 +87,13 @@ describe('CallsService branch filter integration', () => {
     prisma.asteriskDid.findMany.mockResolvedValue([]);
     prisma.queues.findMany.mockResolvedValue([]);
     prisma.agents.findMany.mockResolvedValue([]);
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+      agentGroupId: 'group-1',
+    });
+    prisma.queueAgentMembers.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+    });
     redisClient.mget.mockResolvedValue([]);
     redisClient.set.mockResolvedValue('OK');
     const module: TestingModule = await Test.createTestingModule({
@@ -944,6 +954,7 @@ describe('CallsService branch filter integration', () => {
       tenantId: 'tenant-1',
       linkedid: 'L-300',
       sessionStatus: 'QUEUED',
+      queueName: 'sales',
       ringingAt: null,
       callLegs: [
         {
@@ -968,6 +979,15 @@ describe('CallsService branch filter integration', () => {
         ringingAt: expect.any(Date),
         updatedAt: expect.any(Date),
       },
+    });
+    expect(prisma.queueAgentMembers.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        agentId: 'agent-3',
+        isActive: true,
+        queue: { tenantId: 'tenant-1', queueName: 'sales', isActive: true },
+      },
+      select: { agentId: true },
     });
     expect(asteriskManager.pickup).toHaveBeenCalledWith(
       'PJSIP/trunk-provider-00000020',
@@ -1000,6 +1020,7 @@ describe('CallsService branch filter integration', () => {
       tenantId: 'tenant-1',
       linkedid: 'L-pickup-1',
       sessionStatus: 'QUEUED',
+      queueName: 'sales',
       ringingAt: null,
       callLegs: [
         {
@@ -1019,6 +1040,39 @@ describe('CallsService branch filter integration', () => {
     expect(result.data.accepted).toBe(true);
     expect(typeof result.data.correlationId).toBe('string');
     expect(result.data.correlationId.length).toBeGreaterThan(10);
+  });
+
+  it('pickup 은 같은 상담원 그룹 또는 같은 분배룰이 아니면 거부한다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-pickup-deny-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-pickup-deny-1',
+      sessionStatus: 'RINGING_AGENT',
+      queueName: 'sales',
+      primaryAgentId: 'agent-target',
+      ringingAt: new Date('2026-05-20T09:00:00.000Z'),
+      callLegs: [
+        {
+          legType: 'inbound',
+          endedAt: null,
+          channelName: 'PJSIP/trunk-provider-00000020',
+        },
+      ],
+    });
+    prisma.agents.findFirst
+      .mockResolvedValueOnce({ agentId: 'agent-requester', agentGroupId: 'group-other' })
+      .mockResolvedValueOnce({ agentId: 'agent-target', agentGroupId: 'group-target' });
+    prisma.queueAgentMembers.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.pickup('tenant-1', 'call-pickup-deny-1', {
+        agentId: 'agent-requester',
+        extension: '1009',
+      }),
+    ).rejects.toThrow('같은 상담원 그룹 또는 같은 호 분배룰 소속 상담원만 당겨받을 수 있습니다.');
+
+    expect(prisma.callSessions.update).not.toHaveBeenCalled();
+    expect(asteriskManager.pickup).not.toHaveBeenCalled();
   });
 
   it('mute 는 활성 agent leg 에 MuteAudio 를 요청한다', async () => {

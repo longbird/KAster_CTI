@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { getDistributionRuleLabels, type AgentGroupDistributionRule } from './agentGroupDistributionRules';
 
 interface AgentGroupRow {
   agentGroupId: string;
@@ -25,6 +26,8 @@ interface AgentGroupRow {
   description: string | null;
   isActive: boolean;
   memberCount: number;
+  distributionRuleCount?: number;
+  distributionRules?: AgentGroupDistributionRule[];
   createdAt: string;
   updatedAt: string;
 }
@@ -144,6 +147,25 @@ export function AgentGroupsPage() {
             width: 100,
             align: 'right',
             render: (v: number) => `${v}명`,
+          },
+          {
+            title: '연결 호 분배룰',
+            dataIndex: 'distributionRules',
+            width: 220,
+            render: (_: unknown, row) => {
+              const labels = getDistributionRuleLabels(row.distributionRules);
+              if (labels.length === 0) return <Tag>없음</Tag>;
+              return (
+                <Space size={[4, 4]} wrap>
+                  {labels.slice(0, 3).map((label) => (
+                    <Tag key={label} color="blue">
+                      {label}
+                    </Tag>
+                  ))}
+                  {labels.length > 3 ? <Tag>{`+${labels.length - 3}`}</Tag> : null}
+                </Space>
+              );
+            },
           },
           {
             title: '상태',

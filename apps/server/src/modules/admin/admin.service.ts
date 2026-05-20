@@ -2741,12 +2741,53 @@ export class AdminService {
         .filter((row) => row.agentGroupId)
         .map((row) => [row.agentGroupId as string, row._count.agentId]),
     );
+    const groupIds = rows.map((row: any) => row.agentGroupId).filter(Boolean);
+    const queueMemberships =
+      groupIds.length > 0
+        ? await this.prisma.queueAgentMembers.findMany({
+            where: {
+              tenantId,
+              isActive: true,
+              agent: { agentGroupId: { in: groupIds }, isActive: true },
+              queue: { isActive: true },
+            },
+            select: {
+              agent: { select: { agentGroupId: true } },
+              queue: { select: { queueId: true, queueName: true, queueDisplayName: true } },
+            },
+            orderBy: [{ queue: { queueName: 'asc' } }],
+          })
+        : [];
+    const queuesByGroup = new Map<string, Array<{ queueId: string; queueName: string; queueDisplayName: string | null }>>();
+    const seenByGroup = new Map<string, Set<string>>();
+    for (const membership of queueMemberships as any[]) {
+      const agentGroupId = membership.agent?.agentGroupId;
+      const queue = membership.queue;
+      if (!agentGroupId || !queue?.queueId) continue;
+      let seen = seenByGroup.get(agentGroupId);
+      if (!seen) {
+        seen = new Set<string>();
+        seenByGroup.set(agentGroupId, seen);
+      }
+      if (seen.has(queue.queueId)) continue;
+      seen.add(queue.queueId);
+
+      const existing = queuesByGroup.get(agentGroupId) ?? [];
+      existing.push({
+        queueId: queue.queueId,
+        queueName: queue.queueName,
+        queueDisplayName: queue.queueDisplayName ?? null,
+      });
+      queuesByGroup.set(agentGroupId, existing);
+    }
 
     return {
       success: true,
       data: rows.map((row: any) => ({
         ...row,
         memberCount: countByGroup.get(row.agentGroupId) ?? 0,
+        distributionRuleCount: queuesByGroup.get(row.agentGroupId)?.length ?? 0,
+        distributionRules: queuesByGroup.get(row.agentGroupId) ?? [],
       })),
       error: null,
     };

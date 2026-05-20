@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { extname } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
@@ -883,6 +883,7 @@ export class CallsService {
     if (!customerLeg?.channelName) {
       throw new BadRequestException('당겨받기 대상 고객 채널을 찾을 수 없습니다.');
     }
+    await this.assertPickupAllowed(tenantId, call, params.agentId);
 
     await this.prisma.callSessions.update({
       where: { callId },
@@ -911,6 +912,47 @@ export class CallsService {
       }, meta),
       error: null,
     };
+  }
+
+  private async assertPickupAllowed(
+    tenantId: string,
+    call: { queueName?: string | null; primaryAgentId?: string | null },
+    agentId: string,
+  ) {
+    const requester = await this.prisma.agents.findFirst({
+      where: { tenantId, agentId, isActive: true },
+      select: { agentId: true, agentGroupId: true },
+    });
+    if (!requester) {
+      throw new ForbiddenException('당겨받기를 요청한 상담원을 찾을 수 없습니다.');
+    }
+
+    const queueMembership = call.queueName
+      ? await this.prisma.queueAgentMembers.findFirst({
+          where: {
+            tenantId,
+            agentId,
+            isActive: true,
+            queue: { tenantId, queueName: call.queueName, isActive: true },
+          },
+          select: { agentId: true },
+        })
+      : null;
+    if (queueMembership) {
+      return;
+    }
+
+    if (call.primaryAgentId && call.primaryAgentId !== agentId && requester.agentGroupId) {
+      const target = await this.prisma.agents.findFirst({
+        where: { tenantId, agentId: call.primaryAgentId, isActive: true },
+        select: { agentId: true, agentGroupId: true },
+      });
+      if (target?.agentGroupId && target.agentGroupId === requester.agentGroupId) {
+        return;
+      }
+    }
+
+    throw new ForbiddenException('같은 상담원 그룹 또는 같은 호 분배룰 소속 상담원만 당겨받을 수 있습니다.');
   }
 
   async mute(tenantId: string, callId: string, dto: MuteCallDto, metaInput?: CommandMetaInput) {
