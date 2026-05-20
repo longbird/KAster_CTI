@@ -32,6 +32,7 @@ const BASELINE_LEAF_KEYS = [
   '/settings/agent-groups',
   '/settings/branches',
   '/settings/forwarding',
+  '/settings/holidays',
   '/settings/outbound-rules',
   '/settings/permissions',
   '/settings/prompts',
@@ -91,6 +92,7 @@ describe('ADMIN_MENU_CONFIG', () => {
       '/settings/agent-groups',
       '/settings/queues',
       '/settings/forwarding',
+      '/settings/holidays',
       '/settings/outbound-rules',
       '/settings/share-rules',
       '/settings/prompts',
@@ -150,6 +152,7 @@ describe('openMenuGroupKeysForPath', () => {
   it('returns the containing settings group for settings leaf routes', () => {
     expect(openMenuGroupKeysForPath('/system')).toEqual(['settings']);
     expect(openMenuGroupKeysForPath('/settings/queues')).toEqual(['settings']);
+    expect(openMenuGroupKeysForPath('/settings/holidays')).toEqual(['settings']);
     expect(openMenuGroupKeysForPath('/integrations')).toEqual(['settings']);
     expect(openMenuGroupKeysForPath('/asterisk')).toEqual(['settings']);
   });

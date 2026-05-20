@@ -73,6 +73,18 @@ describe('defaultPermissionFlags', () => {
     );
   });
 
+  it('adds holiday rules under branch operations settings permissions', () => {
+    expect(MENU_KEYS).toContain('settings/holidays');
+    expect(defaultPermissionFlags('supervisor', 'settings/holidays')).toEqual(
+      expect.objectContaining({
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+      }),
+    );
+  });
+
   it('adds supervisor agent monitoring view as an operable view-only menu', () => {
     expect(MENU_KEYS).toContain('monitoring/agents');
     expect(defaultPermissionFlags('supervisor', 'monitoring/agents')).toEqual(

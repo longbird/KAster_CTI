@@ -64,7 +64,7 @@ Run: `cd apps/server && npx jest test/admin.service.holiday-rules.spec.ts --runI
 
 Run: `cd apps/server && npx jest --runInBand && npm run build`
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 Run:
 
@@ -72,3 +72,62 @@ Run:
 git add docs/superpowers/plans/2026-05-20-pbx-m3-operations-automation.md apps/server
 git commit -m "feat: add PBX M3 holiday rule foundation"
 ```
+
+Completed in commit `1a33435`.
+
+### Task 4: 관리자 공휴일 설정 화면 연결
+
+**Files:**
+- Modify: `apps/server/src/common/menu-permission.service.ts`
+- Modify: `apps/admin/src/shared/permissions/menuConfig.tsx`
+- Modify: `apps/admin/src/app/router.tsx`
+- Create: `apps/admin/src/features/holiday-settings/holidayRules.ts`
+- Create: `apps/admin/src/features/holiday-settings/holidayRulesApi.ts`
+- Create: `apps/admin/src/features/holiday-settings/HolidaySettingsPage.tsx`
+- Test: `apps/server/src/common/menu-permission.service.spec.ts`
+- Test: `apps/admin/src/shared/permissions/menuConfig.test.tsx`
+- Test: `apps/admin/src/features/holiday-settings/holidayRules.test.ts`
+
+- [x] **Step 1: Write RED tests**
+
+`settings/holidays` 메뉴 권한, 관리자 메뉴 노출, 날짜/범위 표시 헬퍼를 검증한다.
+
+- [x] **Step 2: Run RED**
+
+Run:
+
+```bash
+cd apps/server && npx jest src/common/menu-permission.service.spec.ts --runInBand
+cd apps/admin && npx vitest run src/shared/permissions/menuConfig.test.tsx src/features/holiday-settings/holidayRules.test.ts
+```
+
+- [x] **Step 3: Implement UI wiring**
+
+권한 키, 관리자 메뉴/라우트, 공휴일 규칙 목록/등록/수정/삭제 화면을 추가한다.
+
+- [x] **Step 4: Run targeted GREEN**
+
+Run:
+
+```bash
+cd apps/server && npx jest src/common/menu-permission.service.spec.ts --runInBand
+cd apps/admin && npx vitest run src/shared/permissions/menuConfig.test.tsx src/features/holiday-settings/holidayRules.test.ts
+```
+
+- [x] **Step 5: Run full regression and commit**
+
+Run:
+
+```bash
+cd apps/server && npx jest --runInBand && npm run build
+cd apps/admin && npx vitest run && npm run build
+git add docs/superpowers/plans/2026-05-20-pbx-m3-operations-automation.md apps/server apps/admin
+git commit -m "feat: add PBX M3 holiday settings UI"
+```
+
+Verification completed:
+- `cd apps/server && npx jest --runInBand` → 42 suites / 239 tests PASS
+- `cd apps/admin && npx vitest run` → 31 files / 98 tests PASS
+- `cd apps/server && npm run build` → PASS
+- `cd apps/admin && npm run build` → PASS
+- `http://127.0.0.1:5174/settings/holidays` → HTTP 200 SPA shell 확인

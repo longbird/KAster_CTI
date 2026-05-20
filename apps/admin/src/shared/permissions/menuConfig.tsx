@@ -52,6 +52,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/settings/agent-groups', label: '상담원 그룹' },
       { key: '/settings/queues', label: '호 분배룰 설정' },
       { key: '/settings/forwarding', label: '착신전환 설정' },
+      { key: '/settings/holidays', label: '공휴일 설정' },
       { key: '/settings/outbound-rules', label: '아웃바운드 발신번호' },
       { key: '/settings/share-rules', label: '공유규칙 (호 분배)' },
       { key: '/settings/prompts', label: '멘트 관리' },

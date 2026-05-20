@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/AppLayout';
 import { AdminDashboardPage } from '../features/dashboard/components/AdminDashboardPage';
 import { ForwardingSettingsPage } from '../features/forwarding-settings/ForwardingSettingsPage';
+import { HolidaySettingsPage } from '../features/holiday-settings/HolidaySettingsPage';
 import { LiveCallsPage } from '../features/live-calls/LiveCallsPage';
 import { KpiPage } from '../features/kpi/KpiPage';
 import { AgentGroupsPage } from '../features/agent-groups/AgentGroupsPage';
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: 'settings/share-rules', element: <ShareRulesPage /> },
       { path: 'settings/queues',      element: <QueueSettingsPage /> },
       { path: 'settings/forwarding',  element: <ForwardingSettingsPage /> },
+      { path: 'settings/holidays',    element: <HolidaySettingsPage /> },
       { path: 'settings/prompts',     element: <PromptSettingsPage /> },
       { path: 'settings/sms-templates', element: <SmsTemplatesPage /> },
       { path: 'settings/branches',    element: <BranchSettingsPage /> },
