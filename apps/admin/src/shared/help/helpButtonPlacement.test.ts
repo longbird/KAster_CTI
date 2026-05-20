@@ -4,10 +4,12 @@ import { describe, expect, it } from 'vitest';
 
 const placements = [
   ['src/features/system-settings/SystemSettingsPage.tsx', 'system.timeSync'],
+  ['src/features/system-settings/SystemSettingsPage.tsx', 'pbx.trunkDisplayNumber'],
   ['src/features/branch-settings/BranchSettingsPage.tsx', 'branch.inboundPolicy'],
   ['src/features/forwarding-settings/ForwardingSettingsPage.tsx', 'forwarding.condition'],
   ['src/features/queue-settings/QueueSettingsPage.tsx', 'queue.externalInboundMode'],
   ['src/features/agent-settings/AgentSettingsPage.tsx', 'agent.extensionDisplayName'],
+  ['src/features/agent-settings/AgentSettingsPage.tsx', 'agent.extensionLock'],
   ['src/pages/AsteriskConfigPage.tsx', 'pbx.did'],
 ] as const;
 

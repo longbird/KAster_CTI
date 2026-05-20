@@ -13,6 +13,7 @@ import {
   READY_DELAY_OPTIONS,
   SIMPLE_USE_OPTIONS,
 } from './agentSettingProfile';
+import { EXTENSION_LOCK_MODE_OPTIONS } from './extensionPolicy';
 
 interface QueueOption {
   queueId: string;
@@ -166,7 +167,7 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
         form={form}
         layout="vertical"
         preserve={false}
-        initialValues={{ role: 'agent', settingsProfile: DEFAULT_AGENT_SETTINGS_PROFILE }}
+        initialValues={{ role: 'agent', extensionLockMode: 'UNLOCKED', settingsProfile: DEFAULT_AGENT_SETTINGS_PROFILE }}
       >
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={12}>
@@ -238,6 +239,16 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
                     ]}
                   >
                     <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="내선 표시명" name="extensionDisplayName" rules={[{ max: 128 }]}>
+                    <Input placeholder="예: 본사 1번 데스크" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="내선 잠금" name="extensionLockMode" rules={[{ required: true }]}>
+                    <Select options={EXTENSION_LOCK_MODE_OPTIONS} />
                   </Form.Item>
                 </Col>
                 <Col span={24}>

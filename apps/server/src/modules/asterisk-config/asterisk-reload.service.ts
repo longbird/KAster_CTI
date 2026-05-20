@@ -895,6 +895,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           outboundEnabled: profile.inoutType !== 'INBOUND_ONLY',
           callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
           liveRecordingEnabled: profile.liveRecording === 'USE',
+          extensionLockMode: (agent as any).extensionLockMode ?? 'UNLOCKED',
         };
       }),
       outboundCallerIdRules,
@@ -911,12 +912,13 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         members: q.members
           .filter((m) => {
             if (!m.agent.isActive) return false;
+            if ((m.agent as any).extensionLockMode === 'FULL_LOCKED') return false;
             const profile = normalizeAgentRuntimeProfile(m.agent.settingsProfile);
             return profile.inoutType !== 'OUTBOUND_ONLY';
           })
           .map((m) => ({
-            extension: m.agent.extension,
-            agentName: m.agent.agentName,
+          extension: m.agent.extension,
+            agentName: (m.agent as any).extensionDisplayName || m.agent.agentName,
             penalty: m.penalty,
             memberOrder: m.memberOrder,
           })),
@@ -977,6 +979,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           outboundEnabled: profile.inoutType !== 'INBOUND_ONLY',
           callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
           liveRecordingEnabled: profile.liveRecording === 'USE',
+          extensionLockMode: (agent as any).extensionLockMode ?? 'UNLOCKED',
         };
       }),
       outboundCallerIdRules,
@@ -993,12 +996,13 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         members: q.members
           .filter((m) => {
             if (!m.agent.isActive) return false;
+            if ((m.agent as any).extensionLockMode === 'FULL_LOCKED') return false;
             const profile = normalizeAgentRuntimeProfile(m.agent.settingsProfile);
             return profile.inoutType !== 'OUTBOUND_ONLY';
           })
           .map((m) => ({
             extension: m.agent.extension,
-            agentName: m.agent.agentName,
+            agentName: (m.agent as any).extensionDisplayName || m.agent.agentName,
             penalty: m.penalty,
             memberOrder: m.memberOrder,
           })),
@@ -1256,6 +1260,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       pjsipAgents: agents.map((agent) => ({
         extension: agent.extension,
         agentName: agent.agentName,
+        extensionDisplayName: (agent as any).extensionDisplayName ?? null,
         sipPassword: agent.sipPassword || defaultSipPassword,
         context: `agent-phone-${agent.extension}`,
         callerIdPrivacy: (
@@ -1316,7 +1321,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           where: { isActive: true },
           include: {
             agent: {
-              select: { extension: true, agentName: true, isActive: true, settingsProfile: true },
+              select: {
+                extension: true,
+                agentName: true,
+                extensionDisplayName: true,
+                extensionLockMode: true,
+                isActive: true,
+                settingsProfile: true,
+              },
             },
           },
         },

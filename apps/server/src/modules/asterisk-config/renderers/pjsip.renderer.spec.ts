@@ -101,6 +101,21 @@ describe('renderPjsip', () => {
     expect(result).toContain('named_pickup_group=queue-sales,all-agents');
   });
 
+  it('uses extension display name for SIP callerid when provided', () => {
+    const result = renderPjsip({
+      trunks: [],
+      agents: [{
+        extension: '1001',
+        agentName: '홍길동',
+        extensionDisplayName: '본사 1번 데스크',
+        sipPassword: 'sip123',
+      }],
+    });
+
+    expect(result).toContain('callerid=본사 1번 데스크 <1001>');
+    expect(result).not.toContain('callerid=홍길동 <1001>');
+  });
+
   it('skips agents without sipPassword', () => {
     const result = renderPjsip({
       trunks: [],

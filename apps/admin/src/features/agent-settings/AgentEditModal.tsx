@@ -14,6 +14,7 @@ import {
   READY_DELAY_OPTIONS,
   SIMPLE_USE_OPTIONS,
 } from './agentSettingProfile';
+import { EXTENSION_LOCK_MODE_OPTIONS } from './extensionPolicy';
 
 export interface AgentRow {
   agentId: string;
@@ -21,6 +22,8 @@ export interface AgentRow {
   loginId: string;
   agentCode: string;
   extension: string;
+  extensionDisplayName?: string | null;
+  extensionLockMode?: string | null;
   role: string;
   defaultQueueId?: string | null;
   agentGroupId?: string | null;
@@ -151,6 +154,8 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
           loginId: loaded?.loginId ?? agent.loginId,
           agentName: loaded?.agentName ?? agent.agentName,
           extension: loaded?.extension ?? agent.extension,
+          extensionDisplayName: loaded?.extensionDisplayName ?? agent.extensionDisplayName ?? '',
+          extensionLockMode: loaded?.extensionLockMode ?? agent.extensionLockMode ?? 'UNLOCKED',
           role: loaded?.role ?? agent.role,
           defaultQueueId: loaded?.defaultQueueId ?? agent.defaultQueueId ?? undefined,
           agentGroupId: loaded?.agentGroupId ?? agent.agentGroupId ?? undefined,
@@ -171,6 +176,8 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
           loginId: agent.loginId,
           agentName: agent.agentName,
           extension: agent.extension,
+          extensionDisplayName: agent.extensionDisplayName ?? '',
+          extensionLockMode: agent.extensionLockMode ?? 'UNLOCKED',
           role: agent.role,
           defaultQueueId: agent.defaultQueueId ?? undefined,
           agentGroupId: agent.agentGroupId ?? undefined,
@@ -325,6 +332,16 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
                     ]}
                   >
                     <Input />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="내선 표시명" name="extensionDisplayName" rules={[{ max: 128 }]}>
+                    <Input placeholder="예: 본사 1번 데스크" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="내선 잠금" name="extensionLockMode" rules={[{ required: true }]}>
+                    <Select options={EXTENSION_LOCK_MODE_OPTIONS} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>

@@ -12,6 +12,7 @@ export interface TrunkInput {
 export interface AgentInput {
   extension: string;
   agentName: string;
+  extensionDisplayName?: string | null;
   sipPassword: string | null;
   context?: string;
   callerIdPrivacy?: 'allowed_not_screened' | 'prohib';
@@ -95,6 +96,7 @@ function renderAgent(agent: AgentInput): string {
   if (!agent.sipPassword) return '';
   assertNoNewlines(agent.extension, 'extension');
   assertNoNewlines(agent.agentName, 'agentName');
+  if (agent.extensionDisplayName) assertNoNewlines(agent.extensionDisplayName, 'extensionDisplayName');
   assertNoNewlines(agent.sipPassword, 'sipPassword');
   if (agent.context) assertNoNewlines(agent.context, 'context');
   if (agent.pickupGroup) assertNoNewlines(agent.pickupGroup, 'pickupGroup');
@@ -127,7 +129,7 @@ function renderAgent(agent: AgentInput): string {
     `allow=alaw,ulaw`,
     `auth=${agent.extension}-auth`,
     `aors=${agent.extension}`,
-    `callerid=${agent.agentName} <${agent.extension}>`,
+    `callerid=${agent.extensionDisplayName?.trim() || agent.agentName} <${agent.extension}>`,
     `callerid_privacy=${agent.callerIdPrivacy || 'allowed_not_screened'}`,
     ...(namedCallGroup ? [`named_call_group=${namedCallGroup}`] : []),
     ...(namedPickupGroup ? [`named_pickup_group=${namedPickupGroup}`] : []),

@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 
 const ROLES = ['agent', 'supervisor', 'admin'] as const;
+const EXTENSION_LOCK_MODES = ['UNLOCKED', 'OUTBOUND_LOCKED', 'FULL_LOCKED'] as const;
 
 export class UpdateAgentDto {
   @IsOptional()
@@ -30,6 +31,15 @@ export class UpdateAgentDto {
   @IsString()
   @MaxLength(16)
   extension?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  extensionDisplayName?: string | null;
+
+  @IsOptional()
+  @IsIn(EXTENSION_LOCK_MODES)
+  extensionLockMode?: string;
 
   @IsOptional()
   @IsIn(ROLES)

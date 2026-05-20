@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { getTimeSyncStatusMeta } from './timeSyncStatus';
 
 interface SystemSettingsFormValue {
   recordingEnabled: boolean;
@@ -14,6 +15,14 @@ interface SystemSettingsFormValue {
   sipRegisterPort: number;
   timezone: string;
   dateFormat: string;
+}
+
+interface TimeSyncStatusView {
+  status: 'OK' | 'WARNING' | 'CRITICAL' | 'UNKNOWN';
+  driftSeconds: number;
+  appTime: string;
+  dbTime: string;
+  source: string;
 }
 
 const TIMEZONE_OPTIONS = [
@@ -48,6 +57,7 @@ export function SystemSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [callerIds, setCallerIds] = useState<string[]>([]);
   const [newCallerId, setNewCallerId] = useState('');
+  const [timeSync, setTimeSync] = useState<TimeSyncStatusView | null>(null);
   const permission = usePermissionStore((s) => s.permissionsByMenu['system']);
   const canUpdate = permission?.canUpdate ?? true;
 
@@ -56,6 +66,7 @@ export function SystemSettingsPage() {
     try {
       const res = await apiClient.get('/admin/settings/system');
       const data = res.data?.data;
+      setTimeSync(data?.timeSync ?? null);
       const parsedCallerIds = parseCallerIds(data?.allowedOutboundCallerIds);
       setCallerIds(parsedCallerIds);
       setNewCallerId('');
@@ -71,6 +82,15 @@ export function SystemSettingsPage() {
       message.error(error?.response?.data?.error?.message ?? '시스템 설정을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshTimeSync = async () => {
+    try {
+      const res = await apiClient.get('/admin/settings/system/time-sync');
+      setTimeSync(res.data?.data ?? null);
+    } catch {
+      setTimeSync({ status: 'UNKNOWN', driftSeconds: 0, appTime: '', dbTime: '', source: 'database' });
     }
   };
 
@@ -149,6 +169,38 @@ export function SystemSettingsPage() {
         </div>
 
         <Form form={form} layout="vertical">
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              border: '1px solid rgba(195, 197, 215, 0.55)',
+              borderRadius: 8,
+              background: '#fff',
+            }}
+          >
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+                <Space align="center">
+                  <Typography.Text strong>시간 동기화 상태</Typography.Text>
+                  <Tag color={getTimeSyncStatusMeta(timeSync?.status).color}>
+                    {getTimeSyncStatusMeta(timeSync?.status).label}
+                  </Tag>
+                </Space>
+                <Button size="small" onClick={() => void refreshTimeSync()}>
+                  상태 새로고침
+                </Button>
+              </Space>
+              <Typography.Text type="secondary">
+                앱 서버와 DB 기준 시간 차이: {timeSync ? `${timeSync.driftSeconds}초` : '확인 중'}
+              </Typography.Text>
+              {timeSync?.appTime && timeSync?.dbTime ? (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  서버 {timeSync.appTime} / DB {timeSync.dbTime}
+                </Typography.Text>
+              ) : null}
+            </Space>
+          </div>
+
           <Form.Item name="recordingEnabled" label="기본 녹취 사용" valuePropName="checked">
             <Switch checkedChildren="ON" unCheckedChildren="OFF" />
           </Form.Item>
@@ -182,7 +234,14 @@ export function SystemSettingsPage() {
             <Input.TextArea />
           </Form.Item>
 
-          <Form.Item label="허용 발신번호 관리">
+          <Form.Item
+            label={(
+              <Space align="center">
+                <span>허용 발신번호 관리</span>
+                <FeatureHelpButton featureKey="pbx.trunkDisplayNumber" featureName="국선 표시번호" />
+              </Space>
+            )}
+          >
             <Space.Compact style={{ maxWidth: 360, width: '100%' }}>
               <Input
                 value={newCallerId}

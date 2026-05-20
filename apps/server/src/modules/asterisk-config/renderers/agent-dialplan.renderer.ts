@@ -10,6 +10,7 @@ export interface AgentDialplanAgentInput {
   outboundEnabled: boolean;
   callerIdPrivacy: 'allowed_not_screened' | 'prohib';
   liveRecordingEnabled: boolean;
+  extensionLockMode?: 'UNLOCKED' | 'OUTBOUND_LOCKED' | 'FULL_LOCKED';
 }
 
 export type OutboundCallerIdRuleMatchType =
@@ -63,13 +64,23 @@ function renderAgentEntryContext(
     `exten => _0X.,1,NoOp(Agent endpoint context ${agent.extension} / \${EXTEN})`,
   ];
 
-  if (!allowDirectSipDial || !agent.outboundEnabled) {
+  if (agent.extensionLockMode === 'FULL_LOCKED') {
+    lines[1] = `exten => _X.,1,NoOp(Agent endpoint ${agent.extension} is FULL_LOCKED)`;
     lines.push(' same => n,Playback(ss-noservice)');
     lines.push(' same => n,Hangup()');
     return lines.join('\n');
   }
 
-  lines.push(` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`);
+  if (!allowDirectSipDial || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED') {
+    if (agent.extensionLockMode === 'OUTBOUND_LOCKED') {
+      lines.push(` same => n,NoOp(Outbound disabled for agent ${agent.extension}: OUTBOUND_LOCKED)`);
+    }
+    lines.push(' same => n,Playback(ss-noservice)');
+    lines.push(' same => n,Hangup()');
+  } else {
+    lines.push(` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`);
+  }
+
   lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
   lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
   lines.push(' same => n,Hangup()');

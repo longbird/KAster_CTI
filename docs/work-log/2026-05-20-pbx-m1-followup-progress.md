@@ -15,6 +15,14 @@
   - `queues.unconditionalTargetType`, `queues.unconditionalTargetValue` 컬럼과 마이그레이션을 추가했다.
   - 생성/수정 모달에서 상담원/분배룰/외부번호 대상 유형과 값을 선택한다.
   - 서버는 `UNCONDITIONAL`일 때 대상 필수, 외부번호 자리수, 상담원/분배룰 존재, 자기 자신 분배룰 대상 금지를 검증한다.
+- M1 전체 잔여 항목을 구현했다.
+  - 상담원 `extensionDisplayName`, `extensionLockMode` 컬럼과 마이그레이션을 추가했다.
+  - 상담원 생성/수정/목록 API와 관리자 UI에서 내선 표시명, 내선 잠금(`UNLOCKED`, `OUTBOUND_LOCKED`, `FULL_LOCKED`)을 저장·표시한다.
+  - PBX PJSIP 렌더러는 내선 표시명을 `callerid` 표시명에 반영한다.
+  - PBX 상담원 dialplan은 `OUTBOUND_LOCKED`일 때 외부 발신만 차단하고 내부 통화는 유지한다.
+  - `FULL_LOCKED`일 때 상담원 endpoint context를 차단하고 queue member 렌더링에서 제외한다.
+  - 시스템 설정에 시간 동기화 상태 영역을 추가하고, `/admin/settings/system/time-sync`가 앱 서버 시간과 DB 시간의 `driftSeconds`를 반환한다.
+  - 국선 표시번호(`pbx.trunkDisplayNumber`)와 내선 잠금(`agent.extensionLock`) 도움말 버튼을 P0 화면에 추가했다.
 
 ## 운영서버 직접 적용 필요
 
@@ -30,6 +38,7 @@ npx prisma migrate deploy
 ```sql
 SELECT 1 FROM pg_indexes WHERE indexname='branchDids_tenantId_didId_key';
 SELECT column_name FROM information_schema.columns WHERE table_name='queues' AND column_name IN ('distributionMode', 'unconditionalTargetType', 'unconditionalTargetValue');
+SELECT column_name FROM information_schema.columns WHERE table_name='agents' AND column_name IN ('extensionDisplayName', 'extensionLockMode');
 ```
 
 ## 현재 검증
@@ -42,6 +51,11 @@ SELECT column_name FROM information_schema.columns WHERE table_name='queues' AND
 - `apps/admin`: `npx vitest run scripts/buildHelp.test.ts src/shared/help` PASS
 - `apps/admin`: `npx vitest run src/features/queue-settings/queueStrategy.test.ts src/shared/help/helpButtonPlacement.test.ts` PASS
 - `apps/admin`: `npm run build` PASS
+- `apps/server`: `npx prisma generate` PASS after `extensionDisplayName` / `extensionLockMode`
+- `apps/server`: `npx jest src/modules/asterisk-config/renderers/pjsip.renderer.spec.ts src/modules/asterisk-config/renderers/agent-dialplan.renderer.spec.ts src/modules/admin/time-sync-status.spec.ts test/agents.service.spec.ts` PASS
+- `apps/admin`: `npx vitest run src/features/agent-settings/extensionPolicy.test.ts src/features/system-settings/timeSyncStatus.test.ts src/shared/help/helpButtonPlacement.test.ts` PASS
+- `apps/server`: `npm run build` PASS
+- `apps/admin`: `npx tsc -b` PASS
 
 ## 남은 검증
 
@@ -69,3 +83,18 @@ SELECT column_name FROM information_schema.columns WHERE table_name='queues' AND
   - `POST /api/v1/asterisk-config/forwarding-rules` 22:00~06:00 자정 넘는 시간표 저장 PASS
   - `GET /api/v1/asterisk-config/preview` 에서 `22:00-23:59 mon` + `00:00-06:00 tue` 분할 렌더 확인
   - 스모크 후 임시 DID/착신전환 규칙 삭제 및 로컬 서버 프로세스 종료
+- M1 전체 잔여 API 스모크 완료.
+  - `GET /api/v1/admin/settings/system/time-sync` PASS (`status=OK`, `driftSeconds=0`)
+  - `PATCH /api/v1/agents/:agentId` 로 `extensionDisplayName=Main Desk 1`, `extensionLockMode=OUTBOUND_LOCKED` 저장 PASS
+  - PBX preview `pjsip.conf` 에 `callerid=Main Desk 1 <1001>` 반영 확인
+  - PBX preview `extensions_agent.conf` 에 OUTBOUND 잠금 차단 분기와 내부 통화 유지 확인
+  - `extensionLockMode=FULL_LOCKED` 저장 후 PBX preview 에 endpoint 차단 분기 확인
+  - `FULL_LOCKED` 상담원이 `queues.conf` member 에서 제외되는지 확인
+  - 스모크 후 상담원 설정 원복 및 로컬 서버 프로세스 종료
+- 최종 회귀.
+  - `apps/server`: `npx jest` — 38 suites / 231 tests PASS
+  - `apps/admin`: `npx vitest run` — 28 files / 89 tests PASS
+  - `apps/web`: `npm test` — 5 files / 11 tests PASS
+  - `apps/server`: `npm run build` PASS
+  - `apps/admin`: `npm run build` PASS
+  - `apps/web`: `npm run build` PASS

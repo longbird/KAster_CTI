@@ -100,6 +100,8 @@ model agents {
   agentCode          String    @db.VarChar(32)
   agentName          String    @db.VarChar(128)
   extension          String    @db.VarChar(16)
+  extensionDisplayName String? @db.VarChar(128)
+  extensionLockMode  String    @default("UNLOCKED") @db.VarChar(32)
   sipPassword        String?   @db.Text
   sipEndpoint        String?   @db.VarChar(64)
   settingsProfile    Json?

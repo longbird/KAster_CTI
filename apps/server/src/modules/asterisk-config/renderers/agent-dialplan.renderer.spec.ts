@@ -66,6 +66,48 @@ describe('renderAgentDialplan', () => {
     expect(rendered).not.toContain('Goto(outbound-main-1002,${EXTEN},1)');
   });
 
+  it('내선 잠금 OUTBOUND_LOCKED 는 외부 발신만 차단하고 내부 통화는 유지한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1004',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+        extensionLockMode: 'OUTBOUND_LOCKED',
+      }],
+    });
+
+    expect(rendered).toContain('[agent-phone-1004]');
+    expect(rendered).toContain('NoOp(Outbound disabled for agent 1004: OUTBOUND_LOCKED)');
+    expect(rendered).not.toContain('Goto(outbound-main-1004,${EXTEN},1)');
+    expect(rendered).toContain('exten => _[12]XXX,1,NoOp(Internal endpoint call 1004 / ${EXTEN})');
+  });
+
+  it('내선 잠금 FULL_LOCKED 는 외부 발신과 내부 통화를 모두 차단한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1005',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+        extensionLockMode: 'FULL_LOCKED',
+      }],
+    });
+
+    expect(rendered).toContain('NoOp(Agent endpoint 1005 is FULL_LOCKED)');
+    expect(rendered).toContain('Playback(ss-noservice)');
+    expect(rendered).not.toContain('Goto(outbound-main-1005,${EXTEN},1)');
+    expect(rendered).not.toContain('Internal endpoint call 1005');
+  });
+
   it('outbound caller-id rules — 룰이 없거나 모두 disabled 면 단일 callerId 인라인 Set 을 유지한다 (PR1-3B 회귀 가드)', () => {
     const rendered = renderAgentDialplan({
       allowDirectSipDial: true,

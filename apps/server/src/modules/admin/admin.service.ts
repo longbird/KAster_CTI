@@ -31,6 +31,7 @@ import { UpdateBranchMappingsDto } from './dto/update-branch-mappings.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import { classifyDidInboundRoute } from './branch-did-route';
+import { computeTimeSyncStatus } from './time-sync-status';
 
 interface PersistedPermissionRow {
   menuKey: string;
@@ -2628,10 +2629,23 @@ export class AdminService {
           defaultSipPassword: row.defaultSipPassword ?? '',
           allowedOutboundCallerIds: row.allowedOutboundCallerIds ?? '',
           defaultOutboundCallerId: row.defaultOutboundCallerId ?? '',
+          timeSync: await this.getTimeSyncStatusData(),
         }
-        : defaults,
+        : { ...defaults, timeSync: await this.getTimeSyncStatusData() },
       error: null,
     };
+  }
+
+  private async getTimeSyncStatusData() {
+    const appNow = new Date();
+    const rows = await this.prisma.$queryRaw<Array<{ now: Date }>>`SELECT NOW() AS now`;
+    const rawDbNow = rows[0]?.now;
+    const dbNow = rawDbNow instanceof Date ? rawDbNow : new Date(String(rawDbNow ?? appNow.toISOString()));
+    return computeTimeSyncStatus({ appNow, dbNow });
+  }
+
+  async getSystemTimeSyncStatus() {
+    return { success: true, data: await this.getTimeSyncStatusData(), error: null };
   }
 
   async updateSystemSettings(tenantId: string, dto: UpdateSystemSettingsDto) {

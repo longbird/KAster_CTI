@@ -24,6 +24,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { AgentCreateModal } from './AgentCreateModal';
 import { AgentEditModal, type AgentRow } from './AgentEditModal';
 import { AgentPermissionCopyModal } from './AgentPermissionCopyModal';
+import { getExtensionLockModeLabel } from './extensionPolicy';
 
 const STATUS_COLOR: Record<string, string> = {
   AVAILABLE: 'green',
@@ -113,6 +114,7 @@ export function AgentSettingsPage() {
             상담원 설정
           </Typography.Title>
           <FeatureHelpButton featureKey="agent.extensionDisplayName" featureName="내선 표시명" />
+          <FeatureHelpButton featureKey="agent.extensionLock" featureName="내선 잠금" />
         </Space>
         {agentPermission?.canCreate !== false ? (
           <Button
@@ -138,6 +140,18 @@ export function AgentSettingsPage() {
           { title: '이름', dataIndex: 'agentName', width: 140 },
           { title: '로그인 ID', dataIndex: 'loginId', width: 150 },
           { title: '내선', dataIndex: 'extension', width: 100 },
+          {
+            title: '내선 표시명',
+            dataIndex: 'extensionDisplayName',
+            width: 150,
+            render: (value: string | null | undefined) => value || '-',
+          },
+          {
+            title: '내선 잠금',
+            dataIndex: 'extensionLockMode',
+            width: 130,
+            render: (value: string | null | undefined) => <Tag>{getExtensionLockModeLabel(value)}</Tag>,
+          },
           { title: '역할', dataIndex: 'role', width: 120, render: (v: string) => <Tag>{v}</Tag> },
           {
             title: '현재 상태',

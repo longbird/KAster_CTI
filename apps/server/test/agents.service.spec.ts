@@ -100,6 +100,8 @@ describe('AgentsService listForTenant', () => {
         agentCode: true,
         agentName: true,
         extension: true,
+        extensionDisplayName: true,
+        extensionLockMode: true,
         sipPassword: true,
         role: true,
         employmentStatus: true,
