@@ -18,6 +18,7 @@ import { QueuesService } from '../queues/queues.service';
 import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { CreateHolidayRuleDto, UpdateHolidayRuleDto } from './dto/holiday-rule.dto';
 import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-ids.dto';
 import { UpdateAgentGroupDto } from './dto/update-agent-group.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
@@ -2877,6 +2878,72 @@ export class AdminService {
     });
 
     return { success: true, data: { deleted: true, agentGroupId }, error: null };
+  }
+
+  // ===========================================================================
+  // Holiday rules (M3 operations automation)
+  // ===========================================================================
+
+  async listHolidayRules(tenantId: string, branchId?: string) {
+    const rows = await (this.prisma as any).tenantHolidayRules.findMany({
+      where: {
+        tenantId,
+        ...(branchId ? { OR: [{ branchId: null }, { branchId }] } : { branchId: null }),
+      },
+      orderBy: [{ branchId: 'asc' }, { holidayDate: 'asc' }, { monthDay: 'asc' }, { ruleName: 'asc' }],
+    });
+    return { success: true, data: rows, error: null };
+  }
+
+  async createHolidayRule(tenantId: string, dto: CreateHolidayRuleDto) {
+    const data = this.normalizeHolidayRuleInput(tenantId, dto);
+    const row = await (this.prisma as any).tenantHolidayRules.create({ data });
+    return { success: true, data: row, error: null };
+  }
+
+  async updateHolidayRule(tenantId: string, holidayRuleId: string, dto: UpdateHolidayRuleDto) {
+    const data = this.normalizeHolidayRuleInput(tenantId, dto);
+    delete (data as any).tenantId;
+    const result = await (this.prisma as any).tenantHolidayRules.updateMany({
+      where: { tenantId, holidayRuleId },
+      data,
+    });
+    return { success: true, data: { updated: result.count > 0, holidayRuleId }, error: null };
+  }
+
+  async deleteHolidayRule(tenantId: string, holidayRuleId: string) {
+    const result = await (this.prisma as any).tenantHolidayRules.deleteMany({
+      where: { tenantId, holidayRuleId },
+    });
+    return { success: true, data: { deleted: result.count > 0, holidayRuleId }, error: null };
+  }
+
+  private normalizeHolidayRuleInput(tenantId: string, dto: CreateHolidayRuleDto | UpdateHolidayRuleDto) {
+    if (dto.ruleType === 'ANNUAL') {
+      if (!dto.monthDay) throw new BadRequestException('반복 공휴일은 MM-DD 형식의 monthDay가 필요합니다.');
+      return {
+        tenantId,
+        branchId: dto.branchId ?? null,
+        ruleName: dto.ruleName,
+        ruleType: dto.ruleType,
+        holidayDate: null,
+        monthDay: dto.monthDay,
+        isActive: dto.isActive ?? true,
+      };
+    }
+
+    if (!dto.holidayDate) {
+      throw new BadRequestException('특정일 규칙은 YYYY-MM-DD 형식의 holidayDate가 필요합니다.');
+    }
+    return {
+      tenantId,
+      branchId: dto.branchId ?? null,
+      ruleName: dto.ruleName,
+      ruleType: dto.ruleType,
+      holidayDate: dto.holidayDate,
+      monthDay: null,
+      isActive: dto.isActive ?? true,
+    };
   }
 
   // ===========================================================================

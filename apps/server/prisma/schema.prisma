@@ -71,6 +71,7 @@ model tenants {
   shareRuleAgentGroups shareRuleAgentGroups[]
   shareRuleBranches    shareRuleBranches[]
   integrationAutomations integrationAutomations[]
+  holidayRules         tenantHolidayRules[]
 }
 
 model agentGroups {
@@ -591,10 +592,31 @@ model branches {
   vipPrompt     AsteriskPrompt? @relation("branch_vip_prompt", fields: [vipPromptId], references: [id], onDelete: SetNull)
   defaultShareRule shareRules? @relation("branch_default_share_rule", fields: [defaultShareRuleId], references: [shareRuleId], onDelete: SetNull)
   shareRuleBranches shareRuleBranches[]
+  holidayRules tenantHolidayRules[]
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
   @@index([tenantId, defaultShareRuleId])
+}
+
+model tenantHolidayRules {
+  holidayRuleId String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  branchId      String?  @db.Uuid
+  ruleName      String   @db.VarChar(128)
+  ruleType      String   @db.VarChar(24)
+  holidayDate   String?  @db.VarChar(10)
+  monthDay      String?  @db.VarChar(5)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch        branches? @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+
+  @@index([tenantId, branchId, isActive])
+  @@index([tenantId, holidayDate])
+  @@index([tenantId, monthDay])
 }
 
 model branchAgents {

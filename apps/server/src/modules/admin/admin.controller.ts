@@ -9,6 +9,7 @@ import { AdminService } from './admin.service';
 import { CreateAgentGroupDto } from './dto/create-agent-group.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
+import { CreateHolidayRuleDto, UpdateHolidayRuleDto } from './dto/holiday-rule.dto';
 import { UpdateAgentBranchCallerIdsDto } from './dto/update-agent-branch-caller-ids.dto';
 import { ListAmiLogsQueryDto } from './dto/list-ami-logs-query.dto';
 import { ListIvrFailuresQueryDto } from './dto/list-ivr-failures-query.dto';
@@ -170,6 +171,63 @@ export class AdminController {
       user.sub,
     );
     return this.adminService.deleteAgentGroup(user.tenantId, agentGroupId);
+  }
+
+  // -------- Holiday rules (M3 operations automation) --------
+  @Get('settings/holiday-rules')
+  @Roles('supervisor', 'admin')
+  async listHolidayRules(@CurrentUser() user: any, @Query('branchId') branchId?: string) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/branches',
+      'view',
+      user.sub,
+    );
+    return this.adminService.listHolidayRules(user.tenantId, branchId);
+  }
+
+  @Post('settings/holiday-rules')
+  @Roles('supervisor', 'admin')
+  async createHolidayRule(@CurrentUser() user: any, @Body() dto: CreateHolidayRuleDto) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/branches',
+      'update',
+      user.sub,
+    );
+    return this.adminService.createHolidayRule(user.tenantId, dto);
+  }
+
+  @Post('settings/holiday-rules/:holidayRuleId')
+  @Roles('supervisor', 'admin')
+  async updateHolidayRule(
+    @CurrentUser() user: any,
+    @Param('holidayRuleId') holidayRuleId: string,
+    @Body() dto: UpdateHolidayRuleDto,
+  ) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/branches',
+      'update',
+      user.sub,
+    );
+    return this.adminService.updateHolidayRule(user.tenantId, holidayRuleId, dto);
+  }
+
+  @Delete('settings/holiday-rules/:holidayRuleId')
+  @Roles('supervisor', 'admin')
+  async deleteHolidayRule(@CurrentUser() user: any, @Param('holidayRuleId') holidayRuleId: string) {
+    await this.menuPermissionService.assertMenuAction(
+      user.tenantId,
+      user.role,
+      'settings/branches',
+      'delete',
+      user.sub,
+    );
+    return this.adminService.deleteHolidayRule(user.tenantId, holidayRuleId);
   }
 
   // -------- 상담원-지사 CID 발신권한 매트릭스 (BlueSky JisaPossibleAuth 등가) --------
