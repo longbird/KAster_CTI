@@ -45,6 +45,27 @@ SELECT column_name FROM information_schema.columns WHERE table_name='queues' AND
 
 ## 남은 검증
 
-- 서버 전체 Jest
-- 관리자 전체 Vitest
-- 최종 빌드 재확인
+- 없음. 자동 테스트와 로컬 API 스모크까지 완료.
+
+## 2026-05-20 추가 검증
+
+- D 드라이브 WSL 로컬 인프라 기동 확인.
+  - `scripts/start-local-test-infra.ps1` PASS
+  - PostgreSQL/Redis WSL IP 기반 `apps/server/.env` 갱신 확인
+- 로컬 DB 스모크 확인.
+  - `branchDids_tenantId_didId_key` 인덱스 존재 확인
+  - `queues.distributionMode`, `queues.unconditionalTargetType`, `queues.unconditionalTargetValue` 컬럼 존재 확인
+  - seed tenant 1건 확인
+- 전체 자동 테스트 재실행.
+  - `apps/server`: `npx jest` — 37 suites / 224 tests PASS
+  - `apps/admin`: `npx vitest run` — 26 files / 84 tests PASS
+  - `apps/web`: `npm test` — 5 files / 11 tests PASS
+- 로컬 서버 API 스모크 완료.
+  - `GET /api/v1/health/live` PASS
+  - `POST /api/v1/auth/login` (`supervisor1`) PASS
+  - `GET /api/v1/me/session` PASS
+  - `PATCH /api/v1/queues/:queueId`: `SEQUENTIAL` 저장 시 `strategy=linear` 확인 후 `DISTRIBUTE/leastrecent` 복원
+  - `POST /api/v1/asterisk-config/dids` 임시 DID 생성/삭제 PASS
+  - `POST /api/v1/asterisk-config/forwarding-rules` 22:00~06:00 자정 넘는 시간표 저장 PASS
+  - `GET /api/v1/asterisk-config/preview` 에서 `22:00-23:59 mon` + `00:00-06:00 tue` 분할 렌더 확인
+  - 스모크 후 임시 DID/착신전환 규칙 삭제 및 로컬 서버 프로세스 종료
