@@ -1,4 +1,8 @@
-import { isDistributionMode, resolveQueueStrategy } from './distribution-mode';
+import {
+  isDistributionMode,
+  normalizeUnconditionalTarget,
+  resolveQueueStrategy,
+} from './distribution-mode';
 
 describe('resolveQueueStrategy', () => {
   it('SEQUENTIAL 은 linear 로 매핑한다', () => {
@@ -24,5 +28,27 @@ describe('isDistributionMode', () => {
     expect(isDistributionMode('DISTRIBUTE')).toBe(true);
     expect(isDistributionMode('UNCONDITIONAL')).toBe(true);
     expect(isDistributionMode('ROUNDROBIN')).toBe(false);
+  });
+});
+
+describe('normalizeUnconditionalTarget', () => {
+  it('UNCONDITIONAL 이 아니면 대상 정보를 비운다', () => {
+    expect(normalizeUnconditionalTarget('DISTRIBUTE', 'AGENT', 'agent-1')).toEqual({
+      unconditionalTargetType: null,
+      unconditionalTargetValue: null,
+    });
+  });
+
+  it('UNCONDITIONAL 은 대상 타입과 값을 보관한다', () => {
+    expect(normalizeUnconditionalTarget('UNCONDITIONAL', 'EXTERNAL_NUMBER', '010-1234-5678')).toEqual({
+      unconditionalTargetType: 'EXTERNAL_NUMBER',
+      unconditionalTargetValue: '01012345678',
+    });
+  });
+
+  it('UNCONDITIONAL 대상이 없으면 에러를 반환한다', () => {
+    expect(() => normalizeUnconditionalTarget('UNCONDITIONAL', 'AGENT', '')).toThrow(
+      '무조건 착신 대상 값을 지정하세요.',
+    );
   });
 });

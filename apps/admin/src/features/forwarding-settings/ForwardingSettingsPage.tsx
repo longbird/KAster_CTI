@@ -2,6 +2,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, SwapOutlined } from '@ant-d
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import {
@@ -155,9 +156,12 @@ export function ForwardingSettingsPage() {
     <Card>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <div>
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
-            착신전환 설정
-          </Typography.Title>
+          <Space align="center">
+            <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0 }}>
+              착신전환 설정
+            </Typography.Title>
+            <FeatureHelpButton featureKey="forwarding.condition" featureName="착신전환 조건" />
+          </Space>
           <Typography.Text type="secondary">
             DID별 우선 라우팅 규칙입니다. 활성 규칙이 있으면 기존 DID의 IVR/큐 설정보다 먼저 적용됩니다.
           </Typography.Text>

@@ -21,6 +21,12 @@ export const DISTRIBUTION_MODE_OPTIONS = [
   { value: 'UNCONDITIONAL', label: '무조건 착신' },
 ];
 
+export const UNCONDITIONAL_TARGET_TYPE_OPTIONS = [
+  { value: 'AGENT', label: '상담원' },
+  { value: 'QUEUE', label: '분배룰' },
+  { value: 'EXTERNAL_NUMBER', label: '외부번호' },
+];
+
 const DISTRIBUTION_MODE_LABEL_MAP = Object.fromEntries(
   DISTRIBUTION_MODE_OPTIONS.map((item) => [item.value, item.label]),
 ) as Record<string, string>;
@@ -28,4 +34,13 @@ const DISTRIBUTION_MODE_LABEL_MAP = Object.fromEntries(
 export function getDistributionModeLabel(mode?: string | null) {
   if (!mode) return '분배 착신';
   return DISTRIBUTION_MODE_LABEL_MAP[mode] ?? mode;
+}
+
+const UNCONDITIONAL_TARGET_TYPE_LABEL_MAP = Object.fromEntries(
+  UNCONDITIONAL_TARGET_TYPE_OPTIONS.map((item) => [item.value, item.label]),
+) as Record<string, string>;
+
+export function getUnconditionalTargetTypeLabel(type?: string | null) {
+  if (!type) return '-';
+  return UNCONDITIONAL_TARGET_TYPE_LABEL_MAP[type] ?? type;
 }

@@ -1,5 +1,6 @@
 import { Button, Card, Form, Input, InputNumber, Select, Space, Switch, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 
@@ -136,9 +137,12 @@ export function SystemSettingsPage() {
     <Card loading={loading}>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            시스템 설정
-          </Typography.Title>
+          <Space align="center">
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              시스템 설정
+            </Typography.Title>
+            <FeatureHelpButton featureKey="system.timeSync" featureName="시간 동기화 상태" />
+          </Space>
           <Typography.Text type="secondary">
             테넌트 기본 운영값입니다. 직접 SIP 발신 허용 여부와 허용 발신번호도 여기서 관리합니다.
           </Typography.Text>

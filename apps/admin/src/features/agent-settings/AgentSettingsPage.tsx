@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AgentCreateModal } from './AgentCreateModal';
 import { AgentEditModal, type AgentRow } from './AgentEditModal';
@@ -107,9 +108,12 @@ export function AgentSettingsPage() {
   return (
     <Card>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          상담원 설정
-        </Typography.Title>
+        <Space align="center">
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            상담원 설정
+          </Typography.Title>
+          <FeatureHelpButton featureKey="agent.extensionDisplayName" featureName="내선 표시명" />
+        </Space>
         {agentPermission?.canCreate !== false ? (
           <Button
             type="primary"

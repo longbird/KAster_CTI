@@ -1,16 +1,57 @@
 {
-  "system.timeSync": {
-    "featureKey": "system.timeSync",
-    "title": "시간 동기화 상태",
-    "summary": "PBX 서버와 애플리케이션 서버의 시각 차이를 확인합니다. 시간 변경 기능은 제공하지 않습니다.",
+  "agent.extensionDisplayName": {
+    "featureKey": "agent.extensionDisplayName",
+    "title": "내선 표시명",
+    "summary": "상담원 이름과 별개로 전화기/내선에 표시되는 이름을 지정합니다.",
     "howTo": [
-      "시스템 설정 화면에서 시간 동기화 상태 영역을 확인합니다.",
-      "driftSeconds가 임계치를 넘으면 PBX 서버 NTP 설정을 점검합니다."
+      "상담원 생성/수정 화면에서 내선 표시명을 입력합니다."
     ],
-    "examples": ["appTime과 pbxTime 차이가 2초 이내면 정상으로 표시됩니다."],
-    "warnings": ["이 화면은 상태 조회 전용입니다. 시각을 직접 바꾸지 않습니다."],
-    "relatedRoutes": [{ "route": "/system", "label": "시스템 설정" }],
-    "sources": [{ "kind": "manual", "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 505 시스템시간 맞추기" }],
+    "examples": [
+      "상담원명은 '홍길동', 내선 표시명은 '본사 1번 데스크'."
+    ],
+    "warnings": [
+      "표시명이 비면 상담원명 또는 내선번호 기반 기본값을 사용합니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/agents",
+        "label": "상담원 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 104 내선이름등록"
+      }
+    ],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-05-19"
+  },
+  "agent.extensionLock": {
+    "featureKey": "agent.extensionLock",
+    "title": "내선 잠금",
+    "summary": "내선의 발신/착신/등록을 제한하는 운영 정책입니다.",
+    "howTo": [
+      "상담원 설정에서 잠금 모드를 UNLOCKED/OUTBOUND_LOCKED/FULL_LOCKED 중 선택합니다."
+    ],
+    "examples": [
+      "퇴사 예정 상담원 내선은 OUTBOUND_LOCKED로 발신만 차단합니다."
+    ],
+    "warnings": [
+      "FULL_LOCKED는 로그인 또는 단말 등록까지 제한합니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/agents",
+        "label": "상담원 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 100 내선잠금"
+      }
+    ],
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   },
@@ -22,37 +63,28 @@
       "지사 편집에서 DID를 선택하고 착신 경로를 하나 지정합니다.",
       "ARS 메뉴는 PBX 설정에서 만든 메뉴를 연결만 합니다."
     ],
-    "examples": ["대표번호 DID는 ARS 메뉴로, 직통 DID는 직접 분배룰로 연결합니다."],
-    "warnings": ["하나의 DID가 ARS와 직접 분배룰을 동시에 활성화할 수 없습니다."],
-    "relatedRoutes": [
-      { "route": "/settings/branches", "label": "지사 관리" },
-      { "route": "/settings/asterisk", "label": "PBX 설정" }
+    "examples": [
+      "대표번호 DID는 ARS 메뉴로, 직통 DID는 직접 분배룰로 연결합니다."
     ],
-    "sources": [{ "kind": "spec", "ref": "pbx-selected-features-development-plan-20260514.md / 기능 1" }],
-    "reviewStatus": "APPROVED",
-    "updatedAt": "2026-05-19"
-  },
-  "pbx.did": {
-    "featureKey": "pbx.did",
-    "title": "DID 설정",
-    "summary": "인입 번호(DID)별 지사 매핑과 라우팅 원천 설정을 관리합니다.",
-    "howTo": ["DID를 등록하고 지사와 대표번호 여부를 지정합니다."],
-    "examples": ["070-1234-5678 DID를 본사 지사에 연결합니다."],
-    "warnings": ["동일 DID가 여러 지사에 중복 연결되지 않도록 합니다."],
-    "relatedRoutes": [{ "route": "/settings/asterisk", "label": "PBX 설정" }],
-    "sources": [{ "kind": "spec", "ref": "pbx-selected-features-development-plan-20260514.md / 기능 1" }],
-    "reviewStatus": "APPROVED",
-    "updatedAt": "2026-05-19"
-  },
-  "pbx.trunkDisplayNumber": {
-    "featureKey": "pbx.trunkDisplayNumber",
-    "title": "국선 표시번호",
-    "summary": "국선(트렁크)의 표시번호를 관리합니다. 기본값은 대표번호 마지막 4자리입니다.",
-    "howTo": ["트렁크 목록의 표시번호 열을 확인하고 필요 시 수동 입력합니다."],
-    "examples": ["대표번호가 15991234이면 표시번호 기본값은 1234입니다."],
-    "warnings": ["표시번호는 발신자번호 정책을 덮어쓰지 않습니다."],
-    "relatedRoutes": [{ "route": "/settings/asterisk", "label": "PBX 설정" }],
-    "sources": [{ "kind": "manual", "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 404 국선이름등록" }],
+    "warnings": [
+      "하나의 DID가 ARS와 직접 분배룰을 동시에 활성화할 수 없습니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/branches",
+        "label": "지사 관리"
+      },
+      {
+        "route": "/settings/asterisk",
+        "label": "PBX 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "spec",
+        "ref": "pbx-selected-features-development-plan-20260514.md / 기능 1"
+      }
+    ],
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   },
@@ -60,11 +92,596 @@
     "featureKey": "forwarding.condition",
     "title": "착신전환 조건",
     "summary": "즉시, 대기시간 초과, 상담원 없음, 시간 조건 중 하나로 착신전환 발동 조건을 정합니다.",
-    "howTo": ["착신전환 규칙에서 조건 유형을 선택하고 대상과 시간표를 지정합니다."],
-    "examples": ["업무시간 외에는 시간 조건 전환으로 야간 안내 멘트에 연결합니다."],
-    "warnings": ["시간 범위가 자정을 넘는 경우 종료시각이 시작시각보다 작게 설정됩니다."],
-    "relatedRoutes": [{ "route": "/settings/forwarding", "label": "착신전환 설정" }],
-    "sources": [{ "kind": "manual", "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 102 착신전환" }],
+    "howTo": [
+      "착신전환 규칙에서 조건 유형을 선택하고 대상과 시간표를 지정합니다."
+    ],
+    "examples": [
+      "업무시간 외에는 시간 조건 전환으로 야간 안내 멘트에 연결합니다."
+    ],
+    "warnings": [
+      "시간 범위가 자정을 넘는 경우 종료시각이 시작시각보다 작게 설정됩니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/forwarding",
+        "label": "착신전환 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 102 착신전환"
+      }
+    ],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-05-19"
+  },
+  "mmc.100": {
+    "featureKey": "mmc.100",
+    "title": "내선잠금",
+    "summary": "삼성 PBX 설정화면 MMC 100 (내선잠금) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 100_내선잠금.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.102": {
+    "featureKey": "mmc.102",
+    "title": "착신전환",
+    "summary": "삼성 PBX 설정화면 MMC 102 (착신전환) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 102_착신전환.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.103": {
+    "featureKey": "mmc.103",
+    "title": "전화기 응답모드",
+    "summary": "삼성 PBX 설정화면 MMC 103 (전화기 응답모드) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 103_전화기 응답모드.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.104": {
+    "featureKey": "mmc.104",
+    "title": "내선이름등록",
+    "summary": "삼성 PBX 설정화면 MMC 104 (내선이름등록) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 104_내선이름등록.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.105": {
+    "featureKey": "mmc.105",
+    "title": "단축다이얼",
+    "summary": "삼성 PBX 설정화면 MMC 105 (단축다이얼) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 105_단축다이얼.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.109": {
+    "featureKey": "mmc.109",
+    "title": "시간 표시방법",
+    "summary": "삼성 PBX 설정화면 MMC 109 (시간 표시방법) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 109_시간 표시방법.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.206": {
+    "featureKey": "mmc.206",
+    "title": "통화감청여부",
+    "summary": "삼성 PBX 설정화면 MMC 206 (통화감청여부) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 206_통화감청여부.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.301": {
+    "featureKey": "mmc.301",
+    "title": "등급지정",
+    "summary": "삼성 PBX 설정화면 MMC 301 (등급지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 301_등급지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.302": {
+    "featureKey": "mmc.302",
+    "title": "대리응답 그룹",
+    "summary": "삼성 PBX 설정화면 MMC 302 (대리응답 그룹) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 302_대리응답 그룹.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.304": {
+    "featureKey": "mmc.304",
+    "title": "통화가능 내선_국선지정",
+    "summary": "삼성 PBX 설정화면 MMC 304 (통화가능 내선_국선지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 304_통화가능 내선_국선지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.306": {
+    "featureKey": "mmc.306",
+    "title": "직통전화지정",
+    "summary": "삼성 PBX 설정화면 MMC 306 (직통전화지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 306_직통전화지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.315": {
+    "featureKey": "mmc.315",
+    "title": "브랜치그룹_수화기 OFF HOOK시  자동당김",
+    "summary": "삼성 PBX 설정화면 MMC 315 (브랜치그룹_수화기 OFF HOOK시  자동당김) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 315_브랜치그룹_수화기 OFF HOOK시  자동당김.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.323": {
+    "featureKey": "mmc.323",
+    "title": "발신자번호 등록",
+    "summary": "삼성 PBX 설정화면 MMC 323 (발신자번호 등록) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 323_발신자번호 등록.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.404": {
+    "featureKey": "mmc.404",
+    "title": "국선이름등록",
+    "summary": "삼성 PBX 설정화면 MMC 404 (국선이름등록) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 404_국선이름등록.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.505": {
+    "featureKey": "mmc.505",
+    "title": "시스템시간 맞추기",
+    "summary": "삼성 PBX 설정화면 MMC 505 (시스템시간 맞추기) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 505_시스템시간 맞추기.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.507": {
+    "featureKey": "mmc.507",
+    "title": "시간별 동작설정",
+    "summary": "삼성 PBX 설정화면 MMC 507 (시간별 동작설정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 507_시간별 동작설정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.509": {
+    "featureKey": "mmc.509",
+    "title": "공휴일 지정",
+    "summary": "삼성 PBX 설정화면 MMC 509 (공휴일 지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 509_공휴일 지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.601": {
+    "featureKey": "mmc.601",
+    "title": "내선그룹지정",
+    "summary": "삼성 PBX 설정화면 MMC 601 (내선그룹지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 601_내선그룹지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.603": {
+    "featureKey": "mmc.603",
+    "title": "국선그룹지정",
+    "summary": "삼성 PBX 설정화면 MMC 603 (국선그룹지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 603_국선그룹지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.701": {
+    "featureKey": "mmc.701",
+    "title": "서비스 등급표",
+    "summary": "삼성 PBX 설정화면 MMC 701 (서비스 등급표) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 701_서비스 등급표.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.705": {
+    "featureKey": "mmc.705",
+    "title": "공동단축다이얼",
+    "summary": "삼성 PBX 설정화면 MMC 705 (공동단축다이얼) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 705_공동단축다이얼.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.714": {
+    "featureKey": "mmc.714",
+    "title": "DNIS 착신지정",
+    "summary": "삼성 PBX 설정화면 MMC 714 (DNIS 착신지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 714_DNIS 착신지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.722": {
+    "featureKey": "mmc.722",
+    "title": "내선전화기별 키버튼 지정",
+    "summary": "삼성 PBX 설정화면 MMC 722 (내선전화기별 키버튼 지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 722_내선전화기별 키버튼 지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.723": {
+    "featureKey": "mmc.723",
+    "title": "전화기 종류별(공동) 버튼지정",
+    "summary": "삼성 PBX 설정화면 MMC 723 (전화기 종류별(공동) 버튼지정) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 723_전화기 종류별(공동) 버튼지정.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.724": {
+    "featureKey": "mmc.724",
+    "title": "시스템의 모든번호에 대한 변경",
+    "summary": "삼성 PBX 설정화면 MMC 724 (시스템의 모든번호에 대한 변경) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 724_시스템의 모든번호에 대한 변경.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.811": {
+    "featureKey": "mmc.811",
+    "title": "카드 및 시스템 재시작",
+    "summary": "삼성 PBX 설정화면 MMC 811 (카드 및 시스템 재시작) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 811_카드 및 시스템 재시작.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "mmc.890": {
+    "featureKey": "mmc.890",
+    "title": "사용자별 강제끊기",
+    "summary": "삼성 PBX 설정화면 MMC 890 (사용자별 강제끊기) 자동 추출 초안입니다.",
+    "howTo": [],
+    "examples": [],
+    "warnings": [
+      "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
+    ],
+    "relatedRoutes": [],
+    "sources": [
+      {
+        "kind": "screen",
+        "ref": "3_DM_설정화면/MMC 890_사용자별 강제끊기.png"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-05-20"
+  },
+  "pbx.did": {
+    "featureKey": "pbx.did",
+    "title": "DID 설정",
+    "summary": "인입 번호(DID)별 지사 매핑과 라우팅 원천 설정을 관리합니다.",
+    "howTo": [
+      "DID를 등록하고 지사와 대표번호 여부를 지정합니다."
+    ],
+    "examples": [
+      "070-1234-5678 DID를 본사 지사에 연결합니다."
+    ],
+    "warnings": [
+      "동일 DID가 여러 지사에 중복 연결되지 않도록 합니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/asterisk",
+        "label": "PBX 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "spec",
+        "ref": "pbx-selected-features-development-plan-20260514.md / 기능 1"
+      }
+    ],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-05-19"
+  },
+  "pbx.trunkDisplayNumber": {
+    "featureKey": "pbx.trunkDisplayNumber",
+    "title": "국선 표시번호",
+    "summary": "국선(트렁크)의 표시번호를 관리합니다. 기본값은 대표번호 마지막 4자리입니다.",
+    "howTo": [
+      "트렁크 목록의 표시번호 열을 확인하고 필요 시 수동 입력합니다."
+    ],
+    "examples": [
+      "대표번호가 15991234이면 표시번호 기본값은 1234입니다."
+    ],
+    "warnings": [
+      "표시번호는 발신자번호 정책을 덮어쓰지 않습니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/asterisk",
+        "label": "PBX 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 404 국선이름등록"
+      }
+    ],
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   },
@@ -72,35 +689,56 @@
     "featureKey": "queue.externalInboundMode",
     "title": "외부 착신 방식",
     "summary": "순차, 분배, 무조건 세 가지 외부 착신 방식을 호 분배룰에 매핑합니다.",
-    "howTo": ["호 분배룰 생성/수정에서 외부 착신 방식을 선택합니다."],
-    "examples": ["순차는 우선순위 순 호출, 분배는 균등 분배, 무조건은 지정 대상 즉시 연결입니다."],
-    "warnings": ["상담원이 0명인 분배룰은 대체 경로 경고가 표시됩니다."],
-    "relatedRoutes": [{ "route": "/settings/queues", "label": "호 분배룰 설정" }],
-    "sources": [{ "kind": "spec", "ref": "pbx-selected-features-development-plan-20260514.md / 기능 2" }],
+    "howTo": [
+      "호 분배룰 생성/수정에서 외부 착신 방식을 선택합니다."
+    ],
+    "examples": [
+      "순차는 우선순위 순 호출, 분배는 균등 분배, 무조건은 지정 대상 즉시 연결입니다."
+    ],
+    "warnings": [
+      "상담원이 0명인 분배룰은 대체 경로 경고가 표시됩니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/queues",
+        "label": "호 분배룰 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "spec",
+        "ref": "pbx-selected-features-development-plan-20260514.md / 기능 2"
+      }
+    ],
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   },
-  "agent.extensionDisplayName": {
-    "featureKey": "agent.extensionDisplayName",
-    "title": "내선 표시명",
-    "summary": "상담원 이름과 별개로 전화기/내선에 표시되는 이름을 지정합니다.",
-    "howTo": ["상담원 생성/수정 화면에서 내선 표시명을 입력합니다."],
-    "examples": ["상담원명은 '홍길동', 내선 표시명은 '본사 1번 데스크'."],
-    "warnings": ["표시명이 비면 상담원명 또는 내선번호 기반 기본값을 사용합니다."],
-    "relatedRoutes": [{ "route": "/settings/agents", "label": "상담원 설정" }],
-    "sources": [{ "kind": "manual", "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 104 내선이름등록" }],
-    "reviewStatus": "APPROVED",
-    "updatedAt": "2026-05-19"
-  },
-  "agent.extensionLock": {
-    "featureKey": "agent.extensionLock",
-    "title": "내선 잠금",
-    "summary": "내선의 발신/착신/등록을 제한하는 운영 정책입니다.",
-    "howTo": ["상담원 설정에서 잠금 모드를 UNLOCKED/OUTBOUND_LOCKED/FULL_LOCKED 중 선택합니다."],
-    "examples": ["퇴사 예정 상담원 내선은 OUTBOUND_LOCKED로 발신만 차단합니다."],
-    "warnings": ["FULL_LOCKED는 로그인 또는 단말 등록까지 제한합니다."],
-    "relatedRoutes": [{ "route": "/settings/agents", "label": "상담원 설정" }],
-    "sources": [{ "kind": "manual", "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 100 내선잠금" }],
+  "system.timeSync": {
+    "featureKey": "system.timeSync",
+    "title": "시간 동기화 상태",
+    "summary": "PBX 서버와 애플리케이션 서버의 시각 차이를 확인합니다. 시간 변경 기능은 제공하지 않습니다.",
+    "howTo": [
+      "시스템 설정 화면에서 시간 동기화 상태 영역을 확인합니다.",
+      "driftSeconds가 임계치를 넘으면 PBX 서버 NTP 설정을 점검합니다."
+    ],
+    "examples": [
+      "appTime과 pbxTime 차이가 2초 이내면 정상으로 표시됩니다."
+    ],
+    "warnings": [
+      "이 화면은 상태 조회 전용입니다. 시각을 직접 바꾸지 않습니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/system",
+        "label": "시스템 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf / MMC 505 시스템시간 맞추기"
+      }
+    ],
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   }

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
+    "help:build": "tsx scripts/build-pbx-feature-help.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
@@ -25,9 +26,12 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "pdf-parse": "^2.4.5",
+    "tsx": "^4.22.3",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^3.2.4"

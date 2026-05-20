@@ -142,6 +142,8 @@ model queues {
   queueExten          String    @db.VarChar(16)
   queueDisplayName    String    @db.VarChar(128)
   distributionMode    String    @default("DISTRIBUTE") @db.VarChar(16)
+  unconditionalTargetType  String?   @db.VarChar(16)
+  unconditionalTargetValue String?   @db.VarChar(64)
   strategy            String    @default("leastrecent") @db.VarChar(32)
   ringTimeoutSeconds  Int       @default(15)
   retrySeconds        Int       @default(3)

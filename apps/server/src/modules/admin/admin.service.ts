@@ -58,6 +58,13 @@ interface BranchRoutingRule {
   daysOfWeek: string[];
 }
 
+interface BranchForwardingRuleSchedule {
+  conditionType: 'ALWAYS' | 'TIME_RANGE';
+  timeStart: string | null;
+  timeEnd: string | null;
+  daysOfWeek: string[];
+}
+
 type Blocklist080Mode = 'IMMEDIATE_OPT_OUT' | 'DTMF_MENU' | 'SMART_OPT_OUT';
 type Blocklist080DtmfActionType = 'QUEUE_ROUTE' | 'REGISTER_OPT_OUT' | 'UNREGISTER_OPT_OUT' | 'SEND_SMS';
 type Blocklist080SmartActionType = 'REGISTER_OPT_OUT' | 'REENTER_NUMBER' | 'SEND_SMS' | 'HANGUP';
@@ -394,6 +401,63 @@ function normalizeSmartArsProfile(value: unknown): BranchSmartArsProfile {
 function normalizeWeekdays(value: unknown): string[] {
   const normalized = normalizeStringArray(value).map((item) => item.toLowerCase());
   return WEEKDAY_ORDER.filter((day) => normalized.includes(day));
+}
+
+function normalizeForwardingWeekdays(value: unknown): string[] {
+  const raw = typeof value === 'string' ? value.split(',') : value;
+  return normalizeWeekdays(raw);
+}
+
+function parseBranchForwardingSchedules(rule: {
+  conditionType?: string | null;
+  timeStart?: string | null;
+  timeEnd?: string | null;
+  daysOfWeek?: string | null;
+  scheduleJson?: string | null;
+}): BranchForwardingRuleSchedule[] {
+  if (rule.scheduleJson) {
+    try {
+      const parsed = JSON.parse(rule.scheduleJson);
+      if (Array.isArray(parsed)) {
+        const schedules = parsed
+          .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+          .map((item): BranchForwardingRuleSchedule => {
+            const conditionType = item.conditionType === 'TIME_RANGE' ? 'TIME_RANGE' : 'ALWAYS';
+            return {
+              conditionType,
+              timeStart: conditionType === 'TIME_RANGE' && typeof item.timeStart === 'string' ? item.timeStart : null,
+              timeEnd: conditionType === 'TIME_RANGE' && typeof item.timeEnd === 'string' ? item.timeEnd : null,
+              daysOfWeek: conditionType === 'TIME_RANGE' ? normalizeForwardingWeekdays(item.daysOfWeek) : [],
+            };
+          });
+        if (schedules.length > 0) {
+          return schedules;
+        }
+      }
+    } catch {
+      // Fall back to legacy single-window columns below.
+    }
+  }
+
+  if (rule.conditionType === 'TIME_RANGE') {
+    return [
+      {
+        conditionType: 'TIME_RANGE',
+        timeStart: rule.timeStart ?? null,
+        timeEnd: rule.timeEnd ?? null,
+        daysOfWeek: normalizeForwardingWeekdays(rule.daysOfWeek),
+      },
+    ];
+  }
+
+  return [
+    {
+      conditionType: 'ALWAYS',
+      timeStart: null,
+      timeEnd: null,
+      daysOfWeek: [],
+    },
+  ];
 }
 
 function normalizeRoutingRules(
@@ -2033,7 +2097,14 @@ export class AdminService {
           id: true,
           forwardType: true,
           targetValue: true,
+          forwardTriggerMode: true,
+          queueWaitSeconds: true,
+          stickyCallbackWindowMinutes: true,
           conditionType: true,
+          timeStart: true,
+          timeEnd: true,
+          daysOfWeek: true,
+          scheduleJson: true,
           did: {
             select: {
               id: true,
@@ -2109,13 +2180,27 @@ export class AdminService {
         })(),
         availablePrompts: prompts,
         availableIvrMenus: ivrMenus,
-        availableForwardingRules: forwardingRules.map((rule) => ({
-          id: rule.id,
-          forwardType: rule.forwardType,
-          targetValue: rule.targetValue,
-          conditionType: rule.conditionType,
-          did: rule.did,
-        })),
+        availableForwardingRules: forwardingRules.map((rule) => {
+          const schedules = parseBranchForwardingSchedules(rule);
+          const primary = schedules[0];
+          return {
+            id: rule.id,
+            forwardType: rule.forwardType,
+            targetValue: rule.targetValue,
+            forwardTriggerMode:
+              rule.forwardTriggerMode === 'AFTER_QUEUE_WAIT' || rule.forwardTriggerMode === 'SMART_NO_READY'
+                ? rule.forwardTriggerMode
+                : 'IMMEDIATE',
+            queueWaitSeconds: rule.queueWaitSeconds ?? null,
+            stickyCallbackWindowMinutes: rule.stickyCallbackWindowMinutes ?? null,
+            conditionType: primary?.conditionType ?? 'ALWAYS',
+            timeStart: primary?.conditionType === 'TIME_RANGE' ? primary.timeStart : null,
+            timeEnd: primary?.conditionType === 'TIME_RANGE' ? primary.timeEnd : null,
+            daysOfWeek: primary?.conditionType === 'TIME_RANGE' ? primary.daysOfWeek : [],
+            schedules,
+            did: rule.did,
+          };
+        }),
         availableSmsTemplates,
         availableCallerIds: callerIds,
         defaultSystemRecordingEnabled: systemSettings?.recordingEnabled ?? true,

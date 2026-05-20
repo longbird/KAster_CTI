@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { FeatureHelpButton } from '../../shared/help';
+import { formatBranchForwardingRuleLabel, type BranchForwardingRuleOption } from './branchForwardingRuleLabel';
 import type { BranchRow } from './BranchEditModal';
 
 interface AgentOption {
@@ -53,17 +54,7 @@ interface MappingResponse {
   }>;
   availablePrompts: Array<{ id: string; displayName: string; promptKey: string; category: string }>;
   availableIvrMenus: Array<{ id: string; name: string; timeoutSecs: number }>;
-  availableForwardingRules: Array<{
-    id: string;
-    forwardType: 'EXTENSION' | 'QUEUE' | 'EXTERNAL_NUMBER';
-    targetValue: string;
-    conditionType: 'ALWAYS' | 'TIME_RANGE';
-    did: {
-      id: string;
-      did: string;
-      description?: string | null;
-    };
-  }>;
+  availableForwardingRules: BranchForwardingRuleOption[];
   availableCallerIds: string[];
   defaultSystemRecordingEnabled: boolean;
   defaultSystemCallerId: string | null;
@@ -92,12 +83,6 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
 }
-
-const FORWARD_TYPE_LABEL: Record<string, string> = {
-  EXTENSION: '내선',
-  QUEUE: '호 분배룰',
-  EXTERNAL_NUMBER: '외부 번호',
-};
 
 const DID_ROUTE_META: Record<string, { label: string; color: string }> = {
   ARS: { label: 'ARS 메뉴', color: 'blue' },
@@ -199,9 +184,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
     () =>
       (data?.availableForwardingRules ?? []).map((rule) => ({
         value: rule.id,
-        label: `${formatPhoneNumber(rule.did.did)} → ${FORWARD_TYPE_LABEL[rule.forwardType] ?? rule.forwardType} ${rule.forwardType === 'EXTERNAL_NUMBER' ? formatPhoneNumber(rule.targetValue) : rule.targetValue}${
-          rule.conditionType === 'TIME_RANGE' ? ' (조건형)' : ''
-        }`,
+        label: formatBranchForwardingRuleLabel(rule),
       })),
     [data?.availableForwardingRules],
   );

@@ -1,6 +1,7 @@
 import { DeleteOutlined, EditOutlined, PhoneOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchAgentCidAuthDrawer } from './BranchAgentCidAuthDrawer';
@@ -57,9 +58,12 @@ export function BranchSettingsPage() {
       <Card className="settings-portal__head">
         <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
           <div>
-            <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>
-              지사 설정
-            </Typography.Title>
+            <Space align="center">
+              <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>
+                지사 설정
+              </Typography.Title>
+              <FeatureHelpButton featureKey="branch.inboundPolicy" featureName="지사별 착신 정책" />
+            </Space>
             <div className="settings-portal__state-line">
               <span>검증 대기</span>
               <span>적용 준비</span>

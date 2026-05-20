@@ -24,7 +24,11 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
-import { DISTRIBUTION_MODE_OPTIONS, QUEUE_STRATEGY_OPTIONS } from './queueStrategy';
+import {
+  DISTRIBUTION_MODE_OPTIONS,
+  QUEUE_STRATEGY_OPTIONS,
+  UNCONDITIONAL_TARGET_TYPE_OPTIONS,
+} from './queueStrategy';
 
 export interface QueueRow {
   queueId: string;
@@ -32,6 +36,8 @@ export interface QueueRow {
   queueExten: string;
   queueDisplayName?: string;
   distributionMode?: string;
+  unconditionalTargetType?: 'AGENT' | 'QUEUE' | 'EXTERNAL_NUMBER' | null;
+  unconditionalTargetValue?: string | null;
   strategy?: string;
   maxWaitSeconds?: number;
   ringTimeoutSeconds?: number;
@@ -128,6 +134,8 @@ export function QueueEditModal({
   const [form] = Form.useForm<{
     queueDisplayName?: string;
     distributionMode?: string;
+    unconditionalTargetType?: 'AGENT' | 'QUEUE' | 'EXTERNAL_NUMBER';
+    unconditionalTargetValue?: string;
     strategy?: string;
     maxWaitSeconds?: number;
     ringTimeoutSeconds?: number;
@@ -144,11 +152,15 @@ export function QueueEditModal({
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [saving, setSaving] = useState(false);
   const distributionMode = Form.useWatch('distributionMode', form) ?? queue?.distributionMode ?? 'DISTRIBUTE';
+  const unconditionalTargetType =
+    Form.useWatch('unconditionalTargetType', form) ?? queue?.unconditionalTargetType ?? 'AGENT';
 
   const initialValues = queue
     ? {
         queueDisplayName: queue.queueDisplayName,
         distributionMode: queue.distributionMode ?? 'DISTRIBUTE',
+        unconditionalTargetType: queue.unconditionalTargetType ?? 'AGENT',
+        unconditionalTargetValue: queue.unconditionalTargetValue ?? undefined,
         strategy: queue.strategy,
         maxWaitSeconds: queue.maxWaitSeconds,
         ringTimeoutSeconds: queue.ringTimeoutSeconds,
@@ -234,6 +246,24 @@ export function QueueEditModal({
       })),
     ],
     [queues],
+  );
+  const unconditionalAgentOptions = useMemo(
+    () =>
+      allAgents.map((agent) => ({
+        value: agent.agentId,
+        label: `${agent.extension} · ${agent.agentName}`,
+      })),
+    [allAgents],
+  );
+  const unconditionalQueueOptions = useMemo(
+    () =>
+      queues
+        .filter((item) => item.queueId !== queue?.queueId)
+        .map((item) => ({
+          value: item.queueId,
+          label: item.queueDisplayName ?? item.queueName,
+        })),
+    [queues, queue?.queueId],
   );
   const availableTableScroll = availableAgents.length > 6 ? { y: 360 } : undefined;
   const draftTableScroll = draftMembers.length > 6 ? { y: 360 } : undefined;
@@ -344,6 +374,14 @@ export function QueueEditModal({
         layout="vertical"
         preserve={false}
         initialValues={initialValues}
+        onValuesChange={(changedValues) => {
+          if ('distributionMode' in changedValues && changedValues.distributionMode !== 'UNCONDITIONAL') {
+            form.setFieldValue('unconditionalTargetValue', undefined);
+          }
+          if ('unconditionalTargetType' in changedValues) {
+            form.setFieldValue('unconditionalTargetValue', undefined);
+          }
+        }}
       >
         <div style={{ display: 'grid', gap: 16 }}>
           <Card title="기본 설정" size="small">
@@ -362,6 +400,42 @@ export function QueueEditModal({
               <Form.Item label="분배 전략 (고급)" name="strategy" style={{ marginBottom: 0 }}>
                 <Select options={QUEUE_STRATEGY_OPTIONS} disabled={!canEditSettings || distributionMode !== 'DISTRIBUTE'} />
               </Form.Item>
+              {distributionMode === 'UNCONDITIONAL' ? (
+                <>
+                  <Form.Item label="무조건 착신 대상 유형" name="unconditionalTargetType" style={{ marginBottom: 0 }}>
+                    <Radio.Group
+                      optionType="button"
+                      buttonStyle="solid"
+                      options={UNCONDITIONAL_TARGET_TYPE_OPTIONS}
+                      disabled={!canEditSettings}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={
+                      unconditionalTargetType === 'AGENT'
+                        ? '무조건 착신 상담원'
+                        : unconditionalTargetType === 'QUEUE'
+                          ? '무조건 착신 분배룰'
+                          : '무조건 착신 외부번호'
+                    }
+                    name="unconditionalTargetValue"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '무조건 착신 대상을 선택하세요' }]}
+                  >
+                    {unconditionalTargetType === 'EXTERNAL_NUMBER' ? (
+                      <Input placeholder="01012345678" maxLength={32} disabled={!canEditSettings} />
+                    ) : (
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="대상을 선택하세요"
+                        options={unconditionalTargetType === 'AGENT' ? unconditionalAgentOptions : unconditionalQueueOptions}
+                        disabled={!canEditSettings}
+                      />
+                    )}
+                  </Form.Item>
+                </>
+              ) : null}
               <Form.Item label="Auto Pause" name="autopause" valuePropName="checked" style={{ marginBottom: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', height: 40 }}>
                   <Switch disabled={!canEditSettings} />

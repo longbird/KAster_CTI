@@ -21,7 +21,7 @@ import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { QueueCreateModal } from './QueueCreateModal';
 import { QueueEditModal, type QueueRow } from './QueueEditModal';
-import { getDistributionModeLabel, getQueueStrategyLabel } from './queueStrategy';
+import { getDistributionModeLabel, getQueueStrategyLabel, getUnconditionalTargetTypeLabel } from './queueStrategy';
 
 function renderSingleLine(text: string) {
   return (
@@ -94,7 +94,7 @@ export function QueueSettingsPage() {
         rowKey="queueId"
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 920 }}
+        scroll={{ x: 1040 }}
         tableLayout="fixed"
         rowClassName={(r) => (!r.isActive ? 'ant-table-row-disabled' : '')}
         columns={[
@@ -119,6 +119,16 @@ export function QueueSettingsPage() {
             dataIndex: 'distributionMode',
             width: 130,
             render: (value?: string) => <Tag>{getDistributionModeLabel(value)}</Tag>,
+          },
+          {
+            title: '무조건 대상',
+            width: 120,
+            render: (_: unknown, row: QueueRow) =>
+              row.distributionMode === 'UNCONDITIONAL' ? (
+                <Tag color="purple">{getUnconditionalTargetTypeLabel(row.unconditionalTargetType)}</Tag>
+              ) : (
+                <Typography.Text type="secondary">-</Typography.Text>
+              ),
           },
           {
             title: '링',

@@ -14,6 +14,7 @@ import { QueueMemberItemDto } from './set-queue-members.dto';
 
 const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
 const DISTRIBUTION_MODES = ['SEQUENTIAL', 'DISTRIBUTE', 'UNCONDITIONAL'] as const;
+const UNCONDITIONAL_TARGET_TYPES = ['AGENT', 'QUEUE', 'EXTERNAL_NUMBER'] as const;
 
 export class UpdateQueueDto {
   @IsOptional()
@@ -28,6 +29,15 @@ export class UpdateQueueDto {
   @IsOptional()
   @IsIn(DISTRIBUTION_MODES)
   distributionMode?: string;
+
+  @IsOptional()
+  @IsIn(UNCONDITIONAL_TARGET_TYPES)
+  unconditionalTargetType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  unconditionalTargetValue?: string;
 
   @IsOptional()
   @IsInt()

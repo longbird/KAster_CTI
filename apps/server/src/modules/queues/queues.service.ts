@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +13,11 @@ import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
-import { resolveQueueStrategy, type DistributionMode } from './distribution-mode';
+import {
+  normalizeUnconditionalTarget,
+  resolveQueueStrategy,
+  type DistributionMode,
+} from './distribution-mode';
 
 @Injectable()
 export class QueuesService {
@@ -145,6 +150,8 @@ export class QueuesService {
         queueExten: true,
         queueDisplayName: true,
         distributionMode: true,
+        unconditionalTargetType: true,
+        unconditionalTargetValue: true,
         strategy: true,
         maxWaitSeconds: true,
         ringTimeoutSeconds: true,
@@ -181,6 +188,13 @@ export class QueuesService {
     if (dto.members !== undefined) {
       await this.assertMembersExist(tenantId, dto.members);
     }
+    const distributionMode = (dto.distributionMode ?? 'DISTRIBUTE') as DistributionMode;
+    const unconditionalTarget = this.normalizeQueueUnconditionalTarget(
+      distributionMode,
+      dto.unconditionalTargetType,
+      dto.unconditionalTargetValue,
+    );
+    await this.assertUnconditionalTargetExists(tenantId, unconditionalTarget);
 
     const existing = await this.prisma.queues.findFirst({
       where: {
@@ -206,11 +220,10 @@ export class QueuesService {
           queueName,
           queueExten,
           queueDisplayName: dto.queueDisplayName,
-          distributionMode: dto.distributionMode ?? 'DISTRIBUTE',
-          strategy: resolveQueueStrategy(
-            (dto.distributionMode ?? 'DISTRIBUTE') as DistributionMode,
-            dto.strategy,
-          ),
+          distributionMode,
+          unconditionalTargetType: unconditionalTarget.unconditionalTargetType,
+          unconditionalTargetValue: unconditionalTarget.unconditionalTargetValue,
+          strategy: resolveQueueStrategy(distributionMode, dto.strategy),
           ringTimeoutSeconds: dto.ringTimeoutSeconds ?? 15,
           wrapupSeconds: dto.wrapupSeconds ?? 30,
           maxWaitSeconds: dto.maxWaitSeconds ?? 45,
@@ -222,6 +235,8 @@ export class QueuesService {
           queueExten: true,
           queueDisplayName: true,
           distributionMode: true,
+          unconditionalTargetType: true,
+          unconditionalTargetValue: true,
           strategy: true,
           isActive: true,
         },
@@ -249,6 +264,13 @@ export class QueuesService {
     if (dto.members !== undefined) {
       await this.assertMembersExist(tenantId, dto.members);
     }
+    const distributionMode = (dto.distributionMode ?? queue.distributionMode ?? 'DISTRIBUTE') as DistributionMode;
+    const unconditionalTarget = this.normalizeQueueUnconditionalTarget(
+      distributionMode,
+      dto.unconditionalTargetType !== undefined ? dto.unconditionalTargetType : queue.unconditionalTargetType,
+      dto.unconditionalTargetValue !== undefined ? dto.unconditionalTargetValue : queue.unconditionalTargetValue,
+    );
+    await this.assertUnconditionalTargetExists(tenantId, unconditionalTarget, queueId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const savedQueue = await tx.queues.update({
@@ -256,12 +278,11 @@ export class QueuesService {
         data: {
           ...(dto.queueDisplayName !== undefined && { queueDisplayName: dto.queueDisplayName }),
           ...(dto.distributionMode !== undefined && {
-            distributionMode: dto.distributionMode,
-            strategy: resolveQueueStrategy(
-              dto.distributionMode as DistributionMode,
-              dto.strategy,
-            ),
+            distributionMode,
+            strategy: resolveQueueStrategy(distributionMode, dto.strategy),
           }),
+          unconditionalTargetType: unconditionalTarget.unconditionalTargetType,
+          unconditionalTargetValue: unconditionalTarget.unconditionalTargetValue,
           ...(dto.distributionMode === undefined &&
             dto.strategy !== undefined && { strategy: dto.strategy }),
           ...(dto.maxWaitSeconds !== undefined && { maxWaitSeconds: dto.maxWaitSeconds }),
@@ -276,6 +297,8 @@ export class QueuesService {
           queueExten: true,
           queueDisplayName: true,
           distributionMode: true,
+          unconditionalTargetType: true,
+          unconditionalTargetValue: true,
           strategy: true,
           maxWaitSeconds: true,
           ringTimeoutSeconds: true,
@@ -475,6 +498,59 @@ export class QueuesService {
     });
     if (agents.length !== uniqueAgentIds.length) {
       throw new NotFoundException('일부 상담원을 찾을 수 없습니다');
+    }
+  }
+
+  private normalizeQueueUnconditionalTarget(
+    mode: DistributionMode,
+    targetType?: string | null,
+    targetValue?: string | null,
+  ) {
+    try {
+      return normalizeUnconditionalTarget(mode, targetType, targetValue);
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : '무조건 착신 대상이 올바르지 않습니다.');
+    }
+  }
+
+  private async assertUnconditionalTargetExists(
+    tenantId: string,
+    target: { unconditionalTargetType: string | null; unconditionalTargetValue: string | null },
+    currentQueueId?: string,
+  ) {
+    if (!target.unconditionalTargetType || !target.unconditionalTargetValue) {
+      return;
+    }
+
+    if (target.unconditionalTargetType === 'EXTERNAL_NUMBER') {
+      if (!/^\d{8,16}$/.test(target.unconditionalTargetValue)) {
+        throw new BadRequestException('외부번호는 8~16자리 숫자로 지정하세요.');
+      }
+      return;
+    }
+
+    if (target.unconditionalTargetType === 'AGENT') {
+      const agent = await this.prisma.agents.findFirst({
+        where: { tenantId, agentId: target.unconditionalTargetValue, isActive: true },
+        select: { agentId: true },
+      });
+      if (!agent) {
+        throw new BadRequestException('무조건 착신 대상 상담원을 찾을 수 없습니다.');
+      }
+      return;
+    }
+
+    if (target.unconditionalTargetType === 'QUEUE') {
+      if (target.unconditionalTargetValue === currentQueueId) {
+        throw new BadRequestException('무조건 착신 대상 분배룰은 자기 자신으로 지정할 수 없습니다.');
+      }
+      const queue = await this.prisma.queues.findFirst({
+        where: { tenantId, queueId: target.unconditionalTargetValue, isActive: true },
+        select: { queueId: true },
+      });
+      if (!queue) {
+        throw new BadRequestException('무조건 착신 대상 분배룰을 찾을 수 없습니다.');
+      }
     }
   }
 

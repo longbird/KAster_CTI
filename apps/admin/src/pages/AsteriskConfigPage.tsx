@@ -5,6 +5,7 @@ import { ConfigPreviewDrawer } from '../features/asterisk-config/components/Conf
 import { DidsTab } from '../features/asterisk-config/components/DidsTab';
 import { IvrMenusTab } from '../features/asterisk-config/components/IvrMenusTab';
 import { TrunksTab } from '../features/asterisk-config/components/TrunksTab';
+import { FeatureHelpButton } from '../shared/help';
 import { usePermissionStore } from '../store/usePermissionStore';
 
 export function AsteriskConfigPage() {
@@ -17,9 +18,12 @@ export function AsteriskConfigPage() {
       <Card className="settings-portal__head">
         <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start" wrap>
           <div>
-            <Typography.Title level={4} style={{ margin: 0, marginBottom: 4 }}>
-              PBX 연동 설정
-            </Typography.Title>
+            <Space align="center">
+              <Typography.Title level={4} style={{ margin: 0, marginBottom: 4 }}>
+                PBX 연동 설정
+              </Typography.Title>
+              <FeatureHelpButton featureKey="pbx.did" featureName="DID 설정" />
+            </Space>
             <div className="settings-portal__state-line">
               <span>검증 필요</span>
               <span>운영 반영 전</span>
