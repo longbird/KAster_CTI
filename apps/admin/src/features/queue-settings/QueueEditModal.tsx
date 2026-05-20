@@ -29,6 +29,17 @@ import {
   QUEUE_STRATEGY_OPTIONS,
   UNCONDITIONAL_TARGET_TYPE_OPTIONS,
 } from './queueStrategy';
+import {
+  ALL_GROUPS_VALUE,
+  NO_GROUP_VALUE,
+  appendGroupMembers,
+  filterAvailableAgents,
+  getAgentGroupLabel,
+  toDraftMember,
+  type AgentGroupRef,
+  type DraftQueueMember,
+  type QueueMemberAgent,
+} from './queueMemberGroups';
 
 export interface QueueRow {
   queueId: string;
@@ -45,6 +56,12 @@ export interface QueueRow {
   autopause?: boolean;
   isActive?: boolean;
   isDefaultRule?: boolean;
+  virtualBuffer?: {
+    waitingCalls: number;
+    longestWaitSeconds: number;
+    overThresholdCalls: number;
+    status: 'EMPTY' | 'WAITING' | 'OVER_THRESHOLD';
+  };
   routingReferenceCount?: number;
   canDeactivate?: boolean;
   deactivateBlockedReason?: string | null;
@@ -74,16 +91,13 @@ interface MemberResponse {
     extension: string;
     loginId?: string;
     defaultQueueId?: string | null;
+    agentGroupId?: string | null;
+    agentGroup?: AgentGroupRef | null;
     isActive: boolean;
   };
 }
 
-interface AgentOption {
-  agentId: string;
-  agentName: string;
-  extension: string;
-  loginId: string;
-  defaultQueueId?: string | null;
+interface AgentOption extends QueueMemberAgent {
   isActive: boolean;
 }
 
@@ -93,20 +107,11 @@ interface QueueOption {
   queueDisplayName?: string;
 }
 
-interface DraftMember {
-  agentId: string;
-  agentName: string;
-  loginId: string;
-  extension: string;
-  defaultQueueId?: string | null;
-  penalty: number;
-  memberOrder: number;
+interface AgentGroupOption extends AgentGroupRef {
+  isActive?: boolean;
 }
 
-function getGroupLabel(agent: { defaultQueueId?: string | null }, queues: QueueOption[]) {
-  const found = queues.find((item) => item.queueId === agent.defaultQueueId);
-  return found?.queueDisplayName ?? found?.queueName ?? '미지정';
-}
+type DraftMember = DraftQueueMember;
 
 function renderSingleLine(text: string) {
   return (
@@ -144,6 +149,7 @@ export function QueueEditModal({
   }>();
   const [allAgents, setAllAgents] = useState<AgentOption[]>([]);
   const [queues, setQueues] = useState<QueueOption[]>([]);
+  const [agentGroups, setAgentGroups] = useState<AgentGroupOption[]>([]);
   const [draftMembers, setDraftMembers] = useState<DraftMember[]>([]);
   const [selectedAvailableIds, setSelectedAvailableIds] = useState<string[]>([]);
   const [selectedAssignedIds, setSelectedAssignedIds] = useState<string[]>([]);
@@ -178,6 +184,7 @@ export function QueueEditModal({
       setDraftMembers([]);
       setAllAgents([]);
       setQueues([]);
+      setAgentGroups([]);
     }
   }, [queue, form, initialValues]);
 
@@ -194,11 +201,15 @@ export function QueueEditModal({
       apiClient.get(`/queues/${queue.queueId}/members`),
       apiClient.get('/agents'),
       apiClient.get('/queues'),
+      apiClient.get('/admin/settings/agent-groups'),
     ])
-      .then(([membersRes, agentsRes, queuesRes]) => {
+      .then(([membersRes, agentsRes, queuesRes, agentGroupsRes]) => {
         const loadedMembers = membersRes.data?.data ?? [];
         const loadedAgents = (agentsRes.data?.data ?? []).filter((agent: AgentOption) => agent.isActive);
         const loadedQueues = queuesRes.data?.data ?? [];
+        const loadedAgentGroups = (agentGroupsRes.data?.data ?? []).filter(
+          (group: AgentGroupOption) => group.isActive !== false,
+        );
 
         setDraftMembers(
           loadedMembers.map((item: MemberResponse, index: number) => ({
@@ -207,12 +218,15 @@ export function QueueEditModal({
             loginId: item.agent.loginId ?? '',
             extension: item.agent.extension,
             defaultQueueId: item.agent.defaultQueueId ?? null,
+            agentGroupId: item.agent.agentGroupId ?? null,
+            agentGroup: item.agent.agentGroup ?? null,
             penalty: item.penalty ?? 0,
             memberOrder: item.memberOrder ?? index,
           })),
         );
         setAllAgents(loadedAgents);
         setQueues(loadedQueues);
+        setAgentGroups(loadedAgentGroups);
       })
       .catch((err: any) => {
         const msg = err?.response?.data?.error?.message ?? '분배 대상 조회 실패';
@@ -225,27 +239,20 @@ export function QueueEditModal({
 
   const availableAgents = useMemo(
     () =>
-      allAgents.filter((agent) => {
-        if (assignedIdSet.has(agent.agentId)) return false;
-        if (groupFilter !== 'ALL' && agent.defaultQueueId !== groupFilter) return false;
-        const keyword = searchText.trim().toLowerCase();
-        if (!keyword) return true;
-        return [agent.agentName, agent.loginId, agent.extension, getGroupLabel(agent, queues)]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(keyword));
-      }),
-    [allAgents, assignedIdSet, groupFilter, searchText, queues],
+      filterAvailableAgents(allAgents, assignedIdSet, groupFilter, searchText),
+    [allAgents, assignedIdSet, groupFilter, searchText],
   );
 
   const groupOptions = useMemo(
     () => [
-      { value: 'ALL', label: '전체' },
-      ...queues.map((item) => ({
-        value: item.queueId,
-        label: item.queueDisplayName ?? item.queueName,
+      { value: ALL_GROUPS_VALUE, label: '전체' },
+      ...agentGroups.map((item) => ({
+        value: item.agentGroupId,
+        label: item.groupName,
       })),
+      { value: NO_GROUP_VALUE, label: '미지정' },
     ],
-    [queues],
+    [agentGroups],
   );
   const unconditionalAgentOptions = useMemo(
     () =>
@@ -277,16 +284,18 @@ export function QueueEditModal({
     const picked = availableAgents.filter((agent) => selectedAvailableIds.includes(agent.agentId));
     setDraftMembers((prev) => [
       ...prev,
-      ...picked.map((agent, index) => ({
-        agentId: agent.agentId,
-        agentName: agent.agentName,
-        loginId: agent.loginId,
-        extension: agent.extension,
-        defaultQueueId: agent.defaultQueueId ?? null,
-        penalty: 0,
-        memberOrder: prev.length + index,
-      })),
+      ...picked.map((agent, index) => toDraftMember(agent, prev.length + index)),
     ]);
+    setSelectedAvailableIds([]);
+  };
+
+  const addGroup = () => {
+    if (groupFilter === ALL_GROUPS_VALUE) {
+      message.warning('추가할 상담원 그룹을 선택하세요');
+      return;
+    }
+
+    setDraftMembers((prev) => appendGroupMembers(prev, allAgents, groupFilter) as DraftMember[]);
     setSelectedAvailableIds([]);
   };
 
@@ -475,11 +484,14 @@ export function QueueEditModal({
                     placeholder="그룹 조회"
                     disabled={!canEditMembers}
                   />
+                  <Button onClick={addGroup} disabled={!canEditMembers || groupFilter === ALL_GROUPS_VALUE}>
+                    그룹 추가
+                  </Button>
                   <Input
                     style={{ width: 320 }}
                     value={searchText}
                     onChange={(event) => setSearchText(event.target.value)}
-                    placeholder="그룹명, 상담원ID, 상담원명 검색"
+                    placeholder="상담원 그룹, 상담원ID, 상담원명 검색"
                     disabled={!canEditMembers}
                   />
                 </Space>
@@ -514,7 +526,7 @@ export function QueueEditModal({
                       columns={[
                         {
                           title: '그룹명',
-                          render: (_: unknown, row) => renderSingleLine(getGroupLabel(row, queues)),
+                          render: (_: unknown, row) => renderSingleLine(getAgentGroupLabel(row)),
                           ellipsis: true,
                         },
                         {
@@ -572,7 +584,7 @@ export function QueueEditModal({
                       columns={[
                         {
                           title: '그룹명',
-                          render: (_: unknown, row) => renderSingleLine(getGroupLabel(row, queues)),
+                          render: (_: unknown, row) => renderSingleLine(getAgentGroupLabel(row)),
                           ellipsis: true,
                         },
                         {

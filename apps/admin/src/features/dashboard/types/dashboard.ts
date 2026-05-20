@@ -17,6 +17,14 @@ export interface QueueSummaryItem {
   answerRate: number;
   abandoned: number;
   slaBreached: number;
+  virtualBuffer?: VirtualBufferStatus;
+}
+
+export interface VirtualBufferStatus {
+  waitingCalls: number;
+  longestWaitSeconds: number;
+  overThresholdCalls: number;
+  status: 'EMPTY' | 'WAITING' | 'OVER_THRESHOLD';
 }
 
 export interface AgentTeamSummaryItem {

@@ -1,7 +1,19 @@
-import { Card, Progress, Table, Tag } from 'antd';
+import { Card, Progress, Space, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { QueueSummaryItem } from '../types/dashboard';
 import { formatSecondsToClock } from '../../../shared/lib/format';
+
+function renderVirtualBuffer(item: QueueSummaryItem) {
+  const buffer = item.virtualBuffer;
+  const waiting = buffer?.waitingCalls ?? item.waiting;
+  const overThreshold = buffer?.overThresholdCalls ?? item.slaBreached ?? 0;
+  return (
+    <Space size={[4, 4]} wrap>
+      <Tag color={waiting > 0 ? 'processing' : 'default'}>{`대기 ${waiting}`}</Tag>
+      <Tag color={overThreshold > 0 ? 'error' : 'success'}>{`초과 ${overThreshold}`}</Tag>
+    </Space>
+  );
+}
 
 export function QueueSummaryTable({ items, compact = false }: { items: QueueSummaryItem[]; compact?: boolean }) {
   const compactColumns: ColumnsType<QueueSummaryItem> = [
@@ -39,6 +51,11 @@ export function QueueSummaryTable({ items, compact = false }: { items: QueueSumm
       dataIndex: 'longestWaitSec',
       width: 84,
       render: (value: number) => formatSecondsToClock(value),
+    },
+    {
+      title: '가상버퍼',
+      width: 120,
+      render: (_: unknown, item: QueueSummaryItem) => renderVirtualBuffer(item),
     },
     {
       title: 'SLA',

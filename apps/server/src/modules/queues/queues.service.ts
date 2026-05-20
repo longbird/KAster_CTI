@@ -39,6 +39,7 @@ export class QueuesService {
         queueName: true,
         queueDisplayName: true,
         queueExten: true,
+        maxWaitSeconds: true,
       },
     });
 
@@ -59,6 +60,20 @@ export class QueuesService {
           orderBy: { queuedAt: 'asc' },
           select: { queuedAt: true },
         });
+        const longestWaitSeconds = longestWait?.queuedAt
+          ? Math.max(0, Math.floor((Date.now() - longestWait.queuedAt.getTime()) / 1000))
+          : 0;
+        const overThresholdCalls =
+          q.maxWaitSeconds && q.maxWaitSeconds > 0
+            ? await this.prisma.callSessions.count({
+                where: {
+                  tenantId,
+                  queueName: q.queueName,
+                  sessionStatus: 'QUEUED',
+                  queuedAt: { lte: new Date(Date.now() - q.maxWaitSeconds * 1000) },
+                },
+              })
+            : 0;
 
         const thirtyMinAgo = new Date(Date.now() - 30 * 60_000);
         const [answered, abandoned] = await Promise.all([
@@ -128,9 +143,13 @@ export class QueuesService {
           talking,
           available,
           paused,
-          longestWaitSeconds: longestWait?.queuedAt
-            ? Math.max(0, Math.floor((Date.now() - longestWait.queuedAt.getTime()) / 1000))
-            : 0,
+          longestWaitSeconds,
+          virtualBuffer: {
+            waitingCalls: waiting,
+            longestWaitSeconds,
+            overThresholdCalls,
+            status: waiting === 0 ? 'EMPTY' : overThresholdCalls > 0 ? 'OVER_THRESHOLD' : 'WAITING',
+          },
           recentAnswered: answered,
           recentAbandoned: abandoned,
         };
@@ -358,6 +377,8 @@ export class QueuesService {
             extension: true,
             loginId: true,
             defaultQueueId: true,
+            agentGroupId: true,
+            agentGroup: { select: { agentGroupId: true, groupCode: true, groupName: true } },
             role: true,
             isActive: true,
           },

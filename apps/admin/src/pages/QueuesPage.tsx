@@ -16,6 +16,12 @@ interface QueueRow {
   available: number;
   paused: number;
   longestWaitSeconds: number;
+  virtualBuffer?: {
+    waitingCalls: number;
+    longestWaitSeconds: number;
+    overThresholdCalls: number;
+    status: 'EMPTY' | 'WAITING' | 'OVER_THRESHOLD';
+  };
   recentAnswered: number;
   recentAbandoned: number;
 }
@@ -114,6 +120,19 @@ export function QueuesPage() {
               title: '최장 대기',
               dataIndex: 'longestWaitSeconds',
               render: (v: number) => `${v ?? 0}s`,
+            },
+            {
+              title: '가상버퍼',
+              render: (_, r) => {
+                const waiting = r.virtualBuffer?.waitingCalls ?? r.waiting ?? 0;
+                const overThreshold = r.virtualBuffer?.overThresholdCalls ?? 0;
+                return (
+                  <>
+                    <Tag color={waiting > 0 ? 'processing' : 'default'}>대기 {waiting}</Tag>
+                    <Tag color={overThreshold > 0 ? 'red' : 'green'}>초과 {overThreshold}</Tag>
+                  </>
+                );
+              },
             },
             {
               title: '최근 30분',

@@ -350,18 +350,18 @@
 
 **개발 범위:**
 
-- [ ] 별도 번호 자원 또는 별도 메뉴로 만들지 않는다.
-- [ ] 큐/분배룰 상세에서 현재 대기 호, 최장 대기, 대기 초과 후보를 `가상버퍼 상태`로 표시한다.
+- [x] 별도 번호 자원 또는 별도 메뉴로 만들지 않는다.
+- [x] 큐/분배룰 상세에서 현재 대기 호, 최장 대기, 대기 초과 후보를 `가상버퍼 상태`로 표시한다.
 - [ ] 라우팅 대상이 꼭 필요해지는 경우에만 내부 ID를 부여하고 사용자에게 번호처럼 노출하지 않는다.
 
 **서버 계획:**
 
-- [ ] `apps/server/src/modules/queues/queues.service.ts`의 요약 응답에 대기 공간 상태 필드를 보강한다.
-- [ ] `callSessions.sessionStatus = 'QUEUED'` 기준으로 가상버퍼 상태를 계산한다.
+- [x] `apps/server/src/modules/queues/queues.service.ts`의 요약 응답에 대기 공간 상태 필드를 보강한다.
+- [x] `callSessions.sessionStatus = 'QUEUED'` 기준으로 가상버퍼 상태를 계산한다.
 
 **관리자 UI 계획:**
 
-- [ ] `apps/admin/src/features/queue-settings`와 큐 현황 화면에 가상버퍼 상태를 표시한다.
+- [x] `apps/admin/src/features/queue-settings`와 큐 현황 화면에 가상버퍼 상태를 표시한다.
 
 **검증:**
 
@@ -373,7 +373,7 @@
 
 **데이터 계획:**
 
-- [ ] 기존 `agentGroups`, `agents.agentGroupId`, `queueAgentMembers`를 우선 사용한다.
+- [x] 기존 `agentGroups`, `agents.agentGroupId`, `queueAgentMembers`를 우선 사용한다.
 - [ ] 그룹 단위 큐 멤버 자동 동기화가 필요한지 운영 방식에 따라 결정한다.
 
 **서버 계획:**
@@ -384,7 +384,7 @@
 **관리자 UI 계획:**
 
 - [ ] 상담원 그룹 화면에서 연결된 호 분배룰을 보여준다.
-- [ ] 호 분배룰 편집 화면에서 상담원 개별 선택과 그룹 선택을 분리해 제공한다.
+- [x] 호 분배룰 편집 화면에서 상담원 개별 선택과 그룹 선택을 분리해 제공한다.
 
 **검증:**
 

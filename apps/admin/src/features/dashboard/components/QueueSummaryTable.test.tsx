@@ -18,6 +18,12 @@ describe('QueueSummaryTable', () => {
             answerRate: 92,
             abandoned: 0,
             slaBreached: 1,
+            virtualBuffer: {
+              waitingCalls: 3,
+              longestWaitSeconds: 95,
+              overThresholdCalls: 1,
+              status: 'OVER_THRESHOLD',
+            },
           },
         ]}
       />,
@@ -36,5 +42,34 @@ describe('QueueSummaryTable', () => {
     expect(html).toContain('>최장<');
     expect(html).not.toContain('>SLA<');
     expect(html).not.toContain('>초과<');
+  });
+
+  it('renders virtual buffer state in the full dashboard table', () => {
+    const html = renderToStaticMarkup(
+      <QueueSummaryTable
+        items={[
+          {
+            queueName: '영업',
+            waiting: 2,
+            talking: 1,
+            availableAgents: 3,
+            longestWaitSec: 70,
+            answerRate: 80,
+            abandoned: 1,
+            slaBreached: 1,
+            virtualBuffer: {
+              waitingCalls: 2,
+              longestWaitSeconds: 70,
+              overThresholdCalls: 1,
+              status: 'OVER_THRESHOLD',
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain('>가상버퍼<');
+    expect(html).toContain('대기 2');
+    expect(html).toContain('초과 1');
   });
 });

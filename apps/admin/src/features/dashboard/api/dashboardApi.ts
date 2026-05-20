@@ -46,7 +46,8 @@ export function mapDashboardPayload(dashboard: any, rawActive: any[]): Dashboard
         ? Math.round((q.recentAnswered / (q.recentAnswered + q.recentAbandoned)) * 100)
         : 0,
     abandoned: q.recentAbandoned ?? 0,
-    slaBreached: 0,
+    slaBreached: q.virtualBuffer?.overThresholdCalls ?? 0,
+    virtualBuffer: q.virtualBuffer,
   }));
 
   // ── KPI ─────────────────────────────────────────────────────────────────

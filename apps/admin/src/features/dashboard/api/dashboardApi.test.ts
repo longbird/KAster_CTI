@@ -36,6 +36,51 @@ describe('mapDashboardPayload', () => {
     );
     expect(dashboard.teams).toEqual([]);
   });
+
+  it('maps queue virtual buffer over-threshold calls to the dashboard breach count', () => {
+    const dashboard = mapDashboardPayload(
+      {
+        queues: [
+          {
+            queueName: 'sales',
+            queueDisplayName: '영업',
+            waiting: 3,
+            talking: 1,
+            available: 2,
+            longestWaitSeconds: 90,
+            recentAnswered: 7,
+            recentAbandoned: 3,
+            virtualBuffer: {
+              waitingCalls: 3,
+              longestWaitSeconds: 90,
+              overThresholdCalls: 2,
+              status: 'OVER_THRESHOLD',
+            },
+          },
+        ],
+        agentStatusDistribution: {},
+        today: { answered: 0, abandoned: 0 },
+        teams: [],
+        traffic: [],
+        alerts: [],
+        generatedAt: '2026-05-20T00:00:00.000Z',
+      },
+      [],
+    );
+
+    expect(dashboard.queues[0]).toEqual(
+      expect.objectContaining({
+        queueName: '영업',
+        slaBreached: 2,
+        virtualBuffer: {
+          waitingCalls: 3,
+          longestWaitSeconds: 90,
+          overThresholdCalls: 2,
+          status: 'OVER_THRESHOLD',
+        },
+      }),
+    );
+  });
 });
 
 describe('fetchDashboardData', () => {

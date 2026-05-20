@@ -50,8 +50,20 @@ export function QueueSettingsPage() {
 
   const load = async () => {
     try {
-      const res = await apiClient.get('/queues');
-      setRows(res.data?.data ?? []);
+      const [settingsRes, summaryRes] = await Promise.all([
+        apiClient.get('/queues'),
+        apiClient.get('/queues/summary').catch(() => ({ data: { data: { queues: [] } } })),
+      ]);
+      const summaryRows = (summaryRes.data?.data?.queues ?? []) as QueueRow[];
+      const summaryByQueueId = new Map<string, QueueRow>(
+        summaryRows.map((item) => [item.queueId, item]),
+      );
+      setRows(
+        (settingsRes.data?.data ?? []).map((row: QueueRow) => ({
+          ...row,
+          virtualBuffer: summaryByQueueId.get(row.queueId)?.virtualBuffer,
+        })),
+      );
     } catch {
       setRows([]);
     }
@@ -150,6 +162,20 @@ export function QueueSettingsPage() {
             width: 60,
             align: 'center',
             render: (v?: number) => v ?? '-',
+          },
+          {
+            title: '가상버퍼',
+            width: 126,
+            render: (_: unknown, row: QueueRow) => {
+              const waiting = row.virtualBuffer?.waitingCalls ?? 0;
+              const overThreshold = row.virtualBuffer?.overThresholdCalls ?? 0;
+              return (
+                <Space size={[4, 4]} wrap>
+                  <Tag color={waiting > 0 ? 'processing' : 'default'}>대기 {waiting}</Tag>
+                  <Tag color={overThreshold > 0 ? 'red' : 'green'}>초과 {overThreshold}</Tag>
+                </Space>
+              );
+            },
           },
           {
             title: 'Auto Pause',
