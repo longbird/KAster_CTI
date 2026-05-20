@@ -13,6 +13,7 @@ import {
 import { QueueMemberItemDto } from './set-queue-members.dto';
 
 const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
+const DISTRIBUTION_MODES = ['SEQUENTIAL', 'DISTRIBUTE', 'UNCONDITIONAL'] as const;
 
 export class UpdateQueueDto {
   @IsOptional()
@@ -23,6 +24,10 @@ export class UpdateQueueDto {
   @IsOptional()
   @IsIn(STRATEGIES)
   strategy?: string;
+
+  @IsOptional()
+  @IsIn(DISTRIBUTION_MODES)
+  distributionMode?: string;
 
   @IsOptional()
   @IsInt()

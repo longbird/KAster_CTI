@@ -12,6 +12,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Radio,
   Select,
   Skeleton,
   Space,
@@ -21,8 +22,9 @@ import {
   message,
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
-import { QUEUE_STRATEGY_OPTIONS } from './queueStrategy';
+import { DISTRIBUTION_MODE_OPTIONS, QUEUE_STRATEGY_OPTIONS } from './queueStrategy';
 
 interface Props {
   open: boolean;
@@ -80,6 +82,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
   const [form] = Form.useForm<{
     queueExten?: string;
     queueDisplayName: string;
+    distributionMode?: string;
     strategy?: string;
     ringTimeoutSeconds?: number;
     wrapupSeconds?: number;
@@ -95,6 +98,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
   const [searchText, setSearchText] = useState('');
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [saving, setSaving] = useState(false);
+  const distributionMode = Form.useWatch('distributionMode', form) ?? 'DISTRIBUTE';
 
   useEffect(() => {
     if (!open) {
@@ -231,7 +235,12 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
 
   return (
     <Modal
-      title="신규 호 분배룰 생성"
+      title={
+        <Space align="center">
+          <span>신규 호 분배룰 생성</span>
+          <FeatureHelpButton featureKey="queue.externalInboundMode" featureName="외부 착신 방식" />
+        </Space>
+      }
       open={open}
       onOk={() => void handleOk()}
       onCancel={onClose}
@@ -246,6 +255,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
         layout="vertical"
         preserve={false}
         initialValues={{
+          distributionMode: 'DISTRIBUTE',
           strategy: 'leastrecent',
           ringTimeoutSeconds: 15,
           wrapupSeconds: 30,
@@ -259,8 +269,11 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
               <Form.Item label="Rule명" name="queueDisplayName" rules={[{ required: true, max: 128 }]}>
                 <Input placeholder="영업 대표 큐" />
               </Form.Item>
-              <Form.Item label="분배 전략" name="strategy" style={{ marginBottom: 0 }}>
-                <Select options={QUEUE_STRATEGY_OPTIONS} />
+              <Form.Item label="외부 착신 방식" name="distributionMode" style={{ marginBottom: 0 }}>
+                <Radio.Group optionType="button" buttonStyle="solid" options={DISTRIBUTION_MODE_OPTIONS} />
+              </Form.Item>
+              <Form.Item label="분배 전략 (고급)" name="strategy" style={{ marginBottom: 0 }}>
+                <Select options={QUEUE_STRATEGY_OPTIONS} disabled={distributionMode !== 'DISTRIBUTE'} />
               </Form.Item>
               <Form.Item label="링 타임아웃(초)" name="ringTimeoutSeconds" style={{ marginBottom: 0 }}>
                 <InputNumber min={5} max={120} style={{ width: '100%' }} />

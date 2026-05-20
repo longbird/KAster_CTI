@@ -17,10 +17,11 @@ import {
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { QueueCreateModal } from './QueueCreateModal';
 import { QueueEditModal, type QueueRow } from './QueueEditModal';
-import { getQueueStrategyLabel } from './queueStrategy';
+import { getDistributionModeLabel, getQueueStrategyLabel } from './queueStrategy';
 
 function renderSingleLine(text: string) {
   return (
@@ -76,9 +77,12 @@ export function QueueSettingsPage() {
   return (
     <Card>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          호 분배룰 설정
-        </Typography.Title>
+        <Space align="center">
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            호 분배룰 설정
+          </Typography.Title>
+          <FeatureHelpButton featureKey="queue.externalInboundMode" featureName="외부 착신 방식" />
+        </Space>
         {queuePermission?.canCreate !== false ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
             신규 룰 생성
@@ -109,6 +113,12 @@ export function QueueSettingsPage() {
             dataIndex: 'strategy',
             width: 120,
             render: (v?: string) => <Tag>{getQueueStrategyLabel(v)}</Tag>,
+          },
+          {
+            title: '외부 착신 방식',
+            dataIndex: 'distributionMode',
+            width: 130,
+            render: (value?: string) => <Tag>{getDistributionModeLabel(value)}</Tag>,
           },
           {
             title: '링',

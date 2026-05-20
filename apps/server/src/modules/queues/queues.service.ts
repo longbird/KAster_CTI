@@ -12,6 +12,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
+import { resolveQueueStrategy, type DistributionMode } from './distribution-mode';
 
 @Injectable()
 export class QueuesService {
@@ -143,6 +144,7 @@ export class QueuesService {
         queueName: true,
         queueExten: true,
         queueDisplayName: true,
+        distributionMode: true,
         strategy: true,
         maxWaitSeconds: true,
         ringTimeoutSeconds: true,
@@ -204,7 +206,11 @@ export class QueuesService {
           queueName,
           queueExten,
           queueDisplayName: dto.queueDisplayName,
-          strategy: dto.strategy ?? 'leastrecent',
+          distributionMode: dto.distributionMode ?? 'DISTRIBUTE',
+          strategy: resolveQueueStrategy(
+            (dto.distributionMode ?? 'DISTRIBUTE') as DistributionMode,
+            dto.strategy,
+          ),
           ringTimeoutSeconds: dto.ringTimeoutSeconds ?? 15,
           wrapupSeconds: dto.wrapupSeconds ?? 30,
           maxWaitSeconds: dto.maxWaitSeconds ?? 45,
@@ -215,6 +221,7 @@ export class QueuesService {
           queueName: true,
           queueExten: true,
           queueDisplayName: true,
+          distributionMode: true,
           strategy: true,
           isActive: true,
         },
@@ -248,7 +255,15 @@ export class QueuesService {
         where: { queueId },
         data: {
           ...(dto.queueDisplayName !== undefined && { queueDisplayName: dto.queueDisplayName }),
-          ...(dto.strategy !== undefined && { strategy: dto.strategy }),
+          ...(dto.distributionMode !== undefined && {
+            distributionMode: dto.distributionMode,
+            strategy: resolveQueueStrategy(
+              dto.distributionMode as DistributionMode,
+              dto.strategy,
+            ),
+          }),
+          ...(dto.distributionMode === undefined &&
+            dto.strategy !== undefined && { strategy: dto.strategy }),
           ...(dto.maxWaitSeconds !== undefined && { maxWaitSeconds: dto.maxWaitSeconds }),
           ...(dto.ringTimeoutSeconds !== undefined && { ringTimeoutSeconds: dto.ringTimeoutSeconds }),
           ...(dto.wrapupSeconds !== undefined && { wrapupSeconds: dto.wrapupSeconds }),
@@ -260,6 +275,7 @@ export class QueuesService {
           queueName: true,
           queueExten: true,
           queueDisplayName: true,
+          distributionMode: true,
           strategy: true,
           maxWaitSeconds: true,
           ringTimeoutSeconds: true,

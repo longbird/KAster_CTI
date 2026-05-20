@@ -426,6 +426,63 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
   });
 
+  it('splits a cross-midnight forwarding window across two weekdays', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-night', did: '07066667777', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+      forwardingRules: [
+        {
+          id: 'f-night',
+          didId: 'd-night',
+          forwardType: 'QUEUE',
+          targetValue: 'night-desk',
+          forwardTriggerMode: 'IMMEDIATE',
+          queueWaitSeconds: null,
+          stickyCallbackWindowMinutes: null,
+          conditionType: 'TIME_RANGE',
+          timeStart: null,
+          timeEnd: null,
+          daysOfWeek: null,
+          scheduleJson: JSON.stringify([
+            { conditionType: 'TIME_RANGE', timeStart: '22:00', timeEnd: '06:00', daysOfWeek: ['mon'] },
+          ]),
+          enabled: true,
+        },
+      ],
+    });
+    expect(extensionsInbound).toContain('GotoIfTime(22:00-23:59,mon,*,*?forwarding-rule-f-night,s,1)');
+    expect(extensionsInbound).toContain('GotoIfTime(00:00-06:00,tue,*,*?forwarding-rule-f-night,s,1)');
+    expect(extensionsInbound).not.toContain('GotoIfTime(00:00-06:00,mon,');
+  });
+
+  it('rolls Sunday cross-midnight window over to Monday', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-sun', did: '07088889999', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],
+      ivrMenus: [],
+      forwardingRules: [
+        {
+          id: 'f-sun',
+          didId: 'd-sun',
+          forwardType: 'QUEUE',
+          targetValue: 'night-desk',
+          forwardTriggerMode: 'IMMEDIATE',
+          queueWaitSeconds: null,
+          stickyCallbackWindowMinutes: null,
+          conditionType: 'TIME_RANGE',
+          timeStart: null,
+          timeEnd: null,
+          daysOfWeek: null,
+          scheduleJson: JSON.stringify([
+            { conditionType: 'TIME_RANGE', timeStart: '23:00', timeEnd: '05:00', daysOfWeek: ['sun'] },
+          ]),
+          enabled: true,
+        },
+      ],
+    });
+    expect(extensionsInbound).toContain('GotoIfTime(23:00-23:59,sun,*,*?forwarding-rule-f-sun,s,1)');
+    expect(extensionsInbound).toContain('GotoIfTime(00:00-05:00,mon,*,*?forwarding-rule-f-sun,s,1)');
+  });
+
   it('renders queue wait forwarding trigger', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{ id: 'd-wait', did: '07011112222', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],

@@ -12,6 +12,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Radio,
   Select,
   Skeleton,
   Space,
@@ -21,14 +22,16 @@ import {
   message,
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
-import { QUEUE_STRATEGY_OPTIONS } from './queueStrategy';
+import { DISTRIBUTION_MODE_OPTIONS, QUEUE_STRATEGY_OPTIONS } from './queueStrategy';
 
 export interface QueueRow {
   queueId: string;
   queueName: string;
   queueExten: string;
   queueDisplayName?: string;
+  distributionMode?: string;
   strategy?: string;
   maxWaitSeconds?: number;
   ringTimeoutSeconds?: number;
@@ -124,6 +127,7 @@ export function QueueEditModal({
 }: Props) {
   const [form] = Form.useForm<{
     queueDisplayName?: string;
+    distributionMode?: string;
     strategy?: string;
     maxWaitSeconds?: number;
     ringTimeoutSeconds?: number;
@@ -139,10 +143,12 @@ export function QueueEditModal({
   const [searchText, setSearchText] = useState('');
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [saving, setSaving] = useState(false);
+  const distributionMode = Form.useWatch('distributionMode', form) ?? queue?.distributionMode ?? 'DISTRIBUTE';
 
   const initialValues = queue
     ? {
         queueDisplayName: queue.queueDisplayName,
+        distributionMode: queue.distributionMode ?? 'DISTRIBUTE',
         strategy: queue.strategy,
         maxWaitSeconds: queue.maxWaitSeconds,
         ringTimeoutSeconds: queue.ringTimeoutSeconds,
@@ -311,7 +317,12 @@ export function QueueEditModal({
 
   return (
     <Modal
-      title={`호 분배룰 수정 - ${queue?.queueDisplayName ?? queue?.queueName ?? ''}`}
+      title={
+        <Space align="center">
+          <span>{`호 분배룰 수정 - ${queue?.queueDisplayName ?? queue?.queueName ?? ''}`}</span>
+          <FeatureHelpButton featureKey="queue.externalInboundMode" featureName="외부 착신 방식" />
+        </Space>
+      }
       open={!!queue}
       onOk={() => void handleOk()}
       onCancel={onClose}
@@ -340,8 +351,16 @@ export function QueueEditModal({
               <Form.Item label="Rule명" name="queueDisplayName" style={{ marginBottom: 0 }}>
                 <Input placeholder="없으면 내부명 사용" maxLength={128} disabled={!canEditSettings} />
               </Form.Item>
-              <Form.Item label="분배 전략" name="strategy" style={{ marginBottom: 0 }}>
-                <Select options={QUEUE_STRATEGY_OPTIONS} disabled={!canEditSettings} />
+              <Form.Item label="외부 착신 방식" name="distributionMode" style={{ marginBottom: 0 }}>
+                <Radio.Group
+                  optionType="button"
+                  buttonStyle="solid"
+                  options={DISTRIBUTION_MODE_OPTIONS}
+                  disabled={!canEditSettings}
+                />
+              </Form.Item>
+              <Form.Item label="분배 전략 (고급)" name="strategy" style={{ marginBottom: 0 }}>
+                <Select options={QUEUE_STRATEGY_OPTIONS} disabled={!canEditSettings || distributionMode !== 'DISTRIBUTE'} />
               </Form.Item>
               <Form.Item label="Auto Pause" name="autopause" valuePropName="checked" style={{ marginBottom: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', height: 40 }}>

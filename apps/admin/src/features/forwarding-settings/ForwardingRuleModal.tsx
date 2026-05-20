@@ -17,6 +17,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useEffect } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import type { AsteriskForwardingRule } from '../asterisk-config/types/asterisk-config';
 
 export interface ForwardingRuleFormValue {
@@ -188,8 +189,8 @@ export function ForwardingRuleModal({
           if (!item.timeStart || !item.timeEnd) {
             throw new Error(`시간대 ${index + 1}의 시작/종료 시간을 선택하세요.`);
           }
-          if (!item.timeEnd.isAfter(item.timeStart)) {
-            throw new Error(`시간대 ${index + 1}의 종료 시간은 시작 시간보다 늦어야 합니다.`);
+          if (item.timeStart.format('HH:mm') === item.timeEnd.format('HH:mm')) {
+            throw new Error(`시간대 ${index + 1}의 시작/종료 시간이 같을 수 없습니다.`);
           }
           if (!item.daysOfWeek || item.daysOfWeek.length === 0) {
             throw new Error(`시간대 ${index + 1}의 요일을 선택하세요.`);
@@ -228,7 +229,12 @@ export function ForwardingRuleModal({
 
   return (
     <Modal
-      title={rule ? '착신전환 수정' : '착신전환 등록'}
+      title={
+        <Space align="center">
+          <span>{rule ? '착신전환 수정' : '착신전환 등록'}</span>
+          <FeatureHelpButton featureKey="forwarding.condition" featureName="착신전환 조건" />
+        </Space>
+      }
       open={open}
       onOk={() => void handleOk()}
       onCancel={onClose}
@@ -334,7 +340,7 @@ export function ForwardingRuleModal({
             size="small"
             extra={
               <Typography.Text type="secondary">
-                외부 번호 전환도 요일/시간대별로 여러 개 설정할 수 있습니다.
+                요일·시간대를 여러 개 설정할 수 있습니다. 종료 시간이 시작보다 빠르면 다음 날 새벽까지 연속되는 구간으로 처리됩니다(예: 월요일 22:00~06:00 = 월요일 22:00부터 화요일 06:00까지).
               </Typography.Text>
             }
           >

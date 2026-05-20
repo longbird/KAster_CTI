@@ -921,8 +921,8 @@ export class AsteriskConfigService {
       if (!timeStart || !timeEnd || daysOfWeek.length === 0) {
         throw new BadRequestException('timeStart, timeEnd, and daysOfWeek are required for TIME_RANGE');
       }
-      if (timeStart >= timeEnd) {
-        throw new BadRequestException('timeStart must be earlier than timeEnd');
+      if (timeStart === timeEnd) {
+        throw new BadRequestException('timeStart and timeEnd must not be identical');
       }
 
       return {

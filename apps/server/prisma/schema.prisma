@@ -141,6 +141,7 @@ model queues {
   queueName           String    @db.VarChar(64)
   queueExten          String    @db.VarChar(16)
   queueDisplayName    String    @db.VarChar(128)
+  distributionMode    String    @default("DISTRIBUTE") @db.VarChar(16)
   strategy            String    @default("leastrecent") @db.VarChar(32)
   ringTimeoutSeconds  Int       @default(15)
   retrySeconds        Int       @default(3)
@@ -634,6 +635,7 @@ model branchDids {
   did         AsteriskDid  @relation(fields: [didId], references: [id], onDelete: Cascade)
 
   @@unique([branchId, didId])
+  @@unique([tenantId, didId])
   @@index([tenantId, branchId])
 }
 

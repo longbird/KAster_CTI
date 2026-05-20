@@ -14,3 +14,18 @@ export function getQueueStrategyLabel(strategy?: string | null) {
   if (!strategy) return '-';
   return STRATEGY_LABEL_MAP[strategy] ?? strategy;
 }
+
+export const DISTRIBUTION_MODE_OPTIONS = [
+  { value: 'SEQUENTIAL', label: '순차 착신' },
+  { value: 'DISTRIBUTE', label: '분배 착신' },
+  { value: 'UNCONDITIONAL', label: '무조건 착신' },
+];
+
+const DISTRIBUTION_MODE_LABEL_MAP = Object.fromEntries(
+  DISTRIBUTION_MODE_OPTIONS.map((item) => [item.value, item.label]),
+) as Record<string, string>;
+
+export function getDistributionModeLabel(mode?: string | null) {
+  if (!mode) return '분배 착신';
+  return DISTRIBUTION_MODE_LABEL_MAP[mode] ?? mode;
+}

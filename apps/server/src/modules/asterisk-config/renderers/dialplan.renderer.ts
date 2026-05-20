@@ -147,6 +147,29 @@ interface ForwardingScheduleInput {
   daysOfWeek: string[];
 }
 
+const WEEKDAY_CHAIN = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+function nextWeekday(day: string): string {
+  const idx = (WEEKDAY_CHAIN as readonly string[]).indexOf(day);
+  if (idx < 0) return day;
+  return WEEKDAY_CHAIN[(idx + 1) % WEEKDAY_CHAIN.length];
+}
+
+interface TimeWindowSlot {
+  range: string;
+  day: string;
+}
+
+function expandTimeWindow(timeStart: string, timeEnd: string, day: string): TimeWindowSlot[] {
+  if (timeStart < timeEnd) {
+    return [{ range: `${timeStart}-${timeEnd}`, day }];
+  }
+  return [
+    { range: `${timeStart}-23:59`, day },
+    { range: `00:00-${timeEnd}`, day: nextWeekday(day) },
+  ];
+}
+
 export interface BlocklistEntryInput {
   id: string;
   matchType: string;
@@ -627,9 +650,15 @@ function renderDidStandardRoute(
         ...promptLines,
         ...promptDelayLines,
         ...schedulesToApply.flatMap((schedule) =>
-          schedule.daysOfWeek.map(
-            (day) =>
-              ` same => n,GotoIfTime(${schedule.timeStart}-${schedule.timeEnd},${day},*,*?forwarding-rule-${forwardingRule.id},s,1)`,
+          schedule.daysOfWeek.flatMap((day) =>
+            expandTimeWindow(
+              schedule.timeStart as string,
+              schedule.timeEnd as string,
+              day,
+            ).map(
+              (slot) =>
+                ` same => n,GotoIfTime(${slot.range},${slot.day},*,*?forwarding-rule-${forwardingRule.id},s,1)`,
+            ),
           ),
         ),
         ...fallbackLines,

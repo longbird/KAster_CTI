@@ -1,0 +1,2 @@
+ALTER TABLE "queues"
+  ADD COLUMN "distributionMode" VARCHAR(16) NOT NULL DEFAULT 'DISTRIBUTE';

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
 import { formatPhoneNumber } from '../../shared/lib/format';
+import { FeatureHelpButton } from '../../shared/help';
 import type { BranchRow } from './BranchEditModal';
 
 interface AgentOption {
@@ -44,7 +45,12 @@ interface MappingResponse {
   settingsProfile?: BranchSettingsProfile;
   availableAgents: AgentOption[];
   availableQueues: QueueOption[];
-  availableDids: Array<{ id: string; did: string; description?: string | null }>;
+  availableDids: Array<{
+    id: string;
+    did: string;
+    description?: string | null;
+    inboundRoute: 'ARS' | 'DIRECT_QUEUE' | 'FORWARDING' | 'NONE';
+  }>;
   availablePrompts: Array<{ id: string; displayName: string; promptKey: string; category: string }>;
   availableIvrMenus: Array<{ id: string; name: string; timeoutSecs: number }>;
   availableForwardingRules: Array<{
@@ -93,6 +99,13 @@ const FORWARD_TYPE_LABEL: Record<string, string> = {
   EXTERNAL_NUMBER: '외부 번호',
 };
 
+const DID_ROUTE_META: Record<string, { label: string; color: string }> = {
+  ARS: { label: 'ARS 메뉴', color: 'blue' },
+  DIRECT_QUEUE: { label: '직접 분배룰', color: 'green' },
+  FORWARDING: { label: '착신전환', color: 'gold' },
+  NONE: { label: '착신 정책 미설정', color: 'red' },
+};
+
 function buildInitialValues(next: MappingResponse | null): BranchOperationFormValue {
   return {
     agentIds: next?.assignedAgentIds ?? [],
@@ -132,6 +145,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
   const recordingEnabled = Form.useWatch('recordingEnabled', form) ?? true;
   const blocklist080Enabled = Form.useWatch('blocklist080Enabled', form) ?? false;
   const smdrEnabled = Form.useWatch('smdrEnabled', form) ?? false;
+  const selectedDidIds = Form.useWatch('didIds', form) ?? [];
 
   useEffect(() => {
     if (!open || !branch) return;
@@ -176,7 +190,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
     () =>
       (data?.availableDids ?? []).map((did) => ({
         value: did.id,
-        label: did.description ? `${formatPhoneNumber(did.did)} (${did.description})` : formatPhoneNumber(did.did),
+        label: `${did.description ? `${formatPhoneNumber(did.did)} (${did.description})` : formatPhoneNumber(did.did)} · ${DID_ROUTE_META[did.inboundRoute].label}`,
       })),
     [data?.availableDids],
   );
@@ -213,7 +227,12 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
 
   return (
     <Modal
-      title={branch ? `지사 운영 설정: ${branch.branchName}` : '지사 운영 설정'}
+      title={
+        <Space align="center">
+          <span>{branch ? `지사 운영 설정: ${branch.branchName}` : '지사 운영 설정'}</span>
+          <FeatureHelpButton featureKey="branch.inboundPolicy" featureName="지사별 착신 정책" />
+        </Space>
+      }
       open={open}
       onCancel={onClose}
       onOk={async () => {
@@ -311,6 +330,20 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                       options={didOptions}
                     />
                   </Form.Item>
+                  {selectedDidIds.length > 0 ? (
+                    <Space wrap size={[8, 8]} style={{ marginTop: 4 }}>
+                      {selectedDidIds.map((didId) => {
+                        const did = data?.availableDids.find((item) => item.id === didId);
+                        if (!did) return null;
+                        const meta = DID_ROUTE_META[did.inboundRoute];
+                        return (
+                          <Tag key={didId} color={meta.color}>
+                            {formatPhoneNumber(did.did)} · {meta.label}
+                          </Tag>
+                        );
+                      })}
+                    </Space>
+                  ) : null}
                 </Card>
               </Col>
               <Col xs={24} lg={13}>

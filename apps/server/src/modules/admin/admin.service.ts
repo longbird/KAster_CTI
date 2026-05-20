@@ -30,6 +30,7 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 import { UpdateBranchMappingsDto } from './dto/update-branch-mappings.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
+import { classifyDidInboundRoute } from './branch-did-route';
 
 interface PersistedPermissionRow {
   menuKey: string;
@@ -2002,6 +2003,8 @@ export class AdminService {
           id: true,
           did: true,
           description: true,
+          ivrMenuId: true,
+          directQueue: true,
         },
       }),
       this.prisma.asteriskPrompt.findMany({
@@ -2091,7 +2094,19 @@ export class AdminService {
         settingsProfile,
         availableAgents: agents,
         availableQueues: queues,
-        availableDids: dids,
+        availableDids: (() => {
+          const didIdsWithForwarding = new Set(forwardingRules.map((rule) => rule.did.id));
+          return dids.map((did) => ({
+            id: did.id,
+            did: did.did,
+            description: did.description,
+            inboundRoute: classifyDidInboundRoute({
+              ivrMenuId: did.ivrMenuId,
+              directQueue: did.directQueue,
+              hasForwardingRule: didIdsWithForwarding.has(did.id),
+            }),
+          }));
+        })(),
         availablePrompts: prompts,
         availableIvrMenus: ivrMenus,
         availableForwardingRules: forwardingRules.map((rule) => ({
@@ -2123,6 +2138,25 @@ export class AdminService {
 
     if (!currentMappings) {
       throw new BadRequestException('지사 정보를 찾을 수 없습니다.');
+    }
+
+    if (dto.didIds && dto.didIds.length > 0) {
+      const conflictingLinks = await this.prisma.branchDids.findMany({
+        where: {
+          tenantId,
+          didId: { in: dto.didIds },
+          branchId: { not: branchId },
+        },
+        select: { branch: { select: { branchName: true } } },
+      });
+      if (conflictingLinks.length > 0) {
+        const branchNames = [
+          ...new Set(conflictingLinks.map((link) => link.branch.branchName)),
+        ];
+        throw new BadRequestException(
+          `이미 다른 지사(${branchNames.join(', ')})에 연결된 DID가 있어 저장할 수 없습니다.`,
+        );
+      }
     }
 
     const effectiveQueueIds = dto.queueIds ?? currentMappings.queueMappings.map((item) => item.queueId);
