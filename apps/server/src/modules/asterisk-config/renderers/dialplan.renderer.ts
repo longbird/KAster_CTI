@@ -83,6 +83,7 @@ export interface BranchSmartArsInput {
 export interface DidInput {
   id: string;
   did: string;
+  branchId?: string | null;
   description: string | null;
   ivrMenuId: string | null;
   directQueue: string | null;
@@ -117,6 +118,7 @@ export interface DialplanInput {
   ivrMenus: IvrMenuInput[];
   forwardingRules?: ForwardingRuleInput[];
   blocklistEntries?: BlocklistEntryInput[];
+  holidayRules?: HolidayRuleInput[];
 }
 
 export interface DialplanOutput {
@@ -138,6 +140,15 @@ export interface ForwardingRuleInput {
   daysOfWeek: string | null;
   scheduleJson?: string | null;
   enabled: boolean;
+}
+
+export interface HolidayRuleInput {
+  holidayRuleId: string;
+  branchId?: string | null;
+  ruleType: string;
+  holidayDate?: string | null;
+  monthDay?: string | null;
+  isActive: boolean;
 }
 
 interface ForwardingScheduleInput {
@@ -415,6 +426,62 @@ function parseForwardingSchedules(forwardingRule: ForwardingRuleInput): Forwardi
   ];
 }
 
+function buildHolidayMatchExpression(rule: HolidayRuleInput): string | null {
+  if (rule.ruleType === 'ANNUAL' && rule.monthDay) {
+    assertNoNewlines(rule.monthDay, 'holiday.monthDay');
+    return `$["\${STRFTIME(\${EPOCH},,%m-%d)}"="${rule.monthDay}"]`;
+  }
+
+  if ((rule.ruleType === 'DATE' || rule.ruleType === 'WORKDAY_OVERRIDE') && rule.holidayDate) {
+    assertNoNewlines(rule.holidayDate, 'holiday.holidayDate');
+    return `$["\${STRFTIME(\${EPOCH},,%Y-%m-%d)}"="${rule.holidayDate}"]`;
+  }
+
+  return null;
+}
+
+function orderedHolidayRulesForDid(did: DidInput, holidayRules: HolidayRuleInput[]): HolidayRuleInput[] {
+  const activeRules = holidayRules.filter((rule) => rule.isActive);
+  const branchRules = did.branchId
+    ? activeRules.filter((rule) => rule.branchId === did.branchId)
+    : [];
+  const tenantRules = activeRules.filter((rule) => !rule.branchId);
+
+  return [
+    ...branchRules.filter((rule) => rule.ruleType === 'WORKDAY_OVERRIDE'),
+    ...branchRules.filter((rule) => rule.ruleType !== 'WORKDAY_OVERRIDE'),
+    ...tenantRules.filter((rule) => rule.ruleType === 'WORKDAY_OVERRIDE'),
+    ...tenantRules.filter((rule) => rule.ruleType !== 'WORKDAY_OVERRIDE'),
+  ];
+}
+
+function renderHolidayForwardingLines(
+  did: DidInput,
+  forwardingRule: ForwardingRuleInput,
+  holidayRules: HolidayRuleInput[],
+): string[] {
+  const orderedRules = orderedHolidayRulesForDid(did, holidayRules);
+  if (orderedRules.length === 0) {
+    return [];
+  }
+
+  const workdayLabel = `holiday-workday-${toSlug(did.id) || 'default'}`;
+  const lines = orderedRules
+    .map((rule) => {
+      const match = buildHolidayMatchExpression(rule);
+      if (!match) return null;
+      if (rule.ruleType === 'WORKDAY_OVERRIDE') {
+        return ` same => n,GotoIf(${match}?${workdayLabel})`;
+      }
+      return ` same => n,GotoIf(${match}?forwarding-rule-${forwardingRule.id},s,1)`;
+    })
+    .filter((line): line is string => line !== null);
+
+  return lines.length > 0
+    ? [...lines, ` same => n(${workdayLabel}),NoOp(Holiday routing checks complete)`]
+    : [];
+}
+
 function renderDidFallbackRoute(did: DidInput, ivrMenus: IvrMenuInput[]): string[] | null {
   if (did.ivrMenuId) {
     const menu = ivrMenus.find((m) => m.id === did.ivrMenuId);
@@ -613,6 +680,7 @@ function renderDidStandardRoute(
   ivrMenus: IvrMenuInput[],
   forwardingRules: ForwardingRuleInput[],
   blocklistEntries: BlocklistEntryInput[],
+  holidayRules: HolidayRuleInput[],
 ): string | null {
   const blocklistLines = renderBlocklistChecks(blocklistEntries);
   const promptLines = did.branchPromptWaitForCompletion ? renderPromptPlaybackLines(did.branchPromptKeys) : [];
@@ -622,6 +690,7 @@ function renderDidStandardRoute(
   const promptQueuePreludeLines = did.directQueue ? renderPromptQueuePreludeLines(did) : [];
   const forwardingRule = forwardingRules.find((rule) => rule.didId === did.id && rule.enabled);
   if (forwardingRule) {
+    const holidayForwardingLines = renderHolidayForwardingLines(did, forwardingRule, holidayRules);
     const schedules = parseForwardingSchedules(forwardingRule);
     if (schedules.some((item) => item.conditionType === 'ALWAYS')) {
       const forwardingContext = renderForwardingRuleContext(did, forwardingRule);
@@ -636,6 +705,7 @@ function renderDidStandardRoute(
         ...promptQueuePreludeLines,
         ...promptLines,
         ...promptDelayLines,
+        ...holidayForwardingLines,
         ` same => n,Goto(forwarding-rule-${forwardingRule.id},s,1)`,
       ].join('\n');
     }
@@ -649,6 +719,7 @@ function renderDidStandardRoute(
         ...promptQueuePreludeLines,
         ...promptLines,
         ...promptDelayLines,
+        ...holidayForwardingLines,
         ...schedulesToApply.flatMap((schedule) =>
           schedule.daysOfWeek.flatMap((day) =>
             expandTimeWindow(
@@ -686,6 +757,7 @@ function renderDidExtension(
   ivrMenus: IvrMenuInput[],
   forwardingRules: ForwardingRuleInput[],
   blocklistEntries: BlocklistEntryInput[],
+  holidayRules: HolidayRuleInput[],
 ): string | null {
   assertNoNewlines(did.did, 'did');
   if (did.branchOptOut080?.enabled) {
@@ -697,7 +769,7 @@ function renderDidExtension(
     return smartArsRoute;
   }
 
-  return renderDidStandardRoute(did, ivrMenus, forwardingRules, blocklistEntries);
+  return renderDidStandardRoute(did, ivrMenus, forwardingRules, blocklistEntries, holidayRules);
 }
 
 function renderIvrMenu(menu: IvrMenuInput): string {
@@ -1141,6 +1213,7 @@ function renderOptOutContexts(): string {
 export function renderDialplan(input: DialplanInput): DialplanOutput {
   const forwardingRules = input.forwardingRules ?? [];
   const blocklistEntries = input.blocklistEntries ?? [];
+  const holidayRules = input.holidayRules ?? [];
   const enabledDids = input.dids.filter((d) => d.enabled);
   const forwardingContexts = enabledDids
     .filter((did) => !did.branchOptOut080?.enabled)
@@ -1151,7 +1224,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     .filter((lines): lines is string[] => lines !== null)
     .map((lines) => lines.join('\n'));
   const didLines = enabledDids
-    .map((d) => renderDidExtension(d, input.ivrMenus, forwardingRules, blocklistEntries))
+    .map((d) => renderDidExtension(d, input.ivrMenus, forwardingRules, blocklistEntries, holidayRules))
     .filter((line): line is string => line !== null);
   const smartArsContexts = enabledDids
     .map(renderSmartArsContext)

@@ -440,6 +440,15 @@ function resolveDidPromptWaitForCompletion(
   return false;
 }
 
+function resolveDidPrimaryBranchId(
+  branchMappings: Array<{
+    branchId?: string;
+    branch?: { isActive: boolean } | null;
+  }>,
+): string | null {
+  return branchMappings.find((mapping) => mapping.branch?.isActive)?.branchId ?? null;
+}
+
 function buildPromptMohClassName(promptKey: string): string {
   const normalized = promptKey
     .replace(/^custom\//, '')
@@ -870,6 +879,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       dids,
       ivrMenus,
       forwardingRules,
+      holidayRules,
       blocklistEntries,
       sipRegisterPort,
       allowDirectSipDial,
@@ -881,7 +891,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
 
     const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const rtpContent = this.renderRtpConf();
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, holidayRules, blocklistEntries });
     const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
@@ -954,6 +964,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       dids,
       ivrMenus,
       forwardingRules,
+      holidayRules,
       blocklistEntries,
       sipRegisterPort,
       allowDirectSipDial,
@@ -965,7 +976,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
 
     const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const rtp = this.renderRtpConf();
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, blocklistEntries });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, holidayRules, blocklistEntries });
     const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
@@ -1179,7 +1190,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   }
 
   private async fetchTenantData(tenantId: string) {
-    const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, prompts, queues, settings] = await Promise.all([
+    const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
       this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
       this.prisma.asteriskDid.findMany({
@@ -1204,6 +1215,9 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       }),
       this.prisma.asteriskForwardingRules.findMany({ where: { tenantId, enabled: true } }),
       this.prisma.asteriskBlocklistEntry.findMany({ where: { tenantId, isActive: true } }),
+      (this.prisma as any).tenantHolidayRules?.findMany
+        ? (this.prisma as any).tenantHolidayRules.findMany({ where: { tenantId, isActive: true } })
+        : Promise.resolve([]),
       this.prisma.asteriskPrompt.findMany({
         where: { tenantId, isActive: true },
         select: { id: true, promptKey: true },
@@ -1237,6 +1251,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     const queueNameById = new Map(queues.map((queue) => [queue.queueId, queue.queueName]));
     const dids = didRows.map(({ branchMappings, ...did }) => ({
       ...did,
+      branchId: resolveDidPrimaryBranchId(branchMappings),
       branchPromptKeys: resolveDidPromptKeys(branchMappings, promptKeyById),
       branchPromptQueueDelaySeconds: resolveDidPromptQueueDelaySeconds(branchMappings),
       branchPromptWaitForCompletion: resolveDidPromptWaitForCompletion(branchMappings),
@@ -1274,6 +1289,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       dids,
       ivrMenus,
       forwardingRules,
+      holidayRules,
       blocklistEntries,
     };
   }

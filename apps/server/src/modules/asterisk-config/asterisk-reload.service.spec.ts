@@ -43,6 +43,7 @@ describe('AsteriskReloadService Smart ARS preview', () => {
       asteriskIvrMenu: { findMany: jest.fn().mockResolvedValue([]) },
       asteriskForwardingRules: { findMany: jest.fn().mockResolvedValue([]) },
       asteriskBlocklistEntry: { findMany: jest.fn().mockResolvedValue([]) },
+      tenantHolidayRules: { findMany: jest.fn().mockResolvedValue([]) },
       asteriskPrompt: {
         findMany: jest.fn().mockResolvedValue([
           { id: 'prompt-guide', promptKey: 'custom/smart_ars_guide' },
@@ -74,5 +75,79 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     expect(preview.extensionsQueue).toContain("kaster-smart-ars-hook.sh 'sms'");
     expect(preview.extensionsQueue).toContain("kaster-smart-ars-hook.sh 'opt-out'");
     expect(preview.extensionsQueue).toContain('Playback(/var/lib/asterisk/sounds/custom/office_hours)');
+  });
+
+  it('passes branch-specific holiday rules into generated DID dialplan', async () => {
+    const prisma = {
+      asteriskTrunk: { findMany: jest.fn().mockResolvedValue([]) },
+      agents: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskDid: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'did-holiday',
+          tenantId: 'tenant-1',
+          did: '07070002222',
+          representativeNumber: null,
+          description: null,
+          ivrMenuId: null,
+          directQueue: 'sales',
+          enabled: true,
+          branchMappings: [{
+            branchId: 'branch-1',
+            branch: { isActive: true, settingsProfile: {} },
+          }],
+        }]),
+      },
+      asteriskIvrMenu: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskForwardingRules: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'forward-holiday',
+          didId: 'did-holiday',
+          forwardType: 'QUEUE',
+          targetValue: 'holiday-desk',
+          forwardTriggerMode: 'IMMEDIATE',
+          queueWaitSeconds: null,
+          stickyCallbackWindowMinutes: null,
+          conditionType: 'TIME_RANGE',
+          timeStart: null,
+          timeEnd: null,
+          daysOfWeek: null,
+          scheduleJson: JSON.stringify([
+            { conditionType: 'TIME_RANGE', timeStart: '09:00', timeEnd: '18:00', daysOfWeek: ['mon'] },
+          ]),
+          enabled: true,
+        }]),
+      },
+      asteriskBlocklistEntry: { findMany: jest.fn().mockResolvedValue([]) },
+      tenantHolidayRules: {
+        findMany: jest.fn().mockResolvedValue([{
+          holidayRuleId: 'holiday-1',
+          branchId: 'branch-1',
+          ruleType: 'DATE',
+          holidayDate: '2026-05-06',
+          monthDay: null,
+          isActive: true,
+        }]),
+      },
+      asteriskPrompt: { findMany: jest.fn().mockResolvedValue([]) },
+      queues: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([]),
+      },
+      tenantSystemSettings: { findUnique: jest.fn().mockResolvedValue(null) },
+      outboundCallerIdRules: { findMany: jest.fn().mockResolvedValue([]) },
+    } as any;
+    const config = {
+      get: jest.fn((key: string, fallback?: string) => fallback),
+    } as any;
+    const service = new AsteriskReloadService(prisma, config, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
+
+    const preview = await service.previewConfFiles('tenant-1');
+
+    expect(prisma.tenantHolidayRules.findMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', isActive: true },
+    });
+    expect(preview.extensionsInbound).toContain('GotoIf($["${STRFTIME(${EPOCH},,%Y-%m-%d)}"="2026-05-06"]?forwarding-rule-forward-holiday,s,1)');
   });
 });

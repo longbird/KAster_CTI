@@ -426,6 +426,75 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
   });
 
+  it('routes holiday dates to the configured forwarding rule before business-hour checks', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{
+        id: 'd-holiday',
+        did: '07055551200',
+        branchId: 'branch-1',
+        ivrMenuId: null,
+        directQueue: 'sales',
+        enabled: true,
+        description: null,
+      }],
+      ivrMenus: [],
+      holidayRules: [
+        {
+          holidayRuleId: 'h-tenant',
+          branchId: null,
+          ruleType: 'ANNUAL',
+          holidayDate: null,
+          monthDay: '05-05',
+          isActive: true,
+        },
+        {
+          holidayRuleId: 'h-workday',
+          branchId: 'branch-1',
+          ruleType: 'WORKDAY_OVERRIDE',
+          holidayDate: '2026-05-05',
+          monthDay: null,
+          isActive: true,
+        },
+        {
+          holidayRuleId: 'h-branch',
+          branchId: 'branch-1',
+          ruleType: 'DATE',
+          holidayDate: '2026-05-06',
+          monthDay: null,
+          isActive: true,
+        },
+      ],
+      forwardingRules: [
+        {
+          id: 'f-holiday',
+          didId: 'd-holiday',
+          forwardType: 'QUEUE',
+          targetValue: 'holiday-desk',
+          forwardTriggerMode: 'IMMEDIATE',
+          queueWaitSeconds: null,
+          stickyCallbackWindowMinutes: null,
+          conditionType: 'TIME_RANGE',
+          timeStart: null,
+          timeEnd: null,
+          daysOfWeek: null,
+          scheduleJson: JSON.stringify([
+            { conditionType: 'TIME_RANGE', timeStart: '09:00', timeEnd: '18:00', daysOfWeek: ['mon', 'tue', 'wed', 'thu', 'fri'] },
+          ]),
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(extensionsInbound).toContain('GotoIf($["${STRFTIME(${EPOCH},,%Y-%m-%d)}"="2026-05-05"]?holiday-workday-d-holiday)');
+    expect(extensionsInbound).toContain('GotoIf($["${STRFTIME(${EPOCH},,%Y-%m-%d)}"="2026-05-06"]?forwarding-rule-f-holiday,s,1)');
+    expect(extensionsInbound).toContain('GotoIf($["${STRFTIME(${EPOCH},,%m-%d)}"="05-05"]?forwarding-rule-f-holiday,s,1)');
+    expect(extensionsInbound.indexOf('?holiday-workday-d-holiday')).toBeLessThan(
+      extensionsInbound.indexOf('?forwarding-rule-f-holiday,s,1)'),
+    );
+    expect(extensionsInbound).toContain('GotoIfTime(09:00-18:00,mon,*,*?forwarding-rule-f-holiday,s,1)');
+    expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
+  });
+
   it('splits a cross-midnight forwarding window across two weekdays', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{ id: 'd-night', did: '07066667777', ivrMenuId: null, directQueue: 'sales', enabled: true, description: null }],

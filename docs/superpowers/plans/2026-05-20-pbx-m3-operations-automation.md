@@ -131,3 +131,71 @@ Verification completed:
 - `cd apps/server && npm run build` → PASS
 - `cd apps/admin && npm run build` → PASS
 - `http://127.0.0.1:5174/settings/holidays` → HTTP 200 SPA shell 확인
+
+### Task 5: M3 마감 갭 감사와 PBX 렌더링 연결
+
+**Files:**
+- Modify: `apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts`
+- Modify: `apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts`
+- Modify: `apps/server/src/modules/asterisk-config/asterisk-reload.service.ts`
+- Modify: `apps/server/src/modules/asterisk-config/asterisk-reload.service.spec.ts`
+- Modify: `docs/design/pbx-selected-features-development-plan-20260514.md`
+
+- [x] **Step 1: M3 remaining gap audit**
+
+상위 로드맵의 미체크 항목을 코드 기준으로 재확인했다.
+
+- `시간별 동작`: `asteriskForwardingRules.scheduleJson`과 `GotoIfTime` 렌더링, 자정 교차 시간대 분할 테스트가 이미 존재하므로 착신전환 조건 확장으로 충족.
+- `공휴일 지정`: CRUD/UI는 완료됐지만 PBX 렌더러 입력에는 연결되지 않은 갭 확인.
+- `국선 그룹`: 다중 국선 풀/장애 우회/발신 라우팅 필요성이 아직 확정되지 않아 스키마/렌더러 구현 없이 보류 확정.
+
+- [x] **Step 2: Write RED tests**
+
+공휴일 날짜가 업무시간 조건보다 먼저 착신전환 라우트로 진입하고, reload 서비스가 `tenantHolidayRules`와 DID 지사 정보를 렌더러에 전달하는지 검증한다.
+
+- [x] **Step 3: Run RED**
+
+Run:
+
+```bash
+cd apps/server && npx jest src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts --runInBand
+cd apps/server && npx jest src/modules/asterisk-config/asterisk-reload.service.spec.ts --runInBand
+```
+
+Observed:
+- `DidInput.branchId` / `holidayRules` 렌더링 계약 없음
+- `tenantHolidayRules.findMany` 호출 없음
+
+- [x] **Step 4: Implement PBX holiday routing**
+
+`renderDialplan` 입력에 `holidayRules`를 추가하고, DID의 활성 지사 기준으로 `WORKDAY_OVERRIDE` → 휴일 규칙 순서의 날짜 검사를 생성한다. reload 서비스는 활성 공휴일 규칙과 DID의 대표 지사를 함께 렌더러에 전달한다.
+
+- [x] **Step 5: Run targeted GREEN**
+
+Run:
+
+```bash
+cd apps/server && npx jest src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts --runInBand
+cd apps/server && npx jest src/modules/asterisk-config/asterisk-reload.service.spec.ts --runInBand
+```
+
+Observed:
+- `dialplan.renderer.spec.ts` → 30 tests PASS
+- `asterisk-reload.service.spec.ts` → 2 tests PASS
+
+- [x] **Step 6: Run full regression and commit**
+
+Run:
+
+```bash
+cd apps/server && npx jest --runInBand && npm run build
+cd apps/admin && npx vitest run && npm run build
+git add docs apps/server apps/admin
+git commit -m "feat: complete PBX M3 operations automation"
+```
+
+Verification completed:
+- `cd apps/server && npx jest --runInBand` → 42 suites / 241 tests PASS
+- `cd apps/admin && npx vitest run` → 31 files / 98 tests PASS
+- `cd apps/server && npm run build` → PASS
+- `cd apps/admin && npm run build` → PASS
