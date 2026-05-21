@@ -132,6 +132,15 @@ interface BranchSmartArsProfile {
   actions: BranchSmartArsAction[];
 }
 
+interface BranchSmdrProfile {
+  enabled: boolean;
+  endpointUrl: string | null;
+  authToken: string | null;
+  secret: string | null;
+  timeoutSeconds: number;
+  eventTypes: string[];
+}
+
 interface BranchSettingsProfile {
   routing: {
     enabled: boolean;
@@ -150,9 +159,7 @@ interface BranchSettingsProfile {
     enabled: boolean;
     defaultOutboundCallerId: string | null;
   };
-  smdr: {
-    enabled: boolean;
-  };
+  smdr: BranchSmdrProfile;
 }
 
 const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
@@ -201,6 +208,11 @@ const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
   },
   smdr: {
     enabled: false,
+    endpointUrl: null,
+    authToken: null,
+    secret: null,
+    timeoutSeconds: 5,
+    eventTypes: ['CALL_END'],
   },
 };
 
@@ -401,6 +413,42 @@ function normalizeSmartArsProfile(value: unknown): BranchSmartArsProfile {
   };
 }
 
+function normalizeUrlText(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSmdrProfile(value: unknown): BranchSmdrProfile {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const eventTypes = normalizeStringArray(source.eventTypes);
+
+  return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.enabled,
+    endpointUrl: normalizeUrlText(source.endpointUrl),
+    authToken: normalizeOptionalString(source.authToken),
+    secret: normalizeOptionalString(source.secret),
+    timeoutSeconds: clampInteger(
+      source.timeoutSeconds,
+      DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.timeoutSeconds,
+      1,
+      30,
+    ),
+    eventTypes: eventTypes.length > 0 ? eventTypes : DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.eventTypes,
+  };
+}
+
 function normalizeWeekdays(value: unknown): string[] {
   const normalized = normalizeStringArray(value).map((item) => item.toLowerCase());
   return WEEKDAY_ORDER.filter((day) => normalized.includes(day));
@@ -543,7 +591,6 @@ function normalizeBranchSettingsProfile(
   const prompts = source.prompts && typeof source.prompts === 'object' ? source.prompts as Record<string, unknown> : {};
   const recording = source.recording && typeof source.recording === 'object' ? source.recording as Record<string, unknown> : {};
   const cid = source.cid && typeof source.cid === 'object' ? source.cid as Record<string, unknown> : {};
-  const smdr = source.smdr && typeof source.smdr === 'object' ? source.smdr as Record<string, unknown> : {};
 
   return {
     routing: {
@@ -588,9 +635,7 @@ function normalizeBranchSettingsProfile(
           ? parseAllowedCallerIds(cid.defaultOutboundCallerId)[0] ?? null
           : null,
     },
-    smdr: {
-      enabled: typeof smdr.enabled === 'boolean' ? smdr.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.enabled,
-    },
+    smdr: normalizeSmdrProfile(source.smdr),
   };
 }
 
@@ -643,6 +688,10 @@ function validateBranchSettingsProfile(
   const queueJoinDelaySeconds = profile.prompts.queueJoinDelaySeconds ?? 0;
   if (!Number.isInteger(queueJoinDelaySeconds) || queueJoinDelaySeconds < 0 || queueJoinDelaySeconds > 300) {
     throw new BadRequestException('큐 인입 지연 시간은 0초 이상 300초 이하 정수여야 합니다.');
+  }
+
+  if (profile.smdr.enabled && !profile.smdr.endpointUrl) {
+    throw new BadRequestException('SMDR 외부 알림을 사용하려면 수신 URL이 필요합니다.');
   }
 
   const smartArs = profile.smartArs;

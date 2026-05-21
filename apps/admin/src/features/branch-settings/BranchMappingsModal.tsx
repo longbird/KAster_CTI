@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Col, Collapse, Form, Modal, Row, Select, Space, Switch, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Collapse, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -6,6 +6,7 @@ import { formatPhoneNumber } from '../../shared/lib/format';
 import { FeatureHelpButton } from '../../shared/help';
 import { formatBranchForwardingRuleLabel, type BranchForwardingRuleOption } from './branchForwardingRuleLabel';
 import type { BranchRow } from './BranchEditModal';
+import { SMDR_EVENT_TYPE_OPTIONS, buildSmdrPayload, hydrateSmdrFormFields, type SmdrProfile } from './smdrSettings';
 
 interface AgentOption {
   agentId: string;
@@ -29,7 +30,7 @@ interface BranchSettingsProfile {
   recording?: { enabled: boolean };
   blocklist080?: { enabled: boolean };
   cid?: { enabled: boolean; defaultOutboundCallerId?: string | null };
-  smdr?: { enabled: boolean };
+  smdr?: SmdrProfile;
 }
 
 interface MappingResponse {
@@ -75,6 +76,11 @@ interface BranchOperationFormValue {
   cidEnabled: boolean;
   defaultOutboundCallerId?: string;
   smdrEnabled: boolean;
+  smdrEndpointUrl?: string;
+  smdrAuthToken?: string;
+  smdrSecret?: string;
+  smdrTimeoutSeconds: number;
+  smdrEventTypes: string[];
 }
 
 interface Props {
@@ -92,6 +98,7 @@ const DID_ROUTE_META: Record<string, { label: string; color: string }> = {
 };
 
 function buildInitialValues(next: MappingResponse | null): BranchOperationFormValue {
+  const smdr = hydrateSmdrFormFields(next?.settingsProfile?.smdr);
   return {
     agentIds: next?.assignedAgentIds ?? [],
     queueIds: next?.assignedQueueIds ?? [],
@@ -107,7 +114,7 @@ function buildInitialValues(next: MappingResponse | null): BranchOperationFormVa
     cidEnabled: next?.settingsProfile?.cid?.enabled ?? false,
     defaultOutboundCallerId:
       next?.settingsProfile?.cid?.defaultOutboundCallerId ?? next?.defaultSystemCallerId ?? undefined,
-    smdrEnabled: next?.settingsProfile?.smdr?.enabled ?? false,
+    ...smdr,
   };
 }
 
@@ -253,9 +260,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                 enabled: values.cidEnabled,
                 defaultOutboundCallerId: values.cidEnabled ? values.defaultOutboundCallerId ?? null : null,
               },
-              smdr: {
-                enabled: values.smdrEnabled,
-              },
+              smdr: buildSmdrPayload(values),
             },
           });
           message.success('지사 운영 설정을 저장했습니다.');
@@ -573,9 +578,42 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                           options={callerIdOptions}
                         />
                       </Form.Item>
-                      <Typography.Text type="secondary">
-                        SMDR 외부 알림의 세부 연동 규격은 후속 시스템 설정 확장 대상입니다. 현재는 지사별 사용 여부만 보관합니다.
-                      </Typography.Text>
+                      <Row gutter={12}>
+                        <Col xs={24} lg={14}>
+                          <Form.Item
+                            label="SMDR 수신 URL"
+                            name="smdrEndpointUrl"
+                            rules={[{ required: smdrEnabled, message: 'SMDR 수신 URL을 입력하세요.' }]}
+                          >
+                            <Input disabled={!smdrEnabled} placeholder="https://example.com/smdr" />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} lg={10}>
+                          <Form.Item label="SMDR 타임아웃(초)" name="smdrTimeoutSeconds">
+                            <InputNumber min={1} max={30} disabled={!smdrEnabled} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24}>
+                          <Form.Item label="SMDR 이벤트" name="smdrEventTypes">
+                            <Select
+                              mode="multiple"
+                              disabled={!smdrEnabled}
+                              options={SMDR_EVENT_TYPE_OPTIONS}
+                              placeholder="전송할 이벤트를 선택하세요"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} lg={12}>
+                          <Form.Item label="SMDR 인증 토큰" name="smdrAuthToken">
+                            <Input.Password disabled={!smdrEnabled} autoComplete="new-password" />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} lg={12}>
+                          <Form.Item label="SMDR 서명 시크릿" name="smdrSecret">
+                            <Input.Password disabled={!smdrEnabled} autoComplete="new-password" />
+                          </Form.Item>
+                        </Col>
+                      </Row>
                     </Space>
                   ),
                 },

@@ -39,6 +39,7 @@ import {
   getIvrMenus,
   getPrompts,
 } from '../asterisk-config/api/asteriskConfigApi';
+import { SMDR_EVENT_TYPE_OPTIONS, buildSmdrPayload, hydrateSmdrFormFields, type SmdrProfile } from './smdrSettings';
 
 export interface BranchRow {
   branchId: string;
@@ -61,7 +62,7 @@ export interface BranchRow {
     recording?: { enabled: boolean };
     blocklist080?: Blocklist080ProfileFormValue;
     cid?: { enabled: boolean; defaultOutboundCallerId?: string | null };
-    smdr?: { enabled: boolean };
+    smdr?: SmdrProfile;
   } | null;
   settingsSummary?: Array<{
     key: string;
@@ -199,7 +200,7 @@ interface BranchSettingsProfile {
   recording?: { enabled: boolean };
   blocklist080?: Blocklist080ProfileFormValue;
   cid?: { enabled: boolean; defaultOutboundCallerId?: string | null };
-  smdr?: { enabled: boolean };
+  smdr?: SmdrProfile;
 }
 
 interface MappingResponse {
@@ -274,8 +275,14 @@ interface BranchConfigFormValue {
   blocklist080SmartInputTimeoutSeconds: number;
   blocklist080SmartMaxRetries: number;
   blocklist080SmartConfirmationMappings: Blocklist080MappingFormValue[];
-  cidSmdrEnabled: boolean;
+  cidEnabled: boolean;
   defaultOutboundCallerId?: string;
+  smdrEnabled: boolean;
+  smdrEndpointUrl?: string;
+  smdrAuthToken?: string;
+  smdrSecret?: string;
+  smdrTimeoutSeconds: number;
+  smdrEventTypes: string[];
 }
 
 interface Props {
@@ -807,8 +814,9 @@ function buildCreateDefaults(): BranchConfigFormValue {
     blocklist080SmartInputTimeoutSeconds: 0,
     blocklist080SmartMaxRetries: 0,
     blocklist080SmartConfirmationMappings: buildEmptyBlocklist080Mappings(),
-    cidSmdrEnabled: false,
+    cidEnabled: false,
     defaultOutboundCallerId: undefined,
+    ...hydrateSmdrFormFields(),
   };
 }
 
@@ -819,6 +827,7 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
   const optOut = mapping?.settingsProfile?.blocklist080;
   const smartArs = mapping?.settingsProfile?.smartArs;
   const storedRoutingEnabled = mapping?.settingsProfile?.routing?.enabled;
+  const smdr = hydrateSmdrFormFields(mapping?.settingsProfile?.smdr);
   return {
     ...defaults,
     branchCode: mapping?.branch?.branchCode ?? branch?.branchCode ?? '',
@@ -872,9 +881,10 @@ function buildInitialValues(branch: BranchRow | null | undefined, mapping: Mappi
     blocklist080SmartInputTimeoutSeconds: optOut?.smartFlow?.inputTimeoutSeconds ?? 0,
     blocklist080SmartMaxRetries: optOut?.smartFlow?.maxRetries ?? 0,
     blocklist080SmartConfirmationMappings: hydrateConfiguredBlocklist080Mappings(optOut?.smartFlow?.confirmationMappings),
-    cidSmdrEnabled: (mapping?.settingsProfile?.cid?.enabled ?? false) || (mapping?.settingsProfile?.smdr?.enabled ?? false),
+    cidEnabled: mapping?.settingsProfile?.cid?.enabled ?? false,
     defaultOutboundCallerId:
       mapping?.settingsProfile?.cid?.defaultOutboundCallerId ?? mapping?.defaultSystemCallerId ?? undefined,
+    ...smdr,
   };
 }
 
@@ -942,7 +952,8 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
   const blocklist080DtmfMappings = Form.useWatch('blocklist080DtmfMappings', form) ?? buildEmptyBlocklist080Mappings();
   const blocklist080SmartConfirmationMappings =
     Form.useWatch('blocklist080SmartConfirmationMappings', form) ?? buildEmptyBlocklist080Mappings();
-  const cidSmdrEnabled = Form.useWatch('cidSmdrEnabled', form) ?? false;
+  const cidEnabled = Form.useWatch('cidEnabled', form) ?? false;
+  const smdrEnabled = Form.useWatch('smdrEnabled', form) ?? false;
 
   const enabledByKey: Record<string, boolean | undefined> = {
     basic: undefined,
@@ -952,7 +963,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     smartArs: smartArsEnabled,
     recording: recordingEnabled,
     blocklist: blocklist080Enabled,
-    cid: cidSmdrEnabled,
+    cid: cidEnabled || smdrEnabled,
   };
   const enabledCount = [
     routingEnabled,
@@ -961,7 +972,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     smartArsEnabled,
     recordingEnabled,
     blocklist080Enabled,
-    cidSmdrEnabled,
+    cidEnabled || smdrEnabled,
   ].filter(Boolean).length;
 
   useEffect(() => {
@@ -1326,12 +1337,10 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
               },
               blocklist080: buildBlocklist080Payload(values),
               cid: {
-                enabled: values.cidSmdrEnabled,
-                defaultOutboundCallerId: values.cidSmdrEnabled ? values.defaultOutboundCallerId ?? null : null,
+                enabled: values.cidEnabled,
+                defaultOutboundCallerId: values.cidEnabled ? values.defaultOutboundCallerId ?? null : null,
               },
-              smdr: {
-                enabled: values.cidSmdrEnabled,
-              },
+              smdr: buildSmdrPayload(values),
             },
           });
 
@@ -2468,11 +2477,12 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                   <div>
                     <Typography.Title level={5} style={{ margin: 0 }}>CID / SMDR 설정</Typography.Title>
                     <Typography.Text type="secondary">
-                      CID와 SMDR 외부 알림은 같은 조건으로 함께 동작합니다.
+                      지사별 발신번호와 SMDR 외부 알림을 설정합니다.
                     </Typography.Text>
                   </div>
                   <Space size={8}>
-                    {sectionSwitch('cidSmdrEnabled')}
+                    {sectionSwitch('cidEnabled', 'CID 사용', 'CID 미사용')}
+                    {sectionSwitch('smdrEnabled', 'SMDR 사용', 'SMDR 미사용')}
                     <Button type="link" size="small" onClick={() => moveTo('/system')}>시스템 설정</Button>
                   </Space>
                 </div>
@@ -2483,14 +2493,48 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                 >
                   <Select
                     allowClear
-                    disabled={!cidSmdrEnabled}
+                    disabled={!cidEnabled}
                     placeholder="지사 기본 발신번호를 선택하세요"
                     options={callerIdOptions}
                   />
                 </Form.Item>
-                <Typography.Text type="secondary">
-                  SMDR 외부 알림 상세 규격은 후속 시스템 연동 확장 대상이며, 현재는 지사별 사용 여부를 우선 보관합니다.
-                </Typography.Text>
+                <Row gutter={12}>
+                  <Col xs={24} lg={14}>
+                    <Form.Item
+                      className="branch-edit-modal__compact-item"
+                      label="SMDR 수신 URL"
+                      name="smdrEndpointUrl"
+                      rules={[{ required: smdrEnabled, message: 'SMDR 수신 URL을 입력하세요.' }]}
+                    >
+                      <Input disabled={!smdrEnabled} placeholder="https://example.com/smdr" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={10}>
+                    <Form.Item className="branch-edit-modal__compact-item" label="SMDR 타임아웃(초)" name="smdrTimeoutSeconds">
+                      <InputNumber min={1} max={30} disabled={!smdrEnabled} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24}>
+                    <Form.Item className="branch-edit-modal__compact-item" label="SMDR 이벤트" name="smdrEventTypes">
+                      <Select
+                        mode="multiple"
+                        disabled={!smdrEnabled}
+                        options={SMDR_EVENT_TYPE_OPTIONS}
+                        placeholder="전송할 이벤트를 선택하세요"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Form.Item className="branch-edit-modal__compact-item" label="SMDR 인증 토큰" name="smdrAuthToken">
+                      <Input.Password disabled={!smdrEnabled} autoComplete="new-password" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Form.Item className="branch-edit-modal__compact-item" label="SMDR 서명 시크릿" name="smdrSecret">
+                      <Input.Password disabled={!smdrEnabled} autoComplete="new-password" />
+                    </Form.Item>
+                  </Col>
+                </Row>
               </div>
             </div>
           </div>

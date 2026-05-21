@@ -216,9 +216,9 @@ export function OutboundRulesPage() {
       </Space>
 
       <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-        BlueSky <code>Outbound</code> 매핑 등가물. 입력 번호 → 발신 ID 변환 규칙을 우선순위 순으로 평가합니다.
-        저장 시 PBX dialplan(<code>[outbound-cid-rules]</code>)에 자동 반영됩니다. 단,
-        <strong> 지사가 지정된 룰은 현재 PBX 반영 대상에서 제외</strong>되며 (지사별 dialplan 분리 follow-up 예정),
+        입력 번호 → 발신 ID 변환 규칙을 우선순위 순으로 평가합니다.
+        저장 시 PBX dialplan(<code>[outbound-cid-rules]</code>)에 자동 반영됩니다.
+        지사가 지정된 룰은 해당 지사에 소속된 상담원별 발신번호 규칙에 반영되며,
         <code>REGEX</code> 룰은 dialplan 으로 옮길 수 없어 NoOp 주석으로만 남습니다.
       </Typography.Paragraph>
 

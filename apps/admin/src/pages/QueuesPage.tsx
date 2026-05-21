@@ -61,7 +61,7 @@ function readToken(): string | null {
   }
 }
 
-// /queues/summary 를 주기 폴링해 표 형태로 렌더. 클릭 시 drill-down 은 후속.
+// /queues/summary 를 주기 폴링해 표 형태로 렌더하고 행 클릭 시 상세 drawer 를 연다.
 export function QueuesPage() {
   const queuePermission = usePermissionStore((state) => state.permissionsByMenu['queues']);
   const [rows, setRows] = useState<QueueRow[] | null>(null);

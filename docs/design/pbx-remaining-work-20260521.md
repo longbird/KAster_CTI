@@ -55,15 +55,15 @@ AMI `Command` 액션으로 PBX 시간 조회 명령을 실행하고, 결과에�
 - 관리자 빌드: 공유규칙 화면 안내 문구 갱신 통과.
 - 전체 회귀: 서버 Jest 249 PASS, 관리자 Vitest 98 PASS.
 
-### 5. 운영 후속 묶음 - 진행 중
+### 5. 운영 후속 묶음 - 완료
 
-아래 항목은 M1~M3 진척을 막지는 않지만, 운영 안정화 단계에서 순서대로 처리한다.
+아래 항목은 M1~M3 진척을 막지는 않지만, 운영 안정화 단계에서 순서대로 처리했다.
 
 - 외부 연동 dry-run 해제: 완료. 등록된 Webhook/Slack Webhook/VIX HTTP 대상에 실제 POST를 보내고 `lastTriggeredAt`을 갱신한다.
 - transfer candidate 만료 처리: 완료. `TransferDetectorService.sweepExpired()`가 오래 열린 candidate를 `EXPIRED`로 닫고 pending transfer와 통화 세션을 복구한다.
 - 차단 이력 집계: 완료. 관리자 블랙리스트 화면에서 전체/활성/비활성/접두어/지사/자동등록 건수를 집계한다.
 - 큐 요약 drill-down: 완료. 큐 현황 행 클릭 시 상세 drawer를 열고 요약 지표와 큐 멤버를 표시한다.
-- SMDR 외부 알림 세부 연동.
+- SMDR 외부 알림 세부 연동: 완료. 지사 운영 설정에 수신 URL, 인증 토큰, 서명 시크릿, 이벤트 타입, 타임아웃을 저장하고 서버에서 URL 필수 검증/정규화를 수행한다.
 
 ## 보류
 

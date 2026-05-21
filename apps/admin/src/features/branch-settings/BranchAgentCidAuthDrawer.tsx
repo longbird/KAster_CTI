@@ -320,8 +320,8 @@ export function BranchAgentCidAuthDrawer({ open, branchId, branchName, onClose }
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="이 매트릭스는 지사별로 상담원이 어떤 발신번호로 인/아웃/전환을 할 수 있는지 정의합니다 (BlueSky JisaPossibleAuth 등가)."
-        description="모든 권한이 비어있는 행은 저장 시 제거됩니다. PBX 렌더 반영은 별도 PR(아웃바운드 룰 체크포인트 B / share rule follow-up)에서 수행됩니다."
+        message="이 매트릭스는 지사별로 상담원이 어떤 발신번호로 인/아웃/전환을 할 수 있는지 정의합니다."
+        description="모든 권한이 비어있는 행은 저장 시 제거됩니다. 저장된 지사별 발신번호 권한은 PBX 설정 리로드 시 발신번호 규칙에 반영됩니다."
       />
       {callerIds.length === 0 ? (
         <Empty description="등록된 발신번호가 없습니다. 우측 상단 [발신번호 추가]로 시작하세요." />
