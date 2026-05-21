@@ -5,6 +5,7 @@ function createService() {
   const prisma = {
     branches: { findFirst: jest.fn() },
     branchDids: { findMany: jest.fn() },
+    asteriskForwardingRules: { findMany: jest.fn() },
     $transaction: jest.fn(),
   } as any;
   const asteriskReloadService = { executeReload: jest.fn() } as any;
@@ -66,5 +67,40 @@ describe('AdminService updateBranchMappings DID conflict', () => {
 
     expect(prisma.branchDids.findMany).not.toHaveBeenCalled();
     getSpy.mockRestore();
+  });
+
+  it('rejects forwarding rules outside the branch DID scope', async () => {
+    const { prisma, service } = createService();
+    jest
+      .spyOn(service, 'getBranchMappings')
+      .mockResolvedValue({ success: true, data: null as any, error: null });
+    prisma.branches.findFirst.mockResolvedValueOnce({
+      branchId: 'branch-b',
+      queueMappings: [],
+      didMappings: [{ didId: 'did-branch' }],
+      settingsProfile: null,
+    });
+    prisma.asteriskForwardingRules.findMany.mockResolvedValueOnce([
+      { id: 'rule-other', didId: 'did-other' },
+    ]);
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-b', {
+        settingsProfile: {
+          routing: { representativeDidId: 'did-branch' },
+          forwarding: { enabled: true, ids: ['rule-other'] },
+        },
+      } as any),
+    ).rejects.toThrow('지사에 연결되지 않은 DID의 착신전환 규칙은 선택할 수 없습니다.');
+
+    expect(prisma.asteriskForwardingRules.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        id: { in: ['rule-other'] },
+        enabled: true,
+      },
+      select: { id: true, didId: true },
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

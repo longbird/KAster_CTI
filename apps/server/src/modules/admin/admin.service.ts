@@ -2323,6 +2323,7 @@ export class AdminService {
         queueIds: effectiveQueueIds,
         didIds: effectiveDidIds,
       });
+      await this.assertValidBranchForwardingRules(tenantId, settingsProfile, effectiveDidIds);
       await this.assertValidOptOutSmsTemplates(tenantId, settingsProfile);
     }
 
@@ -2814,6 +2815,36 @@ export class AdminService {
 
     if (templateIds.some((templateId) => !foundIds.has(templateId))) {
       throw new BadRequestException('선택한 SMS 템플릿을 찾을 수 없습니다.');
+    }
+  }
+
+  private async assertValidBranchForwardingRules(
+    tenantId: string,
+    profile: BranchSettingsProfile,
+    didIds: string[],
+  ) {
+    const forwardingRuleIds = [...new Set(profile.forwarding.ids)];
+    if (forwardingRuleIds.length === 0) {
+      return;
+    }
+
+    const rows = await this.prisma.asteriskForwardingRules.findMany({
+      where: {
+        tenantId,
+        id: { in: forwardingRuleIds },
+        enabled: true,
+      },
+      select: { id: true, didId: true },
+    });
+    const foundIds = new Set(rows.map((row) => row.id));
+
+    if (forwardingRuleIds.some((id) => !foundIds.has(id))) {
+      throw new BadRequestException('선택한 착신전환 규칙을 찾을 수 없습니다.');
+    }
+
+    const branchDidIds = new Set(didIds);
+    if (rows.some((row) => !branchDidIds.has(row.didId))) {
+      throw new BadRequestException('지사에 연결되지 않은 DID의 착신전환 규칙은 선택할 수 없습니다.');
     }
   }
 
