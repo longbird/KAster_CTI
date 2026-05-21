@@ -62,7 +62,7 @@ AMI `Command` 액션으로 PBX 시간 조회 명령을 실행하고, 결과에�
 - 외부 연동 dry-run 해제: 완료. 등록된 Webhook/Slack Webhook/VIX HTTP 대상에 실제 POST를 보내고 `lastTriggeredAt`을 갱신한다.
 - transfer candidate 만료 처리: 완료. `TransferDetectorService.sweepExpired()`가 오래 열린 candidate를 `EXPIRED`로 닫고 pending transfer와 통화 세션을 복구한다.
 - 차단 이력 집계: 완료. 관리자 블랙리스트 화면에서 전체/활성/비활성/접두어/지사/자동등록 건수를 집계한다.
-- 큐 요약 drill-down.
+- 큐 요약 drill-down: 완료. 큐 현황 행 클릭 시 상세 drawer를 열고 요약 지표와 큐 멤버를 표시한다.
 - SMDR 외부 알림 세부 연동.
 
 ## 보류

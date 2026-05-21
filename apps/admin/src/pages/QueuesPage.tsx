@@ -1,4 +1,4 @@
-import { Button, Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Card, Drawer, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
@@ -26,6 +26,33 @@ interface QueueRow {
   recentAbandoned: number;
 }
 
+interface QueueMemberRow {
+  queueMemberId: string;
+  agent?: {
+    agentCode?: string;
+    agentName?: string;
+    extension?: string;
+    role?: string;
+    isActive?: boolean;
+  };
+  penalty?: number;
+  memberOrder?: number;
+  isActive?: boolean;
+}
+
+export function buildQueueDrillDownStats(row: QueueRow) {
+  return [
+    { label: '대기', value: row.waiting },
+    { label: '링잉', value: row.ringing },
+    { label: '통화 중', value: row.talking },
+    { label: '가용', value: row.available },
+    { label: '일시정지', value: row.paused },
+    { label: '최장 대기', value: `${row.longestWaitSeconds ?? 0}s` },
+    { label: '최근 응답', value: row.recentAnswered },
+    { label: '최근 포기', value: row.recentAbandoned },
+  ];
+}
+
 function readToken(): string | null {
   try {
     return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -38,6 +65,9 @@ function readToken(): string | null {
 export function QueuesPage() {
   const queuePermission = usePermissionStore((state) => state.permissionsByMenu['queues']);
   const [rows, setRows] = useState<QueueRow[] | null>(null);
+  const [selected, setSelected] = useState<QueueRow | null>(null);
+  const [members, setMembers] = useState<QueueMemberRow[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -65,6 +95,23 @@ export function QueuesPage() {
   }, []);
 
   if (!rows) return <Skeleton active paragraph={{ rows: 8 }} />;
+
+  const openDrillDown = async (row: QueueRow) => {
+    setSelected(row);
+    setMembers([]);
+    setMembersLoading(true);
+    try {
+      const token = readToken();
+      const res = await axios.get(`${API_BASE_URL}/queues/${row.queueId}/members`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setMembers(res.data?.data?.data ?? res.data?.data ?? []);
+    } catch {
+      setMembers([]);
+    } finally {
+      setMembersLoading(false);
+    }
+  };
 
   const exportRows = () => {
     downloadCsv(
@@ -144,8 +191,67 @@ export function QueuesPage() {
               ),
             },
           ]}
+          onRow={(row) => ({
+            onClick: () => void openDrillDown(row),
+            style: { cursor: 'pointer' },
+          })}
         />
       </Card>
+
+      <Drawer
+        title={selected ? `${selected.queueDisplayName ?? selected.queueName} 상세` : '큐 상세'}
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        width={640}
+      >
+        {selected ? (
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Space wrap>
+              {buildQueueDrillDownStats(selected).map((item) => (
+                <Tag key={item.label}>
+                  {item.label} {item.value}
+                </Tag>
+              ))}
+            </Space>
+            <Table<QueueMemberRow>
+              rowKey={(row) => row.queueMemberId ?? `${row.agent?.extension}-${row.memberOrder}`}
+              dataSource={members}
+              loading={membersLoading}
+              pagination={false}
+              size="small"
+              columns={[
+                {
+                  title: '상담원',
+                  render: (_: unknown, row) => row.agent?.agentName ?? row.agent?.agentCode ?? '-',
+                },
+                {
+                  title: '내선',
+                  width: 90,
+                  render: (_: unknown, row) => row.agent?.extension ?? '-',
+                },
+                {
+                  title: '순서',
+                  dataIndex: 'memberOrder',
+                  width: 80,
+                  render: (value?: number) => value ?? 0,
+                },
+                {
+                  title: '패널티',
+                  dataIndex: 'penalty',
+                  width: 80,
+                  render: (value?: number) => value ?? 0,
+                },
+                {
+                  title: '상태',
+                  dataIndex: 'isActive',
+                  width: 90,
+                  render: (value?: boolean) => <Tag color={value === false ? 'default' : 'green'}>{value === false ? '비활성' : '활성'}</Tag>,
+                },
+              ]}
+            />
+          </Space>
+        ) : null}
+      </Drawer>
     </div>
   );
 }
