@@ -172,35 +172,53 @@
 
 ### 1. 지사별 DID/ARS/착신 정책
 
-**판단:** 즉시 개발. ARS 번호를 별도 번호 자원으로 독립 관리하지 않고 지사별 DID 설정과 ARS 메뉴 연결로 충분한지 확인하며 구현한다.
+**판단:** 부분 완료, 잔여 보강 개발. ARS 번호를 별도 번호 자원으로 독립 관리하지 않고 DID 원천 설정과 지사별 DID 연결 정책으로 다룬다. 지사의 기본 정보는 DID이므로 지사 생성/수정에서 DID 연결은 필수 정책으로 유지한다.
 
-**현재 구조:** `branches.settingsProfile`, `branchDids`, `AsteriskDid`, `AsteriskIvrMenu`, `AsteriskIvrEntry`, `asteriskForwardingRules`가 이미 존재한다. 관리자에는 지사 관리, PBX 설정, 착신전환 설정 화면이 있다.
+**현재 구조:** `branches.settingsProfile`, `branchDids`, `AsteriskDid`, `AsteriskIvrMenu`, `AsteriskIvrEntry`, `asteriskForwardingRules`가 이미 존재한다. 관리자에는 지사 관리, PBX 설정, 착신전환 설정 화면이 있다. 현재 지사 편집 화면은 DID, 대표번호, 호 분배룰, 착신전환, 멘트, 스마트 ARS, 080, 발신번호, SMDR를 한 화면에서 저장한다.
+
+**확정 정책:**
+
+- 지사 생성/수정 시 DID 연결은 필수다.
+- 대표번호는 연결된 DID 중 1개를 반드시 선택한다.
+- 동일 DID는 같은 tenant 안에서 하나의 지사에만 연결할 수 있다.
+- DID 원천 설정에서는 직접 분배룰과 ARS 메뉴를 동시에 활성화하지 않는다.
+- 착신전환 규칙은 DID 기본 경로보다 우선한다. 화면 표시도 `착신전환 > ARS 메뉴 > 직접 분배룰 > 미설정` 우선순위를 따른다.
 
 **데이터 계획:**
 
-- [ ] `branches.settingsProfile`의 ARS 관련 필드를 명시 스키마로 문서화한다.
-- [ ] 지사에 연결된 DID마다 `직접 분배룰`, `ARS 메뉴`, `착신전환` 중 하나의 우선 경로를 갖도록 검증한다.
-- [ ] ARS 메뉴는 기존 PBX 설정 메뉴 데이터를 사용하고, 지사 화면에서는 선택/연결만 제공한다.
+- [x] `branchDids`에 `(tenantId, didId)` 유니크 제약을 두어 동일 DID가 여러 지사에 중복 연결되지 않게 한다.
+- [x] `AsteriskDid` 원천 설정은 `ivrMenuId` 또는 `directQueue` 중 하나만 갖도록 DB 체크 제약을 유지한다.
+- [x] 지사 설정에는 `routing.representativeDidId`, `routing.rules`, `forwarding.ids`, `smartArs` 등 현재 사용 중인 설정 구조를 저장한다.
+- [ ] `branches.settingsProfile`의 ARS/스마트 ARS/착신 정책 필드를 명시 DTO와 문서 스키마로 정리한다.
+- [ ] 기존 ARS 메뉴 연결을 지사 화면에서 직접 편집할지, DID 원천 설정 화면에서만 유지할지 정책을 확정한다.
 - [ ] 번호 자원 목록에는 ARS 전용 번호가 아니라 DID와 연결된 ARS 사용 여부를 표시한다.
 
 **서버 계획:**
 
-- [ ] `apps/server/src/modules/admin/dto/update-branch-mappings.dto.ts`에 지사 착신 정책 DTO를 추가한다.
-- [ ] `apps/server/src/modules/admin/admin.service.ts`의 `updateBranchMappings`에서 DID/ARS/분배룰 충돌 검증을 수행한다.
+- [ ] `apps/server/src/modules/admin/dto/update-branch-mappings.dto.ts`에 지사 착신 정책 nested DTO를 추가한다. 현재는 `settingsProfile?: Record<string, unknown>`라 API 계약이 느슨하다.
+- [x] `apps/server/src/modules/admin/admin.service.ts`의 `updateBranchMappings`에서 DID 중복 연결을 사전 검증한다.
+- [x] `apps/server/src/modules/admin/admin.service.ts`에서 대표번호가 연결 DID 안에 있는지, 호 분배룰 조건이 지사 큐 범위 안에 있는지 검증한다.
+- [ ] `apps/server/src/modules/admin/admin.service.ts`에서 `forwarding.ids`가 현재 tenant 소유이며 지사에 연결된 DID의 착신전환 규칙인지 검증한다.
+- [ ] 기존 ARS 메뉴 연결을 지사 화면에서 직접 편집하기로 결정하면 `updateBranchMappings`에서 DID별 ARS/분배룰 충돌 검증을 추가한다.
 - [ ] `apps/server/src/modules/asterisk-config/dto/did.dto.ts`의 대표번호/직접 분배룰 검증 메시지를 PBX 용어로 정리한다.
 - [ ] PBX 설정 미리보기에서 지사별 DID 라우팅 결과를 확인할 수 있게 한다.
 
 **관리자 UI 계획:**
 
-- [ ] `apps/admin/src/features/branch-settings/BranchEditModal.tsx`에서 지사별 DID, ARS 메뉴, 기본 분배룰을 한 화면에서 편집한다.
-- [ ] `apps/admin/src/features/asterisk-config/components/DidForm.tsx`는 DID 단위의 원천 설정만 유지한다.
-- [ ] 지사 화면의 ARS 선택은 별도 번호 등록이 아니라 연결 선택 UI로 제공한다.
+- [x] `apps/admin/src/features/branch-settings/BranchEditModal.tsx`에서 지사별 DID, 대표번호, 기본 분배룰, 착신전환 규칙을 한 화면에서 편집한다.
+- [x] 지사 생성/수정 UI에서 DID 미선택 저장을 막고, 대표번호가 연결 DID 중 하나인지 확인한다.
+- [x] `apps/admin/src/features/asterisk-config/components/DidForm.tsx`는 DID 단위의 원천 설정만 유지한다.
+- [ ] 기존 ARS 메뉴를 지사 화면에서 직접 연결하기로 결정하면 DID별 ARS 메뉴 선택 UI를 추가한다.
+- [ ] ARS 연결 UI를 추가하더라도 별도 ARS 번호 등록은 만들지 않고 DID의 착신 경로 선택으로만 제공한다.
 
 **검증:**
 
-- [ ] 지사에 DID가 없으면 저장은 허용하되 착신 정책 미완료 상태를 표시한다.
-- [ ] 동일 DID가 여러 지사에 중복 연결되지 않는지 검증한다.
-- [ ] DID가 ARS와 직접 분배룰을 동시에 활성화하지 않는지 검증한다.
+- [x] 지사에 DID가 없으면 저장을 막는다. DID 필수 정책을 유지한다.
+- [x] 동일 DID가 여러 지사에 중복 연결되지 않는지 서비스 테스트와 DB 유니크 제약으로 검증한다.
+- [x] DID 원천 설정에서 ARS와 직접 분배룰을 동시에 활성화하지 않는 DB 체크 제약을 유지한다.
+- [x] 지사별 DID 착신 경로 표시 우선순위가 `착신전환 > ARS 메뉴 > 직접 분배룰 > 미설정`인지 검증한다.
+- [ ] `forwarding.ids`가 현재 지사 DID 범위를 벗어날 때 저장이 거부되는지 테스트를 추가한다.
+- [ ] 지사 화면에서 ARS 메뉴 연결 UI를 추가하는 경우, DID별 ARS/분배룰 동시 선택 방지 테스트를 추가한다.
 
 ### 2. 외부 착신 방식 정의와 호 분배룰 매핑
 
