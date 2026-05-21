@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { PrismaService } from '../../common/prisma.service';
+import { AsteriskConfigModule } from '../asterisk-config/asterisk-config.module';
 import { ShareRulesController } from './share-rules.controller';
 import { ShareRulesService } from './share-rules.service';
 
 @Module({
+  imports: [AsteriskConfigModule],
   controllers: [ShareRulesController],
   providers: [ShareRulesService, PrismaService, MenuPermissionService],
   exports: [ShareRulesService],

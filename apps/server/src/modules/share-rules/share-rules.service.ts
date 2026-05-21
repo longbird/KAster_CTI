@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateShareRuleDto } from './dto/create-share-rule.dto';
 import { PutShareRuleAgentsDto } from './dto/put-share-rule-agents.dto';
 import { PutShareRuleBranchesDto } from './dto/put-share-rule-branches.dto';
@@ -7,7 +8,10 @@ import { UpdateShareRuleDto } from './dto/update-share-rule.dto';
 
 @Injectable()
 export class ShareRulesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reload: AsteriskReloadService,
+  ) {}
 
   async list(tenantId: string) {
     const rules = await (this.prisma as any).shareRules.findMany({
@@ -141,7 +145,8 @@ export class ShareRulesService {
           })),
         });
       }
-      return { ok: true, agents: dto.agents.length, agentGroups: dto.agentGroups.length };
+      const sync = await this.syncQueueMembersForShareRule(t, tenantId, shareRuleId);
+      return { ok: true, agents: dto.agents.length, agentGroups: dto.agentGroups.length, sync };
     });
   }
 
@@ -172,7 +177,96 @@ export class ShareRulesService {
           })),
         });
       }
-      return { ok: true, branches: dto.branches.length };
+      const sync = await this.syncQueueMembersForShareRule(t, tenantId, shareRuleId);
+      return { ok: true, branches: dto.branches.length, sync };
     });
+  }
+
+  private async syncQueueMembersForShareRule(tx: any, tenantId: string, shareRuleId: string) {
+    const rule = await tx.shareRules.findFirst({
+      where: { tenantId, shareRuleId, isActive: true },
+      include: {
+        agents: {
+          orderBy: [{ priority: 'asc' }],
+          include: { agent: { select: { agentId: true, isActive: true } } },
+        },
+        agentGroups: {
+          orderBy: [{ priority: 'asc' }],
+          include: {
+            agentGroup: {
+              include: {
+                agents: {
+                  where: { isActive: true },
+                  select: { agentId: true, agentCode: true },
+                  orderBy: [{ agentCode: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+        branches: {
+          select: { branchId: true },
+        },
+      },
+    });
+
+    if (!rule) {
+      return { queueCount: 0, memberCount: 0 };
+    }
+
+    const branchIds = [...new Set(rule.branches.map((branch: { branchId: string }) => branch.branchId))];
+    if (branchIds.length === 0) {
+      return { queueCount: 0, memberCount: 0 };
+    }
+
+    const branchQueues = await tx.branchQueues.findMany({
+      where: { tenantId, branchId: { in: branchIds } },
+      select: { queueId: true },
+    });
+    const queueIds = [...new Set(branchQueues.map((queue: { queueId: string }) => queue.queueId))];
+    if (queueIds.length === 0) {
+      return { queueCount: 0, memberCount: 0 };
+    }
+
+    const orderedAgentIds = this.resolveShareRuleAgentIds(rule);
+    await tx.queueAgentMembers.deleteMany({
+      where: { tenantId, queueId: { in: queueIds } },
+    });
+
+    if (orderedAgentIds.length > 0) {
+      await tx.queueAgentMembers.createMany({
+        data: queueIds.flatMap((queueId: string) =>
+          orderedAgentIds.map((agentId, index) => ({
+            tenantId,
+            queueId,
+            agentId,
+            penalty: 0,
+            memberOrder: index,
+            isActive: true,
+          })),
+        ),
+      });
+    }
+
+    this.reload.scheduleReload(tenantId);
+    return { queueCount: queueIds.length, memberCount: orderedAgentIds.length };
+  }
+
+  private resolveShareRuleAgentIds(rule: any): string[] {
+    const ordered = new Map<string, number>();
+    for (const item of rule.agents ?? []) {
+      if (!item.agent?.isActive) continue;
+      if (!ordered.has(item.agentId)) ordered.set(item.agentId, item.priority ?? ordered.size);
+    }
+
+    for (const group of rule.agentGroups ?? []) {
+      for (const agent of group.agentGroup?.agents ?? []) {
+        if (!ordered.has(agent.agentId)) ordered.set(agent.agentId, group.priority ?? ordered.size);
+      }
+    }
+
+    return [...ordered.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .map(([agentId]) => agentId);
   }
 }

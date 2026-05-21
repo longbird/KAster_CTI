@@ -136,8 +136,7 @@ export function ShareRulesPage() {
         </Space>
 
         <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-          BlueSky <code>ShareRule</code> 등가물. 룰별로 상담원·그룹 우선순위와 지사 적용 범위를 정의합니다. 실제 분배
-          반영(PBX 큐 멤버 동기화)은 별도 follow-up PR 입니다.
+          룰별로 상담원·그룹 우선순위와 지사 적용 범위를 정의합니다. 매트릭스를 저장하면 연결된 지사의 PBX 큐 멤버가 동기화됩니다.
         </Typography.Paragraph>
 
         <Table<ShareRuleRow>
