@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { BLOCKLIST_COPY } from './blocklistCopy';
+import { summarizeBlocklistRows } from './BlocklistPage';
 import { parseBlocklistImportTextRows } from './BlocklistImportModal';
 import { buildBlocklistBranchSelectOptions, getBlocklistEntryModalTitle } from './BlocklistEntryModal';
 
@@ -49,6 +50,36 @@ describe('blocklist feature copy wiring', () => {
         label: '서울지사 (SEOUL)',
       },
     ]);
+  });
+
+  it('summarizes blocklist history counters from loaded rows', () => {
+    expect(
+      summarizeBlocklistRows([
+        {
+          id: '1',
+          matchType: 'EXACT',
+          phoneNumber: '01012345678',
+          description: null,
+          isActive: true,
+          sourceType: 'SMART_OPT_OUT',
+        },
+        {
+          id: '2',
+          matchType: 'PREFIX',
+          phoneNumber: '080',
+          description: null,
+          isActive: false,
+          branchId: 'branch-1',
+        },
+      ]),
+    ).toEqual({
+      total: 2,
+      active: 1,
+      inactive: 1,
+      prefix: 1,
+      branchScoped: 1,
+      automated: 1,
+    });
   });
 });
 

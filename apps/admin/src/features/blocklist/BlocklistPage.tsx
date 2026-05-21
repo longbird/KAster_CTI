@@ -18,6 +18,20 @@ import { BLOCKLIST_COPY } from './blocklistCopy';
 import { BlocklistEntryModal, type BlocklistEntryFormValue } from './BlocklistEntryModal';
 import { BlocklistImportModal, type ImportBlocklistEntryRow } from './BlocklistImportModal';
 
+export function summarizeBlocklistRows(rows: AsteriskBlocklistEntry[]) {
+  return rows.reduce(
+    (acc, row) => ({
+      total: acc.total + 1,
+      active: acc.active + (row.isActive ? 1 : 0),
+      inactive: acc.inactive + (row.isActive ? 0 : 1),
+      prefix: acc.prefix + (row.matchType === 'PREFIX' ? 1 : 0),
+      branchScoped: acc.branchScoped + (row.branchId ? 1 : 0),
+      automated: acc.automated + (row.sourceType ? 1 : 0),
+    }),
+    { total: 0, active: 0, inactive: 0, prefix: 0, branchScoped: 0, automated: 0 },
+  );
+}
+
 export function BlocklistPage() {
   const blocklistPermission = usePermissionStore((state) => state.permissionsByMenu['blocklist']);
   const [rows, setRows] = useState<AsteriskBlocklistEntry[] | null>(null);
@@ -106,6 +120,7 @@ export function BlocklistPage() {
   };
 
   const branchById = useMemo(() => new Map(branchOptions.map((branch) => [branch.branchId, branch])), [branchOptions]);
+  const summary = useMemo(() => summarizeBlocklistRows(rows ?? []), [rows]);
 
   if (!rows) return <Skeleton active paragraph={{ rows: 6 }} />;
 
@@ -222,10 +237,16 @@ export function BlocklistPage() {
       />
 
       <div style={{ marginTop: 16 }}>
-        <Space>
+        <Space wrap>
           <StopOutlined />
+          <Tag>전체 {summary.total}</Tag>
+          <Tag color="red">활성 {summary.active}</Tag>
+          <Tag>비활성 {summary.inactive}</Tag>
+          <Tag color="blue">접두어 {summary.prefix}</Tag>
+          <Tag color="purple">지사 {summary.branchScoped}</Tag>
+          <Tag color="green">자동등록 {summary.automated}</Tag>
           <Typography.Text type="secondary">
-            접두어 규칙은 동일 패턴으로 시작하는 ANI를 함께 차단합니다. 차단 이력 집계는 아직 후속 범위입니다.
+            접두어 규칙은 동일 패턴으로 시작하는 ANI를 함께 차단합니다.
           </Typography.Text>
         </Space>
       </div>
