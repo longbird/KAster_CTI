@@ -214,7 +214,7 @@ export function IntegrationsPage() {
         `/admin/settings/integrations/${row.integrationAutomationId}/test`,
         { payload: { source: 'admin-test' } },
       );
-      message.success(res.data?.data?.message ?? '테스트 실행 완료 (dry-run)');
+      message.success(res.data?.data?.message ?? '테스트 전송 완료');
       await loadAutomations();
     } catch (error: any) {
       message.error(error?.response?.data?.error?.message ?? '테스트 실패');
@@ -289,8 +289,7 @@ export function IntegrationsPage() {
         }
       >
         <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-          BlueSky <code>DlgVixActionPhone</code> / <code>DlgVixActionSms</code> 등가물. 등록 + 수동 테스트(dry-run)
-          까지 지원합니다. 통화/이벤트 자동 트리거 연결은 follow-up PR.
+          전화/SMS/Webhook 자동화 대상을 등록하고 수동 테스트 전송을 실행합니다. 통화/이벤트 자동 트리거 연결은 follow-up PR.
         </Typography.Paragraph>
         <Table<IntegrationAutomationRow>
           rowKey="integrationAutomationId"

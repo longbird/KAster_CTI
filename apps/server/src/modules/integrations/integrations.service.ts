@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { CreateIntegrationAutomationDto } from './dto/create-integration-automation.dto';
 import { TestIntegrationAutomationDto } from './dto/test-integration-automation.dto';
@@ -86,20 +86,85 @@ export class IntegrationsService {
     dto: TestIntegrationAutomationDto,
   ) {
     const existing = await this.get(tenantId, integrationAutomationId);
-    // dry-run: 실제 외부 호출은 follow-up. 등록된 type/config 와 입력 payload 를 그대로 echo.
+    const delivery = await this.deliver(existing.type, existing.name, existing.config ?? {}, dto.payload ?? {});
     await (this.prisma as any).integrationAutomations.update({
       where: { integrationAutomationId: existing.integrationAutomationId },
       data: { lastTriggeredAt: new Date() },
     });
     return {
       ok: true,
-      dryRun: true,
+      dryRun: false,
       type: existing.type,
       name: existing.name,
-      config: existing.config,
+      target: delivery.target,
+      status: delivery.status,
+      responseBody: delivery.responseBody,
       payload: dto.payload ?? null,
-      message:
-        '실제 외부 호출은 follow-up PR 에서 구현됩니다. 이번 호출은 lastTriggeredAt 만 갱신하는 dry-run 입니다.',
+      message: `외부 연동 테스트 전송 완료 (${delivery.status})`,
     };
+  }
+
+  private async deliver(type: string, name: string, config: Record<string, any>, payload: Record<string, unknown>) {
+    const target = this.resolveTargetUrl(type, config);
+    const headers = this.resolveHeaders(config);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.resolveTimeoutMs(config));
+
+    try {
+      const response = await fetch(target, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type,
+          name,
+          payload,
+        }),
+        signal: controller.signal,
+      });
+      const responseBody = (await response.text()).slice(0, 2000);
+      if (!response.ok) {
+        throw new BadRequestException(`외부 연동 응답 실패: ${response.status}`);
+      }
+      return { target, status: response.status, responseBody };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private resolveTargetUrl(type: string, config: Record<string, any>) {
+    if (type === 'WEBHOOK' || type === 'SLACK_WEBHOOK') {
+      const url = String(config.url ?? '').trim();
+      if (!url) throw new BadRequestException('Webhook URL 이 필요합니다.');
+      return url;
+    }
+
+    const host = String(config.host ?? '').trim();
+    if (!host) throw new BadRequestException('연동 host 가 필요합니다.');
+    const route = String(config.route ?? '').trim();
+    const port = config.port ? `:${Number(config.port)}` : '';
+    const protocol = host.startsWith('http://') || host.startsWith('https://') ? '' : 'http://';
+    const path = route ? `/${route.replace(/^\/+/, '')}` : '';
+    return `${protocol}${host}${port}${path}`;
+  }
+
+  private resolveHeaders(config: Record<string, any>) {
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    const configuredHeaders = config.headers;
+    if (configuredHeaders && typeof configuredHeaders === 'object' && !Array.isArray(configuredHeaders)) {
+      for (const [key, value] of Object.entries(configuredHeaders)) {
+        if (typeof value === 'string') headers[key] = value;
+      }
+    }
+    const authToken = String(config.authToken ?? '').trim();
+    if (authToken) headers.authorization = `Bearer ${authToken}`;
+    const secret = String(config.secret ?? '').trim();
+    if (secret) headers['x-kaster-secret'] = secret;
+    return headers;
+  }
+
+  private resolveTimeoutMs(config: Record<string, any>) {
+    const timeoutMs = Number(config.timeoutMs ?? 5000);
+    if (!Number.isFinite(timeoutMs)) return 5000;
+    return Math.min(Math.max(timeoutMs, 1000), 30000);
   }
 }

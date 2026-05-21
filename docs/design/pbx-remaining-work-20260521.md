@@ -55,11 +55,11 @@ AMI `Command` 액션으로 PBX 시간 조회 명령을 실행하고, 결과에�
 - 관리자 빌드: 공유규칙 화면 안내 문구 갱신 통과.
 - 전체 회귀: 서버 Jest 249 PASS, 관리자 Vitest 98 PASS.
 
-### 5. 운영 후속 묶음 - 다음 작업
+### 5. 운영 후속 묶음 - 진행 중
 
 아래 항목은 M1~M3 진척을 막지는 않지만, 운영 안정화 단계에서 순서대로 처리한다.
 
-- 외부 연동 dry-run 해제.
+- 외부 연동 dry-run 해제: 완료. 등록된 Webhook/Slack Webhook/VIX HTTP 대상에 실제 POST를 보내고 `lastTriggeredAt`을 갱신한다.
 - transfer candidate 만료 처리.
 - 차단 이력 집계.
 - 큐 요약 drill-down.
