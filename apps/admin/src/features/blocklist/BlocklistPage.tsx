@@ -1,9 +1,10 @@
-import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, QuestionCircleOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Tooltip, Typography, message } from 'antd';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { downloadCsv } from '../../shared/lib/csv';
+import { FeatureHelpButton } from '../../shared/help';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { useBranchOptions } from '../../shared/branches/useBranchOptions';
 import {
@@ -140,9 +141,7 @@ export function BlocklistPage() {
           <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 0, whiteSpace: 'nowrap' }}>
             {BLOCKLIST_COPY.pageTitle}
           </Typography.Title>
-          <Tooltip title={BLOCKLIST_COPY.pageDescription}>
-            <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
-          </Tooltip>
+          <FeatureHelpButton featureKey="optout.blocklist080" featureName="080 수신거부" />
         </div>
         <Space wrap={false} style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
           {blocklistPermission?.canExport !== false ? (

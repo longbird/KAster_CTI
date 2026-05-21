@@ -14,6 +14,7 @@ import {
   message,
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 
 interface AgentRow {
@@ -292,6 +293,7 @@ export function BranchAgentCidAuthDrawer({ open, branchId, branchName, onClose }
       title={
         <Space>
           <Typography.Text strong>발신권한 매트릭스</Typography.Text>
+          <FeatureHelpButton featureKey="branch.callerIdMatrix" featureName="발신권한 매트릭스" />
           {branch ? (
             <Tag color="blue">
               {branch.branchName} ({branch.branchCode})

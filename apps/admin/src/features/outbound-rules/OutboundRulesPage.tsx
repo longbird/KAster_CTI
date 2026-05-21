@@ -21,6 +21,7 @@ import {
   message,
 } from 'antd';
 import { useEffect, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 
@@ -190,6 +191,7 @@ export function OutboundRulesPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           아웃바운드 발신번호 룰
         </Typography.Title>
+        <FeatureHelpButton featureKey="outbound.callerIdRule" featureName="아웃바운드 발신번호 룰" />
         <Space>
           <Button icon={<ExperimentOutlined />} onClick={() => setTestOpen(true)}>
             룰 테스트

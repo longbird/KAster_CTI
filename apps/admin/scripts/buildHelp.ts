@@ -1,8 +1,27 @@
-import type { FeatureHelpData, FeatureHelpEntry } from '../src/shared/help/types';
+import type {
+  FeatureHelpData,
+  FeatureHelpEntry,
+  HelpRelatedRoute,
+  HelpReviewStatus,
+  HelpSource,
+} from '../src/shared/help/types';
 
 export interface ScreenFile {
   mmcCode: string;
   label: string;
+}
+
+export interface HelpSourceRecord {
+  featureKey: string;
+  title: string;
+  summary: string;
+  howTo?: string[];
+  examples?: string[];
+  warnings?: string[];
+  relatedRoutes?: HelpRelatedRoute[];
+  sources: HelpSource[];
+  reviewStatus?: HelpReviewStatus;
+  updatedAt?: string;
 }
 
 export function parseScreenFilename(name: string): ScreenFile | null {
@@ -53,6 +72,25 @@ export function screenFilesToDrafts(files: ScreenFile[], today: string): Feature
       sources: [{ kind: 'screen', ref: `3_DM_설정화면/MMC ${file.mmcCode}_${file.label}.png` }],
       reviewStatus: 'AUTO_DRAFT',
       updatedAt: today,
+    };
+  }
+  return out;
+}
+
+export function sourceRecordsToDrafts(records: HelpSourceRecord[], today: string): FeatureHelpData {
+  const out: FeatureHelpData = {};
+  for (const record of records) {
+    out[record.featureKey] = {
+      featureKey: record.featureKey,
+      title: record.title,
+      summary: record.summary,
+      howTo: record.howTo ?? [],
+      examples: record.examples ?? [],
+      warnings: record.warnings ?? ['자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요.'],
+      relatedRoutes: record.relatedRoutes ?? [],
+      sources: record.sources,
+      reviewStatus: record.reviewStatus ?? 'AUTO_DRAFT',
+      updatedAt: record.updatedAt ?? today,
     };
   }
   return out;

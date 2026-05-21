@@ -16,6 +16,7 @@ import {
   message,
 } from 'antd';
 import { useEffect, useState } from 'react';
+import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { usePermissionStore } from '../../store/usePermissionStore';
@@ -269,7 +270,12 @@ export function IntegrationsPage() {
       />
 
       <Card
-        title="외부 자동화 (VIX / Webhook)"
+        title={
+          <Space>
+            <span>외부 자동화 (VIX / Webhook)</span>
+            <FeatureHelpButton featureKey="integration.automation" featureName="외부 자동화" />
+          </Space>
+        }
         size="small"
         style={{ marginBottom: 16 }}
         extra={

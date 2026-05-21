@@ -2,6 +2,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant
 import { Button, Card, Form, Input, Modal, Popconfirm, Select, Skeleton, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { FeatureHelpButton } from '../../shared/help';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import {
   HOLIDAY_RULE_TYPE_LABELS,
@@ -160,9 +161,12 @@ export function HolidaySettingsPage() {
     <Card>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} align="start" wrap>
         <div>
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>
-            공휴일 설정
-          </Typography.Title>
+          <Space align="center">
+            <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>
+              공휴일 설정
+            </Typography.Title>
+            <FeatureHelpButton featureKey="ops.holidayRules" featureName="공휴일 규칙" />
+          </Space>
           <Typography.Text type="secondary">
             지사별 휴무일과 임시 영업일을 관리합니다.
           </Typography.Text>

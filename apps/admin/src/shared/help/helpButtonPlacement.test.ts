@@ -11,6 +11,11 @@ const placements = [
   ['src/features/agent-settings/AgentSettingsPage.tsx', 'agent.extensionDisplayName'],
   ['src/features/agent-settings/AgentSettingsPage.tsx', 'agent.extensionLock'],
   ['src/pages/AsteriskConfigPage.tsx', 'pbx.did'],
+  ['src/features/integrations/IntegrationsPage.tsx', 'integration.automation'],
+  ['src/features/outbound-rules/OutboundRulesPage.tsx', 'outbound.callerIdRule'],
+  ['src/features/holiday-settings/HolidaySettingsPage.tsx', 'ops.holidayRules'],
+  ['src/features/blocklist/BlocklistPage.tsx', 'optout.blocklist080'],
+  ['src/features/branch-settings/BranchAgentCidAuthDrawer.tsx', 'branch.callerIdMatrix'],
 ] as const;
 
 describe('P0 setting screen help button placement', () => {

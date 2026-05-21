@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseScreenFilename, mergeHelpEntries, validateHelpEntry } from './buildHelp';
+import { parseScreenFilename, mergeHelpEntries, validateHelpEntry, sourceRecordsToDrafts } from './buildHelp';
 import type { FeatureHelpEntry } from '../src/shared/help/types';
 
 const approved: FeatureHelpEntry = {
@@ -58,5 +58,36 @@ describe('validateHelpEntry', () => {
 
   it('출처가 없으면 오류', () => {
     expect(validateHelpEntry({ ...approved, sources: [] })).toContain('출처가 비어 있습니다');
+  });
+});
+
+describe('sourceRecordsToDrafts', () => {
+  it('원천 매핑 레코드를 AUTO_DRAFT 도움말 항목으로 변환한다', () => {
+    const drafts = sourceRecordsToDrafts(
+      [
+        {
+          featureKey: 'integration.automation',
+          title: '외부 자동화',
+          summary: 'Webhook/VIX 자동화 대상 설정',
+          howTo: ['자동화 대상을 등록합니다.'],
+          examples: ['통화 종료 이벤트를 Webhook으로 전송합니다.'],
+          warnings: ['외부 URL은 운영 방화벽에서 허용되어야 합니다.'],
+          relatedRoutes: [{ route: '/integrations', label: '연동' }],
+          sources: [
+            { kind: 'spec', ref: 'pbx-selected-features-development-plan-20260514.md' },
+            { kind: 'search', ref: 'https://example.com/webhook', retrievedAt: '2026-05-21' },
+          ],
+        },
+      ],
+      '2026-05-21',
+    );
+
+    expect(drafts['integration.automation']).toMatchObject({
+      featureKey: 'integration.automation',
+      title: '외부 자동화',
+      reviewStatus: 'AUTO_DRAFT',
+      updatedAt: '2026-05-21',
+    });
+    expect(drafts['integration.automation'].sources).toHaveLength(2);
   });
 });
