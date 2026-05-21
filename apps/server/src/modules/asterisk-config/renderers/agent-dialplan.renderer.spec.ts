@@ -252,4 +252,63 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('Set(CALLERID(num)=0222222222)');
     expect(rendered).not.toContain('Set(CALLERID(num)=0211111111)');
   });
+
+  it('outbound caller-id rules — 지사 룰은 해당 지사 상담원 context 에만 반영', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '0299999999',
+      allowedOutboundCallerIds: ['0299999999', '0211111111', '0222222222'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [
+        {
+          extension: '1001',
+          outboundEnabled: true,
+          callerIdPrivacy: 'allowed_not_screened',
+          liveRecordingEnabled: false,
+          branchIds: ['branch-a'],
+        },
+        {
+          extension: '1002',
+          outboundEnabled: true,
+          callerIdPrivacy: 'allowed_not_screened',
+          liveRecordingEnabled: false,
+          branchIds: ['branch-b'],
+        },
+      ],
+      outboundCallerIdRules: [
+        {
+          matchType: 'PREFIX',
+          sourceNumberPattern: '010',
+          callerIdNumber: '0211111111',
+          displayName: 'A지사',
+          priority: 10,
+          enabled: true,
+          branchId: 'branch-a',
+        },
+        {
+          matchType: 'PREFIX',
+          sourceNumberPattern: '011',
+          callerIdNumber: '0222222222',
+          displayName: 'B지사',
+          priority: 10,
+          enabled: true,
+          branchId: 'branch-b',
+        },
+      ],
+    });
+
+    expect(rendered).toContain('Gosub(outbound-cid-rules-1001,${EXTEN},1)');
+    expect(rendered).toContain('Gosub(outbound-cid-rules-1002,${EXTEN},1)');
+
+    const branchAContext = rendered.slice(
+      rendered.indexOf('[outbound-cid-rules-1001]'),
+      rendered.indexOf('[outbound-cid-rules-1002]'),
+    );
+    const branchBContext = rendered.slice(rendered.indexOf('[outbound-cid-rules-1002]'));
+
+    expect(branchAContext).toContain('Set(CALLERID(num)=0211111111)');
+    expect(branchAContext).not.toContain('0222222222');
+    expect(branchBContext).toContain('Set(CALLERID(num)=0222222222)');
+    expect(branchBContext).not.toContain('0211111111');
+  });
 });

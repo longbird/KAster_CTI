@@ -35,16 +35,17 @@ AMI `Command` 액션으로 PBX 시간 조회 명령을 실행하고, 결과에�
 - 관리자 테스트: PBX 설정 API mock shape 통과.
 - 전체 회귀: 서버 Jest 246 PASS, 관리자 Vitest 98 PASS.
 
-### 3. 지사별 outbound caller ID PBX 렌더링 - 다음 작업
+### 3. 지사별 outbound caller ID PBX 렌더링 - 완료
 
-현재 PBX 렌더링은 전역 outbound caller ID 룰만 반영하고, 지사 지정 룰은 지사별 dialplan 분리 후속으로 남아 있다. 지사별 발신 정책이 운영에 필요하면 이 항목을 먼저 구현한다.
+상담원별 outbound CID sub-context를 생성하고, 상담원의 지사 매핑에 해당하는 지사 룰과 전역 룰만 해당 상담원 발신 경로에 반영한다. 이로써 지사 지정 룰이 다른 지사 상담원에게 섞여 적용되는 문제를 피한다.
 
 검증:
 
-- 서버 렌더러 테스트: 전역 룰, 지사 룰, 우선순위 충돌.
-- reload service 테스트: 지사별 룰이 올바른 dialplan 입력으로 전달되는지 확인.
+- 서버 렌더러 테스트: 전역 룰, 지사 룰, 우선순위 충돌 통과.
+- reload service 테스트: 지사별 룰이 상담원 branch mapping을 통해 dialplan preview에 반영되는지 확인.
+- 전체 회귀: 서버 Jest 248 PASS.
 
-### 4. 공유 규칙 PBX 큐 멤버 동기화
+### 4. 공유 규칙 PBX 큐 멤버 동기화 - 다음 작업
 
 관리자 공유 규칙 화면은 존재하지만 PBX 큐 멤버 동기화는 후속으로 남아 있다. 실제 운영에서 그룹 공유 규칙이 큐 멤버를 자동 조정해야 하면 동기화 작업을 추가한다.
 

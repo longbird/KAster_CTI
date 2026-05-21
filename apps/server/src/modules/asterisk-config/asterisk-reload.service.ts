@@ -906,6 +906,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
           liveRecordingEnabled: profile.liveRecording === 'USE',
           extensionLockMode: (agent as any).extensionLockMode ?? 'UNLOCKED',
+          branchIds: ((agent as any).branchMappings ?? []).map((mapping: { branchId: string }) => mapping.branchId),
         };
       }),
       outboundCallerIdRules,
@@ -991,6 +992,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
           liveRecordingEnabled: profile.liveRecording === 'USE',
           extensionLockMode: (agent as any).extensionLockMode ?? 'UNLOCKED',
+          branchIds: ((agent as any).branchMappings ?? []).map((mapping: { branchId: string }) => mapping.branchId),
         };
       }),
       outboundCallerIdRules,
@@ -1192,7 +1194,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   private async fetchTenantData(tenantId: string) {
     const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
-      this.prisma.agents.findMany({ where: { tenantId, isActive: true } }),
+      this.prisma.agents.findMany({
+        where: { tenantId, isActive: true },
+        include: {
+          branchMappings: {
+            select: { branchId: true },
+          },
+        },
+      }),
       this.prisma.asteriskDid.findMany({
         where: { tenantId },
         include: {
@@ -1299,18 +1308,15 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
    * REGEX 룰은 dialplan 으로 옮길 수 없어 NoOp 로깅만 되며, 그 외 타입은
    * native exten 으로 [outbound-cid-rules] 컨텍스트에 등록된다.
    *
-   * IMPORTANT: dialplan 은 현재 단일 [outbound-cid-rules] 컨텍스트로 모든
-   * 상담원 발신을 라우팅한다. 따라서 branchId 가 있는 (지사 한정) 룰을
-   * 그대로 섞으면 다른 지사 상담원의 발신에도 적용된다. 지사별 dialplan
-   * 분리는 별도 follow-up PR 이며, 그 전까지는 **전역 룰(`branchId IS NULL`)
-   * 만** PBX 에 반영한다. 지사 한정 룰은 화면/저장은 가능하지만 dialplan
-   * 반영은 보류한다.
+   * branchId 가 있는 룰은 해당 지사에 매핑된 상담원별 CID sub-context 에만
+   * 반영한다. 전역 룰은 모든 상담원 context 에 포함된다.
    */
   private async fetchOutboundCallerIdRules(tenantId: string) {
     const rows = await (this.prisma as any).outboundCallerIdRules.findMany({
-      where: { tenantId, enabled: true, branchId: null },
+      where: { tenantId, enabled: true },
       orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
       select: {
+        branchId: true,
         matchType: true,
         sourceNumberPattern: true,
         callerIdNumber: true,
@@ -1321,6 +1327,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     });
     return rows as Array<{
       matchType: 'EXACT' | 'PREFIX' | 'REGEX' | 'DIALPLAN_PATTERN';
+      branchId: string | null;
       sourceNumberPattern: string;
       callerIdNumber: string;
       displayName: string | null;

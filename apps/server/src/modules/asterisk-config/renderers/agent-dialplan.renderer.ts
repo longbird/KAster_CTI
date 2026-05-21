@@ -11,6 +11,7 @@ export interface AgentDialplanAgentInput {
   callerIdPrivacy: 'allowed_not_screened' | 'prohib';
   liveRecordingEnabled: boolean;
   extensionLockMode?: 'UNLOCKED' | 'OUTBOUND_LOCKED' | 'FULL_LOCKED';
+  branchIds?: string[];
 }
 
 export type OutboundCallerIdRuleMatchType =
@@ -26,6 +27,7 @@ export interface OutboundCallerIdRuleInput {
   displayName: string | null;
   priority: number;
   enabled: boolean;
+  branchId?: string | null;
 }
 
 export interface AgentDialplanInput {
@@ -91,7 +93,7 @@ function renderAgentOutboundRoute(
   agent: AgentDialplanAgentInput,
   trunkEndpoint: string | null,
   callerId: string | null,
-  hasRules: boolean,
+  cidRulesContextName: string | null,
 ): string {
   const contextName = `outbound-main-${agent.extension}`;
   const lines = [
@@ -109,10 +111,10 @@ function renderAgentOutboundRoute(
   assertNoNewlines(trunkEndpoint, 'trunkEndpoint');
 
   lines.push(...buildRecordFileLines());
-  if (hasRules) {
+  if (cidRulesContextName) {
     // 룰 sub-context 가 CALLERID(num) / CALLERID(name) 을 set 후 Return.
     // sub-context 의 fallback 이 defaultCallerId 도 처리하므로 inline Set 은 제거.
-    lines.push(' same => n,Gosub(outbound-cid-rules,${EXTEN},1)');
+    lines.push(` same => n,Gosub(${cidRulesContextName},\${EXTEN},1)`);
   } else {
     lines.push(` same => n,Set(CALLERID(num)=${callerId})`);
     lines.push(` same => n,Set(CALLERID(name)=${callerId})`);
@@ -146,6 +148,7 @@ function ruleToDialplanExten(rule: OutboundCallerIdRuleInput): string | null {
 }
 
 function renderOutboundCidRules(
+  contextName: string,
   defaultCallerId: string | null,
   rules: OutboundCallerIdRuleInput[],
 ): string | null {
@@ -158,7 +161,7 @@ function renderOutboundCidRules(
     return null;
   }
 
-  const lines = ['[outbound-cid-rules]'];
+  const lines = [`[${contextName}]`];
   // dialplan 평가 시 most-specific 매칭이 우선. priority 가 같은 specificity 내
   // 충돌을 의도하는 운영자 헤더용 NoOp 으로만 표시한다.
   const seenPatterns = new Set<string>();
@@ -211,6 +214,18 @@ function renderOutboundCidRules(
   return lines.join('\n');
 }
 
+function getAgentCidContextName(agent: AgentDialplanAgentInput, hasBranchScopedRules: boolean) {
+  return hasBranchScopedRules ? `outbound-cid-rules-${agent.extension}` : 'outbound-cid-rules';
+}
+
+function getAgentOutboundCidRules(
+  agent: AgentDialplanAgentInput,
+  rules: OutboundCallerIdRuleInput[],
+) {
+  const branchIds = new Set(agent.branchIds ?? []);
+  return rules.filter((rule) => !rule.branchId || branchIds.has(rule.branchId));
+}
+
 function renderPreBridgeAgentBranch(agent: AgentDialplanAgentInput): string {
   const lines = [
     `[agent-pre-bridge-${agent.extension}]`,
@@ -250,9 +265,20 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
   const hasUsableRules = rules.some(
     (r) => r.enabled && r.matchType !== 'REGEX',
   );
-  const cidRulesContext = hasUsableRules
-    ? renderOutboundCidRules(input.defaultOutboundCallerId, rules)
-    : null;
+  const hasBranchScopedRules = rules.some((r) => r.enabled && !!r.branchId);
+  const cidRuleContexts = hasUsableRules
+    ? (
+      hasBranchScopedRules
+        ? input.agents
+          .map((agent) => renderOutboundCidRules(
+            getAgentCidContextName(agent, true),
+            input.defaultOutboundCallerId,
+            getAgentOutboundCidRules(agent, rules),
+          ))
+          .filter((context): context is string => Boolean(context))
+        : [renderOutboundCidRules('outbound-cid-rules', input.defaultOutboundCallerId, rules)].filter((context): context is string => Boolean(context))
+    )
+    : [];
 
   const header = [
     '[agent-phone]',
@@ -284,7 +310,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
         agent,
         primaryTrunkEndpoint,
         input.defaultOutboundCallerId,
-        Boolean(cidRulesContext),
+        hasUsableRules ? getAgentCidContextName(agent, hasBranchScopedRules) : null,
       ),
     ),
     fromQueue,
@@ -293,9 +319,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
     ...input.agents.map(renderPreBridgeAgentBranch),
   ];
 
-  if (cidRulesContext) {
-    sections.push(cidRulesContext);
-  }
+  sections.push(...cidRuleContexts);
 
   return sections.join('\n\n');
 }
