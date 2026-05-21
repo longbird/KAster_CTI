@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   MENU_KEYS,
@@ -9,6 +9,7 @@ import {
 } from '../../common/menu-permission.service';
 import { parseAllowedCallerIds, serializeAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
+import { AmiConnectionService } from '../ami/ami-connection.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { EventBusService } from '../events/event-bus.service';
 import { HealthSummaryService } from '../health/health-summary.service';
@@ -32,7 +33,7 @@ import { UpdateBranchMappingsDto } from './dto/update-branch-mappings.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import { classifyDidInboundRoute } from './branch-did-route';
-import { computeTimeSyncStatus } from './time-sync-status';
+import { computeTimeSyncStatus, extractPbxTimeFromAmiFrames, unknownTimeSyncStatus } from './time-sync-status';
 
 interface PersistedPermissionRow {
   menuKey: string;
@@ -808,6 +809,7 @@ export class AdminService {
     private readonly healthSummary: HealthSummaryService,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly eventBus: EventBusService,
+    @Optional() private readonly ami?: AmiConnectionService,
   ) {}
 
   private buildPermissionMatrix(
@@ -2642,7 +2644,51 @@ export class AdminService {
     const rows = await this.prisma.$queryRaw<Array<{ now: Date }>>`SELECT NOW() AS now`;
     const rawDbNow = rows[0]?.now;
     const dbNow = rawDbNow instanceof Date ? rawDbNow : new Date(String(rawDbNow ?? appNow.toISOString()));
-    return computeTimeSyncStatus({ appNow, dbNow });
+
+    if (!this.ami) {
+      return computeTimeSyncStatus({
+        appNow,
+        referenceNow: dbNow,
+        dbNow,
+        source: 'database',
+      });
+    }
+
+    try {
+      const pbxNow = await this.fetchPbxTime();
+      if (!pbxNow) {
+        return unknownTimeSyncStatus({
+          appNow,
+          dbNow,
+          source: 'pbx',
+          error: 'PBX time command returned no parseable time',
+        });
+      }
+      return computeTimeSyncStatus({
+        appNow,
+        referenceNow: pbxNow,
+        dbNow,
+        source: 'pbx',
+      });
+    } catch (error) {
+      return unknownTimeSyncStatus({
+        appNow,
+        dbNow,
+        source: 'pbx',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async fetchPbxTime(): Promise<Date | null> {
+    const command = process.env.PBX_TIME_AMI_COMMAND?.trim()
+      || 'dialplan eval function STRFTIME(${EPOCH},,%Y-%m-%dT%H:%M:%S%z)';
+    const timeoutMs = Number(process.env.PBX_TIME_AMI_TIMEOUT_MS ?? '3000');
+    const frames = await this.ami!.sendActionWithResponse(
+      { Action: 'Command', Command: command },
+      { timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 3000 },
+    );
+    return extractPbxTimeFromAmiFrames(frames);
   }
 
   async getSystemTimeSyncStatus() {

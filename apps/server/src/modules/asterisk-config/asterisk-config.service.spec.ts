@@ -1,6 +1,74 @@
 import { AsteriskConfigService } from './asterisk-config.service';
 
 describe('AsteriskConfigService blocklist import', () => {
+  it('stores trunk display number without changing caller ID policy', async () => {
+    const prisma = {
+      asteriskTrunk: {
+        create: jest.fn().mockResolvedValue({
+          id: 'trunk-1',
+          tenantId: 'tenant-1',
+          name: 'KT 15991234',
+          host: '203.0.113.10',
+          port: 5060,
+          username: '',
+          password: '',
+          fromDomain: '',
+          displayNumber: '1234',
+          codecs: 'alaw,ulaw',
+          enabled: true,
+        }),
+      },
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    const result = await service.createTrunk('tenant-1', {
+      name: 'KT 15991234',
+      host: '203.0.113.10',
+      displayNumber: '1234',
+    });
+
+    expect(prisma.asteriskTrunk.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        displayNumber: '1234',
+      }),
+    });
+    expect(result).toMatchObject({
+      displayNumber: '1234',
+      computedDisplayNumber: '1234',
+    });
+    expect(reload.scheduleReload).toHaveBeenCalledWith('tenant-1');
+  });
+
+  it('computes a trunk display number from the trunk name when no manual value exists', async () => {
+    const prisma = {
+      asteriskTrunk: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'trunk-1',
+          tenantId: 'tenant-1',
+          name: 'KT 15991234',
+          host: '203.0.113.10',
+          port: 5060,
+          username: '',
+          password: '',
+          fromDomain: '',
+          displayNumber: null,
+          codecs: 'alaw,ulaw',
+          enabled: true,
+        }]),
+      },
+    } as any;
+    const service = new AsteriskConfigService(prisma, { scheduleReload: jest.fn() } as any, {} as any, {} as any);
+
+    await expect(service.getTrunks('tenant-1')).resolves.toEqual([
+      expect.objectContaining({
+        displayNumber: null,
+        computedDisplayNumber: '1234',
+      }),
+    ]);
+  });
+
   it('schedules an Asterisk reload when an agent SIP password is cleared', async () => {
     const prisma = {
       agents: {

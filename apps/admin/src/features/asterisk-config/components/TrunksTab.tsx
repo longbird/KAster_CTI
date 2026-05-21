@@ -63,6 +63,14 @@ export function TrunksTab() {
     { title: 'Host', dataIndex: 'host' },
     { title: '포트', dataIndex: 'port', width: 80 },
     {
+      title: '표시번호',
+      dataIndex: 'computedDisplayNumber',
+      width: 120,
+      render: (value: string | null, row: AsteriskTrunk) => (
+        value ? <Tag color={row.displayNumber ? 'blue' : 'default'}>{value}</Tag> : <Tag>미지정</Tag>
+      ),
+    },
+    {
       title: '인증',
       dataIndex: 'username',
       render: (value: string) => (value ? value : <Tag>무인증</Tag>),
@@ -114,7 +122,7 @@ export function TrunksTab() {
           pagination={false}
           size="small"
           tableLayout="fixed"
-          scroll={{ x: 860 }}
+          scroll={{ x: 980 }}
         />
       </Card>
       <TrunkForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />

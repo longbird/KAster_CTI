@@ -21,6 +21,7 @@ export function TrunkForm({ open, initial, onOk, onCancel }: Props) {
       username: values.useAuthentication ? values.username : '',
       password: values.useAuthentication ? values.password : '',
       fromDomain: values.fromDomain,
+      displayNumber: values.displayNumber?.replace(/\D/g, '') || null,
       codecs: values.codecs,
       enabled: values.enabled,
     };
@@ -59,6 +60,21 @@ export function TrunkForm({ open, initial, onOk, onCancel }: Props) {
         </Form.Item>
         <Form.Item name="port" label="포트">
           <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="displayNumber"
+          label="표시번호"
+          rules={[
+            {
+              validator: async (_, value) => {
+                const normalized = String(value ?? '').replace(/\D/g, '');
+                if (!normalized || /^\d{2,16}$/.test(normalized)) return;
+                throw new Error('표시번호는 2~16자리 숫자로 입력하세요.');
+              },
+            },
+          ]}
+        >
+          <Input placeholder="1234" />
         </Form.Item>
         <Form.Item name="useAuthentication" label="인증 사용" valuePropName="checked">
           <Switch checkedChildren="사용" unCheckedChildren="미사용" />

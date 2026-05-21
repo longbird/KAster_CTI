@@ -10,8 +10,8 @@ function headers(): Record<string, string> {
 const base = `${API_BASE_URL}/asterisk-config`;
 
 const mockTrunks: AsteriskTrunk[] = [
-  { id: 'mock-trunk-1', name: 'KT SIP Trunk', host: '203.0.113.10', port: 5060, username: 'cti-main', password: '********', fromDomain: 'pbx.example.local', codecs: 'ulaw,alaw', enabled: true },
-  { id: 'mock-trunk-2', name: 'Backup Trunk', host: '203.0.113.20', port: 5060, username: '', password: '', fromDomain: '', codecs: 'ulaw', enabled: false },
+  { id: 'mock-trunk-1', name: 'KT SIP Trunk', host: '203.0.113.10', port: 5060, username: 'cti-main', password: '********', fromDomain: 'pbx.example.local', displayNumber: '1234', computedDisplayNumber: '1234', codecs: 'ulaw,alaw', enabled: true },
+  { id: 'mock-trunk-2', name: 'Backup Trunk', host: '203.0.113.20', port: 5060, username: '', password: '', fromDomain: '', displayNumber: null, computedDisplayNumber: null, codecs: 'ulaw', enabled: false },
 ];
 const mockDids: AsteriskDid[] = [
   {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { PrismaService } from '../../common/prisma.service';
+import { AmiModule } from '../ami/ami.module';
 import { AsteriskConfigModule } from '../asterisk-config/asterisk-config.module';
 import { EventsModule } from '../events/events.module';
 import { HealthModule } from '../health/health.module';
@@ -10,7 +11,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
 @Module({
-  imports: [QueuesModule, AsteriskConfigModule, HealthModule, RealtimeModule, EventsModule],
+  imports: [QueuesModule, AmiModule, AsteriskConfigModule, HealthModule, RealtimeModule, EventsModule],
   controllers: [AdminController],
   providers: [AdminService, PrismaService, MenuPermissionService],
 })

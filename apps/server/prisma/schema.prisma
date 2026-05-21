@@ -783,6 +783,7 @@ model AsteriskTrunk {
   username   String   @db.VarChar(128)
   password   String   @db.Text
   fromDomain String   @db.VarChar(255)
+  displayNumber String? @db.VarChar(32)
   codecs     String   @default("alaw,ulaw") @db.VarChar(64)
   enabled    Boolean  @default(true)
   createdAt  DateTime @default(now()) @db.Timestamptz(6)

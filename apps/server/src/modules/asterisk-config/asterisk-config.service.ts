@@ -250,8 +250,9 @@ export class AsteriskConfigService {
 
   // ─── Trunks ────────────────────────────────────────────────────────────────
 
-  getTrunks(tenantId: string) {
-    return this.prisma.asteriskTrunk.findMany({ where: { tenantId }, orderBy: { name: 'asc' } });
+  async getTrunks(tenantId: string) {
+    const trunks = await this.prisma.asteriskTrunk.findMany({ where: { tenantId }, orderBy: { name: 'asc' } });
+    return trunks.map((trunk) => this.withComputedDisplayNumber(trunk));
   }
 
   async createTrunk(tenantId: string, dto: CreateTrunkDto) {
@@ -263,7 +264,7 @@ export class AsteriskConfigService {
       },
     });
     this.reload.scheduleReload(tenantId);
-    return trunk;
+    return this.withComputedDisplayNumber(trunk);
   }
 
   async createTrunksBulk(tenantId: string, dto: CreateBulkTrunksDto) {
@@ -275,6 +276,7 @@ export class AsteriskConfigService {
         username: dto.username,
         password: dto.password,
         fromDomain: dto.fromDomain,
+        displayNumber: dto.displayNumber,
         codecs: dto.codecs,
         enabled: dto.enabled,
       }),
@@ -292,7 +294,7 @@ export class AsteriskConfigService {
     );
 
     this.reload.scheduleReload(tenantId);
-    return created;
+    return created.map((trunk) => this.withComputedDisplayNumber(trunk));
   }
 
   /** Full-replace PUT — all fields must be provided. */
@@ -303,7 +305,7 @@ export class AsteriskConfigService {
       data: this.normalizeTrunkInput(dto),
     });
     this.reload.scheduleReload(tenantId);
-    return trunk;
+    return this.withComputedDisplayNumber(trunk);
   }
 
   async deleteTrunk(tenantId: string, id: string) {
@@ -336,8 +338,32 @@ export class AsteriskConfigService {
       username,
       password,
       fromDomain: dto.fromDomain?.trim() ?? '',
+      displayNumber: this.normalizeDisplayNumber(dto.displayNumber),
       codecs: dto.codecs ?? 'alaw,ulaw',
       enabled: dto.enabled ?? true,
+    };
+  }
+
+  private normalizeDisplayNumber(value?: string | null) {
+    const normalized = value?.replace(/\D/g, '') ?? '';
+    if (normalized && (normalized.length < 2 || normalized.length > 16)) {
+      throw new BadRequestException('displayNumber must be 2-16 digits');
+    }
+    return normalized || null;
+  }
+
+  private computeTrunkDisplayNumber(trunk: { displayNumber?: string | null; username?: string | null; name?: string | null }) {
+    if (trunk.displayNumber?.trim()) return trunk.displayNumber.trim();
+    const candidate = [trunk.username, trunk.name]
+      .map((value) => value?.replace(/\D/g, '') ?? '')
+      .find((value) => value.length >= 4);
+    return candidate ? candidate.slice(-4) : null;
+  }
+
+  private withComputedDisplayNumber<T extends { displayNumber?: string | null; username?: string | null; name?: string | null }>(trunk: T) {
+    return {
+      ...trunk,
+      computedDisplayNumber: this.computeTrunkDisplayNumber(trunk),
     };
   }
 

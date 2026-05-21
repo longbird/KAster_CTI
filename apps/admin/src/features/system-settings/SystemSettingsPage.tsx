@@ -21,8 +21,10 @@ interface TimeSyncStatusView {
   status: 'OK' | 'WARNING' | 'CRITICAL' | 'UNKNOWN';
   driftSeconds: number;
   appTime: string;
-  dbTime: string;
-  source: string;
+  dbTime?: string;
+  pbxTime?: string | null;
+  source: 'database' | 'pbx' | string;
+  error?: string;
 }
 
 const TIMEZONE_OPTIONS = [
@@ -90,7 +92,7 @@ export function SystemSettingsPage() {
       const res = await apiClient.get('/admin/settings/system/time-sync');
       setTimeSync(res.data?.data ?? null);
     } catch {
-      setTimeSync({ status: 'UNKNOWN', driftSeconds: 0, appTime: '', dbTime: '', source: 'database' });
+      setTimeSync({ status: 'UNKNOWN', driftSeconds: 0, appTime: '', dbTime: '', pbxTime: null, source: 'pbx' });
     }
   };
 
@@ -191,11 +193,18 @@ export function SystemSettingsPage() {
                 </Button>
               </Space>
               <Typography.Text type="secondary">
-                앱 서버와 DB 기준 시간 차이: {timeSync ? `${timeSync.driftSeconds}초` : '확인 중'}
+                앱 서버와 {timeSync?.source === 'pbx' ? 'PBX' : 'DB'} 기준 시간 차이: {timeSync ? `${timeSync.driftSeconds}초` : '확인 중'}
               </Typography.Text>
-              {timeSync?.appTime && timeSync?.dbTime ? (
+              {timeSync?.appTime && (timeSync?.pbxTime || timeSync?.dbTime) ? (
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  서버 {timeSync.appTime} / DB {timeSync.dbTime}
+                  서버 {timeSync.appTime}
+                  {timeSync.pbxTime ? ` / PBX ${timeSync.pbxTime}` : ''}
+                  {timeSync.dbTime ? ` / DB ${timeSync.dbTime}` : ''}
+                </Typography.Text>
+              ) : null}
+              {timeSync?.status === 'UNKNOWN' && timeSync?.error ? (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  확인 실패: {timeSync.error}
                 </Typography.Text>
               ) : null}
             </Space>

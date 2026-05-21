@@ -8,6 +8,7 @@ export class CreateTrunkDto {
   @IsOptional() @IsString() username?: string;
   @IsOptional() @IsString() password?: string;
   @IsOptional() @IsString() fromDomain?: string;
+  @IsOptional() @IsString() @Matches(/^$|^\d{2,16}$/, { message: 'displayNumber must be 2-16 digits' }) displayNumber?: string;
   @IsOptional() @IsString() @Matches(/^[a-z0-9,]+$/, { message: 'codecs must be comma-separated codec names (e.g. alaw,ulaw)' }) codecs?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
 }
@@ -27,6 +28,7 @@ export class CreateBulkTrunksDto {
   @IsOptional() @IsString() username?: string;
   @IsOptional() @IsString() password?: string;
   @IsOptional() @IsString() fromDomain?: string;
+  @IsOptional() @IsString() @Matches(/^$|^\d{2,16}$/, { message: 'displayNumber must be 2-16 digits' }) displayNumber?: string;
   @IsOptional() @IsString() @Matches(/^[a-z0-9,]+$/, { message: 'codecs must be comma-separated codec names (e.g. alaw,ulaw)' }) codecs?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
   @IsArray()

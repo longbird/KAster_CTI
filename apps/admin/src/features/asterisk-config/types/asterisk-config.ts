@@ -6,6 +6,8 @@ export interface AsteriskTrunk {
   username: string;
   password: string;
   fromDomain: string;
+  displayNumber: string | null;
+  computedDisplayNumber: string | null;
   codecs: string;
   enabled: boolean;
 }
@@ -17,6 +19,7 @@ export interface AsteriskTrunkInput {
   username?: string;
   password?: string;
   fromDomain?: string;
+  displayNumber?: string | null;
   codecs?: string;
   enabled?: boolean;
 }
@@ -34,6 +37,7 @@ export interface AsteriskBulkTrunkInput {
   username?: string;
   password?: string;
   fromDomain?: string;
+  displayNumber?: string | null;
   codecs?: string;
   enabled?: boolean;
   entries: AsteriskBulkTrunkEntryInput[];
