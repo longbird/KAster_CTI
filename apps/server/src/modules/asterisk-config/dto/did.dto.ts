@@ -1,11 +1,11 @@
 import { IsBoolean, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 
 export class CreateDidDto {
-  @IsString() @Matches(/^[0-9+_X.!\[\]-]+$/, { message: 'did must be a valid E.164 number or Asterisk extension pattern' }) did: string;
-  @IsOptional() @IsString() representativeNumber?: string;
+  @IsString() @Matches(/^[0-9+_X.!\[\]-]+$/, { message: 'DID는 유효한 대표번호 또는 PBX 내선 패턴이어야 합니다.' }) did: string;
+  @IsOptional() @IsString({ message: '대표번호는 문자열이어야 합니다.' }) representativeNumber?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsUUID() ivrMenuId?: string;
-  @IsOptional() @IsString() directQueue?: string;
+  @IsOptional() @IsString({ message: '직접 연결할 호 분배룰은 문자열이어야 합니다.' }) directQueue?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
 }
 

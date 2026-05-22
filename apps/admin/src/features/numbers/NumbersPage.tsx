@@ -1,7 +1,12 @@
-import { Skeleton, Table, Tag } from 'antd';
+import { Skeleton, Table, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
+import {
+  buildNumberResourceRows,
+  type NumberResourceRow,
+  type NumberResourceType,
+} from './numberResources';
 
 interface DidRow {
   id: string;
@@ -9,6 +14,8 @@ interface DidRow {
   description?: string | null;
   primaryQueueName?: string | null;
   ivrMenuName?: string | null;
+  directQueue?: string | null;
+  ivrMenuId?: string | null;
   recordingEnabled?: boolean;
   representativeNumber?: string | null;
   isActive?: boolean;
@@ -22,25 +29,44 @@ interface AgentExtRow {
   isActive: boolean;
 }
 
+interface QueueNumberRow {
+  queueId: string;
+  queueName: string;
+  queueDisplayName?: string | null;
+  queueExten?: string | null;
+  isActive?: boolean;
+}
+
+const RESOURCE_TYPE_LABEL: Record<NumberResourceType, string> = {
+  DID: 'DID',
+  EXTENSION: '상담원 내선',
+  QUEUE: '호 분배룰 내선',
+  FEATURE_CODE: '기능 코드',
+};
+
 export function NumbersPage() {
   const [dids, setDids] = useState<DidRow[] | null>(null);
   const [agents, setAgents] = useState<AgentExtRow[] | null>(null);
+  const [queues, setQueues] = useState<QueueNumberRow[] | null>(null);
 
   useEffect(() => {
     let active = true;
     const run = async () => {
       try {
-        const [didsRes, agentsRes] = await Promise.all([
+        const [didsRes, agentsRes, queuesRes] = await Promise.all([
           apiClient.get('/asterisk-config/dids').catch(() => ({ data: { data: [] } })),
           apiClient.get('/agents').catch(() => ({ data: { data: [] } })),
+          apiClient.get('/queues').catch(() => ({ data: { data: [] } })),
         ]);
         if (!active) return;
         setDids(didsRes.data?.data ?? []);
         setAgents(agentsRes.data?.data ?? []);
+        setQueues(queuesRes.data?.data ?? []);
       } catch {
         if (!active) return;
         setDids([]);
         setAgents([]);
+        setQueues([]);
       }
     };
     void run();
@@ -56,7 +82,12 @@ export function NumbersPage() {
     return `${Math.min(...nums)} – ${Math.max(...nums)}`;
   }, [agents]);
 
-  if (!dids || !agents) return <Skeleton active paragraph={{ rows: 10 }} />;
+  const numberResources = useMemo(
+    () => buildNumberResourceRows({ dids: dids ?? [], agents: agents ?? [], queues: queues ?? [] }),
+    [dids, agents, queues],
+  );
+
+  if (!dids || !agents || !queues) return <Skeleton active paragraph={{ rows: 10 }} />;
 
   return (
     <>
@@ -83,6 +114,52 @@ export function NumbersPage() {
           <div className="adm-kpi-value">{agents.filter((a) => a.isActive).length}</div>
         </div>
       </div>
+
+      <section className="adm-card" style={{ marginBottom: 16 }}>
+        <div className="adm-card-head" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-1)' }}>
+          <strong style={{ fontSize: 13 }}>번호 자원 / 기능 코드</strong>
+          <span className="k-mono" style={{ fontSize: 10, color: 'var(--fg-3)', marginLeft: 8, letterSpacing: '0.1em' }}>
+            ROUTING INDEX
+          </span>
+        </div>
+        <Table<NumberResourceRow>
+          rowKey="id"
+          dataSource={numberResources}
+          pagination={false}
+          size="small"
+          columns={[
+            {
+              title: '번호',
+              dataIndex: 'number',
+              width: 140,
+              render: (value: string, row) => (
+                <Typography.Text className="k-mono" type={row.hasConflict ? 'danger' : undefined}>
+                  {value}
+                </Typography.Text>
+              ),
+            },
+            {
+              title: '유형',
+              dataIndex: 'resourceType',
+              width: 140,
+              render: (value: NumberResourceType) => RESOURCE_TYPE_LABEL[value],
+            },
+            { title: '이름', dataIndex: 'label' },
+            { title: '연결/동작', dataIndex: 'routeSummary' },
+            {
+              title: '화면 이동',
+              dataIndex: 'targetRoute',
+              render: (value: string | null) => value ? <span className="k-mono">{value}</span> : '-',
+            },
+            {
+              title: '충돌',
+              dataIndex: 'hasConflict',
+              width: 80,
+              render: (value: boolean) => value ? <Tag color="red">충돌</Tag> : <Tag color="green">정상</Tag>,
+            },
+          ]}
+        />
+      </section>
 
       <section className="adm-card">
         <div className="adm-card-head" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-1)' }}>
@@ -112,7 +189,10 @@ export function NumbersPage() {
             },
             {
               title: '큐 / IVR',
-              render: (_: unknown, r: DidRow) => r.primaryQueueName || r.ivrMenuName || '-',
+              render: (_: unknown, r: DidRow) => {
+                if (r.ivrMenuName || r.ivrMenuId) return r.ivrMenuName || 'ARS 사용';
+                return r.primaryQueueName || r.directQueue || '-';
+              },
             },
             {
               title: '녹취',
