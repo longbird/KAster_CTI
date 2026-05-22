@@ -252,8 +252,11 @@ export class AsteriskConfigService {
   // ─── Trunks ────────────────────────────────────────────────────────────────
 
   async getTrunks(tenantId: string) {
-    const trunks = await this.prisma.asteriskTrunk.findMany({ where: { tenantId }, orderBy: { name: 'asc' } });
-    return trunks.map((trunk) => this.withComputedDisplayNumber(trunk));
+    const [trunks, representativeNumber] = await Promise.all([
+      this.prisma.asteriskTrunk.findMany({ where: { tenantId }, orderBy: { name: 'asc' } }),
+      this.getTenantRepresentativeNumber(tenantId),
+    ]);
+    return trunks.map((trunk) => this.withComputedDisplayNumber(trunk, representativeNumber));
   }
 
   async createTrunk(tenantId: string, dto: CreateTrunkDto) {
@@ -346,26 +349,48 @@ export class AsteriskConfigService {
   }
 
   private normalizeDisplayNumber(value?: string | null) {
-    const normalized = value?.replace(/\D/g, '') ?? '';
+    const normalized = value?.trim() ?? '';
+    if (normalized && !/^\d+$/.test(normalized)) {
+      throw new BadRequestException('displayNumber must be 2-16 digits');
+    }
     if (normalized && (normalized.length < 2 || normalized.length > 16)) {
       throw new BadRequestException('displayNumber must be 2-16 digits');
     }
     return normalized || null;
   }
 
-  private computeTrunkDisplayNumber(trunk: { displayNumber?: string | null; username?: string | null; name?: string | null }) {
+  private computeTrunkDisplayNumber(
+    trunk: { displayNumber?: string | null; username?: string | null; name?: string | null },
+    representativeNumber?: string | null,
+  ) {
     if (trunk.displayNumber?.trim()) return trunk.displayNumber.trim();
-    const candidate = [trunk.username, trunk.name]
+    const candidate = [representativeNumber, trunk.username, trunk.name]
       .map((value) => value?.replace(/\D/g, '') ?? '')
       .find((value) => value.length >= 4);
     return candidate ? candidate.slice(-4) : null;
   }
 
-  private withComputedDisplayNumber<T extends { displayNumber?: string | null; username?: string | null; name?: string | null }>(trunk: T) {
+  private withComputedDisplayNumber<T extends { displayNumber?: string | null; username?: string | null; name?: string | null }>(
+    trunk: T,
+    representativeNumber?: string | null,
+  ) {
     return {
       ...trunk,
-      computedDisplayNumber: this.computeTrunkDisplayNumber(trunk),
+      computedDisplayNumber: this.computeTrunkDisplayNumber(trunk, representativeNumber),
     };
+  }
+
+  private async getTenantRepresentativeNumber(tenantId: string) {
+    const did = await this.prisma.asteriskDid.findFirst({
+      where: {
+        tenantId,
+        representativeNumber: { not: null },
+        enabled: true,
+      },
+      orderBy: { did: 'asc' },
+      select: { representativeNumber: true },
+    });
+    return did?.representativeNumber ?? null;
   }
 
   // ─── DIDs ──────────────────────────────────────────────────────────────────

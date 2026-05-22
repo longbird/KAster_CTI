@@ -113,6 +113,9 @@ describe('AsteriskConfigService blocklist import', () => {
           enabled: true,
         }]),
       },
+      asteriskDid: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     } as any;
     const service = new AsteriskConfigService(prisma, { scheduleReload: jest.fn() } as any, {} as any, {} as any);
 
@@ -122,6 +125,76 @@ describe('AsteriskConfigService blocklist import', () => {
         computedDisplayNumber: '1234',
       }),
     ]);
+  });
+
+  it('uses a DID representative number as the automatic trunk display fallback', async () => {
+    const prisma = {
+      asteriskTrunk: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'trunk-1',
+          tenantId: 'tenant-1',
+          name: 'KT primary',
+          host: '203.0.113.10',
+          port: 5060,
+          username: '',
+          password: '',
+          fromDomain: '',
+          displayNumber: null,
+          codecs: 'alaw,ulaw',
+          enabled: true,
+        }]),
+      },
+      asteriskDid: {
+        findFirst: jest.fn().mockResolvedValue({ representativeNumber: '15991234' }),
+      },
+    } as any;
+    const service = new AsteriskConfigService(prisma, { scheduleReload: jest.fn() } as any, {} as any, {} as any);
+
+    await expect(service.getTrunks('tenant-1')).resolves.toEqual([
+      expect.objectContaining({
+        displayNumber: null,
+        computedDisplayNumber: '1234',
+      }),
+    ]);
+    expect(prisma.asteriskDid.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        representativeNumber: { not: null },
+        enabled: true,
+      },
+      orderBy: { did: 'asc' },
+      select: { representativeNumber: true },
+    });
+  });
+
+  it('rejects a manual trunk display number that contains non-digit characters', async () => {
+    const prisma = {
+      asteriskTrunk: {
+        create: jest.fn().mockResolvedValue({
+          id: 'trunk-1',
+          tenantId: 'tenant-1',
+          name: 'KT 15991234',
+          host: '203.0.113.10',
+          port: 5060,
+          username: '',
+          password: '',
+          fromDomain: '',
+          displayNumber: '12',
+          codecs: 'alaw,ulaw',
+          enabled: true,
+        }),
+      },
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    await expect(service.createTrunk('tenant-1', {
+      name: 'KT 15991234',
+      host: '203.0.113.10',
+      displayNumber: '12AB',
+    })).rejects.toThrow('displayNumber must be 2-16 digits');
+    expect(prisma.asteriskTrunk.create).not.toHaveBeenCalled();
+    expect(reload.scheduleReload).not.toHaveBeenCalled();
   });
 
   it('schedules an Asterisk reload when an agent SIP password is cleared', async () => {
