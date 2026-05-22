@@ -219,15 +219,15 @@ export function ForwardingSettingsPage() {
               if (row.forwardTriggerMode === 'AFTER_QUEUE_WAIT') {
                 return (
                   <Space direction="vertical" size={0}>
-                    <Typography.Text>대기 후 착신</Typography.Text>
+                    <Typography.Text>대기시간 초과</Typography.Text>
                     <Typography.Text type="secondary">{row.queueWaitSeconds ?? '-'}초 후 전환</Typography.Text>
                   </Space>
                 );
               }
               if (row.forwardTriggerMode === 'SMART_NO_READY') {
-                return <Tag color="purple">대기 상담원 없을 때 착신</Tag>;
+                return <Tag color="purple">상담원 없음</Tag>;
               }
-              return <Tag color="green">즉시 착신</Tag>;
+              return <Tag color="green">즉시</Tag>;
             },
           },
           {
@@ -240,7 +240,7 @@ export function ForwardingSettingsPage() {
                   <Space direction="vertical" size={0}>
                     {schedules.map((schedule, index) => (
                       <Typography.Text key={`${row.id}-schedule-${index}`}>
-                        {schedule.daysOfWeek.map((day) => WEEKDAY_LABELS[day] ?? day).join(', ')} {schedule.timeStart}-{schedule.timeEnd}
+                        시간 조건 {schedule.daysOfWeek.map((day) => WEEKDAY_LABELS[day] ?? day).join(', ')} {schedule.timeStart}-{schedule.timeEnd}
                       </Typography.Text>
                     ))}
                   </Space>

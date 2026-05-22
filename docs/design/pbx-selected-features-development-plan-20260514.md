@@ -262,26 +262,26 @@
 
 **데이터 계획:**
 
-- [ ] `asteriskForwardingRules.forwardTriggerMode`를 `즉시`, `대기시간 초과`, `상담원 없음`, `시간 조건`으로 화면 표시한다.
-- [ ] `scheduleJson`은 복수 시간표를 저장하는 표준 필드로 사용한다.
-- [ ] 단일 `timeStart`, `timeEnd`, `daysOfWeek`는 하위 호환 필드로 유지한다.
+- [x] `asteriskForwardingRules.forwardTriggerMode`를 `즉시`, `대기시간 초과`, `상담원 없음`, `시간 조건`으로 화면 표시한다.
+- [x] `scheduleJson`은 복수 시간표를 저장하는 표준 필드로 사용한다.
+- [x] 단일 `timeStart`, `timeEnd`, `daysOfWeek`는 하위 호환 필드로 유지한다.
 
 **서버 계획:**
 
-- [ ] `apps/server/src/modules/asterisk-config/dto/forwarding-rule.dto.ts`에서 복수 시간표 검증을 강화한다.
-- [ ] `apps/server/src/modules/asterisk-config/asterisk-config.service.ts`에서 시간표 정규화 함수를 분리한다.
-- [ ] `apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts`에서 조건별 분기 결과를 테스트로 고정한다.
+- [x] `apps/server/src/modules/asterisk-config/dto/forwarding-rule.dto.ts`에서 복수 시간표 검증을 강화한다.
+- [x] `apps/server/src/modules/asterisk-config/asterisk-config.service.ts`에서 시간표 정규화 함수를 분리한다.
+- [x] `apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts`에서 조건별 분기 결과를 테스트로 고정한다.
 
 **관리자 UI 계획:**
 
-- [ ] `apps/admin/src/features/forwarding-settings/ForwardingRuleModal.tsx`에서 복수 시간 조건 UI를 안정화한다.
-- [ ] 동일 고객 재착신 옵션은 착신 조건과 별도 고급 옵션으로 유지한다.
-- [ ] 지사 설정 화면에서 착신전환 규칙을 참조할 때 조건 요약을 함께 표시한다.
+- [x] `apps/admin/src/features/forwarding-settings/ForwardingRuleModal.tsx`에서 복수 시간 조건 UI를 안정화한다.
+- [x] 동일 고객 재착신 옵션은 착신 조건과 별도 고급 옵션으로 유지한다.
+- [x] 지사 설정 화면에서 착신전환 규칙을 참조할 때 조건 요약을 함께 표시한다.
 
 **검증:**
 
-- [ ] 즉시 전환, 대기시간 후 전환, 상담원 없음 전환, 시간 조건 전환 테스트를 분리한다.
-- [ ] 시간 범위가 자정을 넘는 경우의 정책을 명시하고 테스트한다.
+- [x] 즉시 전환, 대기시간 후 전환, 상담원 없음 전환, 시간 조건 전환 테스트를 분리한다.
+- [x] 시간 범위가 자정을 넘는 경우의 정책을 명시하고 테스트한다.
 
 ### 4. 내선 표시명
 

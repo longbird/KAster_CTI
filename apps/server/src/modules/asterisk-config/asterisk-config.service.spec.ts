@@ -1,6 +1,61 @@
 import { AsteriskConfigService } from './asterisk-config.service';
 
 describe('AsteriskConfigService blocklist import', () => {
+  it('rejects invalid forwarding schedule times before saving a forwarding rule', async () => {
+    const prisma = {
+      asteriskDid: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'did-1', directQueue: 'sales', ivrMenuId: null }),
+      },
+      asteriskForwardingRules: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({
+          id: 'rule-1',
+          tenantId: 'tenant-1',
+          didId: 'did-1',
+          forwardType: 'QUEUE',
+          targetValue: 'night',
+          forwardTriggerMode: 'IMMEDIATE',
+          queueWaitSeconds: null,
+          stickyCallbackWindowMinutes: null,
+          conditionType: 'TIME_RANGE',
+          timeStart: '25:00',
+          timeEnd: '06:00',
+          daysOfWeek: 'mon',
+          scheduleJson: JSON.stringify([
+            { conditionType: 'TIME_RANGE', timeStart: '25:00', timeEnd: '06:00', daysOfWeek: ['mon'] },
+          ]),
+          description: null,
+          enabled: true,
+          did: { id: 'did-1', did: '0212345678', description: null },
+        }),
+      },
+      queues: {
+        findFirst: jest.fn().mockResolvedValue({ queueId: 'queue-1' }),
+      },
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    await expect(
+      service.createForwardingRule('tenant-1', {
+        didId: 'did-1',
+        forwardType: 'QUEUE',
+        targetValue: 'night',
+        forwardTriggerMode: 'IMMEDIATE',
+        schedules: [
+          {
+            conditionType: 'TIME_RANGE',
+            timeStart: '25:00',
+            timeEnd: '06:00',
+            daysOfWeek: ['mon'],
+          },
+        ],
+      }),
+    ).rejects.toThrow('timeStart must be in HH:mm format');
+    expect(prisma.asteriskForwardingRules.create).not.toHaveBeenCalled();
+    expect(reload.scheduleReload).not.toHaveBeenCalled();
+  });
+
   it('stores trunk display number without changing caller ID policy', async () => {
     const prisma = {
       asteriskTrunk: {

@@ -49,12 +49,12 @@ function formatTarget(rule: BranchForwardingRuleOption): string {
 
 function formatTrigger(rule: BranchForwardingRuleOption): string {
   if (rule.forwardTriggerMode === 'AFTER_QUEUE_WAIT') {
-    return `대기 후 착신 ${rule.queueWaitSeconds ?? '-'}초`;
+    return `대기시간 초과 ${rule.queueWaitSeconds ?? '-'}초`;
   }
   if (rule.forwardTriggerMode === 'SMART_NO_READY') {
-    return '대기 상담원 없을 때 착신';
+    return '상담원 없음';
   }
-  return '즉시 착신';
+  return '즉시';
 }
 
 function formatSchedule(rule: BranchForwardingRuleOption): string {
@@ -74,12 +74,13 @@ function formatSchedule(rule: BranchForwardingRuleOption): string {
     return '항상 적용';
   }
 
-  return schedules
+  const scheduleText = schedules
     .map((schedule) => {
       const days = schedule.daysOfWeek.map((day) => WEEKDAY_LABELS[day] ?? day).join(', ');
       return `${days || '요일 미지정'} ${schedule.timeStart ?? '--:--'}-${schedule.timeEnd ?? '--:--'}`;
     })
     .join(' / ');
+  return `시간 조건 ${scheduleText}`;
 }
 
 export function formatBranchForwardingRuleLabel(rule: BranchForwardingRuleOption): string {

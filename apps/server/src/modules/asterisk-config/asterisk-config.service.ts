@@ -24,6 +24,7 @@ const FORWARDING_TRIGGER_MODES = new Set(['IMMEDIATE', 'AFTER_QUEUE_WAIT', 'SMAR
 const BLOCKLIST_MATCH_TYPES = new Set(['EXACT', 'PREFIX']);
 const WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const WEEKDAY_SET = new Set(WEEKDAY_ORDER);
+const TIME_TEXT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const PROMPT_AUDIO_EXTENSIONS = new Set(['.wav', '.mp3', '.gsm', '.ulaw', '.alaw']);
 
 interface ParsedWavAudio {
@@ -946,6 +947,12 @@ export class AsteriskConfigService {
 
       if (!timeStart || !timeEnd || daysOfWeek.length === 0) {
         throw new BadRequestException('timeStart, timeEnd, and daysOfWeek are required for TIME_RANGE');
+      }
+      if (!TIME_TEXT_PATTERN.test(timeStart)) {
+        throw new BadRequestException('timeStart must be in HH:mm format');
+      }
+      if (!TIME_TEXT_PATTERN.test(timeEnd)) {
+        throw new BadRequestException('timeEnd must be in HH:mm format');
       }
       if (timeStart === timeEnd) {
         throw new BadRequestException('timeStart and timeEnd must not be identical');

@@ -89,9 +89,9 @@ const APPLY_MODE_OPTIONS = [
 ];
 
 const TRIGGER_MODE_OPTIONS = [
-  { value: 'IMMEDIATE', label: '즉시 착신' },
-  { value: 'AFTER_QUEUE_WAIT', label: '대기 후 착신' },
-  { value: 'SMART_NO_READY', label: '스마트 착신' },
+  { value: 'IMMEDIATE', label: '즉시' },
+  { value: 'AFTER_QUEUE_WAIT', label: '대기시간 초과' },
+  { value: 'SMART_NO_READY', label: '상담원 없음' },
 ];
 
 const WEEKDAY_OPTIONS = [
@@ -308,7 +308,7 @@ export function ForwardingRuleModal({
             </Form.Item>
             {!supportsQueueTrigger ? (
               <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                이 DID는 직접 연결되는 대기큐가 없어 `즉시 착신`만 사용할 수 있습니다.
+                이 DID는 직접 연결되는 대기큐가 없어 즉시 조건만 사용할 수 있습니다.
               </Typography.Text>
             ) : null}
             <Form.Item

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatBranchForwardingRuleLabel } from './branchForwardingRuleLabel';
 
 describe('formatBranchForwardingRuleLabel', () => {
-  it('대기 후 착신, 시간표, 재착신 조건을 한 줄 요약으로 표시한다', () => {
+  it('대기시간 초과, 시간 조건, 재착신 조건을 한 줄 요약으로 표시한다', () => {
     expect(
       formatBranchForwardingRuleLabel({
         id: 'rule-1',
@@ -30,11 +30,11 @@ describe('formatBranchForwardingRuleLabel', () => {
         },
       }),
     ).toBe(
-      '02-1234-5678 → 외부 번호 010-1234-5678 · 대기 후 착신 30초 · 월, 화 22:00-06:00 · 동일 고객 15분 내 재착신',
+      '02-1234-5678 → 외부 번호 010-1234-5678 · 대기시간 초과 30초 · 시간 조건 월, 화 22:00-06:00 · 동일 고객 15분 내 재착신',
     );
   });
 
-  it('스마트 착신과 항상 적용 규칙을 간단히 표시한다', () => {
+  it('상담원 없음 조건과 항상 적용 규칙을 간단히 표시한다', () => {
     expect(
       formatBranchForwardingRuleLabel({
         id: 'rule-2',
@@ -54,6 +54,6 @@ describe('formatBranchForwardingRuleLabel', () => {
           description: null,
         },
       }),
-    ).toBe('031-111-2222 → 호 분배룰 support · 대기 상담원 없을 때 착신 · 항상 적용');
+    ).toBe('031-111-2222 → 호 분배룰 support · 상담원 없음 · 항상 적용');
   });
 });
