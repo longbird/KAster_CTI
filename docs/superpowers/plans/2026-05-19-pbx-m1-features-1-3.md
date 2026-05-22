@@ -1,6 +1,8 @@
 # PBX M1 기능 1~3 Implementation Plan
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox syntax for tracking.
+
+> **Completion reconciliation (2026-05-22):** 이 실행계획서는 최신 상위 계획서 `docs/design/pbx-selected-features-development-plan-20260514.md`와 커밋 이력을 기준으로 완료 상태로 정리했다. 운영 DB `prisma migrate deploy`와 운영 PBX 반영 검증은 코드 완료 판정에 포함하지 않고 별도 운영 절차로 분리한다.
 
 **Goal:** PBX 선별 수용 계획서 M1의 P0 기능 1~3(지사별 DID/ARS/착신 정책, 외부 착신 방식 정의, 착신전환 조건 다양화)을 서버 검증·저장·렌더링 계층과 관리자 UI에 통합하고, 각 설정 화면에 공통 도움말 아이콘을 적용한다.
 
@@ -87,11 +89,11 @@
 - Create: `apps/admin/src/shared/help/index.ts`
 - Modify: `apps/admin/.env.example`
 
-- [ ] **Step 1: 도움말 명세서 Task 1~6 실행**
+- [x] **Step 1: 도움말 명세서 Task 1~6 실행**
 
 `docs/superpowers/plans/2026-05-19-pbx-feature-help.md`의 Task 1~6을 명세서에 적힌 코드와 커밋 메시지 그대로 수행한다. (Task 7 "6개 화면 적용"과 Chunk 5 "빌드 스크립트"는 본 플랜 범위 밖 — **실행하지 않는다**.)
 
-- [ ] **Step 2: 도움말 시드 JSON에 기능 1~3 키 존재 확인**
+- [x] **Step 2: 도움말 시드 JSON에 기능 1~3 키 존재 확인**
 
 Run (cwd `apps/admin`):
 
@@ -101,7 +103,7 @@ node -e "const d=require('./src/shared/help/pbxFeatureHelp.generated.json'); ['b
 
 Expected: `help keys OK` (3개 키 모두 `APPROVED` 상태로 시드되어 있음 — 명세서 Task 2).
 
-- [ ] **Step 3: 도움말 테스트/빌드 확인**
+- [x] **Step 3: 도움말 테스트/빌드 확인**
 
 Run (cwd `apps/admin`): `npx vitest run src/shared/help/ && npx tsc -b`
 Expected: 도움말 테스트 전부 PASS, 타입 오류 0.
@@ -118,7 +120,7 @@ Expected: 도움말 테스트 전부 PASS, 타입 오류 0.
 - Create: `apps/server/src/modules/admin/branch-did-route.ts`
 - Test: `apps/server/src/modules/admin/branch-did-route.spec.ts`
 
-- [ ] **Step 1: 실패 테스트 작성**
+- [x] **Step 1: 실패 테스트 작성**
 
 ```ts
 // apps/server/src/modules/admin/branch-did-route.spec.ts
@@ -148,12 +150,12 @@ describe('classifyDidInboundRoute', () => {
 });
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run (cwd `apps/server`): `npx jest src/modules/admin/branch-did-route.spec.ts`
 Expected: FAIL — `classifyDidInboundRoute` 미정의.
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 ```ts
 // apps/server/src/modules/admin/branch-did-route.ts
@@ -180,12 +182,12 @@ export function classifyDidInboundRoute(facts: DidRouteFacts): DidInboundRoute {
 }
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `npx jest src/modules/admin/branch-did-route.spec.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/server/src/modules/admin/branch-did-route.ts apps/server/src/modules/admin/branch-did-route.spec.ts
@@ -199,7 +201,7 @@ git commit -m "feat(server): add DID inbound route classifier"
 **Files:**
 - Modify: `apps/server/src/modules/admin/admin.service.ts` (`getBranchMappings`)
 
-- [ ] **Step 1: DID 조회 select 확장**
+- [x] **Step 1: DID 조회 select 확장**
 
 `getBranchMappings` 안의 `this.prisma.asteriskDid.findMany` 호출(`availableDids` 용)의 `select`를 다음으로 바꾼다:
 
@@ -217,7 +219,7 @@ git commit -m "feat(server): add DID inbound route classifier"
       }),
 ```
 
-- [ ] **Step 2: import 추가**
+- [x] **Step 2: import 추가**
 
 `admin.service.ts` 상단 import 영역에 추가:
 
@@ -225,7 +227,7 @@ git commit -m "feat(server): add DID inbound route classifier"
 import { classifyDidInboundRoute } from './branch-did-route';
 ```
 
-- [ ] **Step 3: 응답의 `availableDids` 매핑 변경**
+- [x] **Step 3: 응답의 `availableDids` 매핑 변경**
 
 `getBranchMappings`의 `return { success: true, data: { ... } }` 블록에서 `availableDids: dids,` 를 다음으로 교체한다 (`forwardingRules`는 같은 메서드에서 이미 조회됨):
 
@@ -245,12 +247,12 @@ import { classifyDidInboundRoute } from './branch-did-route';
         })(),
 ```
 
-- [ ] **Step 4: 빌드 확인**
+- [x] **Step 4: 빌드 확인**
 
 Run (cwd `apps/server`): `npx tsc --noEmit`
 Expected: 타입 오류 0.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/server/src/modules/admin/admin.service.ts
@@ -267,7 +269,7 @@ git commit -m "feat(server): include DID inbound route in branch mappings"
 - Modify: `apps/server/src/modules/admin/admin.service.ts` (`updateBranchMappings`)
 - Create: `apps/server/test/admin.service.branch-did.spec.ts`
 
-- [ ] **Step 1: schema 에 글로벌 유니크 추가**
+- [x] **Step 1: schema 에 글로벌 유니크 추가**
 
 `apps/server/prisma/schema.prisma`의 `branchDids` 모델에서 기존 `@@unique([branchId, didId])` 줄 바로 아래에 추가한다:
 
@@ -277,7 +279,7 @@ git commit -m "feat(server): include DID inbound route in branch mappings"
 
 > 의미: 동일 테넌트 안에서 한 DID는 최대 한 지사에만 연결될 수 있다. 동시 저장이나 우회 경로에서도 DB가 거절한다.
 
-- [ ] **Step 2: 마이그레이션 SQL 작성**
+- [x] **Step 2: 마이그레이션 SQL 작성**
 
 `apps/server/prisma/migrations/20260520_branch_did_global_unique/migration.sql` 생성:
 
@@ -288,7 +290,7 @@ CREATE UNIQUE INDEX "branchDids_tenantId_didId_key" ON "branchDids" ("tenantId",
 
 > 사전 점검: `SELECT "tenantId","didId",COUNT(*) FROM "branchDids" GROUP BY 1,2 HAVING COUNT(*)>1;` 로 중복 매핑이 없는지 확인. 운영 데이터가 있으면 정리 후 진행(개발 DB에서는 보통 비어 있음).
 
-- [ ] **Step 3: 마이그레이션 적용**
+- [x] **Step 3: 마이그레이션 적용**
 
 Postgres 가 기동 상태인지 확인하고(없으면 `docker compose up -d postgres redis`) Run (cwd `apps/server`):
 
@@ -298,7 +300,7 @@ npx prisma migrate deploy
 
 Expected: 마이그레이션 `20260520_branch_did_global_unique` 적용 성공.
 
-- [ ] **Step 4: Prisma Client 재생성**
+- [x] **Step 4: Prisma Client 재생성**
 
 Run (cwd `apps/server`):
 
@@ -308,7 +310,7 @@ npx prisma generate
 
 Expected: 클라이언트 재생성 성공.
 
-- [ ] **Step 5: 실패 테스트 작성 (RED)**
+- [x] **Step 5: 실패 테스트 작성 (RED)**
 
 `apps/server/test/admin.service.optout.spec.ts`의 `createService()` 모킹 패턴을 따라 새 spec을 만든다.
 
@@ -389,7 +391,7 @@ describe('AdminService updateBranchMappings DID conflict', () => {
 Run (cwd `apps/server`): `npx jest test/admin.service.branch-did.spec.ts`
 Expected: 첫 테스트 FAIL — 검증 블록 아직 없음.
 
-- [ ] **Step 6: 서비스 검증 블록 추가 (GREEN)**
+- [x] **Step 6: 서비스 검증 블록 추가 (GREEN)**
 
 `updateBranchMappings`에서 `if (!currentMappings) { throw ... }` 직후, `effectiveQueueIds` 계산 이전에 추가한다:
 
@@ -416,12 +418,12 @@ Expected: 첫 테스트 FAIL — 검증 블록 아직 없음.
 
 > `BadRequestException`은 `admin.service.ts`에 이미 import 되어 있다. `branchDids` 모델에는 `branch` 관계가 정의돼 있다. DB 유니크가 최종 방어선이지만, 사전 검사로 운영자에게 충돌 지사명을 알려준다.
 
-- [ ] **Step 7: 테스트/빌드 통과 확인**
+- [x] **Step 7: 테스트/빌드 통과 확인**
 
 Run: `npx jest test/admin.service.branch-did.spec.ts && npx tsc --noEmit`
 Expected: 두 테스트 PASS, 타입 오류 0.
 
-- [ ] **Step 8: 커밋**
+- [x] **Step 8: 커밋**
 
 ```bash
 git add apps/server/prisma/schema.prisma apps/server/prisma/migrations/20260520_branch_did_global_unique apps/server/src/modules/admin/admin.service.ts apps/server/test/admin.service.branch-did.spec.ts
@@ -433,7 +435,7 @@ git commit -m "feat(server): enforce branch-DID uniqueness and add conflict guar
 **Files:**
 - Modify: `apps/admin/src/features/branch-settings/BranchMappingsModal.tsx`
 
-- [ ] **Step 1: `availableDids` 타입에 `inboundRoute` 추가**
+- [x] **Step 1: `availableDids` 타입에 `inboundRoute` 추가**
 
 `MappingResponse` 인터페이스의 `availableDids` 줄을 교체한다:
 
@@ -446,7 +448,7 @@ git commit -m "feat(server): enforce branch-DID uniqueness and add conflict guar
   }>;
 ```
 
-- [ ] **Step 2: 착신 경로 라벨 상수 추가**
+- [x] **Step 2: 착신 경로 라벨 상수 추가**
 
 파일 상단 `FORWARD_TYPE_LABEL` 상수 옆에 추가:
 
@@ -459,13 +461,13 @@ const DID_ROUTE_META: Record<string, { label: string; color: string }> = {
 };
 ```
 
-- [ ] **Step 3: import 에 `FeatureHelpButton` 추가**
+- [x] **Step 3: import 에 `FeatureHelpButton` 추가**
 
 ```ts
 import { FeatureHelpButton } from '../../shared/help';
 ```
 
-- [ ] **Step 4: DID 라벨에 착신 경로 표기 + DID 요약**
+- [x] **Step 4: DID 라벨에 착신 경로 표기 + DID 요약**
 
 `didOptions` 계산을 다음으로 교체해 라벨 끝에 경로를 표기한다:
 
@@ -507,7 +509,7 @@ import { FeatureHelpButton } from '../../shared/help';
 
 > `Tag`, `Space`는 이 파일에서 이미 import 되어 있다.
 
-- [ ] **Step 5: 모달 제목에 도움말 버튼 적용**
+- [x] **Step 5: 모달 제목에 도움말 버튼 적용**
 
 `<Modal title={...}>` 의 `title` prop을 다음으로 교체한다:
 
@@ -520,19 +522,19 @@ import { FeatureHelpButton } from '../../shared/help';
       }
 ```
 
-- [ ] **Step 6: 빌드/기존 테스트 확인**
+- [x] **Step 6: 빌드/기존 테스트 확인**
 
 Run (cwd `apps/admin`): `npx tsc -b && npx vitest run`
 Expected: 타입 오류 0, 기존 테스트 전부 PASS.
 
-- [ ] **Step 7: 수동 스모크**
+- [x] **Step 7: 수동 스모크**
 
 `npm run dev -- --port 5174` 후 지사 운영 설정 모달에서 확인:
 - 인입 DID 셀렉트의 각 옵션 라벨 끝에 착신 경로(ARS/직접 분배룰/착신전환/미설정)가 표기된다.
 - DID 선택 시 아래에 경로 태그가 나타난다.
 - 모달 제목 옆 물음표 아이콘 클릭 시 도움말 Drawer가 열린다.
 
-- [ ] **Step 8: 커밋**
+- [x] **Step 8: 커밋**
 
 ```bash
 git add apps/admin/src/features/branch-settings/BranchMappingsModal.tsx
@@ -551,7 +553,7 @@ git commit -m "feat(admin): show DID inbound route and help in branch mappings"
 - Modify: `apps/server/prisma/schema.prisma` (`queues` 모델)
 - Create: `apps/server/prisma/migrations/20260519_queue_distribution_mode/migration.sql`
 
-- [ ] **Step 1: 스키마에 컬럼 추가**
+- [x] **Step 1: 스키마에 컬럼 추가**
 
 `apps/server/prisma/schema.prisma`의 `queues` 모델에서 `strategy` 줄 바로 아래에 추가:
 
@@ -559,7 +561,7 @@ git commit -m "feat(admin): show DID inbound route and help in branch mappings"
   distributionMode    String    @default("DISTRIBUTE") @db.VarChar(16)
 ```
 
-- [ ] **Step 2: 마이그레이션 SQL 작성**
+- [x] **Step 2: 마이그레이션 SQL 작성**
 
 `apps/server/prisma/migrations/20260519_queue_distribution_mode/migration.sql` 생성:
 
@@ -568,7 +570,7 @@ git commit -m "feat(admin): show DID inbound route and help in branch mappings"
 ALTER TABLE "queues" ADD COLUMN "distributionMode" VARCHAR(16) NOT NULL DEFAULT 'DISTRIBUTE';
 ```
 
-- [ ] **Step 3: 마이그레이션 적용**
+- [x] **Step 3: 마이그레이션 적용**
 
 Postgres 가 기동 상태인지 확인하고(없으면 `docker compose up -d postgres redis`) Run (cwd `apps/server`):
 
@@ -578,7 +580,7 @@ npx prisma migrate deploy
 
 Expected: 마이그레이션 `20260519_queue_distribution_mode` 적용 성공.
 
-- [ ] **Step 4: Prisma Client 재생성**
+- [x] **Step 4: Prisma Client 재생성**
 
 Run (cwd `apps/server`):
 
@@ -588,7 +590,7 @@ npx prisma generate
 
 Expected: `node_modules/.prisma/client` 의 타입에 `queues.distributionMode` 가 반영됨. **이 단계를 건너뛰면 Task 9 에서 `distributionMode` 사용 시 타입 오류가 발생한다.**
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/server/prisma/schema.prisma apps/server/prisma/migrations/20260519_queue_distribution_mode
@@ -601,7 +603,7 @@ git commit -m "feat(server): add queues.distributionMode column"
 - Create: `apps/server/src/modules/queues/distribution-mode.ts`
 - Test: `apps/server/src/modules/queues/distribution-mode.spec.ts`
 
-- [ ] **Step 1: 실패 테스트 작성**
+- [x] **Step 1: 실패 테스트 작성**
 
 ```ts
 // apps/server/src/modules/queues/distribution-mode.spec.ts
@@ -633,12 +635,12 @@ describe('isDistributionMode', () => {
 });
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run (cwd `apps/server`): `npx jest src/modules/queues/distribution-mode.spec.ts`
 Expected: FAIL — 함수 미정의.
 
-- [ ] **Step 3: 최소 구현 작성**
+- [x] **Step 3: 최소 구현 작성**
 
 ```ts
 // apps/server/src/modules/queues/distribution-mode.ts
@@ -672,12 +674,12 @@ export function resolveQueueStrategy(
 }
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `npx jest src/modules/queues/distribution-mode.spec.ts`
 Expected: PASS (6 tests).
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/server/src/modules/queues/distribution-mode.ts apps/server/src/modules/queues/distribution-mode.spec.ts
@@ -690,7 +692,7 @@ git commit -m "feat(server): add queue distribution mode strategy mapping"
 - Modify: `apps/server/src/modules/queues/dto/create-queue.dto.ts`
 - Modify: `apps/server/src/modules/queues/dto/update-queue.dto.ts`
 
-- [ ] **Step 1: `CreateQueueDto`에 필드 추가**
+- [x] **Step 1: `CreateQueueDto`에 필드 추가**
 
 `create-queue.dto.ts` 상단 상수 옆에 추가:
 
@@ -706,16 +708,16 @@ const DISTRIBUTION_MODES = ['SEQUENTIAL', 'DISTRIBUTE', 'UNCONDITIONAL'] as cons
   distributionMode?: string;
 ```
 
-- [ ] **Step 2: `UpdateQueueDto`에 동일 필드 추가**
+- [x] **Step 2: `UpdateQueueDto`에 동일 필드 추가**
 
 `update-queue.dto.ts` 상단에 `DISTRIBUTION_MODES` 상수를 동일하게 추가하고, `strategy` 필드 아래에 같은 `distributionMode` 블록을 추가한다.
 
-- [ ] **Step 3: 빌드 확인**
+- [x] **Step 3: 빌드 확인**
 
 Run (cwd `apps/server`): `npx tsc --noEmit`
 Expected: 타입 오류 0.
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add apps/server/src/modules/queues/dto/create-queue.dto.ts apps/server/src/modules/queues/dto/update-queue.dto.ts
@@ -727,7 +729,7 @@ git commit -m "feat(server): add distributionMode to queue DTOs"
 **Files:**
 - Modify: `apps/server/src/modules/queues/queues.service.ts`
 
-- [ ] **Step 1: import 추가**
+- [x] **Step 1: import 추가**
 
 `queues.service.ts` 상단 import 영역에 추가:
 
@@ -735,7 +737,7 @@ git commit -m "feat(server): add distributionMode to queue DTOs"
 import { resolveQueueStrategy, type DistributionMode } from './distribution-mode';
 ```
 
-- [ ] **Step 2: `create`에서 distributionMode 저장 + strategy 확정**
+- [x] **Step 2: `create`에서 distributionMode 저장 + strategy 확정**
 
 `create` 메서드의 `tx.queues.create` 호출 `data` 블록에서 `strategy: dto.strategy ?? 'leastrecent',` 줄을 다음으로 교체한다:
 
@@ -749,7 +751,7 @@ import { resolveQueueStrategy, type DistributionMode } from './distribution-mode
 
 같은 `create` 메서드의 `select` 블록에 `distributionMode: true,`를 추가한다.
 
-- [ ] **Step 3: `update`에서 distributionMode 반영**
+- [x] **Step 3: `update`에서 distributionMode 반영**
 
 `update` 메서드의 `tx.queues.update` 호출 `data` 블록에서 `...(dto.strategy !== undefined && { strategy: dto.strategy }),` 줄을 다음으로 교체한다:
 
@@ -769,16 +771,16 @@ import { resolveQueueStrategy, type DistributionMode } from './distribution-mode
 
 같은 `update` 메서드의 `select` 블록에 `distributionMode: true,`를 추가한다.
 
-- [ ] **Step 4: `listSettings` select 확장**
+- [x] **Step 4: `listSettings` select 확장**
 
 `listSettings`의 `this.prisma.queues.findMany` `select` 블록에 `distributionMode: true,`를 추가한다 (UI 테이블 표시용).
 
-- [ ] **Step 5: 빌드 확인**
+- [x] **Step 5: 빌드 확인**
 
 Run (cwd `apps/server`): `npx tsc --noEmit`
 Expected: 타입 오류 0.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/server/src/modules/queues/queues.service.ts
@@ -790,7 +792,7 @@ git commit -m "feat(server): persist distributionMode and derive queue strategy"
 **Files:**
 - Modify: `apps/admin/src/features/queue-settings/queueStrategy.ts`
 
-- [ ] **Step 1: 외부 착신 방식 옵션/라벨 추가**
+- [x] **Step 1: 외부 착신 방식 옵션/라벨 추가**
 
 `queueStrategy.ts` 끝에 추가:
 
@@ -811,7 +813,7 @@ export function getDistributionModeLabel(mode?: string | null) {
 }
 ```
 
-- [ ] **Step 2: 커밋**
+- [x] **Step 2: 커밋**
 
 ```bash
 git add apps/admin/src/features/queue-settings/queueStrategy.ts
@@ -825,7 +827,7 @@ git commit -m "feat(admin): add external inbound mode options"
 **Files:**
 - Modify: `apps/admin/src/features/queue-settings/QueueCreateModal.tsx`
 
-- [ ] **Step 1: import 변경**
+- [x] **Step 1: import 변경**
 
 ```ts
 import { DISTRIBUTION_MODE_OPTIONS, QUEUE_STRATEGY_OPTIONS } from './queueStrategy';
@@ -834,7 +836,7 @@ import { FeatureHelpButton } from '../../shared/help';
 
 `antd` import 목록에 `Radio`를 추가한다.
 
-- [ ] **Step 2: 폼 타입과 초기값에 `distributionMode` 추가**
+- [x] **Step 2: 폼 타입과 초기값에 `distributionMode` 추가**
 
 `Form.useForm` 제네릭 객체 타입에 추가:
 
@@ -844,7 +846,7 @@ import { FeatureHelpButton } from '../../shared/help';
 
 `<Form ... initialValues={{ ... }}>`의 `initialValues`에 `distributionMode: 'DISTRIBUTE',`를 추가한다.
 
-- [ ] **Step 3: distributionMode watch + 기본 설정 카드 수정**
+- [x] **Step 3: distributionMode watch + 기본 설정 카드 수정**
 
 컴포넌트 본문 `const [form] = Form.useForm...` 아래에 추가:
 
@@ -863,7 +865,7 @@ import { FeatureHelpButton } from '../../shared/help';
               </Form.Item>
 ```
 
-- [ ] **Step 4: 모달 제목에 도움말 버튼**
+- [x] **Step 4: 모달 제목에 도움말 버튼**
 
 `<Modal title="신규 호 분배룰 생성" ...>`의 `title`을 교체한다:
 
@@ -878,12 +880,12 @@ import { FeatureHelpButton } from '../../shared/help';
 
 > `Space`는 이 파일에서 이미 import 되어 있다.
 
-- [ ] **Step 5: 빌드 확인**
+- [x] **Step 5: 빌드 확인**
 
 Run (cwd `apps/admin`): `npx tsc -b`
 Expected: 타입 오류 0.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/admin/src/features/queue-settings/QueueCreateModal.tsx
@@ -896,11 +898,11 @@ git commit -m "feat(admin): add external inbound mode to queue create modal"
 - Modify: `apps/admin/src/features/queue-settings/QueueEditModal.tsx`
 - Modify: `apps/admin/src/features/queue-settings/QueueSettingsPage.tsx`
 
-- [ ] **Step 1: `QueueEditModal.tsx` 먼저 읽기**
+- [x] **Step 1: `QueueEditModal.tsx` 먼저 읽기**
 
 `QueueEditModal.tsx` 전체를 읽어 폼 필드 구성과 `strategy` 입력 위치를 파악한다.
 
-- [ ] **Step 2: 수정 모달에 외부 착신 방식 적용**
+- [x] **Step 2: 수정 모달에 외부 착신 방식 적용**
 
 Task 11과 동일 패턴으로 `QueueEditModal.tsx`를 수정한다:
 - `DISTRIBUTION_MODE_OPTIONS`, `Radio` import.
@@ -911,7 +913,7 @@ Task 11과 동일 패턴으로 `QueueEditModal.tsx`를 수정한다:
 
 > 편집 저장 시 폼이 `distributionMode`와 `strategy`를 함께 PATCH/PUT 페이로드에 담아야 한다. 기존 저장 코드가 폼 값 전체를 전송하면 자동 포함된다 — 전송 필드를 명시적으로 골라 담는 코드라면 `distributionMode`를 추가한다.
 
-- [ ] **Step 3: `QueueSettingsPage.tsx` 테이블에 외부 착신 방식 열 추가**
+- [x] **Step 3: `QueueSettingsPage.tsx` 테이블에 외부 착신 방식 열 추가**
 
 `QueueSettingsPage.tsx`에서:
 - import: `import { getDistributionModeLabel } from './queueStrategy';`
@@ -928,7 +930,7 @@ Task 11과 동일 패턴으로 `QueueEditModal.tsx`를 수정한다:
 
 > `Tag`가 이 파일에 import 돼 있지 않으면 `antd` import에 추가한다.
 
-- [ ] **Step 4: 페이지 헤드에 도움말 버튼**
+- [x] **Step 4: 페이지 헤드에 도움말 버튼**
 
 `QueueSettingsPage.tsx`의 페이지 제목 영역에 `FeatureHelpButton`을 추가한다. 화면이 `AdmPageHead`를 쓰면 `right` 슬롯에, `Typography.Title`을 직접 쓰면 제목을 `<Space align="center">`로 감싸 옆에 둔다:
 
@@ -938,19 +940,19 @@ import { FeatureHelpButton } from '../../shared/help';
 <FeatureHelpButton featureKey="queue.externalInboundMode" featureName="외부 착신 방식" />
 ```
 
-- [ ] **Step 5: 빌드/기존 테스트 확인**
+- [x] **Step 5: 빌드/기존 테스트 확인**
 
 Run (cwd `apps/admin`): `npx tsc -b && npx vitest run`
 Expected: 타입 오류 0, 기존 테스트 전부 PASS.
 
-- [ ] **Step 6: 수동 스모크**
+- [x] **Step 6: 수동 스모크**
 
 `npm run dev -- --port 5174` 후:
 - 호 분배룰 생성/수정 모달에서 "외부 착신 방식" 라디오가 보이고, `분배 착신`이 아닐 때 "분배 전략 (고급)" 셀렉트가 비활성화된다.
 - `순차 착신`으로 큐를 만든 뒤 목록 "외부 착신 방식" 열에 `순차 착신`이 표시된다.
 - 페이지/모달의 도움말 아이콘이 동작한다.
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add apps/admin/src/features/queue-settings/QueueEditModal.tsx apps/admin/src/features/queue-settings/QueueSettingsPage.tsx
@@ -970,7 +972,7 @@ git commit -m "feat(admin): show external inbound mode in queue edit and list"
 **Files:**
 - Modify: `apps/server/src/modules/asterisk-config/asterisk-config.service.ts`
 
-- [ ] **Step 1: 검증 완화**
+- [x] **Step 1: 검증 완화**
 
 `normalizeForwardingSchedules` 메서드 안의 다음 블록을:
 
@@ -989,12 +991,12 @@ git commit -m "feat(admin): show external inbound mode in queue edit and list"
       // timeStart > timeEnd 는 자정을 넘는 구간으로 허용한다 (예: 22:00~06:00).
 ```
 
-- [ ] **Step 2: 빌드 확인**
+- [x] **Step 2: 빌드 확인**
 
 Run (cwd `apps/server`): `npx tsc --noEmit`
 Expected: 타입 오류 0.
 
-- [ ] **Step 3: 커밋**
+- [x] **Step 3: 커밋**
 
 ```bash
 git add apps/server/src/modules/asterisk-config/asterisk-config.service.ts
@@ -1009,7 +1011,7 @@ git commit -m "feat(server): allow cross-midnight forwarding time ranges"
 - Modify: `apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts`
 - Modify: `apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts`
 
-- [ ] **Step 1: 실패 테스트 작성**
+- [x] **Step 1: 실패 테스트 작성**
 
 `dialplan.renderer.spec.ts`의 `'renders multiple conditional forwarding windows from scheduleJson'` 테스트 바로 뒤에 추가한다. 기존 조건부 테스트들의 입력 형태(`dids` + `forwardingRules` + `scheduleJson`)를 그대로 따른다:
 
@@ -1072,12 +1074,12 @@ git commit -m "feat(server): allow cross-midnight forwarding time ranges"
 
 > 호출 함수명/입력 키는 같은 파일의 기존 조건부 테스트(`'renders conditional forwarding rule with DID fallback'`)와 정확히 동일하게 맞춘다. 그 테스트가 쓰는 진입 함수(`renderInboundDialplan` 또는 동등 export)를 그대로 사용한다.
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run (cwd `apps/server`): `npx jest src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts -t "cross-midnight|rolls Sunday"`
 Expected: FAIL — 현재는 단일 `GotoIfTime(22:00-06:00,mon,...)` 한 줄만 발행됨.
 
-- [ ] **Step 3: 요일 롤오버 헬퍼 추가**
+- [x] **Step 3: 요일 롤오버 헬퍼 추가**
 
 `dialplan.renderer.ts`에서 `parseForwardingSchedules` 함수 바로 위(또는 아래)에 추가한다. `WEEKDAY_CODES` 와 동일한 순서의 요일 체인을 두고, 자정을 넘는 구간은 시작 요일에 `(시작~23:59)`, **다음 요일**에 `(00:00~종료)`로 분할한다.
 
@@ -1113,7 +1115,7 @@ function expandTimeWindow(timeStart: string, timeEnd: string, day: string): Time
 }
 ```
 
-- [ ] **Step 4: 조건부 렌더링에서 헬퍼 사용**
+- [x] **Step 4: 조건부 렌더링에서 헬퍼 사용**
 
 `renderDidStandardRoute`의 `schedulesToApply.flatMap(...)` 블록(현재 `GotoIfTime(${schedule.timeStart}-${schedule.timeEnd},...)`를 만드는 부분)을 다음으로 교체한다:
 
@@ -1134,12 +1136,12 @@ function expandTimeWindow(timeStart: string, timeEnd: string, day: string): Time
 
 > `schedulesToApply`는 `conditionType === 'TIME_RANGE'`로 필터된 항목이므로 `timeStart`/`timeEnd`는 non-null이다.
 
-- [ ] **Step 5: 테스트 통과 확인**
+- [x] **Step 5: 테스트 통과 확인**
 
 Run: `npx jest src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts`
 Expected: 신규 cross-midnight 테스트 PASS + 기존 dialplan 렌더러 테스트 전부 PASS(특히 `09:00-12:00` 같은 정상 구간이 단일 줄로 유지되는지).
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.spec.ts
@@ -1151,13 +1153,13 @@ git commit -m "feat(server): split cross-midnight forwarding window in dialplan 
 **Files:**
 - Modify: `apps/admin/src/features/forwarding-settings/ForwardingRuleModal.tsx`
 
-- [ ] **Step 1: import 에 `FeatureHelpButton` 추가**
+- [x] **Step 1: import 에 `FeatureHelpButton` 추가**
 
 ```ts
 import { FeatureHelpButton } from '../../shared/help';
 ```
 
-- [ ] **Step 2: `handleOk`의 시간 검증 완화**
+- [x] **Step 2: `handleOk`의 시간 검증 완화**
 
 `handleOk` 안 `schedules = scheduleRows.map(...)` 블록에서 다음 줄을:
 
@@ -1175,7 +1177,7 @@ import { FeatureHelpButton } from '../../shared/help';
           }
 ```
 
-- [ ] **Step 3: 자정 넘는 구간 안내 문구 추가**
+- [x] **Step 3: 자정 넘는 구간 안내 문구 추가**
 
 "적용 조건" `Card`의 `extra` Typography 문구를 자정 안내를 포함하도록 교체한다:
 
@@ -1187,7 +1189,7 @@ import { FeatureHelpButton } from '../../shared/help';
             }
 ```
 
-- [ ] **Step 4: 모달 제목에 도움말 버튼**
+- [x] **Step 4: 모달 제목에 도움말 버튼**
 
 `<Modal title={rule ? '착신전환 수정' : '착신전환 등록'} ...>`의 `title`을 교체한다:
 
@@ -1202,19 +1204,19 @@ import { FeatureHelpButton } from '../../shared/help';
 
 > `Space`는 이 파일에서 이미 import 되어 있다.
 
-- [ ] **Step 5: 빌드/기존 테스트 확인**
+- [x] **Step 5: 빌드/기존 테스트 확인**
 
 Run (cwd `apps/admin`): `npx tsc -b && npx vitest run`
 Expected: 타입 오류 0, 기존 테스트 전부 PASS.
 
-- [ ] **Step 6: 수동 스모크**
+- [x] **Step 6: 수동 스모크**
 
 `npm run dev -- --port 5174` 후 착신전환 등록 모달에서:
 - "요일/시간 지정" 선택 → 시작 22:00, 종료 06:00 입력 후 저장 시 거부되지 않는다.
 - 시작·종료를 같은 시각으로 두면 거부 메시지가 뜬다.
 - 모달 제목 옆 도움말 아이콘이 동작한다.
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add apps/admin/src/features/forwarding-settings/ForwardingRuleModal.tsx
@@ -1227,15 +1229,15 @@ git commit -m "feat(admin): allow cross-midnight ranges and add help in forwardi
 
 상위 계획서 M1 기능 1~3 및 "테스트 계획" 대조:
 
-- [ ] **Prisma Client 동기화** — `schema.prisma` 변경이 두 차례 있다(Chunk 2의 `branchDids` 유니크, Chunk 3의 `queues.distributionMode`). 마지막에 `npx prisma generate` 가 최신 상태인지 확인. 신규 컬럼/제약이 생성된 클라이언트 타입에 반영되어야 한다.
-- [ ] **서버 전체 테스트 통과** — Run (cwd `apps/server`): `npx jest`. 신규 spec(`branch-did-route`, `admin.service.branch-did`, `distribution-mode`) + 보강된 `dialplan.renderer` + 기존 spec 전부 PASS.
-- [ ] **서버 빌드** — Run (cwd `apps/server`): `npm run build`. exit 0.
-- [ ] **관리자 앱 테스트/빌드** — Run (cwd `apps/admin`): `npx tsc -b && npx vitest run`. 타입 오류 0, 도움말 + 기존 테스트 전부 PASS.
-- [ ] **기능 1** — 지사 운영 설정 모달에서 DID 착신 경로(ARS/직접 분배룰/착신전환/미설정)가 표시되고, 동일 DID를 다른 지사에 연결하면 (a) 서비스가 충돌 지사명을 담은 400으로 거부, (b) 우회로 강제 INSERT 해도 DB 유니크가 거부.
-- [ ] **기능 2** — 호 분배룰 생성/수정에 외부 착신 방식(순차/분배/무조건)이 1차 선택지로 노출되고, `순차`/`무조건`은 strategy가 `linear`로 저장된다(`resolveQueueStrategy` 테스트로 고정).
-- [ ] **기능 3** — 착신전환 시간 조건이 22:00~06:00처럼 자정을 넘어도 저장되고, PBX 미리보기에서 시작 요일/다음 요일에 각각 `GotoIfTime` 구간이 렌더된다(월 22:00-23:59 + 화 00:00-06:00).
-- [ ] **도움말** — 기능 1~3 화면 3곳(지사 운영 설정 모달, 호 분배룰 화면/모달, 착신전환 모달)에서 도움말 아이콘이 보이고 키보드(`Tab`→`Enter`)로 Drawer를 열 수 있다.
-- [ ] **PBX 반영 경로** — 큐/착신전환 저장 후 PBX 설정 리로드 서비스(`AsteriskReloadService`)의 reload 예약/실행이 호출된다(기존 동작 — 본 플랜이 깨지 않음을 확인).
+- [x] **Prisma Client 동기화** — `schema.prisma` 변경이 두 차례 있다(Chunk 2의 `branchDids` 유니크, Chunk 3의 `queues.distributionMode`). 마지막에 `npx prisma generate` 가 최신 상태인지 확인. 신규 컬럼/제약이 생성된 클라이언트 타입에 반영되어야 한다.
+- [x] **서버 전체 테스트 통과** — Run (cwd `apps/server`): `npx jest`. 신규 spec(`branch-did-route`, `admin.service.branch-did`, `distribution-mode`) + 보강된 `dialplan.renderer` + 기존 spec 전부 PASS.
+- [x] **서버 빌드** — Run (cwd `apps/server`): `npm run build`. exit 0.
+- [x] **관리자 앱 테스트/빌드** — Run (cwd `apps/admin`): `npx tsc -b && npx vitest run`. 타입 오류 0, 도움말 + 기존 테스트 전부 PASS.
+- [x] **기능 1** — 지사 운영 설정 모달에서 DID 착신 경로(ARS/직접 분배룰/착신전환/미설정)가 표시되고, 동일 DID를 다른 지사에 연결하면 (a) 서비스가 충돌 지사명을 담은 400으로 거부, (b) 우회로 강제 INSERT 해도 DB 유니크가 거부.
+- [x] **기능 2** — 호 분배룰 생성/수정에 외부 착신 방식(순차/분배/무조건)이 1차 선택지로 노출되고, `순차`/`무조건`은 strategy가 `linear`로 저장된다(`resolveQueueStrategy` 테스트로 고정).
+- [x] **기능 3** — 착신전환 시간 조건이 22:00~06:00처럼 자정을 넘어도 저장되고, PBX 미리보기에서 시작 요일/다음 요일에 각각 `GotoIfTime` 구간이 렌더된다(월 22:00-23:59 + 화 00:00-06:00).
+- [x] **도움말** — 기능 1~3 화면 3곳(지사 운영 설정 모달, 호 분배룰 화면/모달, 착신전환 모달)에서 도움말 아이콘이 보이고 키보드(`Tab`→`Enter`)로 Drawer를 열 수 있다.
+- [x] **PBX 반영 경로** — 큐/착신전환 저장 후 PBX 설정 리로드 서비스(`AsteriskReloadService`)의 reload 예약/실행이 호출된다(기존 동작 — 본 플랜이 깨지 않음을 확인).
 
 ## 보류 / 후속
 

@@ -1,6 +1,8 @@
 # PBX M2 Conditional Operations Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
+
+> **Completion reconciliation (2026-05-22):** 마지막 `Commit` 체크 표기가 누락되어 있었으나 구현, 전체 회귀 테스트, 커밋은 완료된 상태다. 최신 상위 계획서와 현재 코드 기준으로 완료 상태로 정리했다.
 
 **Goal:** M2 P1의 확정 구현 범위인 가상버퍼 상태 표시와 상담원 그룹 기반 분배 대상 편집을 완료한다.
 
@@ -130,7 +132,7 @@ cd apps/server && npm run build
 cd apps/admin && npm run build
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/superpowers/plans/2026-05-20-pbx-m2-conditional-operations.md apps/server apps/admin
