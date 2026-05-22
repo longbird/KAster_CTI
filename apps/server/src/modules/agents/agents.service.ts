@@ -384,10 +384,19 @@ export class AgentsService {
         isActive: true,
       },
     });
-    if (dto.sipPassword !== undefined) {
+    if (this.requiresPbxAgentReload(dto)) {
       this.asteriskReload.scheduleReload(tenantId);
     }
     return { success: true, data: updated, error: null };
+  }
+
+  private requiresPbxAgentReload(dto: UpdateAgentDto): boolean {
+    return (
+      dto.agentName !== undefined ||
+      dto.extension !== undefined ||
+      dto.extensionDisplayName !== undefined ||
+      dto.sipPassword !== undefined
+    );
   }
 
   async deactivate(tenantId: string, agentId: string) {

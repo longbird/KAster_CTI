@@ -24,6 +24,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { AgentCreateModal } from './AgentCreateModal';
 import { AgentEditModal, type AgentRow } from './AgentEditModal';
 import { AgentPermissionCopyModal } from './AgentPermissionCopyModal';
+import { formatExtensionDisplayName } from './extensionDisplayName';
 import { getExtensionLockModeLabel } from './extensionPolicy';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -144,7 +145,7 @@ export function AgentSettingsPage() {
             title: '내선 표시명',
             dataIndex: 'extensionDisplayName',
             width: 150,
-            render: (value: string | null | undefined) => value || '-',
+            render: (_: string | null | undefined, row) => formatExtensionDisplayName(row),
           },
           {
             title: '내선 잠금',

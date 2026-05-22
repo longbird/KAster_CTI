@@ -289,24 +289,24 @@
 
 **데이터 계획:**
 
-- [ ] `agents.settingsProfile.extensionDisplayName`을 우선 사용해 마이그레이션 없이 적용한다.
-- [ ] 목록 검색/정렬 요구가 생기면 `agents.extensionDisplayName` 컬럼 승격을 별도 마이그레이션으로 처리한다.
+- [x] `agents.extensionDisplayName` 컬럼을 내선 표시명의 표준 저장 필드로 사용한다.
+- [x] 빈 값은 저장 시 `null`로 정규화하고, 표시/렌더링 단계에서 상담원명 또는 내선번호 기반 기본값을 사용한다.
 
 **서버 계획:**
 
-- [ ] `apps/server/src/modules/admin/dto`의 상담원 생성/수정 DTO에 `extensionDisplayName`을 추가한다.
-- [ ] `apps/server/src/modules/admin/admin.service.ts`에서 `settingsProfile` 병합 저장을 적용한다.
-- [ ] PBX 단말 표시가 필요한 경우 PBX 렌더러의 상담원 설정 생성 로직에 연결한다.
+- [x] `apps/server/src/modules/agents/dto`의 상담원 생성/수정 DTO에 `extensionDisplayName`을 추가한다.
+- [x] `apps/server/src/modules/agents/agents.service.ts`에서 `extensionDisplayName` 저장과 PBX reload 트리거를 적용한다.
+- [x] PBX 단말 표시가 필요한 경우 PBX 렌더러의 상담원 설정 생성 로직에 연결한다.
 
 **관리자 UI 계획:**
 
-- [ ] `apps/admin/src/features/agent-settings`의 생성/수정 화면에 `내선 표시명` 필드를 추가한다.
-- [ ] 상담원명과 내선 표시명이 다른 경우 목록에서 둘 다 식별 가능하게 표시한다.
+- [x] `apps/admin/src/features/agent-settings`의 생성/수정 화면에 `내선 표시명` 필드를 추가한다.
+- [x] 상담원명과 내선 표시명이 다른 경우 목록에서 둘 다 식별 가능하게 표시한다.
 
 **검증:**
 
-- [ ] 빈 값이면 상담원명 또는 내선번호 기반 기본 표시를 사용한다.
-- [ ] 너무 긴 표시명은 저장 단계에서 제한한다.
+- [x] 빈 값이면 상담원명 또는 내선번호 기반 기본 표시를 사용한다.
+- [x] 너무 긴 표시명은 저장 단계에서 제한한다.
 
 ### 5. 상담원 기준 사용 제한 정책
 
