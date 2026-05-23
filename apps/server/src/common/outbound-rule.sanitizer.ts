@@ -41,7 +41,6 @@ export function validateSourceNumberPattern(
     try {
       // RegExp 컴파일이 가능한지만 확인. 실제 매칭은 service 가 사용한다.
       // u 플래그는 한국어 등 유니코드 안전.
-      // eslint-disable-next-line no-new
       new RegExp(pattern, 'u');
     } catch (err: any) {
       throw new BadRequestException(`REGEX 컴파일 실패: ${err?.message ?? 'invalid regex'}`);

@@ -36,11 +36,6 @@ ALTER TABLE "branchAgents"
   ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "branchAgents"
-  ADD CONSTRAINT "branchAgents_branchId_fkey"
-  FOREIGN KEY ("branchId") REFERENCES "branches"("branchId")
-  ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "branchAgents"
   ADD CONSTRAINT "branchAgents_agentId_fkey"
   FOREIGN KEY ("agentId") REFERENCES "agents"("agentId")
   ON DELETE CASCADE ON UPDATE CASCADE;
@@ -48,11 +43,6 @@ ALTER TABLE "branchAgents"
 ALTER TABLE "branchQueues"
   ADD CONSTRAINT "branchQueues_tenantId_fkey"
   FOREIGN KEY ("tenantId") REFERENCES "tenants"("tenantId")
-  ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "branchQueues"
-  ADD CONSTRAINT "branchQueues_branchId_fkey"
-  FOREIGN KEY ("branchId") REFERENCES "branches"("branchId")
   ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "branchQueues"

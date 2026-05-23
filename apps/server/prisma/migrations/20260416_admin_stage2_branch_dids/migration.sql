@@ -18,13 +18,3 @@ ALTER TABLE "branchDids"
   ADD CONSTRAINT "branchDids_tenantId_fkey"
   FOREIGN KEY ("tenantId") REFERENCES "tenants"("tenantId")
   ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "branchDids"
-  ADD CONSTRAINT "branchDids_branchId_fkey"
-  FOREIGN KEY ("branchId") REFERENCES "branches"("branchId")
-  ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "branchDids"
-  ADD CONSTRAINT "branchDids_didId_fkey"
-  FOREIGN KEY ("didId") REFERENCES "AsteriskDid"("id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
