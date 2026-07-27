@@ -505,13 +505,20 @@ HealthSummaryService
 - TTS 실패 시 기존 prompt에는 영향이 없다.
 - PBX reload 전 미리보기와 파일 존재 검증이 가능하다.
 
+구현 상태 (2026-07-27):
+
+- `promptGenerationJobs`로 생성 요청, provider, 실패 원인, 생성 파일 크기, 연결된 prompt를 기록한다.
+- `POST /asterisk-config/prompts/tts`에서 텍스트 기반 멘트를 생성하고 기존 `AsteriskPrompt`로 즉시 등록한다.
+- 기본 provider는 `local-wav`이며 운영 흐름 검증용 WAV를 생성한다. 실제 자연음성 provider는 `PROMPT_TTS_PROVIDER=http-json`, `PROMPT_TTS_HTTP_URL`, 선택적 `PROMPT_TTS_HTTP_TOKEN`으로 연결한다.
+- 관리자 `멘트 관리`의 신규 등록 모달에서 텍스트 입력 후 바로 생성할 수 있다.
+
 권장 구현 순서:
 
-1. `promptGenerationJobs` model 추가
-2. `PromptTtsService` provider adapter 추가
-3. `POST /asterisk-config/prompts/tts` 추가
-4. Prompt modal에 텍스트 생성 UI 추가
-5. 생성 파일 format 변환 및 reload 검증
+1. [x] `promptGenerationJobs` model 추가
+2. [x] `PromptTtsService` provider adapter 추가
+3. [x] `POST /asterisk-config/prompts/tts` 추가
+4. [x] Prompt modal에 텍스트 생성 UI 추가
+5. [x] 생성 파일 format 변환 및 reload 검증 초안
 
 ### M5. Security / HA Hardening
 
@@ -593,4 +600,3 @@ HealthSummaryService
 ## 1차 개발 제안
 
 바로 구현을 시작한다면 M1부터 진행한다. 이유는 M1이 PDF의 핵심 통화 흐름을 막고 있고, DB/API/UI/dialplan/test가 작게 닫히며, M2와 M3이 의존할 `serviceType`, `resultCode`, `overflowFlag` 기준을 먼저 고정할 수 있기 때문이다.
-

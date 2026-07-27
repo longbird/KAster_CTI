@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL, USE_MOCK } from '../../../config';
-import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskSpeedDial, AsteriskSpeedDialInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow } from '../types/asterisk-config';
+import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskSpeedDial, AsteriskSpeedDialInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow, PromptGenerationJob, PromptTtsInput } from '../types/asterisk-config';
 
 function headers(): Record<string, string> {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -146,6 +146,12 @@ export const uploadPromptAudio = (file: File) => {
     },
   ).then(r => r.data.data);
 };
+export const createPromptFromTts = (dto: PromptTtsInput) =>
+  axios.post<{ data: { prompt: AsteriskPrompt; job: PromptGenerationJob } }>(
+    `${base}/prompts/tts`,
+    dto,
+    { headers: headers() },
+  ).then(r => r.data.data);
 export const deletePrompt = (id: string) =>
   axios.delete(`${base}/prompts/${id}`, { headers: headers() });
 

@@ -182,6 +182,35 @@ export interface AsteriskPrompt {
   isActive: boolean;
 }
 
+export interface PromptGenerationJob {
+  promptGenerationJobId: string;
+  promptId: string | null;
+  promptKey: string;
+  displayName: string;
+  fileName: string;
+  sourceText: string;
+  provider: string;
+  voice: string | null;
+  language: string;
+  format: string;
+  status: 'PENDING' | 'GENERATING' | 'READY' | 'FAILED';
+  errorMessage: string | null;
+  generatedBytes: number | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface PromptTtsInput {
+  text: string;
+  displayName: string;
+  promptKey?: string;
+  category?: string;
+  description?: string | null;
+  voice?: string;
+  language?: string;
+  isActive?: boolean;
+}
+
 export interface AsteriskBlocklistEntry {
   id: string;
   matchType: 'EXACT' | 'PREFIX';

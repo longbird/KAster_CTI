@@ -61,6 +61,7 @@ model tenants {
   tenantSystemSettings tenantSystemSettings[]
   forwardingRules     asteriskForwardingRules[]
   asteriskPrompts     AsteriskPrompt[]
+  promptGenerationJobs promptGenerationJobs[]
   asteriskBlocklistEntries AsteriskBlocklistEntry[]
   asteriskTrunks       AsteriskTrunk[]
   asteriskTrunkGroups  AsteriskTrunkGroup[]
@@ -1013,9 +1014,36 @@ model AsteriskPrompt {
 
   tenant       tenants    @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
   vipBranches  branches[] @relation("branch_vip_prompt")
+  generationJobs promptGenerationJobs[]
 
   @@unique([tenantId, promptKey])
   @@index([tenantId, category, isActive])
+}
+
+model promptGenerationJobs {
+  promptGenerationJobId String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  promptId              String?  @db.Uuid
+  promptKey             String   @db.VarChar(128)
+  displayName           String   @db.VarChar(128)
+  fileName              String   @db.VarChar(255)
+  sourceText            String   @db.Text
+  provider              String   @default("local-wav") @db.VarChar(32)
+  voice                 String?  @db.VarChar(64)
+  language              String   @default("ko-KR") @db.VarChar(16)
+  format                String   @default("wav") @db.VarChar(16)
+  status                String   @default("PENDING") @db.VarChar(32)
+  errorMessage          String?
+  generatedBytes        Int?
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(6)
+  completedAt           DateTime? @db.Timestamptz(6)
+
+  tenant                tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  prompt                AsteriskPrompt? @relation(fields: [promptId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@index([tenantId, promptKey])
 }
 
 model AsteriskBlocklistEntry {

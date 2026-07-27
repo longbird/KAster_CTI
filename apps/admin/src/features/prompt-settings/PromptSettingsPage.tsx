@@ -156,6 +156,10 @@ export function PromptSettingsPage() {
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onSave={save}
+          onGenerated={async () => {
+            setCreateOpen(false);
+            await load();
+          }}
         />
       ) : null}
       {promptPermission?.canUpdate !== false ? (

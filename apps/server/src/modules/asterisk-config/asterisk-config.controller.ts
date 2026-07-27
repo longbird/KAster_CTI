@@ -10,10 +10,12 @@ import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { AsteriskConfigService } from './asterisk-config.service';
 import { AsteriskReloadService } from './asterisk-reload.service';
+import { PromptTtsService } from './prompt-tts.service';
 import { CreateBlocklistEntryDto, ImportBlocklistEntriesDto, UpdateBlocklistEntryDto } from './dto/blocklist-entry.dto';
 import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
 import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
+import { CreatePromptTtsDto } from './dto/create-prompt-tts.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateSpeedDialDto, UpdateSpeedDialDto } from './dto/speed-dial.dto';
 import { CreateBulkTrunksDto, CreateTrunkDto, CreateTrunkGroupDto, UpdateTrunkDto, UpdateTrunkGroupDto } from './dto/trunk.dto';
@@ -39,6 +41,7 @@ export class AsteriskConfigController {
   constructor(
     private readonly svc: AsteriskConfigService,
     private readonly reload: AsteriskReloadService,
+    private readonly promptTts: PromptTtsService,
     private readonly menuPermissionService: MenuPermissionService,
   ) {}
 
@@ -130,6 +133,11 @@ export class AsteriskConfigController {
   async uploadPromptAudio(@CurrentUser() u: any, @UploadedFile() file?: UploadedPromptAudioFile) {
     await this.assertPromptWriteAccess(u);
     return this.svc.uploadPromptAudio(u.tenantId, file);
+  }
+  @Post('prompts/tts')
+  async createPromptFromTts(@CurrentUser() u: any, @Body() dto: CreatePromptTtsDto) {
+    await this.assertPromptWriteAccess(u);
+    return this.promptTts.createPromptFromText(u.tenantId, dto);
   }
   @Get('prompts/:id/stream')
   async streamPromptAudio(@CurrentUser() u: any, @Param('id') id: string, @Res() res: Response) {

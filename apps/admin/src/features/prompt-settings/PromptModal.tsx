@@ -1,9 +1,9 @@
-import { UploadOutlined } from '@ant-design/icons';
+import { AudioOutlined, UploadOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Form, Input, Modal, Space, Switch, Tag, Typography, Upload, message } from 'antd';
 import type { RcFile, UploadRequestOption as RcCustomRequestOptions } from 'rc-upload/lib/interface';
 import { useEffect, useState } from 'react';
 import type { AsteriskPrompt } from '../asterisk-config/types/asterisk-config';
-import { uploadPromptAudio } from '../asterisk-config/api/asteriskConfigApi';
+import { createPromptFromTts, uploadPromptAudio } from '../asterisk-config/api/asteriskConfigApi';
 
 export type PromptFormValue = Omit<AsteriskPrompt, 'id'>;
 
@@ -12,6 +12,7 @@ interface Props {
   prompt?: AsteriskPrompt | null;
   onClose: () => void;
   onSave: (values: PromptFormValue) => Promise<void>;
+  onGenerated?: () => Promise<void> | void;
 }
 
 const CATEGORY_SUGGESTIONS = [
@@ -31,9 +32,12 @@ function buildPromptFormValues(prompt?: AsteriskPrompt | null): PromptFormValue 
   };
 }
 
-export function PromptModal({ open, prompt, onClose, onSave }: Props) {
+export function PromptModal({ open, prompt, onClose, onSave, onGenerated }: Props) {
   const [form] = Form.useForm<PromptFormValue>();
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [ttsText, setTtsText] = useState('');
+  const [ttsVoice, setTtsVoice] = useState('');
   const fileName = Form.useWatch('fileName', form);
   const promptKey = Form.useWatch('promptKey', form);
 
@@ -43,6 +47,9 @@ export function PromptModal({ open, prompt, onClose, onSave }: Props) {
     }
 
     setUploading(false);
+    setGenerating(false);
+    setTtsText('');
+    setTtsVoice('');
     const nextValues = buildPromptFormValues(prompt);
     form.setFieldsValue(nextValues);
   }, [open, prompt?.id, form, prompt]);
@@ -73,6 +80,39 @@ export function PromptModal({ open, prompt, onClose, onSave }: Props) {
     }
   };
 
+  const handleGenerateTts = async () => {
+    const text = ttsText.trim();
+    if (!text) {
+      message.warning('생성할 멘트 문구를 입력하세요.');
+      return;
+    }
+
+    const values = form.getFieldsValue();
+    const displayName = values.displayName?.trim() || 'TTS 멘트';
+    setGenerating(true);
+    try {
+      await createPromptFromTts({
+        text,
+        displayName,
+        promptKey: values.promptKey?.trim() || undefined,
+        category: values.category?.trim() || 'ivr',
+        description: values.description?.trim() || `TTS: ${text.slice(0, 80)}`,
+        voice: ttsVoice.trim() || undefined,
+        language: 'ko-KR',
+        isActive: values.isActive ?? true,
+      });
+      message.success('텍스트 멘트를 생성했습니다.');
+      await onGenerated?.();
+      form.resetFields();
+      setTtsText('');
+      setTtsVoice('');
+    } catch (error: any) {
+      message.error(error?.response?.data?.error?.message ?? '텍스트 멘트 생성에 실패했습니다.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const beforeUpload = (file: RcFile) => {
     const fileName = file.name.toLowerCase();
     const isAllowed = ['.wav', '.mp3', '.gsm', '.ulaw', '.alaw'].some((ext) => fileName.endsWith(ext));
@@ -92,7 +132,7 @@ export function PromptModal({ open, prompt, onClose, onSave }: Props) {
       width={720}
       okText="저장"
       cancelText="취소"
-      confirmLoading={uploading}
+      confirmLoading={uploading || generating}
       className="prompt-modal"
       forceRender
       destroyOnClose
@@ -152,6 +192,42 @@ export function PromptModal({ open, prompt, onClose, onSave }: Props) {
             <Input placeholder="welcome.wav" />
           </Form.Item>
         </div>
+
+        {!prompt ? (
+          <div className="prompt-modal__panel">
+            <div className="prompt-modal__panel-head">
+              <div>
+                <Typography.Text className="prompt-modal__section-label">텍스트 생성</Typography.Text>
+                <Typography.Title level={5} style={{ margin: '4px 0 0' }}>
+                  TTS 멘트 생성
+                </Typography.Title>
+              </div>
+              <Tag bordered={false}>WAV</Tag>
+            </div>
+
+            <Form.Item label="문구" style={{ marginBottom: 12 }}>
+              <Input.TextArea
+                rows={4}
+                value={ttsText}
+                onChange={(event) => setTtsText(event.target.value)}
+                maxLength={1000}
+                showCount
+                placeholder="안녕하세요. 고객센터입니다. 원하시는 메뉴를 선택해 주세요."
+              />
+            </Form.Item>
+
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                value={ttsVoice}
+                onChange={(event) => setTtsVoice(event.target.value)}
+                placeholder="voice 옵션 (선택)"
+              />
+              <Button icon={<AudioOutlined />} loading={generating} onClick={() => void handleGenerateTts()}>
+                생성
+              </Button>
+            </Space.Compact>
+          </div>
+        ) : null}
 
         <div className="prompt-modal__grid">
           <div className="prompt-modal__panel">

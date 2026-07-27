@@ -7,11 +7,12 @@ import { SmartArsModule } from '../smart-ars/smart-ars.module';
 import { AsteriskConfigController, AsteriskConfigInternalController, SmartArsInternalController } from './asterisk-config.controller';
 import { AsteriskConfigService } from './asterisk-config.service';
 import { AsteriskReloadService } from './asterisk-reload.service';
+import { PromptTtsService } from './prompt-tts.service';
 
 @Module({
   imports: [AmiModule, OptOutModule, SmartArsModule],
   controllers: [AsteriskConfigController, AsteriskConfigInternalController, SmartArsInternalController],
-  providers: [AsteriskConfigService, AsteriskReloadService, PrismaService, MenuPermissionService],
+  providers: [AsteriskConfigService, AsteriskReloadService, PromptTtsService, PrismaService, MenuPermissionService],
   exports: [AsteriskReloadService],
 })
 export class AsteriskConfigModule {}
