@@ -15,7 +15,8 @@ import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
 import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
-import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
+import { CreateSpeedDialDto, UpdateSpeedDialDto } from './dto/speed-dial.dto';
+import { CreateBulkTrunksDto, CreateTrunkDto, CreateTrunkGroupDto, UpdateTrunkDto, UpdateTrunkGroupDto } from './dto/trunk.dto';
 import { UpdateSipPasswordDto } from './dto/update-sip-password.dto';
 import { ExecuteOptOutActionDto } from '../opt-out/dto/execute-opt-out-action.dto';
 import { ExecuteSmartOptOutDto } from '../opt-out/dto/execute-smart-opt-out.dto';
@@ -83,12 +84,22 @@ export class AsteriskConfigController {
   @Post('trunks/bulk') async createTrunksBulk(@CurrentUser() u: any, @Body() dto: CreateBulkTrunksDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createTrunksBulk(u.tenantId, dto); }
   @Put('trunks/:id') async updateTrunk(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateTrunk(u.tenantId, id, dto); }
   @Delete('trunks/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteTrunk(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteTrunk(u.tenantId, id); }
+  @Get('trunk-groups') async getTrunkGroups(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getTrunkGroups(u.tenantId); }
+  @Post('trunk-groups') async createTrunkGroup(@CurrentUser() u: any, @Body() dto: CreateTrunkGroupDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createTrunkGroup(u.tenantId, dto); }
+  @Put('trunk-groups/:id') async updateTrunkGroup(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateTrunkGroupDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateTrunkGroup(u.tenantId, id, dto); }
+  @Delete('trunk-groups/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteTrunkGroup(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteTrunkGroup(u.tenantId, id); }
 
   // DIDs
   @Get('dids') async getDids(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getDids(u.tenantId); }
   @Post('dids') async createDid(@CurrentUser() u: any, @Body() dto: CreateDidDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createDid(u.tenantId, dto); }
   @Put('dids/:id') async updateDid(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateDidDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateDid(u.tenantId, id, dto); }
   @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteDid(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteDid(u.tenantId, id); }
+
+  // Speed dials
+  @Get('speed-dials') async getSpeedDials(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getSpeedDials(u.tenantId); }
+  @Post('speed-dials') async createSpeedDial(@CurrentUser() u: any, @Body() dto: CreateSpeedDialDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createSpeedDial(u.tenantId, dto); }
+  @Put('speed-dials/:id') async updateSpeedDial(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateSpeedDialDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateSpeedDial(u.tenantId, id, dto); }
+  @Delete('speed-dials/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteSpeedDial(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteSpeedDial(u.tenantId, id); }
 
   // IVR Menus
   @Get('ivr-menus') async getIvrMenus(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getIvrMenus(u.tenantId); }

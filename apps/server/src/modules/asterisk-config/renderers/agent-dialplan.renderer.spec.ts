@@ -47,6 +47,63 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},b)');
   });
 
+  it('기본 국선 그룹이 있으면 우선순위 순서의 회선 풀로 아웃바운드를 생성한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [
+        { id: 'trunk-a', name: 'Carrier Main', enabled: true },
+        { id: 'trunk-b', name: 'Carrier Backup', enabled: true },
+      ],
+      trunkGroups: [
+        {
+          enabled: true,
+          isDefault: true,
+          strategy: 'PRIORITY',
+          members: [
+            { priority: 200, enabled: true, trunk: { id: 'trunk-b', name: 'Carrier Backup', enabled: true } },
+            { priority: 100, enabled: true, trunk: { id: 'trunk-a', name: 'Carrier Main', enabled: true } },
+          ],
+        },
+      ],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+    });
+
+    expect(rendered).toContain(
+      'Dial(PJSIP/${EXTEN}@trunk-carrier-main&PJSIP/${EXTEN}@trunk-carrier-backup,60',
+    );
+  });
+
+  it('단축 발신은 상담원 컨텍스트에서 실제 대상번호로 라우팅한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+      speedDials: [
+        { code: '*01', targetNumber: '01012345678', displayName: '긴급 연락처', enabled: true },
+        { code: '*02', targetNumber: '1002', displayName: '옆자리', enabled: true },
+      ],
+    });
+
+    expect(rendered).toContain('exten => *01,1,NoOp(Speed dial *01 -> 긴급 연락처)');
+    expect(rendered).toContain('Goto(outbound-main-1001,01012345678,1)');
+    expect(rendered).toContain('exten => *02,1,NoOp(Speed dial *02 -> 옆자리)');
+    expect(rendered).toContain('Dial(PJSIP/1002,20,tTU(agent-pre-bridge))');
+  });
+
   it('인바운드 전용 상담원은 외부 발신 컨텍스트에서 차단한다', () => {
     const rendered = renderAgentDialplan({
       allowDirectSipDial: true,

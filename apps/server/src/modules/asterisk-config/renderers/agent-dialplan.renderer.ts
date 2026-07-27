@@ -1,8 +1,20 @@
 import { assertNoNewlines, toSlug } from './renderer-utils';
 
 export interface AgentDialplanTrunkInput {
+  id?: string;
   name: string;
   enabled: boolean;
+}
+
+export interface AgentDialplanTrunkGroupInput {
+  enabled: boolean;
+  isDefault: boolean;
+  strategy: 'PRIORITY' | string;
+  members: Array<{
+    priority: number;
+    enabled: boolean;
+    trunk: AgentDialplanTrunkInput;
+  }>;
 }
 
 export interface AgentDialplanAgentInput {
@@ -12,6 +24,13 @@ export interface AgentDialplanAgentInput {
   liveRecordingEnabled: boolean;
   extensionLockMode?: 'UNLOCKED' | 'OUTBOUND_LOCKED' | 'FULL_LOCKED';
   branchIds?: string[];
+}
+
+export interface AgentDialplanSpeedDialInput {
+  code: string;
+  targetNumber: string;
+  displayName: string | null;
+  enabled: boolean;
 }
 
 export type OutboundCallerIdRuleMatchType =
@@ -35,7 +54,9 @@ export interface AgentDialplanInput {
   defaultOutboundCallerId: string | null;
   allowedOutboundCallerIds: string[];
   trunks: AgentDialplanTrunkInput[];
+  trunkGroups?: AgentDialplanTrunkGroupInput[];
   agents: AgentDialplanAgentInput[];
+  speedDials?: AgentDialplanSpeedDialInput[];
   /**
    * 아웃바운드 발신번호 매핑 룰. 빈 배열이면 dialplan 은 기존처럼 단일
    * defaultOutboundCallerId 만 사용한다. PR1-3B 에서 도입.
@@ -43,11 +64,38 @@ export interface AgentDialplanInput {
   outboundCallerIdRules?: OutboundCallerIdRuleInput[];
 }
 
-function getPrimaryTrunkEndpoint(trunks: AgentDialplanTrunkInput[]): string | null {
-  const trunk = trunks.find((item) => item.enabled);
-  if (!trunk) return null;
+function toTrunkEndpoint(trunk: AgentDialplanTrunkInput): string | null {
+  if (!trunk.enabled) return null;
   const slug = toSlug(trunk.name);
   return slug ? `trunk-${slug}` : null;
+}
+
+function getPrimaryTrunkEndpoint(trunks: AgentDialplanTrunkInput[]): string | null {
+  const trunk = trunks.find((item) => item.enabled);
+  return trunk ? toTrunkEndpoint(trunk) : null;
+}
+
+function getOutboundTrunkDialTarget(
+  trunks: AgentDialplanTrunkInput[],
+  trunkGroups: AgentDialplanTrunkGroupInput[] = [],
+): string | null {
+  const defaultGroup = trunkGroups.find((group) => group.enabled && group.isDefault);
+  if (!defaultGroup) {
+    const endpoint = getPrimaryTrunkEndpoint(trunks);
+    return endpoint ? `PJSIP/\${EXTEN}@${endpoint}` : null;
+  }
+
+  const endpoints = defaultGroup.members
+    .filter((member) => member.enabled && member.trunk.enabled)
+    .sort((a, b) => a.priority - b.priority)
+    .map((member) => toTrunkEndpoint(member.trunk))
+    .filter((endpoint): endpoint is string => Boolean(endpoint));
+
+  if (endpoints.length === 0) {
+    return null;
+  }
+
+  return endpoints.map((endpoint) => `PJSIP/\${EXTEN}@${endpoint}`).join('&');
 }
 
 function buildRecordFileLines(): string[] {
@@ -56,9 +104,39 @@ function buildRecordFileLines(): string[] {
   ];
 }
 
+function renderAgentSpeedDialLines(
+  agent: AgentDialplanAgentInput,
+  allowDirectSipDial: boolean,
+  speedDials: AgentDialplanSpeedDialInput[],
+): string[] {
+  if (!allowDirectSipDial || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED' || agent.extensionLockMode === 'FULL_LOCKED') {
+    return [];
+  }
+
+  return speedDials
+    .filter((item) => item.enabled)
+    .flatMap((item) => {
+      assertNoNewlines(item.code, 'speedDialCode');
+      assertNoNewlines(item.targetNumber, 'speedDialTargetNumber');
+      const label = item.displayName ?? item.targetNumber;
+      if (label) assertNoNewlines(label, 'speedDialDisplayName');
+      const lines = [
+        `exten => ${item.code},1,NoOp(Speed dial ${item.code} -> ${label})`,
+      ];
+      if (/^[12]\d{3}$/.test(item.targetNumber)) {
+        lines.push(` same => n,Dial(PJSIP/${item.targetNumber},20,tTU(agent-pre-bridge))`);
+        lines.push(' same => n,Hangup()');
+      } else {
+        lines.push(` same => n,Goto(outbound-main-${agent.extension},${item.targetNumber},1)`);
+      }
+      return lines;
+    });
+}
+
 function renderAgentEntryContext(
   agent: AgentDialplanAgentInput,
   allowDirectSipDial: boolean,
+  speedDials: AgentDialplanSpeedDialInput[] = [],
 ): string {
   const contextName = `agent-phone-${agent.extension}`;
   const lines = [
@@ -83,6 +161,7 @@ function renderAgentEntryContext(
     lines.push(` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`);
   }
 
+  lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial, speedDials));
   lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
   lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
   lines.push(' same => n,Hangup()');
@@ -91,7 +170,7 @@ function renderAgentEntryContext(
 
 function renderAgentOutboundRoute(
   agent: AgentDialplanAgentInput,
-  trunkEndpoint: string | null,
+  trunkDialTarget: string | null,
   callerId: string | null,
   cidRulesContextName: string | null,
 ): string {
@@ -101,14 +180,14 @@ function renderAgentOutboundRoute(
     'exten => _0X.,1,NoOp(Outbound ${EXTEN})',
   ];
 
-  if (!trunkEndpoint || !callerId) {
+  if (!trunkDialTarget || !callerId) {
     lines.push(' same => n,Playback(ss-noservice)');
     lines.push(' same => n,Hangup()');
     return lines.join('\n');
   }
 
   assertNoNewlines(callerId, 'defaultOutboundCallerId');
-  assertNoNewlines(trunkEndpoint, 'trunkEndpoint');
+  assertNoNewlines(trunkDialTarget, 'trunkDialTarget');
 
   lines.push(...buildRecordFileLines());
   if (cidRulesContextName) {
@@ -120,7 +199,7 @@ function renderAgentOutboundRoute(
     lines.push(` same => n,Set(CALLERID(name)=${callerId})`);
   }
   lines.push(` same => n,Set(CALLERID(pres)=${agent.callerIdPrivacy})`);
-  lines.push(` same => n,Dial(PJSIP/\${EXTEN}@${trunkEndpoint},60,b(func-set-sipheaders^s^1)U(agent-pre-bridge))`);
+  lines.push(` same => n,Dial(${trunkDialTarget},60,b(func-set-sipheaders^s^1)U(agent-pre-bridge))`);
   lines.push(' same => n,Hangup()');
   return lines.join('\n');
 }
@@ -256,7 +335,8 @@ function renderPreBridgeDispatcher(agents: AgentDialplanAgentInput[]): string {
 }
 
 export function renderAgentDialplan(input: AgentDialplanInput): string {
-  const primaryTrunkEndpoint = getPrimaryTrunkEndpoint(input.trunks);
+  const trunkDialTarget = getOutboundTrunkDialTarget(input.trunks, input.trunkGroups);
+  const speedDials = input.speedDials ?? [];
   const allowedCallerIdText = input.allowedOutboundCallerIds.length > 0
     ? input.allowedOutboundCallerIds.join(',')
     : 'none';
@@ -304,11 +384,11 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
 
   const sections: string[] = [
     header,
-    ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial)),
+    ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial, speedDials)),
     ...input.agents.map((agent) =>
       renderAgentOutboundRoute(
         agent,
-        primaryTrunkEndpoint,
+        trunkDialTarget,
         input.defaultOutboundCallerId,
         hasUsableRules ? getAgentCidContextName(agent, hasBranchScopedRules) : null,
       ),

@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '../../common/prisma.service';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { CreateQueueDto } from './dto/create-queue.dto';
+import { QueueOverflowRuleDto } from './dto/queue-overflow-rule.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import {
   normalizeUnconditionalTarget,
@@ -177,6 +178,19 @@ export class QueuesService {
         wrapupSeconds: true,
         autopause: true,
         isActive: true,
+        overflowRules: {
+          orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+          select: {
+            queueOverflowRuleId: true,
+            triggerMode: true,
+            waitSeconds: true,
+            targetType: true,
+            targetValue: true,
+            resultCode: true,
+            priority: true,
+            enabled: true,
+          },
+        },
       },
       orderBy: [{ isActive: 'desc' }, { queueName: 'asc' }],
     });
@@ -214,6 +228,9 @@ export class QueuesService {
       dto.unconditionalTargetValue,
     );
     await this.assertUnconditionalTargetExists(tenantId, unconditionalTarget);
+    const overflowRules = dto.overflowRules !== undefined
+      ? await this.normalizeQueueOverflowRules(tenantId, dto.overflowRules)
+      : [];
 
     const existing = await this.prisma.queues.findFirst({
       where: {
@@ -265,7 +282,11 @@ export class QueuesService {
         await this.replaceMembers(tx, tenantId, createdQueue.queueId, dto.members);
       }
 
-      return createdQueue;
+      if (overflowRules.length > 0) {
+        await this.replaceOverflowRules(tx, tenantId, createdQueue.queueId, overflowRules);
+      }
+
+      return { ...createdQueue, overflowRules };
     });
 
     this.reload.scheduleReload(tenantId);
@@ -290,6 +311,9 @@ export class QueuesService {
       dto.unconditionalTargetValue !== undefined ? dto.unconditionalTargetValue : queue.unconditionalTargetValue,
     );
     await this.assertUnconditionalTargetExists(tenantId, unconditionalTarget, queueId);
+    const overflowRules = dto.overflowRules !== undefined
+      ? await this.normalizeQueueOverflowRules(tenantId, dto.overflowRules, queueId)
+      : undefined;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const savedQueue = await tx.queues.update({
@@ -331,11 +355,16 @@ export class QueuesService {
         await this.replaceMembers(tx, tenantId, queueId, dto.members);
       }
 
+      if (overflowRules !== undefined) {
+        await this.replaceOverflowRules(tx, tenantId, queueId, overflowRules);
+      }
+
       return savedQueue;
     });
 
+    const savedOverflowRules = overflowRules ?? await this.findQueueOverflowRules(tenantId, queueId);
     this.reload.scheduleReload(tenantId);
-    return { success: true, data: updated, error: null };
+    return { success: true, data: { ...updated, overflowRules: savedOverflowRules }, error: null };
   }
 
   async deactivate(tenantId: string, queueId: string) {
@@ -575,6 +604,83 @@ export class QueuesService {
     }
   }
 
+  private async normalizeQueueOverflowRules(
+    tenantId: string,
+    rules: QueueOverflowRuleDto[],
+    currentQueueId?: string,
+  ) {
+    const normalizedRules = [];
+    for (const [index, rule] of rules.entries()) {
+      const targetType = rule.targetType;
+      const targetValue = rule.targetValue?.trim();
+      if (!targetValue) {
+        throw new BadRequestException('오버플로우 대상 값을 입력하세요.');
+      }
+
+      let normalizedTargetValue = targetValue;
+      if (targetType === 'AI_CENTER' || targetType === 'EXTERNAL_NUMBER') {
+        if (!/^\d{8,16}$/.test(targetValue)) {
+          throw new BadRequestException('AI센터/외부번호 오버플로우 대상은 8~16자리 숫자로 지정하세요.');
+        }
+      } else if (targetType === 'EXTENSION') {
+        const agent = await this.prisma.agents.findFirst({
+          where: { tenantId, extension: targetValue, isActive: true },
+          select: { extension: true },
+        });
+        if (!agent) {
+          throw new BadRequestException('오버플로우 대상 내선을 찾을 수 없습니다.');
+        }
+      } else if (targetType === 'QUEUE') {
+        const queue = await this.prisma.queues.findFirst({
+          where: {
+            tenantId,
+            isActive: true,
+            OR: [{ queueId: targetValue }, { queueName: targetValue }],
+          },
+          select: { queueId: true, queueName: true },
+        });
+        if (!queue) {
+          throw new BadRequestException('오버플로우 대상 분배룰을 찾을 수 없습니다.');
+        }
+        if (currentQueueId && queue.queueId === currentQueueId) {
+          throw new BadRequestException('오버플로우 대상 분배룰은 자기 자신으로 지정할 수 없습니다.');
+        }
+        normalizedTargetValue = queue.queueName;
+      } else {
+        throw new BadRequestException('지원하지 않는 오버플로우 대상 유형입니다.');
+      }
+
+      normalizedRules.push({
+        triggerMode: rule.triggerMode ?? 'AFTER_WAIT',
+        waitSeconds: rule.waitSeconds ?? 25,
+        targetType,
+        targetValue: normalizedTargetValue,
+        resultCode: rule.resultCode?.trim() || 'AI_OVERFLOW',
+        priority: rule.priority ?? (index + 1) * 100,
+        enabled: rule.enabled ?? true,
+      });
+    }
+
+    return normalizedRules;
+  }
+
+  private async findQueueOverflowRules(tenantId: string, queueId: string) {
+    return (this.prisma as any).queueOverflowRules.findMany({
+      where: { tenantId, queueId },
+      orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        queueOverflowRuleId: true,
+        triggerMode: true,
+        waitSeconds: true,
+        targetType: true,
+        targetValue: true,
+        resultCode: true,
+        priority: true,
+        enabled: true,
+      },
+    });
+  }
+
   private async replaceMembers(
     tx: Prisma.TransactionClient,
     tenantId: string,
@@ -592,6 +698,39 @@ export class QueuesService {
           penalty: item.penalty ?? 0,
           memberOrder: item.memberOrder ?? index,
           isActive: true,
+        })),
+      });
+    }
+  }
+
+  private async replaceOverflowRules(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    queueId: string,
+    rules: Array<{
+      triggerMode: string;
+      waitSeconds: number;
+      targetType: string;
+      targetValue: string;
+      resultCode: string;
+      priority: number;
+      enabled: boolean;
+    }>,
+  ) {
+    await (tx as any).queueOverflowRules.deleteMany({ where: { queueId } });
+
+    if (rules.length > 0) {
+      await (tx as any).queueOverflowRules.createMany({
+        data: rules.map((rule) => ({
+          tenantId,
+          queueId,
+          triggerMode: rule.triggerMode,
+          waitSeconds: rule.waitSeconds,
+          targetType: rule.targetType,
+          targetValue: rule.targetValue,
+          resultCode: rule.resultCode,
+          priority: rule.priority,
+          enabled: rule.enabled,
         })),
       });
     }

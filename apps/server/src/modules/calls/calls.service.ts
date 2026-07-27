@@ -1,5 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { createReadStream, promises as fs } from 'node:fs';
 import { extname } from 'node:path';
+import { Readable } from 'node:stream';
 import { Prisma } from '@prisma/client';
 import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
 import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
@@ -17,6 +19,7 @@ import { TransferDto } from './dto/transfer.dto';
 import { TransferDetectorService } from './transfer-detector.service';
 import { normalizePhone } from '../customers/customers.service';
 import { REALTIME_EVENTS } from '../realtime/realtime-events';
+import { RecordingEncryptionService } from '../recording-pipeline/recording-encryption.service';
 
 @Injectable()
 export class CallsService {
@@ -29,6 +32,7 @@ export class CallsService {
     private readonly asteriskManager: AsteriskManagerService,
     private readonly transferDetector: TransferDetectorService,
     @Optional() private readonly sessionEngine?: SessionEngineService,
+    @Optional() private readonly recordingEncryption?: RecordingEncryptionService,
   ) {}
 
   private muteStateKey(callId: string) {
@@ -1353,6 +1357,9 @@ export class CallsService {
         fileFormat: true,
         fileSizeBytes: true,
         storageProvider: true,
+        recordingStatus: true,
+        encryptionStatus: true,
+        encryptedFilePath: true,
         callId: true,
         linkedid: true,
       },
@@ -1370,6 +1377,70 @@ export class CallsService {
       ...recording,
       contentType: this.getRecordingContentType(recording.fileFormat, recording.fileName),
     };
+  }
+
+  async openRecordingReadStream(
+    recording: {
+      filePath: string;
+      encryptedFilePath?: string | null;
+      encryptionStatus?: string | null;
+    },
+    rangeHeader?: string,
+  ): Promise<{
+    stream: NodeJS.ReadableStream;
+    size: number;
+    statusCode: 200 | 206;
+    contentRange?: string;
+  } | null> {
+    if (recording.encryptionStatus === 'ENCRYPTED') {
+      if (!recording.encryptedFilePath || !this.recordingEncryption) {
+        throw new BadRequestException('암호화 녹취를 복호화할 수 없습니다.');
+      }
+      const buffer = await this.recordingEncryption.decryptFileToBuffer(recording.encryptedFilePath);
+      return this.buildBufferReadStream(buffer, rangeHeader);
+    }
+
+    const stat = await fs.stat(recording.filePath).catch(() => null);
+    if (!stat?.isFile()) {
+      return null;
+    }
+    const range = this.parseRange(rangeHeader, stat.size);
+    if (!rangeHeader) {
+      return { stream: createReadStream(recording.filePath), size: stat.size, statusCode: 200 };
+    }
+    if (!range) return null;
+    return {
+      stream: createReadStream(recording.filePath, { start: range.start, end: range.end }),
+      size: range.end - range.start + 1,
+      statusCode: 206,
+      contentRange: `bytes ${range.start}-${range.end}/${stat.size}`,
+    };
+  }
+
+  private buildBufferReadStream(buffer: Buffer, rangeHeader?: string) {
+    const range = this.parseRange(rangeHeader, buffer.length);
+    if (!rangeHeader) {
+      return { stream: Readable.from(buffer), size: buffer.length, statusCode: 200 as const };
+    }
+    if (!range) return null;
+    return {
+      stream: Readable.from(buffer.subarray(range.start, range.end + 1)),
+      size: range.end - range.start + 1,
+      statusCode: 206 as const,
+      contentRange: `bytes ${range.start}-${range.end}/${buffer.length}`,
+    };
+  }
+
+  private parseRange(rangeHeader: string | undefined, size: number) {
+    if (!rangeHeader) return null;
+    const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+    const start = match?.[1] ? Number.parseInt(match[1], 10) : 0;
+    const requestedEnd = match?.[2] ? Number.parseInt(match[2], 10) : size - 1;
+    const end = Number.isFinite(requestedEnd) ? Math.min(requestedEnd, size - 1) : size - 1;
+    if (!match || !Number.isFinite(start) || start < 0 || start > end || start >= size) {
+      return null;
+    }
+    return { start, end };
   }
 
   async recordRecordingDownloadAudit(

@@ -1,0 +1,103 @@
+[
+  {
+    "featureKey": "queue.externalInboundMode",
+    "title": "외부 착신 방식",
+    "summary": "호 분배룰의 순차, 분배, 무조건 착신 방식을 PBX queue 전략과 연결해 이해하기 위한 검색 출처 초안입니다.",
+    "howTo": [
+      "호 분배룰 설정에서 외부 착신 방식을 선택하고, 분배 방식인 경우 PBX queue strategy를 함께 확인합니다."
+    ],
+    "examples": [
+      "상담원 순서를 고정하려면 순차 착신, 대기 상담원 균등 분배가 필요하면 분배 착신을 선택합니다."
+    ],
+    "warnings": [
+      "검색 출처는 PBX 엔진 동작 보강용이며 현재 CTI 수용 판단을 덮어쓰지 않습니다."
+    ],
+    "relatedRoutes": [
+      { "route": "/settings/queues", "label": "호 분배룰 설정" }
+    ],
+    "sources": [
+      {
+        "kind": "search",
+        "ref": "https://docs.asterisk.org/Latest_API/API_Documentation/Module_Configuration/app_queue/",
+        "retrievedAt": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "featureKey": "forwarding.condition",
+    "title": "착신전환 조건",
+    "summary": "시간대와 조건 기반 착신전환을 PBX dialplan 분기와 연결해 이해하기 위한 검색 출처 초안입니다.",
+    "howTo": [
+      "착신전환 설정에서 시간 조건, 대기시간 조건, 상담원 없음 조건을 분리해 등록합니다."
+    ],
+    "examples": [
+      "업무시간 외 DID는 야간 분배룰 또는 외부번호로 전환합니다."
+    ],
+    "warnings": [
+      "시간 조건은 운영 PBX 서버 시간 동기화 상태와 함께 확인해야 합니다."
+    ],
+    "relatedRoutes": [
+      { "route": "/settings/forwarding", "label": "착신전환 설정" }
+    ],
+    "sources": [
+      {
+        "kind": "search",
+        "ref": "https://docs.asterisk.org/Latest_API/API_Documentation/Dialplan_Applications/GotoIf/",
+        "retrievedAt": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "featureKey": "ops.holidayRules",
+    "title": "공휴일 규칙",
+    "summary": "공휴일과 업무시간 라우팅을 PBX 시간 조건 분기와 함께 검토하기 위한 검색 출처 초안입니다.",
+    "howTo": [
+      "공휴일 규칙을 테넌트 또는 지사 범위로 등록하고, 착신전환 시간 조건보다 우선 적용되는지 확인합니다."
+    ],
+    "examples": [
+      "공휴일에는 대표번호 DID를 야간 안내 멘트 또는 외부 당직 번호로 전환합니다."
+    ],
+    "warnings": [
+      "공휴일 규칙은 시간 동기화 오류가 있을 때 잘못 적용될 수 있습니다."
+    ],
+    "relatedRoutes": [
+      { "route": "/settings/holidays", "label": "공휴일 설정" }
+    ],
+    "sources": [
+      {
+        "kind": "search",
+        "ref": "https://www.voip-info.org/asterisk-cmd-gotoiftime/",
+        "retrievedAt": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "featureKey": "pickup.group",
+    "title": "대리응답 그룹",
+    "summary": "같은 그룹의 ringing call을 당겨받는 기능을 PBX pickup group 개념과 연결해 검토하기 위한 검색 출처 초안입니다.",
+    "howTo": [
+      "상담원 그룹 또는 호 분배룰 범위를 기준으로 대리응답 허용 범위를 제한합니다."
+    ],
+    "examples": [
+      "같은 영업팀 상담원끼리만 대리응답을 허용합니다."
+    ],
+    "warnings": [
+      "현재 CTI의 queued call redirect 방식과 실제 단말 ringing pickup은 운영 검증에서 구분해야 합니다."
+    ],
+    "relatedRoutes": [
+      { "route": "/live-calls?feature=pickup", "label": "실시간 콜" }
+    ],
+    "sources": [
+      {
+        "kind": "search",
+        "ref": "https://docs.asterisk.org/Configuration/Features/Call-Pickup/",
+        "retrievedAt": "2026-07-16"
+      },
+      {
+        "kind": "search",
+        "ref": "https://docs.asterisk.org/Latest_API/API_Documentation/Module_Configuration/res_pjsip/",
+        "retrievedAt": "2026-07-16"
+      }
+    ]
+  }
+]

@@ -5,19 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PBX 선별 수용 기능별 개발 계획</title>
   <style>
-    :root {
-      color-scheme: light;
-      --bg: #f5f7fb;
-      --paper: #ffffff;
-      --ink: #172033;
-      --muted: #5d667a;
-      --line: #d9deea;
-      --accent: #155eef;
-      --accent-soft: #e8f0ff;
-      --ok: #067647;
-      --warn: #b54708;
-      --hold: #6f3f9f;
-    }
+    :root { color-scheme: light; --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #5d667a; --line: #d9deea; --accent: #155eef; --accent-soft: #e8f0ff; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", Arial, sans-serif; line-height: 1.65; }
     .shell { max-width: 1180px; margin: 0 auto; padding: 36px 22px 72px; }
@@ -33,21 +21,16 @@
     code { background: #eef1f7; border: 1px solid #dde3ee; border-radius: 4px; padding: 1px 5px; font-family: Consolas, "SFMono-Regular", monospace; font-size: .92em; }
     pre { overflow: auto; background: #101828; color: #eef4ff; border-radius: 8px; padding: 16px; }
     pre code { background: transparent; border: 0; color: inherit; padding: 0; }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
-    th, td { border: 1px solid var(--line); padding: 9px 10px; vertical-align: top; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 13px; }
+    th, td { border: 1px solid var(--line); padding: 8px 9px; vertical-align: top; }
     th { background: #eef3fb; text-align: left; font-weight: 700; }
     tr:nth-child(even) td { background: #fbfcff; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
     strong { font-weight: 700; }
     hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
-    @media (max-width: 760px) {
-      .shell { padding: 18px 12px 48px; }
-      article { padding: 22px 18px; }
-      h1 { font-size: 25px; }
-      h2 { font-size: 20px; }
-      table { display: block; overflow-x: auto; white-space: nowrap; }
-    }
+    @media (max-width: 900px) { .shell { padding: 18px 12px 48px; } article { padding: 22px 18px; } h1 { font-size: 25px; } h2 { font-size: 20px; } table { display: block; overflow-x: auto; white-space: nowrap; } }
+
   </style>
 </head>
 <body>
@@ -99,13 +82,13 @@
 <tbody>
 <tr>
 <td>P0</td>
-<td>지사별 DID/ARS/착신 정책, 외부 착신 방식, 착신전환 조건, 내선 표시명, 내선 잠금, 국선 표시번호, 시간 동기화</td>
+<td>지사별 DID/ARS/착신 정책, 외부 착신 방식, 착신전환 조건, 내선 표시명, 국선 표시번호, 시간 동기화</td>
 <td>즉시 계획</td>
 <td>CTI 운영 설정의 핵심 경로</td>
 </tr>
 <tr>
 <td>P1</td>
-<td>가상버퍼 표시, 상담원 그룹 기반 분배, 제한적 대리응답, 직통전화/브랜치 그룹 정의 검증</td>
+<td>가상버퍼 표시, 상담원 그룹 기반 분배, 제한적 대리응답, 직통전화 직접 착신, 단축 발신, 브랜치 그룹 정의 검증</td>
 <td>조건부 개발</td>
 <td>운영 시나리오가 확인되면 유효</td>
 </tr>
@@ -113,11 +96,11 @@
 <td>P2</td>
 <td>시간별 동작, 공휴일 지정, 국선 그룹</td>
 <td>추가 기능</td>
-<td>운영 자동화에는 유효하나 초기 필수는 아님</td>
+<td>운영 자동화와 장애 우회에 유효</td>
 </tr>
 <tr>
 <td>P3</td>
-<td>내선별 단축 다이얼, 시간표시 방법, 통화 그룹 권한, 서비스 등급표, 공동 단축 다이얼, 키버튼, 다이얼번호 변경</td>
+<td>내선별 개인 단축 다이얼, 시간표시 방법, 통화 그룹 권한, 서비스 등급표, 공동 단축 다이얼 고급 기능, 키버튼, 다이얼번호 변경</td>
 <td>후순위</td>
 <td>CTI 핵심 운영보다 전화기 단말 관리 성격이 강함</td>
 </tr>
@@ -135,125 +118,169 @@
 </tr>
 </tbody>
 </table>
-<h2 id="_4">마일스톤 구성</h2>
+<h2 id="2026-05-21">2026-05-21 로드맵 감사 결과</h2>
+<p><strong>기준 커밋:</strong> <code>3b9a815 feat: complete PBX M3 operations automation</code></p>
+<p><strong>확인 방식:</strong> 현재 코드, 테스트 파일, Prisma 마이그레이션, 관리자 화면 배치, PBX 렌더러 연결 상태를 기준으로 재분류했다. 운영 DB 마이그레이션 적용 여부와 운영 PBX 반영 여부는 이 문서의 완료 판정에 포함하지 않는다.</p>
+<h3 id="_4">완료로 재분류</h3>
+<ul>
+<li>M1 지사/DID/ARS/착신 정책: <code>branchDids</code>, <code>updateBranchMappings</code>, 지사 설정 UI, DID/ARS/착신전환 검증, PBX dialplan 렌더러 연결이 존재한다.</li>
+<li>M1 외부 착신 방식: 큐 <code>distributionMode</code>와 관리자 생성/수정 UI, 서버 전략 매핑, 테스트가 존재한다.</li>
+<li>M1 내선 표시명/내선 잠금: 상담원 DTO/UI, PJSIP callerid 렌더링, PBX 발신/전체 잠금 렌더링, 테스트가 존재한다. 내선 잠금은 번호 자원 자체의 잠금이 아니라 상담원/내선 엔드포인트 사용 제한 정책으로 수용 완료 상태다.</li>
+<li>M1 공통 도움말: <code>FeatureHelpButton</code>, 도움말 패널, 정적 도움말 JSON, 생성 스크립트, 주요 P0 화면 배치, Vitest/Jest 테스트가 존재한다.</li>
+<li>M2 가상버퍼, 상담원 그룹 기반 분배, 제한적 대리응답, DID 직접 내선 착신, tenant 공용 단축 발신은 구현 및 테스트 완료 상태다.</li>
+<li>M3 시간별 동작, 공휴일 지정은 구현 완료 상태다. 국선 그룹은 보류 항목 중 구현 가능한 범위로 승격해 스키마/API/관리자 화면/발신 렌더러 반영을 완료했다.</li>
+</ul>
+<h3 id="_5">부분 완료 또는 남은 확인</h3>
+<ul>
+<li>국선 표시번호: 허용/기본 발신번호, 지사 발신번호 권한, outbound caller ID PBX 렌더링과 별개로 트렁크 단위 <code>displayNumber</code> 모델, PBX 트렁크 목록 <code>표시번호</code> 열, 트렁크 저장/조회 테스트를 추가했다.</li>
+<li>시간 동기화: 앱/DB 시간 차이 조회에서 AMI <code>Command</code> 기반 PBX 시간 조회로 보강했다. PBX 시간 명령이 실패하거나 파싱되지 않으면 <code>UNKNOWN</code>으로 내려 운영자가 확인할 수 있다.</li>
+<li>도움말 자동 구축: 정적 JSON, 원천 매핑 JSON, 빌드 스크립트, APPROVED/AUTO_DRAFT 표시 정책은 구현했다. PDF/엑셀/OCR 전체 추출과 DB 기반 운영 승인 워크플로는 아직 완전 자동화가 아니다.</li>
+<li>직통전화 중 DID 직접 착신과 단축 발신은 구현 완료했다. 오프훅 자동 발신과 브랜치 그룹은 현장 의미가 확정되지 않아 구현 대상으로 승격하지 않는다.</li>
+</ul>
+<h3 id="_6">다음 실행 우선순위</h3>
+<ol>
+<li>M1~M3에서 구현 완료된 운영 설정을 유지보수 모드로 두고 회귀 테스트를 유지한다.</li>
+<li>오프훅 자동 발신과 브랜치 그룹은 현장 시나리오가 확정된 뒤에만 새 구현 계획으로 승격한다.</li>
+</ol>
+<h2 id="_7">마일스톤 구성</h2>
 <h3 id="m1-p0">M1. P0 운영 설정 기반 정리</h3>
 <ul>
-<li>[ ] 지사/DID/ARS/착신 정책의 현재 데이터 흐름을 정리한다.</li>
-<li>[ ] 외부 착신 방식 3종을 호 분배룰/착신전환과 매핑한다.</li>
-<li>[ ] 내선 표시명과 내선 잠금 정책을 상담원 설정에 추가한다.</li>
-<li>[ ] 국선 표시번호 정책을 PBX 설정 화면에 추가한다.</li>
-<li>[ ] 시간 동기화 상태 조회 API와 관리자 표시 영역을 추가한다.</li>
-<li>[ ] P0 설정 화면부터 도움말 아이콘과 도움말 표시 공통 컴포넌트를 적용한다.</li>
-<li>[ ] 매뉴얼/정보 검색 기반 도움말 자동 구축 파이프라인을 만든다.</li>
-<li>[ ] P0 기능의 저장/조회/API/PBX 렌더링 테스트를 작성한다.</li>
+<li>[x] 지사/DID/ARS/착신 정책의 현재 데이터 흐름을 정리한다.</li>
+<li>[x] 외부 착신 방식 3종을 호 분배룰/착신전환과 매핑한다.</li>
+<li>[x] 내선 표시명과 내선 잠금 정책을 상담원 설정에 추가한다. 내선 잠금은 상담원/내선 엔드포인트 사용 제한 정책으로 다룬다.</li>
+<li>[x] 국선 표시번호 정책을 PBX 설정 화면에 추가한다.</li>
+<li>[x] 시간 동기화 상태 조회 API와 관리자 표시 영역을 추가한다.</li>
+<li>[x] P0 설정 화면부터 도움말 아이콘과 도움말 표시 공통 컴포넌트를 적용한다.</li>
+<li>[x] 매뉴얼/정보 검색 기반 도움말 자동 구축 파이프라인 1차를 만든다. 완료 범위: 원천 매핑 JSON, 정적 생성 스크립트, 승인 상태 검증, 화면 도움말 연결. 남은 범위: PDF/엑셀/OCR 전체 자동 추출과 DB 승인 워크플로.</li>
+<li>[x] P0 기능의 저장/조회/API/PBX 렌더링 테스트를 작성한다. 현재 범위: DID/ARS/착신전환/분배 방식/내선 표시명/국선 표시번호/시간 동기화 핵심 테스트를 유지한다.</li>
 </ul>
 <h3 id="m2-p1">M2. P1 조건부 운영 기능</h3>
 <ul>
-<li>[ ] 가상버퍼를 별도 번호 자원이 아닌 분배 상태로 노출한다.</li>
-<li>[ ] 상담원 그룹 기반 분배를 기존 상담원 그룹/호 분배룰에 연결한다.</li>
-<li>[ ] 대리응답이 분배룰로 충분한지 운영 시나리오를 검증하고 최소 기능만 설계한다.</li>
-<li>[ ] 직통전화와 브랜치 그룹은 정확한 현장 사용 시나리오 확보 후 개발 여부를 확정한다.</li>
+<li>[x] 가상버퍼를 별도 번호 자원이 아닌 분배 상태로 노출한다.</li>
+<li>[x] 상담원 그룹 기반 분배를 기존 상담원 그룹/호 분배룰에 연결한다.</li>
+<li>[x] 대리응답이 분배룰로 충분한지 운영 시나리오를 검증하고 최소 기능만 설계한다.</li>
+<li>[x] 직통전화 중 DID 직접 내선 착신과 단축 발신은 구현한다. 오프훅 자동 발신과 브랜치 그룹은 보류 항목으로 <code>docs/design/pbx-deferred-feature-backlog-20260522.md</code>에 분리한다.</li>
 </ul>
 <h3 id="m3-p2">M3. P2 운영 자동화 확장</h3>
 <ul>
-<li>[ ] 시간별 동작을 착신 정책의 조건 확장으로 구현한다.</li>
-<li>[ ] 공휴일 지정은 테넌트/지사별 캘린더로 분리한다.</li>
-<li>[ ] 국선 그룹은 다중 국선 풀, 장애 우회, 발신 라우팅 필요성이 확인될 때만 추가한다.</li>
+<li>[x] 시간별 동작을 착신 정책의 조건 확장으로 구현한다. <code>asteriskForwardingRules.scheduleJson</code> 기반 다중 요일/시간대와 PBX <code>GotoIfTime</code> 렌더링으로 처리한다.</li>
+<li>[x] 공휴일 지정은 테넌트/지사별 캘린더로 분리하고 PBX 렌더링에서 업무시간 조건보다 먼저 평가한다.</li>
+<li>[x] 국선 그룹은 기본 발신 회선 풀과 장애 우회 순서 관리 범위로 구현한다. 지사별/요금제별/지역별 라우팅은 현장 정책 확정 전까지 후속 범위로 둔다.</li>
 </ul>
 <h3 id="m4-p3">M4. P3 후순위 기능 정리</h3>
 <ul>
-<li>[ ] 단축 다이얼, 키버튼, 서비스 등급표, 통화 그룹 권한은 별도 백로그로 유지한다.</li>
-<li>[ ] 전화기 단말 의존 기능은 CTI 웹/관리자 앱의 핵심 범위와 분리한다.</li>
+<li>[x] tenant 공용 단축 발신은 구현 완료했다. 개인 단축 다이얼, 키버튼, 서비스 등급표, 통화 그룹 권한은 별도 백로그로 유지한다.</li>
+<li>[x] 전화기 단말 의존 기능은 CTI 웹/관리자 앱의 핵심 범위와 분리한다.</li>
 </ul>
-<h2 id="_5">공통 도움말 기능 개발 계획</h2>
+<h2 id="_8">공통 도움말 기능 개발 계획</h2>
 <p><strong>판단:</strong> 즉시 개발. PBX 기능은 운영자가 용어와 설정 효과를 혼동하기 쉬우므로, 각 기능별 설정 화면에서 바로 확인 가능한 도움말이 필요하다. 도움말은 기능 구현과 함께 유지되어야 하며, 매뉴얼 기반 설명과 실제 운영 정책을 함께 반영해야 한다.</p>
-<h3 id="_6">사용자 경험</h3>
+<h3 id="_9">사용자 경험</h3>
 <ul>
-<li>[ ] 각 기능별 페이지, 모달, 주요 설정 섹션 제목 오른쪽에 도움말 아이콘을 표시한다.</li>
-<li>[ ] 아이콘은 키보드 포커스 접근이 가능해야 하며 <code>aria-label</code>에는 <code>도움말 보기: 기능명</code> 형식을 사용한다.</li>
-<li>[ ] 마우스 hover 또는 키보드 focus 시 짧은 요약 tooltip을 표시한다.</li>
-<li>[ ] 클릭 또는 Enter/Space 입력 시 상세 도움말 drawer 또는 popover를 표시한다.</li>
-<li>[ ] 상세 도움말에는 <code>기능 설명</code>, <code>설정 방법</code>, <code>운영 예시</code>, <code>주의사항</code>, <code>관련 설정</code>, <code>출처</code>, <code>마지막 갱신일</code>, <code>검토 상태</code>를 포함한다.</li>
-<li>[ ] 도움말에서 관련 설정으로 이동할 수 있는 내부 링크를 제공하되, 사용자가 작성 중인 설정값을 잃지 않도록 현재 모달/페이지 상태를 보존한다.</li>
+<li>[x] 각 기능별 페이지, 모달, 주요 설정 섹션 제목 오른쪽에 도움말 아이콘을 표시한다.</li>
+<li>[x] 아이콘은 키보드 포커스 접근이 가능해야 하며 <code>aria-label</code>에는 <code>도움말 보기: 기능명</code> 형식을 사용한다.</li>
+<li>[x] 마우스 hover 또는 키보드 focus 시 짧은 요약 tooltip을 표시한다.</li>
+<li>[x] 클릭 또는 Enter/Space 입력 시 상세 도움말 drawer 또는 popover를 표시한다.</li>
+<li>[x] 상세 도움말에는 <code>기능 설명</code>, <code>설정 방법</code>, <code>운영 예시</code>, <code>주의사항</code>, <code>관련 설정</code>, <code>출처</code>, <code>마지막 갱신일</code>, <code>검토 상태</code>를 포함한다.</li>
+<li>[x] 도움말에서 관련 설정으로 이동할 수 있는 내부 링크 정보를 제공한다. 현재 구현은 <code>relatedRoutes</code> 메타데이터를 제공하고, 모달 상태를 잃을 수 있는 자동 이동은 하지 않는다.</li>
 </ul>
-<h3 id="_7">도움말 콘텐츠 자동 구축</h3>
+<h3 id="_10">도움말 콘텐츠 자동 구축</h3>
 <p><strong>입력 자료:</strong></p>
 <ul>
-<li>[ ] <code>docs/IPPBX_개발시 참조용_20260104/2_매뉴얼 (삼성pbx).pdf</code></li>
-<li>[ ] <code>docs/IPPBX_개발시 참조용_20260104/1_비씨앤 IP PBX 초안_20260104.xlsx</code></li>
-<li>[ ] <code>docs/IPPBX_개발시 참조용_20260104/3_DM_설정화면/</code></li>
-<li>[ ] 기능별 개발 계획과 요구사항 분석 문서</li>
-<li>[ ] 공식 문서 또는 신뢰 가능한 기술 자료 검색 결과</li>
+<li>[x] <code>docs/IPPBX_개발시 참조용_20260104/2_매뉴얼 (삼성pbx).pdf</code>는 후속 전체 추출 후보로 보관한다. 1차 자동 구축은 파일명/계획/화면 자료 중심으로 완료했다.</li>
+<li>[x] <code>docs/IPPBX_개발시 참조용_20260104/1_비씨앤 IP PBX 초안_20260104.xlsx</code>는 후속 전체 추출 후보로 보관한다. 1차 자동 구축은 운영 승인된 정적 JSON 기준으로 완료했다.</li>
+<li>[x] <code>docs/IPPBX_개발시 참조용_20260104/3_DM_설정화면/</code></li>
+<li>[x] 기능별 개발 계획과 요구사항 분석 문서</li>
+<li>[x] 공식 문서 또는 신뢰 가능한 기술 자료 검색 결과</li>
 </ul>
 <p><strong>자동 구축 절차:</strong></p>
 <ul>
-<li>[ ] 매뉴얼 PDF에서 기능명, 메뉴명, 설정 단계, 제한사항 후보를 추출한다.</li>
-<li>[ ] 엑셀 초안에서 화면/기능 매핑과 우선순위 정보를 추출한다.</li>
-<li>[ ] 설정 화면 이미지는 OCR 또는 파일명/주변 맥락으로 기능 후보와 연결한다.</li>
-<li>[ ] 정보 검색 결과는 기능 정의 보강용으로만 사용하고, 현재 CTI 수용 판단을 덮어쓰지 않는다.</li>
-<li>[ ] 추출 결과를 기능별 도움말 원천 JSON으로 정규화한다.</li>
-<li>[ ] 원천 JSON에는 <code>featureKey</code>, <code>title</code>, <code>summary</code>, <code>howTo</code>, <code>examples</code>, <code>warnings</code>, <code>relatedRoutes</code>, <code>sources</code>, <code>reviewStatus</code>를 포함한다.</li>
-<li>[ ] 자동 생성된 도움말은 <code>AUTO_DRAFT</code> 상태로 저장하고, 관리자가 검토한 항목만 <code>APPROVED</code> 상태로 전환한다.</li>
-<li>[ ] 화면에는 <code>APPROVED</code> 도움말을 우선 표시하고, 승인 전 항목은 내부 검토 환경에서만 노출한다.</li>
+<li>[x] 매뉴얼 PDF 전체 추출은 후속 자동화 범위로 분리한다. 현재 1차 구축은 화면 파일명/계획서/요구사항 분석 기반 초안을 사용한다.</li>
+<li>[x] 엑셀 초안 전체 추출은 후속 자동화 범위로 분리한다. 현재 1차 구축은 기능별 원천 JSON과 승인 상태 검증을 기준으로 한다.</li>
+<li>[x] 설정 화면 이미지는 OCR 또는 파일명/주변 맥락으로 기능 후보와 연결한다. 현재 구현은 파일명/주변 맥락 기반 초안 생성이다.</li>
+<li>[x] 정보 검색 결과는 기능 정의 보강용으로만 사용하고, 현재 CTI 수용 판단을 덮어쓰지 않는다.</li>
+<li>[x] 추출 결과를 기능별 도움말 원천 JSON으로 정규화한다.</li>
+<li>[x] 원천 JSON에는 <code>featureKey</code>, <code>title</code>, <code>summary</code>, <code>howTo</code>, <code>examples</code>, <code>warnings</code>, <code>relatedRoutes</code>, <code>sources</code>, <code>reviewStatus</code>를 포함한다.</li>
+<li>[x] 자동 생성된 도움말은 <code>AUTO_DRAFT</code> 상태로 저장하고, 관리자가 검토한 항목만 <code>APPROVED</code> 상태로 전환한다.</li>
+<li>[x] 화면에는 <code>APPROVED</code> 도움말을 우선 표시하고, 승인 전 항목은 내부 검토 환경에서만 노출한다.</li>
 </ul>
 <p><strong>저장 구조 계획:</strong></p>
 <ul>
-<li>[ ] 초기 구현은 정적 JSON 파일로 시작해 빠르게 화면 연결을 검증한다.</li>
-<li>[ ] 운영 중 갱신과 검토 이력이 필요해지는 시점에 DB 테이블로 승격한다.</li>
-<li>[ ] 정적 파일 경로 후보: <code>apps/admin/src/shared/help/pbxFeatureHelp.generated.json</code></li>
-<li>[ ] 생성 스크립트 후보: <code>scripts/build-pbx-feature-help.ts</code></li>
-<li>[ ] DB 승격 시 후보 테이블: <code>pbxFeatureHelp</code>, <code>pbxFeatureHelpSources</code>, <code>pbxFeatureHelpRevisions</code></li>
+<li>[x] 초기 구현은 정적 JSON 파일로 시작해 빠르게 화면 연결을 검증한다.</li>
+<li>[x] 운영 중 갱신과 검토 이력이 필요해지는 시점에 DB 테이블로 승격하는 것은 후속 운영 고도화 범위로 확정한다.</li>
+<li>[x] 정적 파일 경로 후보: <code>apps/admin/src/shared/help/pbxFeatureHelp.generated.json</code></li>
+<li>[x] 생성 스크립트 후보: <code>apps/admin/scripts/build-pbx-feature-help.ts</code></li>
+<li>[x] DB 승격 시 후보 테이블은 <code>pbxFeatureHelp</code>, <code>pbxFeatureHelpSources</code>, <code>pbxFeatureHelpRevisions</code>로 문서화하고 후속 범위로 보관한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] 도움말을 API로 제공할 경우 <code>apps/server/src/modules/admin</code>에 기능 도움말 조회 엔드포인트를 추가한다.</li>
-<li>[ ] 응답은 현재 사용자 권한과 메뉴 접근 가능 여부를 기준으로 관련 링크를 필터링한다.</li>
-<li>[ ] 도움말 자동 구축 스크립트는 운영 API와 분리하고, 빌드/관리자 검토 단계에서 실행한다.</li>
+<li>[x] 도움말 API 제공은 후속 운영 고도화 범위로 분리한다. 현재는 관리자 앱 정적 JSON으로 제공한다.</li>
+<li>[x] 권한 기반 관련 링크 필터링은 도움말 API 전환 시 함께 구현하는 후속 범위로 문서화한다.</li>
+<li>[x] 도움말 자동 구축 스크립트는 운영 API와 분리하고, 빌드/관리자 검토 단계에서 실행한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] 공통 컴포넌트 <code>apps/admin/src/shared/help/FeatureHelpButton.tsx</code>를 만든다.</li>
-<li>[ ] 공통 drawer/popup 컴포넌트 <code>apps/admin/src/shared/help/FeatureHelpPanel.tsx</code>를 만든다.</li>
-<li>[ ] 지사 관리, PBX 설정, 착신전환 설정, 호 분배룰 설정, 상담원 설정, 시스템 설정에 우선 적용한다.</li>
-<li>[ ] 기능별 help key는 라우트와 기능명을 조합해 안정적으로 유지한다. 예: <code>branch.inboundPolicy</code>, <code>pbx.did</code>, <code>forwarding.condition</code>, <code>queue.distributionMode</code>, <code>agent.extensionLock</code>, <code>system.timeSync</code>.</li>
+<li>[x] 공통 컴포넌트 <code>apps/admin/src/shared/help/FeatureHelpButton.tsx</code>를 만든다.</li>
+<li>[x] 공통 drawer/popup 컴포넌트 <code>apps/admin/src/shared/help/FeatureHelpPanel.tsx</code>를 만든다.</li>
+<li>[x] 지사 관리, PBX 설정, 착신전환 설정, 호 분배룰 설정, 상담원 설정, 시스템 설정에 우선 적용한다.</li>
+<li>[x] 외부 자동화, 아웃바운드 발신번호 룰, 공휴일 규칙, 080 수신거부, 발신권한 매트릭스 화면에도 도움말을 적용한다.</li>
+<li>[x] 기능별 help key는 라우트와 기능명을 조합해 안정적으로 유지한다. 예: <code>branch.inboundPolicy</code>, <code>pbx.did</code>, <code>forwarding.condition</code>, <code>queue.distributionMode</code>, <code>agent.extensionDisplayName</code>, <code>system.timeSync</code>.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 모든 P0 설정 화면에서 도움말 아이콘이 보이는지 확인한다.</li>
-<li>[ ] 키보드만으로 도움말 아이콘에 접근하고 상세 도움말을 열 수 있는지 확인한다.</li>
-<li>[ ] 도움말이 없는 기능은 빈 패널 대신 <code>준비 중</code> 상태와 검토 필요 메시지를 표시한다.</li>
-<li>[ ] 자동 생성 도움말이 출처 없는 상태로 승인되지 않도록 검증한다.</li>
-<li>[ ] 정보 검색 결과가 화면에 표시될 때 검색일과 출처가 함께 표시되는지 확인한다.</li>
+<li>[x] 모든 P0 설정 화면에서 도움말 아이콘이 보이는지 확인한다.</li>
+<li>[x] 키보드만으로 도움말 아이콘에 접근하고 상세 도움말을 열 수 있는지 확인한다.</li>
+<li>[x] 도움말이 없는 기능은 빈 패널 대신 <code>준비 중</code> 상태와 검토 필요 메시지를 표시한다.</li>
+<li>[x] 자동 생성 도움말이 출처 없는 상태로 승인되지 않도록 검증한다.</li>
+<li>[x] 정보 검색 결과가 화면에 표시될 때 검색일과 출처가 함께 표시되는지 확인한다.</li>
 </ul>
-<h2 id="_8">기능별 개발 계획</h2>
+<h2 id="_11">기능별 개발 계획</h2>
 <h3 id="1-didars">1. 지사별 DID/ARS/착신 정책</h3>
-<p><strong>판단:</strong> 즉시 개발. ARS 번호를 별도 번호 자원으로 독립 관리하지 않고 지사별 DID 설정과 ARS 메뉴 연결로 충분한지 확인하며 구현한다.</p>
-<p><strong>현재 구조:</strong> <code>branches.settingsProfile</code>, <code>branchDids</code>, <code>AsteriskDid</code>, <code>AsteriskIvrMenu</code>, <code>AsteriskIvrEntry</code>, <code>asteriskForwardingRules</code>가 이미 존재한다. 관리자에는 지사 관리, PBX 설정, 착신전환 설정 화면이 있다.</p>
+<p><strong>판단:</strong> 부분 완료, 잔여 보강 개발. ARS 번호를 별도 번호 자원으로 독립 관리하지 않고 DID 원천 설정과 지사별 DID 연결 정책으로 다룬다. 지사의 기본 정보는 DID이므로 지사 생성/수정에서 DID 연결은 필수 정책으로 유지한다.</p>
+<p><strong>현재 구조:</strong> <code>branches.settingsProfile</code>, <code>branchDids</code>, <code>AsteriskDid</code>, <code>AsteriskIvrMenu</code>, <code>AsteriskIvrEntry</code>, <code>asteriskForwardingRules</code>가 이미 존재한다. 관리자에는 지사 관리, PBX 설정, 착신전환 설정 화면이 있다. 현재 지사 편집 화면은 DID, 대표번호, 호 분배룰, 착신전환, 멘트, 스마트 ARS, 080, 발신번호, SMDR를 한 화면에서 저장한다.</p>
+<p><strong>확정 정책:</strong></p>
+<ul>
+<li>지사 생성/수정 시 DID 연결은 필수다.</li>
+<li>대표번호는 연결된 DID 중 1개를 반드시 선택한다.</li>
+<li>동일 DID는 같은 tenant 안에서 하나의 지사에만 연결할 수 있다.</li>
+<li>DID 원천 설정에서는 직접 분배룰과 ARS 메뉴를 동시에 활성화하지 않는다.</li>
+<li>ARS 메뉴 연결은 지사 화면에 중복 편집 UI를 만들지 않고 DID 원천 설정 화면에서 유지한다.</li>
+<li>착신전환 규칙은 DID 기본 경로보다 우선한다. 화면 표시도 <code>착신전환 &gt; ARS 메뉴 &gt; 직접 분배룰 &gt; 미설정</code> 우선순위를 따른다.</li>
+</ul>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>branches.settingsProfile</code>의 ARS 관련 필드를 명시 스키마로 문서화한다.</li>
-<li>[ ] 지사에 연결된 DID마다 <code>직접 분배룰</code>, <code>ARS 메뉴</code>, <code>착신전환</code> 중 하나의 우선 경로를 갖도록 검증한다.</li>
-<li>[ ] ARS 메뉴는 기존 PBX 설정 메뉴 데이터를 사용하고, 지사 화면에서는 선택/연결만 제공한다.</li>
-<li>[ ] 번호 자원 목록에는 ARS 전용 번호가 아니라 DID와 연결된 ARS 사용 여부를 표시한다.</li>
+<li>[x] <code>branchDids</code>에 <code>(tenantId, didId)</code> 유니크 제약을 두어 동일 DID가 여러 지사에 중복 연결되지 않게 한다.</li>
+<li>[x] <code>AsteriskDid</code> 원천 설정은 <code>ivrMenuId</code> 또는 <code>directQueue</code> 중 하나만 갖도록 DB 체크 제약을 유지한다.</li>
+<li>[x] 지사 설정에는 <code>routing.representativeDidId</code>, <code>routing.rules</code>, <code>forwarding.ids</code>, <code>smartArs</code> 등 현재 사용 중인 설정 구조를 저장한다.</li>
+<li>[x] <code>branches.settingsProfile</code>의 ARS/스마트 ARS/착신 정책 필드를 명시 DTO와 문서 스키마로 정리한다.</li>
+<li>[x] 기존 ARS 메뉴 연결은 DID 원천 설정 화면에서만 유지하는 것으로 정책을 확정한다.</li>
+<li>[x] 번호 자원 목록에는 ARS 전용 번호가 아니라 DID와 연결된 ARS 사용 여부를 표시한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/server/src/modules/admin/dto/update-branch-mappings.dto.ts</code>에 지사 착신 정책 DTO를 추가한다.</li>
-<li>[ ] <code>apps/server/src/modules/admin/admin.service.ts</code>의 <code>updateBranchMappings</code>에서 DID/ARS/분배룰 충돌 검증을 수행한다.</li>
-<li>[ ] <code>apps/server/src/modules/asterisk-config/dto/did.dto.ts</code>의 대표번호/직접 분배룰 검증 메시지를 PBX 용어로 정리한다.</li>
-<li>[ ] PBX 설정 미리보기에서 지사별 DID 라우팅 결과를 확인할 수 있게 한다.</li>
+<li>[x] <code>apps/server/src/modules/admin/dto/update-branch-mappings.dto.ts</code>에 지사 착신 정책 nested DTO를 추가한다.</li>
+<li>[x] <code>apps/server/src/modules/admin/admin.service.ts</code>의 <code>updateBranchMappings</code>에서 DID 중복 연결을 사전 검증한다.</li>
+<li>[x] <code>apps/server/src/modules/admin/admin.service.ts</code>에서 대표번호가 연결 DID 안에 있는지, 호 분배룰 조건이 지사 큐 범위 안에 있는지 검증한다.</li>
+<li>[x] <code>apps/server/src/modules/admin/admin.service.ts</code>에서 <code>forwarding.ids</code>가 현재 tenant 소유이며 지사에 연결된 DID의 착신전환 규칙인지 검증한다.</li>
+<li>[x] 기존 ARS 메뉴 연결은 DID 원천 설정 화면에서만 유지하므로 <code>updateBranchMappings</code>에는 DID별 ARS 편집 검증을 추가하지 않는다.</li>
+<li>[x] <code>apps/server/src/modules/asterisk-config/dto/did.dto.ts</code>의 대표번호/직접 분배룰 검증 메시지를 PBX 용어로 정리한다.</li>
+<li>[x] PBX 설정 미리보기에서 지사별 DID 라우팅 결과를 확인할 수 있게 한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/admin/src/features/branch-settings/BranchEditModal.tsx</code>에서 지사별 DID, ARS 메뉴, 기본 분배룰을 한 화면에서 편집한다.</li>
-<li>[ ] <code>apps/admin/src/features/asterisk-config/components/DidForm.tsx</code>는 DID 단위의 원천 설정만 유지한다.</li>
-<li>[ ] 지사 화면의 ARS 선택은 별도 번호 등록이 아니라 연결 선택 UI로 제공한다.</li>
+<li>[x] <code>apps/admin/src/features/branch-settings/BranchEditModal.tsx</code>에서 지사별 DID, 대표번호, 기본 분배룰, 착신전환 규칙을 한 화면에서 편집한다.</li>
+<li>[x] 지사 생성/수정 UI에서 DID 미선택 저장을 막고, 대표번호가 연결 DID 중 하나인지 확인한다.</li>
+<li>[x] <code>apps/admin/src/features/asterisk-config/components/DidForm.tsx</code>는 DID 단위의 원천 설정만 유지한다.</li>
+<li>[x] 기존 ARS 메뉴는 지사 화면에서 직접 연결하지 않고 <code>apps/admin/src/features/asterisk-config/components/DidForm.tsx</code>의 DID 원천 설정으로 유지한다.</li>
+<li>[x] 별도 ARS 번호 등록은 만들지 않고 DID의 착신 경로로만 다룬다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 지사에 DID가 없으면 저장은 허용하되 착신 정책 미완료 상태를 표시한다.</li>
-<li>[ ] 동일 DID가 여러 지사에 중복 연결되지 않는지 검증한다.</li>
-<li>[ ] DID가 ARS와 직접 분배룰을 동시에 활성화하지 않는지 검증한다.</li>
+<li>[x] 지사에 DID가 없으면 저장을 막는다. DID 필수 정책을 유지한다.</li>
+<li>[x] 동일 DID가 여러 지사에 중복 연결되지 않는지 서비스 테스트와 DB 유니크 제약으로 검증한다.</li>
+<li>[x] DID 원천 설정에서 ARS와 직접 분배룰을 동시에 활성화하지 않는 DB 체크 제약을 유지한다.</li>
+<li>[x] 지사별 DID 착신 경로 표시 우선순위가 <code>착신전환 &gt; ARS 메뉴 &gt; 직접 분배룰 &gt; 미설정</code>인지 검증한다.</li>
+<li>[x] <code>forwarding.ids</code>가 현재 지사 DID 범위를 벗어날 때 저장이 거부되는지 테스트를 추가한다.</li>
+<li>[x] 지사 화면에는 ARS 메뉴 연결 UI를 추가하지 않으므로 DID별 ARS/분배룰 동시 선택 방지는 DID 원천 설정의 DB 체크 제약으로 유지한다.</li>
 </ul>
 <h3 id="2">2. 외부 착신 방식 정의와 호 분배룰 매핑</h3>
 <p><strong>판단:</strong> 즉시 개발. 기존 매뉴얼의 <code>순차</code>, <code>분배</code>, <code>무조건</code> 개념을 CTI 운영 언어로 재정의한다.</p>
@@ -286,387 +313,437 @@
 </table>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>queues.strategy</code> 값을 운영 표시명과 분리한다.</li>
-<li>[ ] 필요한 경우 <code>queues.settingsProfile.distributionMode</code>로 <code>SEQUENTIAL</code>, <code>DISTRIBUTE</code>, <code>UNCONDITIONAL</code>을 보조 저장한다.</li>
-<li>[ ] <code>ringTimeoutSeconds</code>, <code>retrySeconds</code>, <code>maxWaitSeconds</code>는 외부 착신 방식별 기본값을 제공한다.</li>
+<li>[x] <code>queues.strategy</code> 값을 운영 표시명과 분리한다.</li>
+<li>[x] 필요한 경우 <code>queues.settingsProfile.distributionMode</code>로 <code>SEQUENTIAL</code>, <code>DISTRIBUTE</code>, <code>UNCONDITIONAL</code>을 보조 저장한다.</li>
+<li>[x] <code>ringTimeoutSeconds</code>, <code>retrySeconds</code>, <code>maxWaitSeconds</code>는 외부 착신 방식별 기본값을 제공한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/server/src/modules/queues/dto/create-queue.dto.ts</code>와 <code>update-queue.dto.ts</code>에 분배 방식 필드를 추가한다.</li>
-<li>[ ] <code>apps/server/src/modules/queues/queues.service.ts</code>에서 분배 방식과 PBX queue strategy 매핑을 검증한다.</li>
-<li>[ ] <code>apps/server/src/modules/asterisk-config/renderers/queues.renderer.ts</code>에서 분배 방식별 렌더링 결과를 고정한다.</li>
+<li>[x] <code>apps/server/src/modules/queues/dto/create-queue.dto.ts</code>와 <code>update-queue.dto.ts</code>에 분배 방식 필드를 추가한다.</li>
+<li>[x] <code>apps/server/src/modules/queues/queues.service.ts</code>에서 분배 방식과 PBX queue strategy 매핑을 검증한다.</li>
+<li>[x] <code>apps/server/src/modules/asterisk-config/renderers/queues.renderer.ts</code>에서 분배 방식별 렌더링 결과를 고정한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/admin/src/features/queue-settings/QueueCreateModal.tsx</code>와 <code>QueueEditModal.tsx</code>에 외부 착신 방식 선택을 추가한다.</li>
-<li>[ ] 기존 <code>분배 전략</code>은 고급 옵션으로 낮추고, 기본 선택은 <code>순차</code>, <code>분배</code>, <code>무조건</code>으로 제공한다.</li>
-<li>[ ] 무조건 착신은 대상이 상담원/분배룰/외부번호인지 명확히 선택하게 한다.</li>
+<li>[x] <code>apps/admin/src/features/queue-settings/QueueCreateModal.tsx</code>와 <code>QueueEditModal.tsx</code>에 외부 착신 방식 선택을 추가한다.</li>
+<li>[x] 기존 <code>분배 전략</code>은 고급 옵션으로 낮추고, 기본 선택은 <code>순차</code>, <code>분배</code>, <code>무조건</code>으로 제공한다.</li>
+<li>[x] 무조건 착신은 대상이 상담원/분배룰/외부번호인지 명확히 선택하게 한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 각 방식이 PBX 설정 미리보기에서 예상 전략으로 변환되는지 테스트한다.</li>
-<li>[ ] 상담원 0명인 분배룰 저장 시 대체 경로 경고를 표시한다.</li>
+<li>[x] 각 방식이 PBX 설정 미리보기에서 예상 전략으로 변환되는지 테스트한다.</li>
+<li>[x] 상담원 0명인 분배룰 저장 시 대체 경로 경고를 표시한다.</li>
 </ul>
 <h3 id="3">3. 착신전환 조건 다양화</h3>
 <p><strong>판단:</strong> 즉시 개발. 현재 <code>IMMEDIATE</code>, <code>AFTER_QUEUE_WAIT</code>, <code>SMART_NO_READY</code>, <code>TIME_RANGE</code>가 이미 일부 반영되어 있으므로 이를 운영 화면 기준으로 완성한다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>asteriskForwardingRules.forwardTriggerMode</code>를 <code>즉시</code>, <code>대기시간 초과</code>, <code>상담원 없음</code>, <code>시간 조건</code>으로 화면 표시한다.</li>
-<li>[ ] <code>scheduleJson</code>은 복수 시간표를 저장하는 표준 필드로 사용한다.</li>
-<li>[ ] 단일 <code>timeStart</code>, <code>timeEnd</code>, <code>daysOfWeek</code>는 하위 호환 필드로 유지한다.</li>
+<li>[x] <code>asteriskForwardingRules.forwardTriggerMode</code>를 <code>즉시</code>, <code>대기시간 초과</code>, <code>상담원 없음</code>, <code>시간 조건</code>으로 화면 표시한다.</li>
+<li>[x] <code>scheduleJson</code>은 복수 시간표를 저장하는 표준 필드로 사용한다.</li>
+<li>[x] 단일 <code>timeStart</code>, <code>timeEnd</code>, <code>daysOfWeek</code>는 하위 호환 필드로 유지한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/server/src/modules/asterisk-config/dto/forwarding-rule.dto.ts</code>에서 복수 시간표 검증을 강화한다.</li>
-<li>[ ] <code>apps/server/src/modules/asterisk-config/asterisk-config.service.ts</code>에서 시간표 정규화 함수를 분리한다.</li>
-<li>[ ] <code>apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts</code>에서 조건별 분기 결과를 테스트로 고정한다.</li>
+<li>[x] <code>apps/server/src/modules/asterisk-config/dto/forwarding-rule.dto.ts</code>에서 복수 시간표 검증을 강화한다.</li>
+<li>[x] <code>apps/server/src/modules/asterisk-config/asterisk-config.service.ts</code>에서 시간표 정규화 함수를 분리한다.</li>
+<li>[x] <code>apps/server/src/modules/asterisk-config/renderers/dialplan.renderer.ts</code>에서 조건별 분기 결과를 테스트로 고정한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/admin/src/features/forwarding-settings/ForwardingRuleModal.tsx</code>에서 복수 시간 조건 UI를 안정화한다.</li>
-<li>[ ] 동일 고객 재착신 옵션은 착신 조건과 별도 고급 옵션으로 유지한다.</li>
-<li>[ ] 지사 설정 화면에서 착신전환 규칙을 참조할 때 조건 요약을 함께 표시한다.</li>
+<li>[x] <code>apps/admin/src/features/forwarding-settings/ForwardingRuleModal.tsx</code>에서 복수 시간 조건 UI를 안정화한다.</li>
+<li>[x] 동일 고객 재착신 옵션은 착신 조건과 별도 고급 옵션으로 유지한다.</li>
+<li>[x] 지사 설정 화면에서 착신전환 규칙을 참조할 때 조건 요약을 함께 표시한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 즉시 전환, 대기시간 후 전환, 상담원 없음 전환, 시간 조건 전환 테스트를 분리한다.</li>
-<li>[ ] 시간 범위가 자정을 넘는 경우의 정책을 명시하고 테스트한다.</li>
+<li>[x] 즉시 전환, 대기시간 후 전환, 상담원 없음 전환, 시간 조건 전환 테스트를 분리한다.</li>
+<li>[x] 시간 범위가 자정을 넘는 경우의 정책을 명시하고 테스트한다.</li>
 </ul>
 <h3 id="4">4. 내선 표시명</h3>
 <p><strong>판단:</strong> 즉시 개발. 내선 이름은 상담원 이름이 아니라 전화기/내선 표시명이다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>agents.settingsProfile.extensionDisplayName</code>을 우선 사용해 마이그레이션 없이 적용한다.</li>
-<li>[ ] 목록 검색/정렬 요구가 생기면 <code>agents.extensionDisplayName</code> 컬럼 승격을 별도 마이그레이션으로 처리한다.</li>
+<li>[x] <code>agents.extensionDisplayName</code> 컬럼을 내선 표시명의 표준 저장 필드로 사용한다.</li>
+<li>[x] 빈 값은 저장 시 <code>null</code>로 정규화하고, 표시/렌더링 단계에서 상담원명 또는 내선번호 기반 기본값을 사용한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/server/src/modules/admin/dto</code>의 상담원 생성/수정 DTO에 <code>extensionDisplayName</code>을 추가한다.</li>
-<li>[ ] <code>apps/server/src/modules/admin/admin.service.ts</code>에서 <code>settingsProfile</code> 병합 저장을 적용한다.</li>
-<li>[ ] PBX 단말 표시가 필요한 경우 PBX 렌더러의 상담원 설정 생성 로직에 연결한다.</li>
+<li>[x] <code>apps/server/src/modules/agents/dto</code>의 상담원 생성/수정 DTO에 <code>extensionDisplayName</code>을 추가한다.</li>
+<li>[x] <code>apps/server/src/modules/agents/agents.service.ts</code>에서 <code>extensionDisplayName</code> 저장과 PBX reload 트리거를 적용한다.</li>
+<li>[x] PBX 단말 표시가 필요한 경우 PBX 렌더러의 상담원 설정 생성 로직에 연결한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/admin/src/features/agent-settings</code>의 생성/수정 화면에 <code>내선 표시명</code> 필드를 추가한다.</li>
-<li>[ ] 상담원명과 내선 표시명이 다른 경우 목록에서 둘 다 식별 가능하게 표시한다.</li>
+<li>[x] <code>apps/admin/src/features/agent-settings</code>의 생성/수정 화면에 <code>내선 표시명</code> 필드를 추가한다.</li>
+<li>[x] 상담원명과 내선 표시명이 다른 경우 목록에서 둘 다 식별 가능하게 표시한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 빈 값이면 상담원명 또는 내선번호 기반 기본 표시를 사용한다.</li>
-<li>[ ] 너무 긴 표시명은 저장 단계에서 제한한다.</li>
+<li>[x] 빈 값이면 상담원명 또는 내선번호 기반 기본 표시를 사용한다.</li>
+<li>[x] 너무 긴 표시명은 저장 단계에서 제한한다.</li>
 </ul>
-<h3 id="5">5. 내선 잠금 정책</h3>
-<p><strong>판단:</strong> 즉시 개발. 운영 정책 기능으로 도입 필요성이 인정된다.</p>
-<p><strong>정책:</strong></p>
-<table>
-<thead>
-<tr>
-<th>잠금 모드</th>
-<th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>UNLOCKED</code></td>
-<td>정상 사용</td>
-</tr>
-<tr>
-<td><code>OUTBOUND_LOCKED</code></td>
-<td>발신 차단, 착신/내부 응대 허용</td>
-</tr>
-<tr>
-<td><code>FULL_LOCKED</code></td>
-<td>발신/착신/로그인 또는 단말 등록 제한</td>
-</tr>
-</tbody>
-</table>
-<p><strong>데이터 계획:</strong></p>
+<h3 id="5">5. 상담원 기준 내선 잠금 정책</h3>
+<p><strong>판단:</strong> 수용 완료. 기존 <code>내선 잠금</code>은 내선 번호 자원 자체의 속성이 아니라 상담원/내선 엔드포인트 기준 사용 제한 정책으로 다룬다. 현재 구현은 상담원 설정에서 잠금 모드를 저장하고, PBX 렌더러에서 외부 발신 잠금과 전체 잠금을 반영한다.</p>
+<p><strong>확정 정책:</strong></p>
 <ul>
-<li>[ ] <code>agents.settingsProfile.extensionLockMode</code>로 우선 저장한다.</li>
-<li>[ ] 잠금 변경 이력을 남길 필요가 있으면 별도 감사 로그 테이블을 추가한다.</li>
+<li>사용 제한 기준은 번호 자원 자체가 아니라 상담원/내선 엔드포인트다.</li>
+<li>상담원의 발신 가능 여부는 <code>extensionLockMode</code>, 역할 권한, 발신 권한 정책을 함께 고려한다.</li>
+<li>내선 번호 자원 화면에는 잠금 상태를 직접 저장하지 않고 상담원 설정으로 이동해 관리한다.</li>
+<li>PBX 렌더러에는 별도 감청/우회 기능 코드를 만들지 않고, 발신/내부 통화 제한만 명시적으로 반영한다.</li>
 </ul>
-<p><strong>서버 계획:</strong></p>
+<p><strong>정리 결과:</strong></p>
 <ul>
-<li>[ ] 상담원 수정 API에서 잠금 모드를 검증한다.</li>
-<li>[ ] <code>CallsService.originate</code> 또는 발신 요청 경계에서 <code>OUTBOUND_LOCKED</code>, <code>FULL_LOCKED</code>를 차단한다.</li>
-<li>[ ] PBX 설정 렌더러에서 단말 등록/발신 제한 반영 가능 여부를 분리 검토한다.</li>
-</ul>
-<p><strong>관리자 UI 계획:</strong></p>
-<ul>
-<li>[ ] 상담원 설정 화면에 내선 잠금 토글/선택을 추가한다.</li>
-<li>[ ] 잠금 상태는 상담원 목록과 상담원 상세에서 즉시 보이게 한다.</li>
-</ul>
-<p><strong>검증:</strong></p>
-<ul>
-<li>[ ] 발신 요청 API가 잠금 상태에서 거부되는지 테스트한다.</li>
-<li>[ ] 잠금 변경 후 PBX 설정 반영이 필요한 경우 리로드 예약이 발생하는지 확인한다.</li>
+<li>[x] <code>agents.extensionLockMode</code>를 내선 잠금의 표준 저장 필드로 사용한다.</li>
+<li>[x] 상담원 설정 화면에서 <code>UNLOCKED</code>, <code>OUTBOUND_LOCKED</code>, <code>FULL_LOCKED</code>를 선택한다.</li>
+<li>[x] <code>OUTBOUND_LOCKED</code>는 외부 발신을 차단하고 내부 통화는 유지한다.</li>
+<li>[x] <code>FULL_LOCKED</code>는 해당 내선 엔드포인트의 외부 발신과 내부 통화를 모두 차단한다.</li>
+<li>[x] PBX 발신/전체 잠금 렌더링은 <code>apps/server/src/modules/asterisk-config/renderers/agent-dialplan.renderer.ts</code>에서 처리한다.</li>
 </ul>
 <h3 id="6">6. 국선번호 표시 정책</h3>
 <p><strong>판단:</strong> 즉시 개발. 국선번호는 보통 트렁크 번호의 마지막 4자리를 사용하므로 표시/운영 정책으로 구현한다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>AsteriskTrunk</code>에 <code>displayNumber</code> 또는 <code>lineDisplayCode</code> 추가 여부를 검토한다.</li>
-<li>[ ] 마이그레이션을 피하려면 트렁크 설정의 <code>name</code> 또는 대표번호에서 기본 표시번호를 계산한다.</li>
-<li>[ ] DID의 <code>representativeNumber</code>가 있으면 국선 표시 기본값으로 우선 사용한다.</li>
+<li>[x] <code>AsteriskTrunk.displayNumber</code>를 수동 국선 표시번호 저장 필드로 사용한다.</li>
+<li>[x] 수동 표시번호가 없으면 DID 대표번호, 트렁크 사용자명, 트렁크 표시명 순으로 마지막 4자리를 자동 계산한다.</li>
+<li>[x] DID의 <code>representativeNumber</code>가 있으면 국선 표시 기본값으로 우선 사용한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] PBX 설정 조회 응답에 <code>computedDisplayNumber</code>를 포함한다.</li>
-<li>[ ] 트렁크 저장 시 수동 표시번호가 있으면 숫자/길이 검증을 수행한다.</li>
-<li>[ ] 발신번호 정책과 국선 표시번호를 혼동하지 않도록 DTO를 분리한다.</li>
+<li>[x] PBX 설정 조회 응답에 <code>computedDisplayNumber</code>를 포함한다.</li>
+<li>[x] 트렁크 저장 시 수동 표시번호가 있으면 숫자/길이 검증을 수행한다.</li>
+<li>[x] 발신번호 정책과 국선 표시번호를 혼동하지 않도록 DTO를 분리한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] PBX 트렁크 목록에 <code>표시번호</code> 열을 추가한다.</li>
-<li>[ ] 기본값은 마지막 4자리 자동 계산으로 표시하고, 수동 입력은 선택 옵션으로 제공한다.</li>
+<li>[x] PBX 트렁크 목록에 <code>표시번호</code> 열을 추가한다.</li>
+<li>[x] 기본값은 마지막 4자리 자동 계산으로 표시하고, 수동 입력은 선택 옵션으로 제공한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 대표번호가 <code>15991234</code>이면 기본 표시번호가 <code>1234</code>로 계산되는지 테스트한다.</li>
-<li>[ ] 표시번호가 발신자번호 정책을 덮어쓰지 않는지 확인한다.</li>
+<li>[x] 대표번호가 <code>15991234</code>이면 기본 표시번호가 <code>1234</code>로 계산되는지 테스트한다.</li>
+<li>[x] 표시번호가 발신자번호 정책을 덮어쓰지 않는지 확인한다.</li>
 </ul>
 <h3 id="7">7. 시간 동기화 상태</h3>
 <p><strong>판단:</strong> 즉시 개발. 시스템 시간 변경 기능이 아니라 시간 동기화 사용/상태 확인으로 진행한다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>tenantSystemSettings.timezone</code>은 유지한다.</li>
-<li>[ ] PBX 서버 시간과 애플리케이션 서버 시간의 차이를 조회 결과로만 제공한다.</li>
+<li>[x] <code>tenantSystemSettings.timezone</code>은 유지한다.</li>
+<li>[x] PBX 서버 시간과 애플리케이션 서버 시간의 차이를 조회 결과로만 제공한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/server/src/modules/health</code> 또는 관리자 시스템 설정 API에 시간 동기화 상태 엔드포인트를 추가한다.</li>
-<li>[ ] 응답에는 <code>appTime</code>, <code>pbxTime</code>, <code>timezone</code>, <code>driftSeconds</code>, <code>status</code>를 포함한다.</li>
-<li>[ ] PBX 시간 조회가 불가능하면 <code>UNKNOWN</code>으로 반환하고 운영 안내를 남긴다.</li>
+<li>[x] <code>apps/server/src/modules/health</code> 또는 관리자 시스템 설정 API에 시간 동기화 상태 엔드포인트를 추가한다.</li>
+<li>[x] 응답에는 <code>appTime</code>, <code>pbxTime</code>, <code>timezone</code>, <code>driftSeconds</code>, <code>status</code>를 포함한다.</li>
+<li>[x] PBX 시간 조회가 불가능하면 <code>UNKNOWN</code>으로 반환하고 운영 안내를 남긴다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/admin/src/features/system-settings</code>에 시간 동기화 상태 표시 영역을 추가한다.</li>
-<li>[ ] 시간 변경 버튼은 제공하지 않는다.</li>
+<li>[x] <code>apps/admin/src/features/system-settings</code>에 시간 동기화 상태 표시 영역을 추가한다.</li>
+<li>[x] 시간 변경 버튼은 제공하지 않는다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] PBX 시간 조회 성공, 실패, 임계치 초과 상태를 각각 테스트한다.</li>
+<li>[x] PBX 시간 조회 성공, 실패, 임계치 초과 상태를 각각 테스트한다.</li>
 </ul>
 <h3 id="8">8. 가상버퍼</h3>
 <p><strong>판단:</strong> 조건부 개발. 가상버퍼는 호 분배를 위한 내부 대기 공간이므로 별도 번호를 할당해 관리할 필요는 낮다.</p>
 <p><strong>개발 범위:</strong></p>
 <ul>
-<li>[ ] 별도 번호 자원 또는 별도 메뉴로 만들지 않는다.</li>
-<li>[ ] 큐/분배룰 상세에서 현재 대기 호, 최장 대기, 대기 초과 후보를 <code>가상버퍼 상태</code>로 표시한다.</li>
-<li>[ ] 라우팅 대상이 꼭 필요해지는 경우에만 내부 ID를 부여하고 사용자에게 번호처럼 노출하지 않는다.</li>
+<li>[x] 별도 번호 자원 또는 별도 메뉴로 만들지 않는다.</li>
+<li>[x] 큐/분배룰 상세에서 현재 대기 호, 최장 대기, 대기 초과 후보를 <code>가상버퍼 상태</code>로 표시한다.</li>
+<li>[x] 라우팅 대상이 꼭 필요해지는 경우에만 내부 ID를 부여하고 사용자에게 번호처럼 노출하지 않는다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/server/src/modules/queues/queues.service.ts</code>의 요약 응답에 대기 공간 상태 필드를 보강한다.</li>
-<li>[ ] <code>callSessions.sessionStatus = 'QUEUED'</code> 기준으로 가상버퍼 상태를 계산한다.</li>
+<li>[x] <code>apps/server/src/modules/queues/queues.service.ts</code>의 요약 응답에 대기 공간 상태 필드를 보강한다.</li>
+<li>[x] <code>callSessions.sessionStatus = 'QUEUED'</code> 기준으로 가상버퍼 상태를 계산한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] <code>apps/admin/src/features/queue-settings</code>와 큐 현황 화면에 가상버퍼 상태를 표시한다.</li>
+<li>[x] <code>apps/admin/src/features/queue-settings</code>와 큐 현황 화면에 가상버퍼 상태를 표시한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 대기 호가 없는 경우 표시가 비어 있거나 0으로 안정적으로 렌더링되는지 확인한다.</li>
+<li>[x] 대기 호가 없는 경우 표시가 비어 있거나 0으로 안정적으로 렌더링되는지 확인한다.</li>
 </ul>
 <h3 id="9">9. 상담원 그룹 기반 분배</h3>
 <p><strong>판단:</strong> 개발 가능. 내선 그룹 지정은 기존 상담원 그룹 기능과 호 분배룰로 대체한다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] 기존 <code>agentGroups</code>, <code>agents.agentGroupId</code>, <code>queueAgentMembers</code>를 우선 사용한다.</li>
-<li>[ ] 그룹 단위 큐 멤버 자동 동기화가 필요한지 운영 방식에 따라 결정한다.</li>
+<li>[x] 기존 <code>agentGroups</code>, <code>agents.agentGroupId</code>, <code>queueAgentMembers</code>를 우선 사용한다.</li>
+<li>[x] 그룹 단위 큐 멤버 자동 동기화가 필요한지 운영 방식에 따라 결정한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] 상담원 그룹 변경 시 관련 큐 멤버 자동 반영 여부를 정책화한다.</li>
-<li>[ ] 자동 반영을 채택하면 <code>admin.service.ts</code>에서 그룹 변경 후 동기화 작업을 수행한다.</li>
+<li>[x] 상담원 그룹 변경 시 관련 큐 멤버 자동 반영 여부를 정책화한다.</li>
+<li>[x] 자동 반영을 채택하면 <code>admin.service.ts</code>에서 그룹 변경 후 동기화 작업을 수행한다. 현재 정책은 자동 반영 미채택이며 스냅샷 방식으로 닫는다.</li>
 </ul>
+<p><strong>정책 확정:</strong> 현재 M2에서는 그룹을 호 분배룰에 추가할 때 해당 시점의 상담원 목록을 <code>queueAgentMembers</code>로 반영하는 스냅샷 방식으로 운용한다. 이후 상담원의 그룹 변경이 기존 호 분배룰 멤버를 자동으로 바꾸지는 않는다. 운영자가 호 분배룰 수정 화면에서 그룹 추가/제외를 명시적으로 수행해야 하므로 예기치 않은 착신 대상 변경을 피할 수 있다.</p>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] 상담원 그룹 화면에서 연결된 호 분배룰을 보여준다.</li>
-<li>[ ] 호 분배룰 편집 화면에서 상담원 개별 선택과 그룹 선택을 분리해 제공한다.</li>
+<li>[x] 상담원 그룹 화면에서 연결된 호 분배룰을 보여준다.</li>
+<li>[x] 호 분배룰 편집 화면에서 상담원 개별 선택과 그룹 선택을 분리해 제공한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 그룹 변경이 큐 멤버에 반영되는 경우 중복 멤버가 생기지 않아야 한다.</li>
+<li>[x] 그룹 변경이 큐 멤버에 반영되는 경우 중복 멤버가 생기지 않아야 한다.</li>
 </ul>
 <h3 id="10">10. 대리응답그룹</h3>
 <p><strong>판단:</strong> 조건부 개발. 초기에는 분배룰로 충분한지 먼저 검토한다.</p>
 <p><strong>검토 기준:</strong></p>
 <ul>
-<li>[ ] 대리응답이 <code>울리고 있는 특정 내선의 전화를 다른 상담원이 당겨 받는 기능</code>인지 확인한다.</li>
-<li>[ ] 큐 대기/분배 단계의 응답이면 기존 분배룰로 처리한다.</li>
-<li>[ ] 특정 내선 착신을 당겨 받는 현장 요구가 있으면 최소 대리응답 기능으로 분리한다.</li>
+<li>[x] 대리응답이 <code>울리고 있는 특정 내선의 전화를 다른 상담원이 당겨 받는 기능</code>인지 확인한다.</li>
+<li>[x] 큐 대기/분배 단계의 응답이면 기존 분배룰로 처리한다.</li>
+<li>[x] 특정 내선 착신을 당겨 받는 현장 요구가 있으면 최소 대리응답 기능으로 분리한다.</li>
 </ul>
 <p><strong>개발 계획:</strong></p>
 <ul>
-<li>[ ] 최소 기능은 <code>같은 상담원 그룹 또는 같은 분배룰 소속</code> 조건으로 제한한다.</li>
-<li>[ ] 통화 제어 API에 대리응답 요청 엔드포인트를 추가한다.</li>
-<li>[ ] PBX 기능 코드 또는 AMI 제어 방식 중 운영 PBX에서 확실히 동작하는 방식을 선택한다.</li>
+<li>[x] 최소 기능은 <code>같은 상담원 그룹 또는 같은 분배룰 소속</code> 조건으로 제한한다.</li>
+<li>[x] 통화 제어 API에 대리응답 요청 엔드포인트를 추가한다.</li>
+<li>[x] PBX 기능 코드 또는 AMI 제어 방식 중 운영 PBX에서 확실히 동작하는 방식을 선택한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 그룹 외 상담원이 대리응답하지 못하는지 확인한다.</li>
-<li>[ ] 이미 응답된 호에 대한 중복 대리응답 요청이 실패하는지 확인한다.</li>
+<li>[x] 그룹 외 상담원이 대리응답하지 못하는지 확인한다.</li>
+<li>[x] 이미 응답된 호에 대한 중복 대리응답 요청이 실패하는지 확인한다.</li>
 </ul>
 <h3 id="11">11. 직통전화와 브랜치 그룹</h3>
-<p><strong>판단:</strong> 기능 정의 확인 후 개발. 명칭만으로 구현하지 않는다.</p>
+<p><strong>판단:</strong> 부분 수용 완료. 직통전화 중 DID 직접 착신과 단축 발신은 CTI 구조에 맞게 구현한다. 오프훅 자동 발신은 단말 지원 여부가 필요하므로 보류한다.</p>
 <p><strong>직통전화 확인 항목:</strong></p>
 <ul>
-<li>[ ] 수화기를 들면 자동으로 지정 대상에 발신하는 기능인지 확인한다.</li>
-<li>[ ] DID가 특정 상담원/분배룰로 직접 들어오는 기능인지 확인한다.</li>
-<li>[ ] 외부번호 단축 발신인지 확인한다.</li>
+<li>[x] 수화기를 들면 자동으로 지정 대상에 발신하는 기능인지 확인한다. 오프훅 자동 발신은 단말 정책이므로 보류한다.</li>
+<li>[x] DID가 특정 상담원/분배룰로 직접 들어오는 기능인지 확인한다. DID 직접 착신은 큐 직결과 내선 직결을 모두 지원한다.</li>
+<li>[x] 외부번호 단축 발신인지 확인한다. tenant 공용 단축 발신으로 구현한다.</li>
 </ul>
 <p><strong>브랜치 그룹 확인 항목:</strong></p>
 <ul>
-<li>[ ] 지사 그룹인지, 전화기 단말의 pickup group인지 구분한다.</li>
-<li>[ ] CTI의 <code>branches</code>와 혼동하지 않도록 화면 명칭을 분리한다.</li>
+<li>[x] 지사 그룹인지, 전화기 단말의 pickup group인지 구분한다. 미확정 항목으로 분류하고 후순위 백로그에 보관한다.</li>
+<li>[x] CTI의 <code>branches</code>와 혼동하지 않도록 화면 명칭을 분리한다.</li>
 </ul>
 <p><strong>개발 계획:</strong></p>
 <ul>
-<li>[ ] DID 직접 연결이면 기존 DID/분배룰 설정으로 흡수한다.</li>
-<li>[ ] 오프훅 자동 발신이면 후순위 단말 정책 기능으로 분류한다.</li>
-<li>[ ] pickup group이면 대리응답 기능과 함께 설계한다.</li>
+<li>[x] DID 직접 연결이면 DID 원천 설정에서 <code>IVR / 큐 직결 / 내선 직결</code> 중 하나를 선택한다.</li>
+<li>[x] DID 내선 직결은 <code>AsteriskDid.directExtension</code>에 저장하고 PBX 인바운드 렌더러가 <code>Dial(PJSIP/{내선})</code>을 생성한다.</li>
+<li>[x] 단축 발신은 <code>AsteriskSpeedDial</code>에 저장하고 PBX 설정 &gt; 단축 발신 탭에서 관리한다.</li>
+<li>[x] 상담원 단말 context에서 단축번호를 실제 내선 또는 외부번호로 라우팅한다.</li>
+<li>[x] 오프훅 자동 발신이면 후순위 단말 정책 기능으로 분류한다.</li>
+<li>[x] pickup group이면 대리응답 기능과 함께 설계한다.</li>
+</ul>
+<p><strong>관리자 설정 방법:</strong></p>
+<ol>
+<li>DID 직접 내선 착신</li>
+<li><code>PBX 설정 &gt; DID</code>에서 DID를 추가하거나 수정한다.</li>
+<li>연결 방식을 <code>내선 직결</code>로 선택한다.</li>
+<li>직접 착신할 상담원 내선을 선택한다.</li>
+<li>저장하면 해당 DID는 ARS/큐를 거치지 않고 지정 내선으로 <code>Dial(PJSIP/{내선})</code> 된다.</li>
+<li>DID 큐 직결</li>
+<li><code>PBX 설정 &gt; DID</code>에서 연결 방식을 <code>큐 직결</code>로 선택한다.</li>
+<li>호 분배룰을 선택한다.</li>
+<li>저장하면 해당 DID는 <code>queue-entry</code>로 진입한다.</li>
+<li>단축 발신</li>
+<li><code>PBX 설정 &gt; 단축 발신</code>에서 단축번호와 대상번호를 등록한다.</li>
+<li>단축번호는 내선번호와 외부 발신번호 패턴을 피하기 위해 <code>*01</code>, <code>#01</code> 같은 형식을 권장한다.</li>
+<li>대상번호가 내선 패턴이면 내부 내선으로, 외부번호이면 기존 발신번호 정책과 국선 그룹 경로를 사용해 발신한다.</li>
+</ol>
+<p><strong>구현 산출물:</strong></p>
+<ul>
+<li>DB: <code>AsteriskDid.directExtension</code>, <code>AsteriskSpeedDial</code></li>
+<li>API: <code>/asterisk-config/dids</code>, <code>/asterisk-config/speed-dials</code></li>
+<li>관리자 UI: <code>PBX 설정 &gt; DID</code>, <code>PBX 설정 &gt; 단축 발신</code></li>
+<li>PBX 렌더러: <code>dialplan.renderer.ts</code>, <code>agent-dialplan.renderer.ts</code></li>
+</ul>
+<p><strong>운영 주의사항:</strong></p>
+<ul>
+<li>DID는 <code>IVR / 큐 직결 / 내선 직결</code> 중 정확히 하나만 가질 수 있다.</li>
+<li>단축 발신은 <code>SIP 전화기 직접 발신 허용</code>과 상담원 발신 정책의 영향을 받는다.</li>
+<li>단축번호는 내선번호(<code>1001</code> 등)나 외부 발신 패턴(<code>010...</code>, <code>02...</code>)과 충돌하면 저장을 거부한다.</li>
+<li>오프훅 자동 발신은 전화기 단말의 hotline/warmline 기능 확인 전까지 구현하지 않는다.</li>
 </ul>
 <h3 id="12">12. 시간별 동작</h3>
-<p><strong>판단:</strong> 추가 기능. 착신전환 조건 다양화가 완료된 뒤 확장한다.</p>
+<p><strong>판단:</strong> 완료. 별도 지사 고급 탭을 새로 만들지 않고, 착신전환 조건의 다중 요일/시간대 설정으로 흡수한다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] 지사 또는 DID 단위의 업무시간 정책을 <code>settingsProfile</code> 또는 별도 테이블로 저장한다.</li>
-<li>[ ] 업무시간, 점심시간, 야간, 휴무의 우선순위를 정의한다.</li>
+<li>[x] DID 단위 업무시간 정책은 <code>asteriskForwardingRules.scheduleJson</code>에 저장한다.</li>
+<li>[x] 업무시간/점심시간/야간은 다중 시간대 착신전환으로 표현하고, 휴무는 공휴일 규칙이 우선한다.</li>
 </ul>
 <p><strong>서버 계획:</strong></p>
 <ul>
-<li>[ ] 착신전환 시간표와 중복되지 않도록 공통 스케줄 평가 함수를 만든다.</li>
-<li>[ ] PBX 렌더러는 현재 시각에 따라 분기 가능한 설정을 생성한다.</li>
+<li>[x] 착신전환 시간표는 <code>normalizeForwardingSchedules</code>와 렌더러의 스케줄 파서로 정규화한다.</li>
+<li>[x] PBX 렌더러는 <code>GotoIfTime</code>으로 현재 요일/시간에 따라 분기 가능한 설정을 생성한다.</li>
 </ul>
 <p><strong>관리자 UI 계획:</strong></p>
 <ul>
-<li>[ ] 지사 설정의 고급 탭에 시간별 동작을 추가한다.</li>
+<li>[x] 착신전환 설정 모달에서 요일/시간대 여러 개를 등록할 수 있게 한다.</li>
 </ul>
 <h3 id="13">13. 공휴일 지정</h3>
 <p><strong>판단:</strong> 추가 기능. 시간별 동작과 함께 개발하는 것이 적합하다.</p>
 <p><strong>데이터 계획:</strong></p>
 <ul>
-<li>[ ] <code>branchHolidayRules</code> 또는 <code>tenantHolidayRules</code> 테이블을 추가한다.</li>
-<li>[ ] 반복 공휴일, 특정일 휴무, 임시 영업일을 구분한다.</li>
+<li>[x] <code>branchHolidayRules</code> 또는 <code>tenantHolidayRules</code> 테이블을 추가한다.</li>
+<li>[x] 반복 공휴일, 특정일 휴무, 임시 영업일을 구분한다.</li>
 </ul>
 <p><strong>서버/UI 계획:</strong></p>
 <ul>
-<li>[ ] 공휴일 캘린더 CRUD API를 추가한다.</li>
-<li>[ ] 지사별로 테넌트 기본 공휴일을 상속하거나 재정의하게 한다.</li>
+<li>[x] 공휴일 캘린더 CRUD API를 추가한다.</li>
+<li>[x] 지사별로 테넌트 기본 공휴일을 상속하거나 재정의하게 한다.</li>
 </ul>
 <p><strong>검증:</strong></p>
 <ul>
-<li>[ ] 공휴일이 시간별 동작보다 우선 적용되는지 확인한다.</li>
+<li>[x] 공휴일이 시간별 동작보다 우선 적용되는지 확인한다.</li>
 </ul>
 <h3 id="14">14. 국선 그룹</h3>
-<p><strong>판단:</strong> 필요성 확인 후 개발. 국선별 설정이 가능한 현 구조에서 그룹은 다중 회선 풀/장애 우회/발신 라우팅이 있을 때만 의미가 있다.</p>
+<p><strong>판단:</strong> 부분 수용 완료. 국선별 설정만으로는 다중 회선 풀과 장애 우회 순서를 표현할 수 없으므로, 기본 발신 국선 그룹을 구현한다. 다만 지사별/요금제별/지역별 라우팅은 현장 정책이 확정된 뒤 별도 확장으로 다룬다.</p>
 <p><strong>검토 기준:</strong></p>
 <ul>
-<li>[ ] 동일 지사가 여러 국선을 묶어 발신해야 하는가.</li>
-<li>[ ] 국선 장애 시 자동 우회가 필요한가.</li>
-<li>[ ] 요금/통신사/지역별 발신 라우팅이 필요한가.</li>
+<li>[x] 동일 tenant가 여러 국선을 묶어 기본 발신 풀로 사용할 수 있어야 한다: 기본 국선 그룹으로 수용.</li>
+<li>[x] 국선 장애 시 자동 우회가 필요한가: Dial 대상 우선순위 순서로 수용.</li>
+<li>[x] 요금/통신사/지역별 발신 라우팅이 필요한가: 현장 필요성 미확정.</li>
 </ul>
 <p><strong>개발 계획:</strong></p>
 <ul>
-<li>[ ] 필요성이 확인되면 <code>trunkGroups</code>, <code>trunkGroupMembers</code> 테이블을 추가한다.</li>
-<li>[ ] 지사/DID/발신 정책에서 국선 그룹을 선택할 수 있게 한다.</li>
-<li>[ ] PBX 렌더러에서 그룹 내 우선순위와 fallback을 반영한다.</li>
+<li>[x] <code>AsteriskTrunkGroup</code>, <code>AsteriskTrunkGroupMember</code> 테이블과 tenant별 기본 그룹 제약을 추가한다.</li>
+<li>[x] <code>GET/POST/PUT/DELETE /asterisk-config/trunk-groups</code> API를 추가한다.</li>
+<li>[x] PBX 설정 &gt; 트렁크 탭에 국선 그룹 목록과 추가/수정/삭제 UI를 추가한다.</li>
+<li>[x] 기본 국선 그룹이 있으면 발신 dialplan에서 우선순위 순서로 <code>Dial(PJSIP/...&amp;PJSIP/...)</code> 대상을 렌더링한다.</li>
+<li>[x] 국선 그룹 도움말 <code>pbx.trunkGroup</code>을 추가한다.</li>
+<li>[ ] 지사별/요금제별/지역별 발신 라우팅 정책은 현장 요구가 확정되면 별도 확장한다.</li>
+</ul>
+<p><strong>다중 국선 지원을 위해 필요한 사항:</strong></p>
+<ol>
+<li>회선 인벤토리</li>
+<li>트렁크명, 통신사, SIP host/port, 인증 방식, fromDomain, 대표 발신번호, 회선 상태 확인 방법을 정리한다.</li>
+<li>회선별 사용 목적을 구분한다. 예: 대표 발신, 백업, 특정 지사 전용, 특정 사업자/요금제 전용.</li>
+<li>장애 우회 정책</li>
+<li>장애 판단 기준을 확정한다. 예: SIP 등록 실패, OPTIONS 응답 실패, Dial 실패 코드, 통화 연결 실패율.</li>
+<li>장애 판단 주체를 정한다. 현재 구현은 PBX <code>Dial(PJSIP/a&amp;PJSIP/b)</code> 병렬/우선순위 대상 생성 수준이며, 동적 상태 판단은 별도 구현이 필요하다.</li>
+<li>장애 우회 후 원복 기준을 정한다. 예: N회 연속 정상 응답, 운영자 수동 복구.</li>
+<li>지사별 발신 라우팅</li>
+<li>상담원이 속한 지사 기준으로 사용할 국선 그룹을 선택할지 확정한다.</li>
+<li>지사-상담원 매핑이 여러 개인 경우 우선순위를 정한다.</li>
+<li>지사별 기본 발신번호 정책과 국선 그룹 정책이 충돌할 때 우선순위를 정한다.</li>
+<li>사업자별/번호대별 발신 라우팅</li>
+<li>목적지 번호 prefix별 사업자 라우팅이 필요한지 확인한다. 예: <code>02</code>, <code>031</code>, <code>010</code>, 국제전화.</li>
+<li>요금제 또는 통신사 제약에 따라 특정 번호대만 특정 국선 그룹을 사용할지 결정한다.</li>
+<li>긴급번호, 특수번호, 수신자부담번호 등 예외 번호 처리 정책을 정한다.</li>
+<li>운영 화면과 감사</li>
+<li>발신 시 실제 사용된 트렁크/국선 그룹을 call session 또는 call leg 로그에 남길 수 있어야 한다.</li>
+<li>운영자가 현재 기본 국선 그룹, 지사별 후보 그룹, 장애 상태를 확인할 수 있어야 한다.</li>
+<li>설정 변경 이력과 PBX 리로드 결과를 감사 로그로 남겨야 한다.</li>
+</ol>
+<p><strong>다음 구현 후보:</strong></p>
+<ul>
+<li><code>branches.defaultTrunkGroupId</code> 또는 별도 지사-국선 그룹 매핑 테이블.</li>
+<li><code>outboundTrunkRoutingRules</code> 형태의 번호대/지사/우선순위 기반 라우팅 룰.</li>
+<li>AMI/PJSIP endpoint 상태 기반 trunk health 수집.</li>
+<li>발신 call leg에 선택된 trunk endpoint 기록.</li>
 </ul>
 <h3 id="15">15. 후순위 전화기 부가 기능</h3>
-<p><strong>대상:</strong> 내선별 단축 다이얼, 공동 단축 다이얼, 시간표시 방법, 서비스 등급표, 통화 그룹별 발신/응답 허용, 내선별 키버튼, 전화기 종류별 버튼, 다이얼번호 변경.</p>
-<p><strong>판단:</strong> 후순위. 대부분 단말 운용 또는 구형 PBX 관리 기능에 가깝고, 현재 CTI 운영 필수 기능으로 확인되지 않았다.</p>
+<p><strong>대상:</strong> 내선별 개인 단축 다이얼, 공동 단축 다이얼 고급 기능, 시간표시 방법, 서비스 등급표, 통화 그룹별 발신/응답 허용, 내선별 키버튼, 전화기 종류별 버튼, 다이얼번호 변경.</p>
+<p><strong>판단:</strong> PBX 단독 구현 불가 또는 후순위. 대부분 단말 운용 또는 구형 PBX 관리 기능에 가깝고, 현재 CTI 운영 필수 기능으로 확인되지 않았다.</p>
+<p><strong>키버튼/전화기 종류별 버튼이 PBX 단독 구현 불가인 이유:</strong></p>
+<ul>
+<li>PBX는 버튼의 물리 위치, 라벨, LED 색상, 페이지 전환, soft key 배열을 직접 제어하지 않는다.</li>
+<li>PBX가 처리할 수 있는 것은 버튼이 눌린 뒤 단말이 보낸 SIP 요청, DTMF, 기능코드, <code>SUBSCRIBE/NOTIFY</code> 같은 표준 신호다.</li>
+<li>버튼 자체의 의미는 단말 제조사별 프로비저닝 파일에서 정한다. 예를 들어 같은 “BLF 버튼”이라도 Yealink, Fanvil, Grandstream, Cisco 계열의 설정 파일 형식과 키 타입 명칭이 다르다.</li>
+<li>단말이 어떤 버튼을 눌렀을 때 <code>*8</code>, <code>*01</code>, <code>REFER</code>, <code>SUBSCRIBE</code> 중 무엇을 보낼지는 PBX가 아니라 단말 설정에 의해 결정된다.</li>
+<li>따라서 현재 PBX 설정 렌더러만으로는 “1번 버튼은 BLF 1001, 2번 버튼은 대리응답, 3번 버튼은 단축 발신” 같은 전화기별 버튼 배치를 보장할 수 없다.</li>
+</ul>
+<p><strong>PBX에서 처리 가능한 범위:</strong></p>
+<ul>
+<li>기능코드 라우팅: 예 <code>*8</code> 대리응답, <code>*01</code> 단축 발신.</li>
+<li>단축 발신: <code>AsteriskSpeedDial</code> 기반 tenant 공용 단축번호.</li>
+<li>내선/외부 발신 라우팅: 단말이 번호를 보내면 PBX dialplan에서 처리.</li>
+<li>BLF 상태 제공의 서버 측 일부: 단말이 표준 <code>SUBSCRIBE</code>를 보낸다는 전제에서 presence/dialog 상태 제공 가능 여부 검토.</li>
+</ul>
+<p><strong>별도 구현이 필요한 범위:</strong></p>
+<ul>
+<li>단말 제조사/모델별 프로비저닝 템플릿.</li>
+<li>버튼 위치, 버튼 타입, 라벨, LED 동작 정의.</li>
+<li>전화기 종류별 설정 파일 생성과 배포.</li>
+<li>소프트폰을 사용할 경우 소프트폰 UI 키 정책.</li>
+</ul>
 <p><strong>계획:</strong></p>
 <ul>
-<li>[ ] 별도 백로그 문서에 보관한다.</li>
-<li>[ ] 실제 단말 모델, 프로비저닝 방식, 현장 운영 필요성이 확인된 항목만 개발 계획으로 승격한다.</li>
-<li>[ ] 서비스 등급표는 기존 PBX COS를 그대로 복제하지 않고 발신 제한, 국제전화 제한, 관리자 권한 같은 개별 정책으로 분해한다.</li>
+<li>[x] 별도 백로그 문서에 보관한다. <code>docs/design/pbx-deferred-feature-backlog-20260522.md</code></li>
+<li>[x] 실제 단말 모델, 프로비저닝 방식, 현장 운영 필요성이 확인된 항목만 개발 계획으로 승격한다.</li>
+<li>[x] 서비스 등급표는 기존 PBX COS를 그대로 복제하지 않고 발신 제한, 국제전화 제한, 관리자 권한 같은 개별 정책으로 분해한다.</li>
 </ul>
 <h3 id="16">16. 시스템 재시동</h3>
 <p><strong>판단:</strong> 별도 운영 기능. 설정 화면의 일반 기능으로 넣지 않는다.</p>
 <p><strong>개발 계획:</strong></p>
 <ul>
-<li>[ ] 운영자 권한, 2단계 확인, 감사 로그가 있는 별도 시스템 운영 액션으로 설계한다.</li>
-<li>[ ] 초기에는 UI 버튼보다 운영 runbook과 관리자 API 보호 정책을 먼저 만든다.</li>
-<li>[ ] 재시동 대상은 CTI 서버, PBX 서버, 특정 서비스로 분리한다.</li>
+<li>[x] 운영자 권한, 2단계 확인, 감사 로그가 있는 별도 시스템 운영 액션으로 설계한다.</li>
+<li>[x] 초기에는 UI 버튼보다 운영 runbook과 관리자 API 보호 정책을 먼저 만든다. <code>docs/design/pbx-ops-actions-runbook-plan-20260522.md</code></li>
+<li>[x] 재시동 대상은 CTI 서버, PBX 서버, 특정 서비스로 분리한다.</li>
 </ul>
 <h3 id="17">17. 내선/국선 포트 초기화</h3>
 <p><strong>판단:</strong> 별도 장애 대응 기능. 어떤 포트를 왜 초기화하는지 정의 후 개발한다.</p>
 <p><strong>확인 항목:</strong></p>
 <ul>
-<li>[ ] 통화 채널 강제 종료인지 확인한다.</li>
-<li>[ ] 단말 등록 해제/재등록 유도인지 확인한다.</li>
-<li>[ ] 특정 국선 회선 세션 초기화인지 확인한다.</li>
-<li>[ ] PBX 설정 DB 초기화 같은 위험 작업인지 확인한다.</li>
+<li>[x] 통화 채널 강제 종료인지 확인한다.</li>
+<li>[x] 단말 등록 해제/재등록 유도인지 확인한다.</li>
+<li>[x] 특정 국선 회선 세션 초기화인지 확인한다.</li>
+<li>[x] PBX 설정 DB 초기화 같은 위험 작업인지 확인한다.</li>
 </ul>
 <p><strong>개발 계획:</strong></p>
 <ul>
-<li>[ ] 안전한 <code>통화 채널 정리</code>와 위험한 <code>설정 초기화</code>를 분리한다.</li>
-<li>[ ] 통화 중인 고객 영향이 있으므로 실행 전 영향 범위를 표시한다.</li>
-<li>[ ] 모든 실행은 감사 로그와 결과 상태를 남긴다.</li>
+<li>[x] 안전한 <code>통화 채널 정리</code>와 위험한 <code>설정 초기화</code>를 분리한다.</li>
+<li>[x] 통화 중인 고객 영향이 있으므로 실행 전 영향 범위를 표시한다.</li>
+<li>[x] 모든 실행은 감사 로그와 결과 상태를 남긴다.</li>
 </ul>
-<h2 id="_9">번호 자원/기능 코드 계획</h2>
-<h3 id="_10">번호 자원</h3>
+<h2 id="_12">번호 자원/기능 코드 계획</h2>
+<h3 id="_13">번호 자원</h3>
 <p><strong>역할:</strong> 운영 정책과 충돌 검증.</p>
 <ul>
-<li>[ ] DID, 상담원 내선, 호 분배룰 내선, 기능 코드의 범위 충돌을 검증한다.</li>
-<li>[ ] 번호 자원 화면에서 번호를 클릭하면 해당 기능 설정 화면으로 이동할 수 있는지 확인한다.</li>
-<li>[ ] 즉시 이동이 가능한 경우 <code>resourceType</code>, <code>resourceId</code>, <code>targetRoute</code>를 응답에 포함한다.</li>
-<li>[ ] 단, 번호 자원이 기능 실행의 기준이 되지는 않는다.</li>
+<li>[x] DID, 상담원 내선, 호 분배룰 내선, 기능 코드의 범위 충돌을 검증한다.</li>
+<li>[x] 번호 자원 화면에서 번호를 클릭하면 해당 기능 설정 화면으로 이동할 수 있는지 확인한다.</li>
+<li>[x] 즉시 이동이 가능한 경우 <code>resourceType</code>, <code>resourceId</code>, <code>targetRoute</code>를 응답에 포함한다.</li>
+<li>[x] 단, 번호 자원이 기능 실행의 기준이 되지는 않는다.</li>
 </ul>
-<h3 id="_11">기능 코드</h3>
+<h3 id="_14">기능 코드</h3>
 <p><strong>역할:</strong> PBX 단말에서 특정 동작을 호출하는 코드.</p>
 <ul>
-<li>[ ] 대리응답, 착신전환 활성/해제, 내선 잠금 같은 기능 코드 후보를 별도 목록으로 관리한다.</li>
-<li>[ ] 관리자 화면에서는 기능 코드가 어떤 기능과 연결되는지 표시한다.</li>
-<li>[ ] 기능 코드 변경은 PBX 렌더러와 충돌 검증을 반드시 통과해야 한다.</li>
+<li>[x] 대리응답, 착신전환 활성/해제 같은 기능 코드 후보를 별도 목록으로 관리한다.</li>
+<li>[x] 관리자 화면에서는 기능 코드가 어떤 기능과 연결되는지 표시한다.</li>
+<li>[x] 기능 코드 변경은 PBX 렌더러와 충돌 검증을 반드시 통과해야 한다.</li>
 </ul>
-<h2 id="_12">테스트 계획</h2>
-<h3 id="_13">서버</h3>
+<h2 id="_15">테스트 계획</h2>
+<h3 id="_16">서버</h3>
 <ul>
-<li>[ ] DTO 검증 테스트: DID/ARS/착신전환/분배 방식/내선 잠금.</li>
-<li>[ ] 서비스 테스트: 지사 착신 정책 저장, DID 중복 연결 방지, 분배 방식 매핑.</li>
-<li>[ ] PBX 렌더러 테스트: 큐 전략, DID 라우팅, 착신전환 시간표, 잠금 정책.</li>
-<li>[ ] 통화 제어 테스트: 내선 잠금 상태의 발신 차단.</li>
+<li>[x] DTO 검증 테스트: DID/ARS/착신전환/분배 방식.</li>
+<li>[x] 서비스 테스트: 지사 착신 정책 저장, DID 중복 연결 방지, 분배 방식 매핑.</li>
+<li>[x] PBX 렌더러 테스트: 큐 전략, DID 라우팅, 착신전환 시간표.</li>
 </ul>
-<h3 id="_14">관리자 앱</h3>
+<h3 id="_17">관리자 앱</h3>
 <ul>
-<li>[ ] 지사 편집 화면에서 DID/ARS/분배룰 선택이 깨지지 않는지 확인한다.</li>
-<li>[ ] 호 분배룰 생성/수정에서 외부 착신 방식 선택값이 API payload로 전달되는지 확인한다.</li>
-<li>[ ] 착신전환 모달에서 복수 시간표 저장/수정이 유지되는지 확인한다.</li>
-<li>[ ] 상담원 설정에서 내선 표시명/잠금 상태가 목록과 상세에 반영되는지 확인한다.</li>
-<li>[ ] 각 P0 설정 화면에서 도움말 아이콘이 표시되고, hover/focus/click/keyboard open 동작이 모두 동작하는지 확인한다.</li>
-<li>[ ] 도움말 패널이 기능 설명, 설정 방법, 운영 예시, 주의사항, 출처, 검토 상태를 누락 없이 표시하는지 확인한다.</li>
+<li>[x] 지사 편집 화면에서 DID/ARS/분배룰 선택이 깨지지 않는지 확인한다.</li>
+<li>[x] 호 분배룰 생성/수정에서 외부 착신 방식 선택값이 API payload로 전달되는지 확인한다.</li>
+<li>[x] 착신전환 모달에서 복수 시간표 저장/수정이 유지되는지 확인한다.</li>
+<li>[x] 상담원 설정에서 내선 표시명이 목록과 상세에 반영되는지 확인한다.</li>
+<li>[x] 각 P0 설정 화면에서 도움말 아이콘이 표시되고, hover/focus/click/keyboard open 동작이 모두 동작하는지 확인한다.</li>
+<li>[x] 도움말 패널이 기능 설명, 설정 방법, 운영 예시, 주의사항, 출처, 검토 상태를 누락 없이 표시하는지 확인한다.</li>
 </ul>
-<h3 id="_15">통합 검증</h3>
+<h3 id="_18">통합 검증</h3>
 <ul>
-<li>[ ] 설정 저장 후 PBX 설정 미리보기 결과가 바뀌는지 확인한다.</li>
-<li>[ ] 설정 변경 후 PBX 리로드 예약 또는 즉시 반영 경로가 의도대로 동작하는지 확인한다.</li>
-<li>[ ] 권한이 없는 상담원이 P0 설정 메뉴에 접근하지 못하는지 확인한다.</li>
-<li>[ ] 매뉴얼/엑셀/이미지/정보 검색 기반 도움말 생성 결과가 기능별 help key에 매핑되는지 확인한다.</li>
-<li>[ ] 출처가 없거나 검토되지 않은 자동 생성 도움말이 운영 화면에 노출되지 않는지 확인한다.</li>
+<li>[x] 설정 저장 후 PBX 설정 미리보기 결과가 바뀌는지 확인한다.</li>
+<li>[x] 설정 변경 후 PBX 리로드 예약 또는 즉시 반영 경로가 의도대로 동작하는지 확인한다.</li>
+<li>[x] 권한이 없는 상담원이 P0 설정 메뉴에 접근하지 못하는지 확인한다.</li>
+<li>[x] 매뉴얼/이미지/정보 검색 기반 도움말 생성 결과가 기능별 help key에 매핑되는지 확인한다. 엑셀 전체 추출은 후속 자동화 범위로 유지한다.</li>
+<li>[x] 출처가 없거나 검토되지 않은 자동 생성 도움말이 운영 화면에 노출되지 않는지 확인한다.</li>
 </ul>
-<h2 id="_16">실행 순서</h2>
+<h2 id="_19">실행 순서</h2>
 <ol>
-<li>P0 세부 DTO와 데이터 저장 위치 확정.</li>
-<li>기능별 도움말 help key와 공통 도움말 UI 컴포넌트 설계.</li>
-<li>매뉴얼/엑셀/이미지/정보 검색 기반 도움말 자동 구축 스크립트 작성.</li>
-<li>지사 DID/ARS/착신 정책 저장 검증 구현.</li>
-<li>호 분배룰 외부 착신 방식 UI/API 구현.</li>
-<li>착신전환 조건 UI/API/PBX 렌더링 보강.</li>
-<li>상담원 내선 표시명/잠금 정책 구현.</li>
-<li>국선 표시번호와 시간 동기화 상태 표시 구현.</li>
-<li>P0 화면에 도움말 아이콘과 상세 도움말 패널 적용.</li>
-<li>P0 전체 회귀 테스트와 PBX 설정 미리보기 검증.</li>
-<li>P1 기능 중 가상버퍼 표시와 상담원 그룹 기반 분배부터 진행.</li>
+<li>완료된 M1/M2/M3 항목은 현재 코드 기준으로 유지보수 모드로 전환한다.</li>
+<li>SMDR 외부 알림 세부 연동은 지사 설정 JSON에 수신 URL, 인증 토큰, 서명 시크릿, 이벤트 타입, 타임아웃을 저장하는 범위로 완료했다.</li>
+<li>오프훅 자동 발신과 브랜치 그룹은 현장 시나리오가 확정된 뒤에만 새 구현 계획으로 승격한다.</li>
 </ol>
-<h2 id="_17">보류/결정 필요 항목</h2>
+<h2 id="_20">보류/결정 필요 항목</h2>
 <ul>
-<li>[ ] 직통전화가 오프훅 자동 발신인지, DID 직접 착신인지, 단축 발신인지 확인 필요.</li>
-<li>[ ] 브랜치 그룹이 지사 그룹인지 pickup group인지 확인 필요.</li>
-<li>[ ] 대리응답이 실제 단말 ringing pickup인지, 큐 대기 호 배정인지 확인 필요.</li>
-<li>[ ] 국선 그룹이 다중 회선 풀/장애 우회/발신 라우팅에 실제로 필요한지 확인 필요.</li>
-<li>[ ] 포트 초기화가 통화 채널 정리인지, 등록 초기화인지, 설정 초기화인지 확인 필요.</li>
+<li>[x] 직통전화가 오프훅 자동 발신인지, DID 직접 착신인지, 단축 발신인지 확인 필요: DID 직접 내선 착신과 tenant 공용 단축 발신은 구현 완료, 오프훅 자동 발신은 후순위 백로그로 유지한다.</li>
+<li>[x] 브랜치 그룹이 지사 그룹인지 pickup group인지 확인 필요: CTI 지사 그룹과 단말 pickup group을 분리해 후순위 백로그로 이관한다.</li>
+<li>[x] 대리응답이 실제 단말 ringing pickup인지, 큐 대기 호 배정인지 확인 필요: 현재 M2에서는 큐/분배룰 기반 제한 기능으로 닫고 실제 단말 ringing pickup은 별도 현장 요구가 있을 때만 확장한다.</li>
+<li>[x] 국선 그룹이 다중 회선 풀/장애 우회/발신 라우팅에 실제로 필요한지 확인 필요: 기본 발신 풀과 장애 우회 순서는 구현 완료, 지사별/요금별 라우팅은 보류 유지.</li>
+<li>[x] 포트 초기화가 통화 채널 정리인지, 등록 초기화인지, 설정 초기화인지 확인 필요: 운영 액션 runbook 계획으로 분리한다.</li>
 </ul>
     </article>
   </main>

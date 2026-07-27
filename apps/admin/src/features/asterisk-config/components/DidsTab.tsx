@@ -6,7 +6,12 @@ import { DidForm } from './DidForm';
 import { usePermissionStore } from '../../../store/usePermissionStore';
 import { formatPhoneNumber } from '../../../shared/lib/format';
 
-export function DidsTab() {
+export interface DidsTabProps {
+  resourceId?: string | null;
+  onResourceHandled?: () => void;
+}
+
+export function DidsTab({ resourceId, onResourceHandled }: DidsTabProps) {
   const [rows, setRows] = useState<AsteriskDid[]>([]);
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -23,6 +28,14 @@ export function DidsTab() {
 
   useEffect(() => { void load(); }, []);
 
+  useEffect(() => {
+    if (!resourceId || loading) return;
+    const target = rows.find((row) => row.id === resourceId);
+    if (!target) return;
+    setEditing(target);
+    setFormOpen(true);
+  }, [loading, resourceId, rows]);
+
   const handleSave = async (values: Omit<AsteriskDid, 'id'>) => {
     try {
       if (editing) await updateDid(editing.id, values);
@@ -30,6 +43,7 @@ export function DidsTab() {
       notification.success({ message: 'PBX 설정이 적용되었습니다 (AMI reload 전송됨)' });
       setFormOpen(false);
       setEditing(null);
+      onResourceHandled?.();
       await load();
     } catch {
       notification.error({ message: '저장 실패' });
@@ -61,7 +75,11 @@ export function DidsTab() {
     {
       title: '연결',
       render: (_: unknown, row: AsteriskDid) =>
-        row.ivrMenuId ? <Tag color="blue">IVR</Tag> : <Tag color="green">큐: {row.directQueue}</Tag>,
+        row.ivrMenuId
+          ? <Tag color="blue">IVR</Tag>
+          : row.directExtension
+            ? <Tag color="purple">내선: {row.directExtension}</Tag>
+            : <Tag color="green">큐: {row.directQueue}</Tag>,
     },
     {
       title: '지사',
@@ -125,7 +143,16 @@ export function DidsTab() {
           scroll={{ x: 920 }}
         />
       </Card>
-      <DidForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
+      <DidForm
+        open={formOpen}
+        initial={editing}
+        onOk={handleSave}
+        onCancel={() => {
+          setFormOpen(false);
+          setEditing(null);
+          onResourceHandled?.();
+        }}
+      />
     </Space>
   );
 }

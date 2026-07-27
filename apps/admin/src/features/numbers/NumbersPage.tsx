@@ -1,5 +1,6 @@
-import { Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Skeleton, Table, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import {
@@ -15,6 +16,7 @@ interface DidRow {
   primaryQueueName?: string | null;
   ivrMenuName?: string | null;
   directQueue?: string | null;
+  directExtension?: string | null;
   ivrMenuId?: string | null;
   recordingEnabled?: boolean;
   representativeNumber?: string | null;
@@ -45,6 +47,7 @@ const RESOURCE_TYPE_LABEL: Record<NumberResourceType, string> = {
 };
 
 export function NumbersPage() {
+  const navigate = useNavigate();
   const [dids, setDids] = useState<DidRow[] | null>(null);
   const [agents, setAgents] = useState<AgentExtRow[] | null>(null);
   const [queues, setQueues] = useState<QueueNumberRow[] | null>(null);
@@ -149,7 +152,15 @@ export function NumbersPage() {
             {
               title: '화면 이동',
               dataIndex: 'targetRoute',
-              render: (value: string | null) => value ? <span className="k-mono">{value}</span> : '-',
+              width: 132,
+              render: (value: string | null) =>
+                value ? (
+                  <Button size="small" onClick={() => navigate(value)}>
+                    설정 열기
+                  </Button>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: '충돌',
@@ -191,6 +202,7 @@ export function NumbersPage() {
               title: '큐 / IVR',
               render: (_: unknown, r: DidRow) => {
                 if (r.ivrMenuName || r.ivrMenuId) return r.ivrMenuName || 'ARS 사용';
+                if (r.directExtension) return `내선 ${r.directExtension}`;
                 return r.primaryQueueName || r.directQueue || '-';
               },
             },

@@ -1,17 +1,36 @@
 import { Button, Card, Space, Tabs, Typography } from 'antd';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AgentSipTab } from '../features/asterisk-config/components/AgentSipTab';
 import { ConfigPreviewDrawer } from '../features/asterisk-config/components/ConfigPreviewDrawer';
 import { DidsTab } from '../features/asterisk-config/components/DidsTab';
 import { IvrMenusTab } from '../features/asterisk-config/components/IvrMenusTab';
+import { SpeedDialsTab } from '../features/asterisk-config/components/SpeedDialsTab';
 import { TrunksTab } from '../features/asterisk-config/components/TrunksTab';
 import { FeatureHelpButton } from '../shared/help';
 import { usePermissionStore } from '../store/usePermissionStore';
 
 export function AsteriskConfigPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [previewOpen, setPreviewOpen] = useState(false);
   const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
   const canView = permission?.canView ?? true;
+  const activeTab = searchParams.get('tab') || 'trunks';
+  const resourceId = searchParams.get('resourceId');
+
+  const handleTabChange = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', key);
+    next.delete('resourceId');
+    setSearchParams(next, { replace: true });
+  };
+
+  const clearResourceId = () => {
+    if (!searchParams.has('resourceId')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('resourceId');
+    setSearchParams(next, { replace: true });
+  };
 
   return (
     <div className="settings-portal">
@@ -48,11 +67,14 @@ export function AsteriskConfigPage() {
       <Card className="settings-portal__body">
         <Tabs
           type="card"
+          activeKey={activeTab}
+          onChange={handleTabChange}
           items={[
             { key: 'trunks', label: '트렁크', children: <TrunksTab /> },
-            { key: 'dids', label: 'DID', children: <DidsTab /> },
+            { key: 'dids', label: 'DID', children: <DidsTab resourceId={resourceId} onResourceHandled={clearResourceId} /> },
             { key: 'ivr', label: 'IVR 메뉴', children: <IvrMenusTab /> },
             { key: 'agents', label: '에이전트 내선', children: <AgentSipTab /> },
+            { key: 'speed-dials', label: '단축 발신', children: <SpeedDialsTab /> },
           ]}
         />
       </Card>

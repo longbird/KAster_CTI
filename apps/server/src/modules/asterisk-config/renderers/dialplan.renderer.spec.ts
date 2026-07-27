@@ -426,6 +426,17 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
   });
 
+  it('renders DID with direct extension', () => {
+    const { extensionsInbound } = renderDialplan({
+      dids: [{ id: 'd-direct-ext', did: '07088887777', ivrMenuId: null, directQueue: null, directExtension: '1001', enabled: true, description: null }],
+      ivrMenus: [],
+    });
+
+    expect(extensionsInbound).toContain('exten => 07088887777');
+    expect(extensionsInbound).toContain('NoOp(Direct DID to extension 1001)');
+    expect(extensionsInbound).toContain('Dial(PJSIP/1001,20,tTU(agent-pre-bridge))');
+  });
+
   it('routes holiday dates to the configured forwarding rule before business-hour checks', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{
@@ -577,6 +588,33 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('Set(__FORWARD_AFTER_QUEUE_ENABLED=1)');
     expect(extensionsInbound).toContain('Set(__QUEUE_TIMEOUT_SECS=20)');
     expect(extensionsInbound).toContain('Goto(queue-entry,sales,1)');
+  });
+
+  it('renders queue overflow rules for IVR-routed queue timeout', () => {
+    const { extensionsQueue } = renderDialplan({
+      dids: [{ id: 'd-ivr', did: '15771577', ivrMenuId: 'm1', directQueue: null, enabled: true, description: null }],
+      ivrMenus: [baseMenu],
+      queueOverflowRules: [
+        {
+          id: 'qo-1',
+          queueName: 'sales',
+          triggerMode: 'AFTER_WAIT',
+          waitSeconds: 25,
+          targetType: 'EXTERNAL_NUMBER',
+          targetValue: '07080120000',
+          resultCode: 'AI_OVERFLOW',
+          enabled: true,
+          priority: 100,
+        },
+      ],
+    });
+
+    expect(extensionsQueue).toContain('[queue-overflow-timeout]');
+    expect(extensionsQueue).toContain('exten => sales,1,Set(__QUEUE_TIMEOUT_SECS=25)');
+    expect(extensionsQueue).toContain('[queue-overflow]');
+    expect(extensionsQueue).toContain('exten => sales,1,NoOp(Queue Overflow / sales / AI_OVERFLOW)');
+    expect(extensionsQueue).toContain('Goto(transfer-target,07080120000,1)');
+    expect(extensionsQueue).toContain('GotoIf($["${QUEUESTATUS}"="TIMEOUT"]?queue-overflow,${QUEUE_NAME},1)');
   });
 
   it('renders smart forwarding trigger when no ready agents', () => {

@@ -1,6 +1,8 @@
-import { Space, Table, Tag, Typography } from 'antd';
+import { Alert, Space, Table, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
+import { FeatureHelpButton } from '../../shared/help';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { CallDetailDrawer, type CallRow } from './CallDetailDrawer';
 
@@ -43,9 +45,11 @@ function CallStatusChip({ code }: { code: string }) {
 }
 
 export function LiveCallsPage() {
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<CallRow[]>([]);
   const [selected, setSelected] = useState<CallRow | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const feature = searchParams.get('feature');
 
   const load = async () => {
     try {
@@ -69,20 +73,42 @@ export function LiveCallsPage() {
         title="실시간 콜"
         sub={`${lastUpdated ? lastUpdated.toLocaleTimeString() + ' 기준' : '로딩 중'} · 3초 갱신 · ${rows.length}건`}
         right={
-          <span
-            className="k-chip"
-            style={{
-              color: 'var(--signal)',
-              borderColor: 'var(--signal-dim)',
-              background: 'var(--signal-soft)',
-            }}
-          >
-            <span className="k-dot k-dot-live" style={{ background: 'var(--signal)' }} />
-            LIVE
-          </span>
+          <Space align="center">
+            {feature === 'pickup' ? (
+              <FeatureHelpButton featureKey="pickup.group" featureName="대리응답 그룹" />
+            ) : null}
+            <span
+              className="k-chip"
+              style={{
+                color: 'var(--signal)',
+                borderColor: 'var(--signal-dim)',
+                background: 'var(--signal-soft)',
+              }}
+            >
+              <span className="k-dot k-dot-live" style={{ background: 'var(--signal)' }} />
+              LIVE
+            </span>
+          </Space>
         }
       />
       <section className="adm-card">
+        {feature === 'pickup' ? (
+          <Alert
+            type="info"
+            showIcon
+            message="대리응답 대상 통화를 선택하세요."
+            description="같은 상담원 그룹 또는 같은 호 분배룰 범위의 대기/벨 울림 통화에서 대리응답을 요청할 수 있습니다."
+            style={{ margin: 12 }}
+          />
+        ) : feature === 'attended-transfer' ? (
+          <Alert
+            type="info"
+            showIcon
+            message="상담 전환 완료 대상 통화를 선택하세요."
+            description="상담 전환 중인 통화 상세에서 전환 완료 동작을 확인할 수 있습니다."
+            style={{ margin: 12 }}
+          />
+        ) : null}
         <Table<CallRow>
           rowKey="callId"
           dataSource={rows}

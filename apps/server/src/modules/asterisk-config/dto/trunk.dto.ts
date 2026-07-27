@@ -37,3 +37,24 @@ export class CreateBulkTrunksDto {
   @Type(() => BulkTrunkEntryDto)
   entries: BulkTrunkEntryDto[];
 }
+
+export class TrunkGroupMemberDto {
+  @IsString() trunkId: string;
+  @IsOptional() @IsInt() @Min(1) priority?: number;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+}
+
+export class CreateTrunkGroupDto {
+  @IsString() name: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() strategy?: string;
+  @IsOptional() @IsBoolean() isDefault?: boolean;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TrunkGroupMemberDto)
+  members: TrunkGroupMemberDto[];
+}
+
+export class UpdateTrunkGroupDto extends CreateTrunkGroupDto {}

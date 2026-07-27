@@ -189,8 +189,10 @@
   "mmc.100": {
     "featureKey": "mmc.100",
     "title": "내선잠금",
-    "summary": "삼성 PBX 설정화면 MMC 100 (내선잠금) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 100 (내선잠금) 도움말 초안입니다.",
+    "howTo": [
+      "프로그램 비씨앤_IPPBX_20260104 1.노랑>적용필요/ 2.매뉴얼>46P 부터 (MMC 100~900) 필요시 참조/ 3.DM>설정화면 참조 **(엑셀 시트의 MMC> 비슷한 프로그램은 1개의 화면으로 단일화 해도 됨) / **(우측하단 동작확인 필요) 프로그램 MMC 프로그램 설명 MMC 프로그램 설명 M"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -198,18 +200,20 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 100_내선잠금.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.102": {
     "featureKey": "mmc.102",
     "title": "착신전환",
-    "summary": "삼성 PBX 설정화면 MMC 102 (착신전환) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 102 (착신전환) 도움말 초안입니다.",
+    "howTo": [
+      "기 기준 지정 프로그램 101 가입자 비밀번호 변경 120 대형 LCD 옵션 지정 217 ISDN 서비스 지정 315 브랜치 그룹 지정 411 E1 국선 신호방식 지정 829 LAN 프린터 파라미터 프로그램 102 착신전환 지정 121 디지털 전화기 사용 언어 지정 220 내선 짝 지정 316 구별링 지정 412 전용선/DID 국선 신호방식 지정 830 LAN 파라미터 지정 프로그램 103 전화기 응답모드 지정 122 SPOT 정보표"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -217,18 +221,20 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 102_착신전환.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.103": {
     "featureKey": "mmc.103",
     "title": "전화기 응답모드",
-    "summary": "삼성 PBX 설정화면 MMC 103 (전화기 응답모드) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 103 (전화기 응답모드) 도움말 초안입니다.",
+    "howTo": [
+      "N 프린터 파라미터 프로그램 102 착신전환 지정 121 디지털 전화기 사용 언어 지정 220 내선 짝 지정 316 구별링 지정 412 전용선/DID 국선 신호방식 지정 830 LAN 파라미터 지정 프로그램 103 전화기 응답모드 지정 122 SPOT 정보표시 속도 지정 221 통계 데이터 출력 옵션 지정 317 내선별 통화가능 내선 지정 413 국선의 음성사서함 서비스타입 831 MGI 파라미터 지정 프로그램 104 내선 이름 변경 125"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -236,17 +242,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 103_전화기 응답모드.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.104": {
     "featureKey": "mmc.104",
     "title": "내선이름등록",
-    "summary": "삼성 PBX 설정화면 MMC 104 (내선이름등록) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 104 (내선이름등록) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -260,13 +266,15 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.105": {
     "featureKey": "mmc.105",
     "title": "단축다이얼",
-    "summary": "삼성 PBX 설정화면 MMC 105 (단축다이얼) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 105 (단축다이얼) 도움말 초안입니다.",
+    "howTo": [
+      "터 지정 프로그램 104 내선 이름 변경 125 중역 재석 상태 지정 222 객실 종류 지정 318 국선별 통화가능 국선 지정 414 발신자 정보 제공 국선 지정 832 VoIP 접속번호 지정 프로그램 105 개별 단축다이얼 입력 200 운용자 프로그램 모드 지정 223 FAX PAIR 지정 319 전화기 정보 자동 교환 415 발신자포기 호 정보 저장여부 지정 833 VoIP 인터넷 주소 지정 프로그램 106 개별 단축다이얼 이름 입"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -274,17 +282,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 105_단축다이얼.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.109": {
     "featureKey": "mmc.109",
     "title": "시간 표시방법",
-    "summary": "삼성 PBX 설정화면 MMC 109 (시간 표시방법) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 109 (시간 표시방법) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -298,12 +306,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.206": {
     "featureKey": "mmc.206",
     "title": "통화감청여부",
-    "summary": "삼성 PBX 설정화면 MMC 206 (통화감청여부) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 206 (통화감청여부) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -317,12 +325,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.301": {
     "featureKey": "mmc.301",
     "title": "등급지정",
-    "summary": "삼성 PBX 설정화면 MMC 301 (등급지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 301 (등급지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -336,13 +344,15 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.302": {
     "featureKey": "mmc.302",
     "title": "대리응답 그룹",
-    "summary": "삼성 PBX 설정화면 MMC 302 (대리응답 그룹) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 302 (대리응답 그룹) 도움말 초안입니다.",
+    "howTo": [
+      "(국제/시외/시내/구내) 323 발신자 번호 지정 419 국선별 야간 그룹 지정 836 H.323 GK 옵션 지정 프로그램 109 날짜/시간 표시 형태 지정 (24시간 모드) 204 공동 벨 제어방법 지정 302 대리응답 그룹 지정 400 국선별 기능 온/오프 지정 (별도확인) 420 PRS 국선 지정 837 SIP 옵션 지정 프로그램 110 가입자 기능 온/오프 지정 (별도확인) 205 보조링 내선 짝 지정 303 중역/비서 지정 40"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -350,17 +360,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 302_대리응답 그룹.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.304": {
     "featureKey": "mmc.304",
     "title": "통화가능 내선_국선지정",
-    "summary": "삼성 PBX 설정화면 MMC 304 (통화가능 내선_국선지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 304 (통화가능 내선_국선지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -374,12 +384,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.306": {
     "featureKey": "mmc.306",
     "title": "직통전화지정",
-    "summary": "삼성 PBX 설정화면 MMC 306 (직통전화지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 306 (직통전화지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -393,12 +403,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.315": {
     "featureKey": "mmc.315",
     "title": "브랜치그룹_수화기 OFF HOOK시  자동당김",
-    "summary": "삼성 PBX 설정화면 MMC 315 (브랜치그룹_수화기 OFF HOOK시  자동당김) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 315 (브랜치그룹_수화기 OFF HOOK시  자동당김) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -412,12 +422,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.323": {
     "featureKey": "mmc.323",
     "title": "발신자번호 등록",
-    "summary": "삼성 PBX 설정화면 MMC 323 (발신자번호 등록) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 323 (발신자번호 등록) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -431,13 +441,15 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.404": {
     "featureKey": "mmc.404",
     "title": "국선이름등록",
-    "summary": "삼성 PBX 설정화면 MMC 404 (국선이름등록) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 매뉴얼에서 추출한 MMC 404 (국선이름등록) 도움말 초안입니다.",
+    "howTo": [
+      "D 국선 호가 특정 내선에 착신되었고, 해당 내선에 external call forward 가 지정된 경우, 해당 내선의 stn-trk use 옵션을 따를지를 지정합니다. 92 TRK NAME USE 국선 발신 시 MMC404 trunk name 의 표시 여부를 지정합니다. 93 NTWK TRK LMT OFF 로 설정된 상태에서 SPNet 발신을 하면, co confirm 기능이 작 동하지 않습니다. 전제 조건 없음 초기값 RECALL"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -445,17 +457,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 404_국선이름등록.png"
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.505": {
     "featureKey": "mmc.505",
     "title": "시스템시간 맞추기",
-    "summary": "삼성 PBX 설정화면 MMC 505 (시스템시간 맞추기) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 505 (시스템시간 맞추기) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -469,12 +481,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.507": {
     "featureKey": "mmc.507",
     "title": "시간별 동작설정",
-    "summary": "삼성 PBX 설정화면 MMC 507 (시간별 동작설정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 507 (시간별 동작설정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -488,13 +500,15 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.509": {
     "featureKey": "mmc.509",
     "title": "공휴일 지정",
-    "summary": "삼성 PBX 설정화면 MMC 509 (공휴일 지정) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 509 (공휴일 지정) 도움말 초안입니다.",
+    "howTo": [
+      "및 적용사항) 프로그램 507 링 모드 자동변환 시간 변경 615 MGI 그룹 지정 718 지역번호 지정 757 음성사서함 착/발신 사용 지정 815 데이터베이스 복사 1 soft phone 기능 프로그램 509 공휴일 지정 616 MGI 고정사용자 지정 719 화면 안내 데이터 758 시스템/음성사서함 링 모드 변환 지정 818 프로그램 다운로드 2 smdr 대체 기은 프로그램 510 일반전화기 링 주기 변경 700 서비스 등급표 복"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -502,17 +516,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 509_공휴일 지정.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.601": {
     "featureKey": "mmc.601",
     "title": "내선그룹지정",
-    "summary": "삼성 PBX 설정화면 MMC 601 (내선그룹지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 601 (내선그룹지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -526,12 +540,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.603": {
     "featureKey": "mmc.603",
     "title": "국선그룹지정",
-    "summary": "삼성 PBX 설정화면 MMC 603 (국선그룹지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 603 (국선그룹지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -545,13 +559,15 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.701": {
     "featureKey": "mmc.701",
     "title": "서비스 등급표",
-    "summary": "삼성 PBX 설정화면 MMC 701 (서비스 등급표) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 엑셀에서 추출한 MMC 701 (서비스 등급표) 도움말 초안입니다.",
+    "howTo": [
+      "09 공휴일 지정 616 MGI 고정사용자 지정 719 화면 안내 데이터 758 시스템/음성사서함 링 모드 변환 지정 818 프로그램 다운로드 2 smdr 대체 기은 프로그램 510 일반전화기 링 주기 변경 700 서비스 등급표 복사 720 전화기 버튼 복사 760 요금 계산 항목 819 SmartMedia 정보 표시 3 tapi 대체 기능 (open TSP) 프로그램 511 일반전화기 메시지 대기 램프 주기 지정 701 서비스 등급표 지"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -559,18 +575,20 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 701_서비스 등급표.png"
+        "kind": "spreadsheet",
+        "ref": "1_비씨앤 IP PBX 초안_20260104.xlsx"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.705": {
     "featureKey": "mmc.705",
     "title": "공동단축다이얼",
-    "summary": "삼성 PBX 설정화면 MMC 705 (공동단축다이얼) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 매뉴얼에서 추출한 MMC 705 (공동단축다이얼) 도움말 초안입니다.",
+    "howTo": [
+      "ficeServ 7000 시리즈 Call 서버 프로그래밍 매뉴얼 © SAMSUNG Electronics Co., Ltd. 2-213 [606] 단축다이얼 블록 할당 단축다이얼 블록(단축다이얼 10 개 입력)을 두어 공동단축다이얼 또는, 개별단축다이얼로 할당하는 프로그램입니다. 공동단축다이얼 블록은 최대 50 개(프로그램 861 번의 SYSTEM OPTIONS 가 설정되어 있 으면 95 개), 개별단축다이얼 블록은 최대 5 개까지 지정할 수"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -578,17 +596,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 705_공동단축다이얼.png"
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.714": {
     "featureKey": "mmc.714",
     "title": "DNIS 착신지정",
-    "summary": "삼성 PBX 설정화면 MMC 714 (DNIS 착신지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 714 (DNIS 착신지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -602,13 +620,15 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.722": {
     "featureKey": "mmc.722",
     "title": "내선전화기별 키버튼 지정",
-    "summary": "삼성 PBX 설정화면 MMC 722 (내선전화기별 키버튼 지정) 자동 추출 초안입니다.",
-    "howTo": [],
+    "summary": "PBX 참조 매뉴얼에서 추출한 MMC 722 (내선전화기별 키버튼 지정) 도움말 초안입니다.",
+    "howTo": [
+      "매뉴얼 © SAMSUNG Electronics Co., Ltd. III 개정 이력 판차 작성일 비고 00 2008. 12. 최초 작성 01 2009. 05. MMC 107 외 28 종 수정 02 2010. 07. MMC 722 외 7 종 수정 4.0 2012. 02. - 매뉴얼 판차 부여방식 변경(Ed.03  Ver.4.0) - MMC 127 외 9 종 추가, MMC 423 및 424 삭제, MMC 110 외 31 종 수정 -- 5 o"
+    ],
     "examples": [],
     "warnings": [
       "자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요."
@@ -616,17 +636,17 @@
     "relatedRoutes": [],
     "sources": [
       {
-        "kind": "screen",
-        "ref": "3_DM_설정화면/MMC 722_내선전화기별 키버튼 지정.png"
+        "kind": "manual",
+        "ref": "2_매뉴얼 (삼성pbx).pdf"
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.723": {
     "featureKey": "mmc.723",
     "title": "전화기 종류별(공동) 버튼지정",
-    "summary": "삼성 PBX 설정화면 MMC 723 (전화기 종류별(공동) 버튼지정) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 723 (전화기 종류별(공동) 버튼지정) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -640,12 +660,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.724": {
     "featureKey": "mmc.724",
     "title": "시스템의 모든번호에 대한 변경",
-    "summary": "삼성 PBX 설정화면 MMC 724 (시스템의 모든번호에 대한 변경) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 724 (시스템의 모든번호에 대한 변경) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -659,12 +679,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.811": {
     "featureKey": "mmc.811",
     "title": "카드 및 시스템 재시작",
-    "summary": "삼성 PBX 설정화면 MMC 811 (카드 및 시스템 재시작) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 811 (카드 및 시스템 재시작) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -678,12 +698,12 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "mmc.890": {
     "featureKey": "mmc.890",
     "title": "사용자별 강제끊기",
-    "summary": "삼성 PBX 설정화면 MMC 890 (사용자별 강제끊기) 자동 추출 초안입니다.",
+    "summary": "PBX 참조 설정화면 MMC 890 (사용자별 강제끊기) 자동 추출 초안입니다.",
     "howTo": [],
     "examples": [],
     "warnings": [
@@ -697,7 +717,7 @@
       }
     ],
     "reviewStatus": "AUTO_DRAFT",
-    "updatedAt": "2026-05-21"
+    "updatedAt": "2026-07-16"
   },
   "ops.holidayRules": {
     "featureKey": "ops.holidayRules",
@@ -825,6 +845,37 @@
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   },
+  "pbx.speedDial": {
+    "featureKey": "pbx.speedDial",
+    "title": "단축 발신",
+    "summary": "상담원 SIP 전화기에서 짧은 단축번호를 눌러 내선 또는 외부번호로 발신합니다.",
+    "howTo": [
+      "PBX 설정의 단축 발신 탭에서 단축번호와 대상번호를 등록합니다.",
+      "단축번호는 내선번호나 외부 발신번호와 충돌하지 않도록 * 또는 # 조합을 권장합니다.",
+      "외부번호 대상은 기존 발신번호 정책과 국선 그룹 경로를 사용합니다."
+    ],
+    "examples": [
+      "*01을 01012345678로 등록하면 상담원이 *01을 눌러 해당 번호로 발신합니다."
+    ],
+    "warnings": [
+      "단축번호는 내선 패턴과 외부 발신 패턴으로 사용할 수 없습니다.",
+      "SIP 전화기 직접 발신이 차단된 상담원은 단축 발신도 사용할 수 없습니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/asterisk?tab=speed-dials",
+        "label": "단축 발신"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "spec",
+        "ref": "pbx-selected-features-development-plan-20260514.md / 직통전화와 단축 발신"
+      }
+    ],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-07-16"
+  },
   "pbx.trunkDisplayNumber": {
     "featureKey": "pbx.trunkDisplayNumber",
     "title": "국선 표시번호",
@@ -852,6 +903,71 @@
     ],
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
+  },
+  "pbx.trunkGroup": {
+    "featureKey": "pbx.trunkGroup",
+    "title": "국선 그룹",
+    "summary": "여러 국선 회선을 하나의 발신 그룹으로 묶어 기본 발신 풀과 장애 우회 순서를 관리합니다.",
+    "howTo": [
+      "PBX 설정의 트렁크 탭에서 국선 그룹을 추가합니다.",
+      "그룹에 포함할 회선을 선택하고 우선순위를 지정합니다.",
+      "기본 발신 그룹으로 지정하면 상담원 외부 발신 시 우선순위 순서로 회선을 사용합니다."
+    ],
+    "examples": [
+      "KT 주회선을 우선순위 100, 백업 회선을 200으로 지정해 주회선 장애 시 백업 회선을 사용합니다."
+    ],
+    "warnings": [
+      "기본 발신 그룹은 tenant 기준 1개만 유지됩니다.",
+      "비활성 회선이나 비활성 멤버는 발신 Dial 대상에서 제외됩니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/settings/asterisk",
+        "label": "PBX 설정"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "spec",
+        "ref": "pbx-selected-features-development-plan-20260514.md / 국선 그룹"
+      }
+    ],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-07-16"
+  },
+  "pickup.group": {
+    "featureKey": "pickup.group",
+    "title": "대리응답 그룹",
+    "summary": "같은 그룹의 ringing call을 당겨받는 기능을 PBX pickup group 개념과 연결해 검토하기 위한 검색 출처 초안입니다.",
+    "howTo": [
+      "상담원 그룹 또는 호 분배룰 범위를 기준으로 대리응답 허용 범위를 제한합니다."
+    ],
+    "examples": [
+      "같은 영업팀 상담원끼리만 대리응답을 허용합니다."
+    ],
+    "warnings": [
+      "현재 CTI의 queued call redirect 방식과 실제 단말 ringing pickup은 운영 검증에서 구분해야 합니다."
+    ],
+    "relatedRoutes": [
+      {
+        "route": "/live-calls?feature=pickup",
+        "label": "실시간 콜"
+      }
+    ],
+    "sources": [
+      {
+        "kind": "search",
+        "ref": "https://docs.asterisk.org/Configuration/Features/Call-Pickup/",
+        "retrievedAt": "2026-07-16"
+      },
+      {
+        "kind": "search",
+        "ref": "https://docs.asterisk.org/Latest_API/API_Documentation/Module_Configuration/res_pjsip/",
+        "retrievedAt": "2026-07-16"
+      }
+    ],
+    "reviewStatus": "AUTO_DRAFT",
+    "updatedAt": "2026-07-16"
   },
   "queue.externalInboundMode": {
     "featureKey": "queue.externalInboundMode",

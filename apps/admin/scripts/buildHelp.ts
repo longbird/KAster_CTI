@@ -4,6 +4,7 @@ import type {
   HelpRelatedRoute,
   HelpReviewStatus,
   HelpSource,
+  HelpSourceKind,
 } from '../src/shared/help/types';
 
 export interface ScreenFile {
@@ -64,12 +65,57 @@ export function screenFilesToDrafts(files: ScreenFile[], today: string): Feature
     out[key] = {
       featureKey: key,
       title: file.label,
-      summary: `삼성 PBX 설정화면 MMC ${file.mmcCode} (${file.label}) 자동 추출 초안입니다.`,
+      summary: `PBX 참조 설정화면 MMC ${file.mmcCode} (${file.label}) 자동 추출 초안입니다.`,
       howTo: [],
       examples: [],
       warnings: ['자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요.'],
       relatedRoutes: [],
       sources: [{ kind: 'screen', ref: `3_DM_설정화면/MMC ${file.mmcCode}_${file.label}.png` }],
+      reviewStatus: 'AUTO_DRAFT',
+      updatedAt: today,
+    };
+  }
+  return out;
+}
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function textSnippetAround(text: string, needle: string, radius = 120) {
+  const index = text.indexOf(needle);
+  if (index < 0) return '';
+  return normalizeWhitespace(text.slice(Math.max(0, index - radius), index + needle.length + radius));
+}
+
+export function sourceTextToDrafts(
+  files: ScreenFile[],
+  text: string,
+  sourceKind: Extract<HelpSourceKind, 'manual' | 'spreadsheet'>,
+  sourceRef: string,
+  today: string,
+): FeatureHelpData {
+  const normalizedText = normalizeWhitespace(text);
+  const out: FeatureHelpData = {};
+  for (const file of files) {
+    const key = `mmc.${file.mmcCode}`;
+    const codeNeedle = `MMC ${file.mmcCode}`;
+    const compactCodeNeedle = `MMC${file.mmcCode}`;
+    const labelNeedle = file.label;
+    const snippet =
+      textSnippetAround(normalizedText, codeNeedle) ||
+      textSnippetAround(normalizedText, compactCodeNeedle) ||
+      textSnippetAround(normalizedText, labelNeedle);
+    if (!snippet) continue;
+    out[key] = {
+      featureKey: key,
+      title: file.label,
+      summary: `PBX 참조 ${sourceKind === 'manual' ? '매뉴얼' : '엑셀'}에서 추출한 MMC ${file.mmcCode} (${file.label}) 도움말 초안입니다.`,
+      howTo: [snippet.slice(0, 360)],
+      examples: [],
+      warnings: ['자동 생성된 초안입니다. 검토 후 APPROVED 로 전환하세요.'],
+      relatedRoutes: [],
+      sources: [{ kind: sourceKind, ref: sourceRef }],
       reviewStatus: 'AUTO_DRAFT',
       updatedAt: today,
     };

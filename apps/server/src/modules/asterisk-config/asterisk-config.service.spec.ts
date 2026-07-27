@@ -197,6 +197,174 @@ describe('AsteriskConfigService blocklist import', () => {
     expect(reload.scheduleReload).not.toHaveBeenCalled();
   });
 
+  it('creates a default trunk group and clears the previous default group', async () => {
+    const createdGroup = {
+      id: 'group-1',
+      tenantId: 'tenant-1',
+      name: '대표 발신 그룹',
+      description: null,
+      strategy: 'PRIORITY',
+      isDefault: true,
+      enabled: true,
+      members: [],
+    };
+    const tx = {
+      asteriskTrunkGroup: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue(createdGroup),
+      },
+    };
+    const prisma = {
+      asteriskTrunk: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'trunk-1' }, { id: 'trunk-2' }]),
+      },
+      $transaction: jest.fn((callback) => callback(tx)),
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    const result = await service.createTrunkGroup('tenant-1', {
+      name: ' 대표 발신 그룹 ',
+      isDefault: true,
+      members: [
+        { trunkId: 'trunk-1', priority: 100 },
+        { trunkId: 'trunk-2', priority: 200, enabled: false },
+      ],
+    });
+
+    expect(tx.asteriskTrunkGroup.updateMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', isDefault: true },
+      data: { isDefault: false },
+    });
+    expect(tx.asteriskTrunkGroup.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        name: '대표 발신 그룹',
+        strategy: 'PRIORITY',
+        isDefault: true,
+        members: {
+          create: [
+            { tenantId: 'tenant-1', trunkId: 'trunk-1', priority: 100, enabled: true },
+            { tenantId: 'tenant-1', trunkId: 'trunk-2', priority: 200, enabled: false },
+          ],
+        },
+      }),
+      include: expect.any(Object),
+    });
+    expect(result).toBe(createdGroup);
+    expect(reload.scheduleReload).toHaveBeenCalledWith('tenant-1');
+  });
+
+  it('rejects a trunk group with duplicate trunks', async () => {
+    const prisma = {
+      asteriskTrunk: {
+        findMany: jest.fn(),
+      },
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    await expect(service.createTrunkGroup('tenant-1', {
+      name: '대표 발신 그룹',
+      members: [
+        { trunkId: 'trunk-1', priority: 100 },
+        { trunkId: 'trunk-1', priority: 200 },
+      ],
+    })).rejects.toThrow('trunk group cannot contain duplicate trunks');
+    expect(prisma.asteriskTrunk.findMany).not.toHaveBeenCalled();
+    expect(reload.scheduleReload).not.toHaveBeenCalled();
+  });
+
+  it('stores DID direct extension routing after validating the extension', async () => {
+    const prisma = {
+      agents: {
+        findFirst: jest.fn().mockResolvedValue({ agentId: 'agent-1' }),
+      },
+      asteriskDid: {
+        create: jest.fn().mockResolvedValue({
+          id: 'did-1',
+          tenantId: 'tenant-1',
+          did: '07088887777',
+          ivrMenuId: null,
+          directQueue: null,
+          directExtension: '1001',
+          enabled: true,
+        }),
+      },
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    await service.createDid('tenant-1', {
+      did: '07088887777',
+      directExtension: '1001',
+      enabled: true,
+    });
+
+    expect(prisma.agents.findFirst).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', extension: '1001', isActive: true },
+      select: { agentId: true },
+    });
+    expect(prisma.asteriskDid.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        directQueue: null,
+        directExtension: '1001',
+      }),
+    });
+    expect(reload.scheduleReload).toHaveBeenCalledWith('tenant-1');
+  });
+
+  it('rejects DID routing when queue and direct extension are both provided', async () => {
+    const service = new AsteriskConfigService({} as any, { scheduleReload: jest.fn() } as any, {} as any, {} as any);
+
+    await expect(service.createDid('tenant-1', {
+      did: '07088887777',
+      directQueue: 'sales',
+      directExtension: '1001',
+    })).rejects.toThrow('Exactly one of ivrMenuId, directQueue, directExtension is required');
+  });
+
+  it('stores speed dial mappings and rejects conflicting codes', async () => {
+    const prisma = {
+      asteriskSpeedDial: {
+        create: jest.fn().mockResolvedValue({
+          id: 'speed-1',
+          tenantId: 'tenant-1',
+          code: '*01',
+          targetNumber: '01012345678',
+          displayName: '긴급 연락처',
+          description: null,
+          enabled: true,
+        }),
+      },
+    } as any;
+    const reload = { scheduleReload: jest.fn() } as any;
+    const service = new AsteriskConfigService(prisma, reload, {} as any, {} as any);
+
+    await service.createSpeedDial('tenant-1', {
+      code: '*01',
+      targetNumber: '010-1234-5678',
+      displayName: ' 긴급 연락처 ',
+    });
+
+    expect(prisma.asteriskSpeedDial.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: 'tenant-1',
+        code: '*01',
+        targetNumber: '01012345678',
+        displayName: '긴급 연락처',
+        description: null,
+        enabled: true,
+      },
+    });
+    expect(reload.scheduleReload).toHaveBeenCalledWith('tenant-1');
+
+    await expect(service.createSpeedDial('tenant-1', {
+      code: '0101',
+      targetNumber: '01012345678',
+    })).rejects.toThrow('speed dial code conflicts with internal or outbound dialing patterns');
+  });
+
   it('schedules an Asterisk reload when an agent SIP password is cleared', async () => {
     const prisma = {
       agents: {

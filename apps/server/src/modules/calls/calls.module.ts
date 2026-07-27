@@ -5,6 +5,7 @@ import { EventsModule } from '../events/events.module';
 import { AmiModule } from '../ami/ami.module';
 import { CustomersModule } from '../customers/customers.module';
 import { QueuesModule } from '../queues/queues.module';
+import { RecordingPipelineModule } from '../recording-pipeline/recording-pipeline.module';
 import { CallsController } from './calls.controller';
 import { CallsService } from './calls.service';
 import { SessionEngineService } from './session-engine.service';
@@ -13,7 +14,7 @@ import { AsteriskManagerService } from './asterisk-manager.service';
 import { TransferDetectorService } from './transfer-detector.service';
 
 @Module({
-  imports: [EventsModule, QueuesModule, CustomersModule, forwardRef(() => AmiModule)],
+  imports: [EventsModule, QueuesModule, CustomersModule, RecordingPipelineModule, forwardRef(() => AmiModule)],
   controllers: [CallsController],
   providers: [
     CallsService,

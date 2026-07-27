@@ -16,7 +16,8 @@ import { CreateDidDto, UpdateDidDto } from './dto/did.dto';
 import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwarding-rule.dto';
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
-import { CreateBulkTrunksDto, CreateTrunkDto, UpdateTrunkDto } from './dto/trunk.dto';
+import { CreateSpeedDialDto, UpdateSpeedDialDto } from './dto/speed-dial.dto';
+import { CreateBulkTrunksDto, CreateTrunkDto, CreateTrunkGroupDto, TrunkGroupMemberDto, UpdateTrunkDto, UpdateTrunkGroupDto } from './dto/trunk.dto';
 
 const FORWARDING_CONDITION_TYPES = new Set(['ALWAYS', 'TIME_RANGE']);
 const FORWARDING_TYPES = new Set(['EXTENSION', 'QUEUE', 'EXTERNAL_NUMBER']);
@@ -26,6 +27,9 @@ const WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 const WEEKDAY_SET = new Set(WEEKDAY_ORDER);
 const TIME_TEXT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const PROMPT_AUDIO_EXTENSIONS = new Set(['.wav', '.mp3', '.gsm', '.ulaw', '.alaw']);
+const TRUNK_GROUP_STRATEGIES = new Set(['PRIORITY']);
+const SPEED_DIAL_CODE_PATTERN = /^[0-9*#]{1,16}$/;
+const SPEED_DIAL_TARGET_PATTERN = /^[0-9]{2,32}$/;
 
 interface ParsedWavAudio {
   formatTag: number;
@@ -318,9 +322,176 @@ export class AsteriskConfigService {
     this.reload.scheduleReload(tenantId);
   }
 
+  async getTrunkGroups(tenantId: string) {
+    return this.prisma.asteriskTrunkGroup.findMany({
+      where: { tenantId },
+      include: {
+        members: {
+          include: { trunk: true },
+          orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+    });
+  }
+
+  async createTrunkGroup(tenantId: string, dto: CreateTrunkGroupDto) {
+    const normalized = await this.normalizeTrunkGroupInput(tenantId, dto);
+    const group = await this.prisma.$transaction(async (tx) => {
+      if (normalized.isDefault) {
+        await tx.asteriskTrunkGroup.updateMany({
+          where: { tenantId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+
+      return tx.asteriskTrunkGroup.create({
+        data: {
+          tenantId,
+          name: normalized.name,
+          description: normalized.description,
+          strategy: normalized.strategy,
+          isDefault: normalized.isDefault,
+          enabled: normalized.enabled,
+          members: {
+            create: normalized.members.map((member) => ({
+              tenantId,
+              trunkId: member.trunkId,
+              priority: member.priority,
+              enabled: member.enabled,
+            })),
+          },
+        },
+        include: {
+          members: {
+            include: { trunk: true },
+            orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+          },
+        },
+      });
+    });
+
+    this.reload.scheduleReload(tenantId);
+    return group;
+  }
+
+  async updateTrunkGroup(tenantId: string, id: string, dto: UpdateTrunkGroupDto) {
+    await this.assertTrunkGroupBelongs(tenantId, id);
+    const normalized = await this.normalizeTrunkGroupInput(tenantId, dto);
+    const group = await this.prisma.$transaction(async (tx) => {
+      if (normalized.isDefault) {
+        await tx.asteriskTrunkGroup.updateMany({
+          where: { tenantId, isDefault: true, id: { not: id } },
+          data: { isDefault: false },
+        });
+      }
+
+      await tx.asteriskTrunkGroupMember.deleteMany({
+        where: { tenantId, groupId: id },
+      });
+
+      return tx.asteriskTrunkGroup.update({
+        where: { id },
+        data: {
+          name: normalized.name,
+          description: normalized.description,
+          strategy: normalized.strategy,
+          isDefault: normalized.isDefault,
+          enabled: normalized.enabled,
+          members: {
+            create: normalized.members.map((member) => ({
+              tenantId,
+              trunkId: member.trunkId,
+              priority: member.priority,
+              enabled: member.enabled,
+            })),
+          },
+        },
+        include: {
+          members: {
+            include: { trunk: true },
+            orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+          },
+        },
+      });
+    });
+
+    this.reload.scheduleReload(tenantId);
+    return group;
+  }
+
+  async deleteTrunkGroup(tenantId: string, id: string) {
+    await this.assertTrunkGroupBelongs(tenantId, id);
+    await this.prisma.asteriskTrunkGroup.delete({ where: { id } });
+    this.reload.scheduleReload(tenantId);
+  }
+
   private async assertTrunkBelongs(tenantId: string, id: string) {
     const trunk = await this.prisma.asteriskTrunk.findFirst({ where: { id, tenantId } });
     if (!trunk) throw new NotFoundException(`Trunk ${id} not found`);
+  }
+
+  private async assertTrunkGroupBelongs(tenantId: string, id: string) {
+    const group = await this.prisma.asteriskTrunkGroup.findFirst({ where: { id, tenantId } });
+    if (!group) throw new NotFoundException(`Trunk group ${id} not found`);
+  }
+
+  private async normalizeTrunkGroupInput(tenantId: string, dto: CreateTrunkGroupDto) {
+    const name = dto.name?.trim();
+    if (!name) {
+      throw new BadRequestException('trunk group name is required');
+    }
+
+    const strategy = dto.strategy?.trim().toUpperCase() || 'PRIORITY';
+    if (!TRUNK_GROUP_STRATEGIES.has(strategy)) {
+      throw new BadRequestException('trunk group strategy must be PRIORITY');
+    }
+
+    const members = this.normalizeTrunkGroupMembers(dto.members ?? []);
+    if (members.length === 0) {
+      throw new BadRequestException('trunk group must contain at least one trunk');
+    }
+
+    const trunks = await this.prisma.asteriskTrunk.findMany({
+      where: {
+        tenantId,
+        id: { in: members.map((member) => member.trunkId) },
+      },
+      select: { id: true },
+    });
+    const foundTrunkIds = new Set(trunks.map((trunk) => trunk.id));
+    const missingTrunkId = members.find((member) => !foundTrunkIds.has(member.trunkId))?.trunkId;
+    if (missingTrunkId) {
+      throw new BadRequestException(`trunk ${missingTrunkId} is not available for this tenant`);
+    }
+
+    return {
+      name,
+      description: dto.description?.trim() || null,
+      strategy,
+      isDefault: dto.isDefault ?? false,
+      enabled: dto.enabled ?? true,
+      members,
+    };
+  }
+
+  private normalizeTrunkGroupMembers(members: TrunkGroupMemberDto[]) {
+    const seen = new Set<string>();
+    return members.map((member, index) => {
+      const trunkId = member.trunkId?.trim();
+      if (!trunkId) {
+        throw new BadRequestException('trunk group member trunkId is required');
+      }
+      if (seen.has(trunkId)) {
+        throw new BadRequestException('trunk group cannot contain duplicate trunks');
+      }
+      seen.add(trunkId);
+      return {
+        trunkId,
+        priority: member.priority ?? (index + 1) * 100,
+        enabled: member.enabled ?? true,
+      };
+    });
   }
 
   private buildBulkTrunkName(prefix: string | undefined, order: number) {
@@ -421,6 +592,7 @@ export class AsteriskConfigService {
       description: normalized.description ?? null,
       ivrMenuId: normalized.ivrMenuId ?? null,
       directQueue: normalized.directQueue ?? null,
+      directExtension: normalized.directExtension ?? null,
       enabled: normalized.enabled ?? true,
     };
     const did = await this.prisma.asteriskDid.create({
@@ -431,7 +603,7 @@ export class AsteriskConfigService {
   }
 
   /**
-   * Full-replace PUT — all routing fields (ivrMenuId / directQueue) must be provided.
+   * Full-replace PUT — all routing fields (ivrMenuId / directQueue / directExtension) must be provided.
    * The XOR validation treats the incoming DTO as the complete new state.
    */
   async updateDid(tenantId: string, id: string, dto: UpdateDidDto) {
@@ -444,6 +616,7 @@ export class AsteriskConfigService {
       description: normalized.description ?? null,
       ivrMenuId: normalized.ivrMenuId ?? null,
       directQueue: normalized.directQueue ?? null,
+      directExtension: normalized.directExtension ?? null,
       enabled: normalized.enabled ?? true,
     };
     const did = await this.prisma.asteriskDid.update({ where: { id }, data });
@@ -459,19 +632,26 @@ export class AsteriskConfigService {
 
   private async validateDidXorAndQueue(
     tenantId: string,
-    dto: { ivrMenuId?: string; directQueue?: string },
+    dto: { ivrMenuId?: string; directQueue?: string; directExtension?: string },
   ) {
     const hasIvr = !!dto.ivrMenuId;
     const hasQueue = !!dto.directQueue;
-    if (hasIvr && hasQueue)
-      throw new BadRequestException('ivrMenuId and directQueue are mutually exclusive');
-    if (!hasIvr && !hasQueue)
-      throw new BadRequestException('Either ivrMenuId or directQueue is required');
+    const hasExtension = !!dto.directExtension;
+    const routeCount = [hasIvr, hasQueue, hasExtension].filter(Boolean).length;
+    if (routeCount !== 1)
+      throw new BadRequestException('Exactly one of ivrMenuId, directQueue, directExtension is required');
     if (hasQueue) {
       const queue = await this.prisma.queues.findFirst({
         where: { tenantId, queueName: dto.directQueue },
       });
       if (!queue) throw new BadRequestException(`Queue "${dto.directQueue}" not found`);
+    }
+    if (hasExtension) {
+      const agent = await this.prisma.agents.findFirst({
+        where: { tenantId, extension: dto.directExtension, isActive: true },
+        select: { agentId: true },
+      });
+      if (!agent) throw new BadRequestException(`Extension "${dto.directExtension}" not found`);
     }
   }
 
@@ -481,9 +661,74 @@ export class AsteriskConfigService {
   ): Promise<CreateDidDto | UpdateDidDto> {
     if (dto.ivrMenuId) return dto;
     if (dto.directQueue) return dto;
+    if (dto.directExtension) return dto;
 
     const defaultQueue = await this.ensureDefaultDistributionQueue(tenantId);
     return { ...dto, directQueue: defaultQueue.queueName };
+  }
+
+  // ─── Speed dials ──────────────────────────────────────────────────────────
+
+  getSpeedDials(tenantId: string) {
+    return this.prisma.asteriskSpeedDial.findMany({
+      where: { tenantId },
+      orderBy: [{ code: 'asc' }],
+    });
+  }
+
+  async createSpeedDial(tenantId: string, dto: CreateSpeedDialDto) {
+    const normalized = this.normalizeSpeedDialInput(dto);
+    const row = await this.prisma.asteriskSpeedDial.create({
+      data: {
+        tenantId,
+        ...normalized,
+      },
+    });
+    this.reload.scheduleReload(tenantId);
+    return row;
+  }
+
+  async updateSpeedDial(tenantId: string, id: string, dto: UpdateSpeedDialDto) {
+    await this.assertSpeedDialBelongs(tenantId, id);
+    const row = await this.prisma.asteriskSpeedDial.update({
+      where: { id },
+      data: this.normalizeSpeedDialInput(dto),
+    });
+    this.reload.scheduleReload(tenantId);
+    return row;
+  }
+
+  async deleteSpeedDial(tenantId: string, id: string) {
+    await this.assertSpeedDialBelongs(tenantId, id);
+    await this.prisma.asteriskSpeedDial.delete({ where: { id } });
+    this.reload.scheduleReload(tenantId);
+  }
+
+  private async assertSpeedDialBelongs(tenantId: string, id: string) {
+    const row = await this.prisma.asteriskSpeedDial.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!row) throw new NotFoundException(`Speed dial ${id} not found`);
+  }
+
+  private normalizeSpeedDialInput(dto: CreateSpeedDialDto | UpdateSpeedDialDto) {
+    const code = dto.code.trim();
+    const targetNumber = dto.targetNumber.replace(/[\s-]/g, '').trim();
+    if (!SPEED_DIAL_CODE_PATTERN.test(code)) {
+      throw new BadRequestException('code must contain 1-16 digits or *#');
+    }
+    if (/^[12]\d{3}$/.test(code) || /^0\d+/.test(code)) {
+      throw new BadRequestException('speed dial code conflicts with internal or outbound dialing patterns');
+    }
+    if (!SPEED_DIAL_TARGET_PATTERN.test(targetNumber)) {
+      throw new BadRequestException('targetNumber must contain 2-32 digits');
+    }
+
+    return {
+      code,
+      targetNumber,
+      displayName: dto.displayName?.trim() || null,
+      description: dto.description?.trim() || null,
+      enabled: dto.enabled ?? true,
+    };
   }
 
   private async ensureDefaultDistributionQueue(tenantId: string) {

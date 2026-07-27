@@ -34,6 +34,9 @@ model tenants {
 
   agents               agents[]
   queues               queues[]
+  queueOverflowRules   queueOverflowRules[]
+  recordingFinalizeJobs recordingFinalizeJobs[]
+  recordingRetentionPolicies recordingRetentionPolicies[]
   customers            customers[]
   callSessions         callSessions[]
   callLegs             callLegs[]
@@ -60,8 +63,11 @@ model tenants {
   asteriskPrompts     AsteriskPrompt[]
   asteriskBlocklistEntries AsteriskBlocklistEntry[]
   asteriskTrunks       AsteriskTrunk[]
+  asteriskTrunkGroups  AsteriskTrunkGroup[]
+  asteriskTrunkGroupMembers AsteriskTrunkGroupMember[]
   asteriskDids         AsteriskDid[]
   asteriskIvrMenus     AsteriskIvrMenu[]
+  asteriskSpeedDials   AsteriskSpeedDial[]
   smsTemplates         tenantSmsTemplate[]
   agentGroups          agentGroups[]
   agentBranchCallerIds agentBranchCallerIds[]
@@ -160,12 +166,35 @@ model queues {
   tenant              tenants   @relation(fields: [tenantId], references: [tenantId])
   defaultAgents       agents[]  @relation("agent_default_queue")
   members             queueAgentMembers[]
+  overflowRules       queueOverflowRules[]
   branchMappings      branchQueues[]
   sessions            callSessions[]
   queueEvents         queueEvents[]
 
   @@unique([tenantId, queueName])
   @@unique([tenantId, queueExten])
+}
+
+model queueOverflowRules {
+  queueOverflowRuleId String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @db.Uuid
+  queueId             String   @db.Uuid
+  triggerMode         String   @default("AFTER_WAIT") @db.VarChar(32)
+  waitSeconds         Int      @default(25)
+  targetType          String   @db.VarChar(32)
+  targetValue         String   @db.VarChar(128)
+  resultCode          String   @default("AI_OVERFLOW") @db.VarChar(64)
+  priority            Int      @default(100)
+  enabled             Boolean  @default(true)
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant              tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  queue               queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+
+  @@index([tenantId, enabled])
+  @@index([tenantId, queueId])
+  @@index([tenantId, priority])
 }
 
 model queueAgentMembers {
@@ -265,6 +294,8 @@ model callSessions {
   transferFlag    Boolean   @default(false)
   callbackFlag    Boolean   @default(false)
   recordingFlag   Boolean   @default(false)
+  recordingFinalizationStatus String @default("NOT_REQUESTED") @db.VarChar(32)
+  recordingFinalizedAt DateTime? @db.Timestamptz(6)
   startedAt       DateTime  @db.Timestamptz(6)
   queuedAt        DateTime? @db.Timestamptz(6)
   ringingAt       DateTime? @db.Timestamptz(6)
@@ -285,6 +316,7 @@ model callSessions {
   callLegs        callLegs[]
   queueEvents     queueEvents[]
   callRecordings  callRecordings[]
+  recordingFinalizeJobs recordingFinalizeJobs[]
   callMemos       callMemos[]
   callTransfers   callTransfers[]
 
@@ -363,11 +395,55 @@ model callRecordings {
   recordingEndedAt    DateTime? @db.Timestamptz(6)
   durationSeconds     Int       @default(0)
   checksumSha256      String?   @db.VarChar(64)
+  recordingStatus     String    @default("PENDING") @db.VarChar(32)
+  encryptionStatus    String    @default("NONE") @db.VarChar(32)
+  encryptedFilePath   String?
+  keyRef              String?   @db.VarChar(128)
+  retentionUntil      DateTime? @db.Timestamptz(6)
+  finalizedAt         DateTime? @db.Timestamptz(6)
+  failureReason       String?
+  speakerSeparationStatus String @default("NOT_REQUESTED") @db.VarChar(32)
   isAccessRestricted  Boolean   @default(true)
   createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
 
   session             callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
   tenant              tenants @relation(fields: [tenantId], references: [tenantId])
+}
+
+model recordingFinalizeJobs {
+  recordingFinalizeJobId String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @db.Uuid
+  callId                 String   @db.Uuid
+  linkedid               String   @db.VarChar(32)
+  recFile                String
+  status                 String   @default("PENDING") @db.VarChar(32)
+  attempts               Int      @default(0)
+  nextAttemptAt          DateTime @default(now()) @db.Timestamptz(6)
+  lastError              String?
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant                 tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  session                callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+
+  @@unique([tenantId, linkedid, recFile])
+  @@index([tenantId, status, nextAttemptAt])
+  @@index([tenantId, callId])
+}
+
+model recordingRetentionPolicies {
+  recordingRetentionPolicyId String   @id @default(uuid()) @db.Uuid
+  tenantId                   String   @db.Uuid
+  retentionDays              Int      @default(1095)
+  deleteMode                 String   @default("DAILY_SWEEP") @db.VarChar(32)
+  enabled                    Boolean  @default(true)
+  createdAt                  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt                  DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant                     tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId])
 }
 
 model callRecordingAccessAuditLogs {
@@ -789,8 +865,47 @@ model AsteriskTrunk {
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @db.Timestamptz(6)
   tenant     tenants  @relation(fields: [tenantId], references: [tenantId])
+  groupMembers AsteriskTrunkGroupMember[]
 
   @@unique([tenantId, name])
+}
+
+model AsteriskTrunkGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  name        String   @db.VarChar(128)
+  description String?  @db.VarChar(255)
+  strategy    String   @default("PRIORITY") @db.VarChar(32)
+  isDefault   Boolean  @default(false)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  members     AsteriskTrunkGroupMember[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, enabled])
+  @@index([tenantId, isDefault])
+}
+
+model AsteriskTrunkGroupMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  groupId   String   @db.Uuid
+  trunkId   String   @db.Uuid
+  priority  Int      @default(100)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant    tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  group     AsteriskTrunkGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  trunk     AsteriskTrunk @relation(fields: [trunkId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, trunkId])
+  @@index([tenantId, groupId])
+  @@index([tenantId, trunkId])
 }
 
 model AsteriskDid {
@@ -801,6 +916,7 @@ model AsteriskDid {
   description String?          @db.VarChar(255)
   ivrMenuId   String?          @db.Uuid
   directQueue String?          @db.VarChar(64)
+  directExtension String?      @db.VarChar(16)
   enabled     Boolean          @default(true)
   createdAt   DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
@@ -810,6 +926,23 @@ model AsteriskDid {
   forwardingRule asteriskForwardingRules?
 
   @@unique([tenantId, did])
+}
+
+model AsteriskSpeedDial {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  code         String   @db.VarChar(16)
+  targetNumber String   @db.VarChar(32)
+  displayName  String?  @db.VarChar(128)
+  description  String?  @db.VarChar(255)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, enabled])
 }
 
 model asteriskForwardingRules {

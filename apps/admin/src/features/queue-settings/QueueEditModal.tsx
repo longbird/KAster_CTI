@@ -54,6 +54,16 @@ export interface QueueRow {
   ringTimeoutSeconds?: number;
   wrapupSeconds?: number;
   autopause?: boolean;
+  overflowRules?: Array<{
+    queueOverflowRuleId?: string;
+    triggerMode?: string;
+    waitSeconds?: number;
+    targetType?: 'AI_CENTER' | 'EXTERNAL_NUMBER' | 'QUEUE' | 'EXTENSION';
+    targetValue?: string;
+    resultCode?: string;
+    priority?: number;
+    enabled?: boolean;
+  }>;
   isActive?: boolean;
   isDefaultRule?: boolean;
   virtualBuffer?: {
@@ -141,6 +151,10 @@ export function QueueEditModal({
     distributionMode?: string;
     unconditionalTargetType?: 'AGENT' | 'QUEUE' | 'EXTERNAL_NUMBER';
     unconditionalTargetValue?: string;
+    overflowEnabled?: boolean;
+    overflowWaitSeconds?: number;
+    overflowTargetType?: 'AI_CENTER' | 'EXTERNAL_NUMBER' | 'QUEUE' | 'EXTENSION';
+    overflowTargetValue?: string;
     strategy?: string;
     maxWaitSeconds?: number;
     ringTimeoutSeconds?: number;
@@ -160,7 +174,11 @@ export function QueueEditModal({
   const distributionMode = Form.useWatch('distributionMode', form) ?? queue?.distributionMode ?? 'DISTRIBUTE';
   const unconditionalTargetType =
     Form.useWatch('unconditionalTargetType', form) ?? queue?.unconditionalTargetType ?? 'AGENT';
+  const overflowEnabled = Form.useWatch('overflowEnabled', form) ?? (queue?.overflowRules?.some((rule) => rule.enabled !== false) ?? false);
+  const overflowTargetType =
+    Form.useWatch('overflowTargetType', form) ?? queue?.overflowRules?.find((rule) => rule.enabled !== false)?.targetType ?? 'AI_CENTER';
 
+  const firstOverflowRule = queue?.overflowRules?.find((rule) => rule.enabled !== false);
   const initialValues = queue
     ? {
         queueDisplayName: queue.queueDisplayName,
@@ -172,6 +190,10 @@ export function QueueEditModal({
         ringTimeoutSeconds: queue.ringTimeoutSeconds,
         wrapupSeconds: queue.wrapupSeconds,
         autopause: queue.autopause,
+        overflowEnabled: !!firstOverflowRule,
+        overflowWaitSeconds: firstOverflowRule?.waitSeconds ?? 25,
+        overflowTargetType: firstOverflowRule?.targetType ?? 'AI_CENTER',
+        overflowTargetValue: firstOverflowRule?.targetValue,
       }
     : undefined;
 
@@ -272,6 +294,24 @@ export function QueueEditModal({
         })),
     [queues, queue?.queueId],
   );
+  const overflowQueueOptions = useMemo(
+    () =>
+      queues
+        .filter((item) => item.queueId !== queue?.queueId)
+        .map((item) => ({
+          value: item.queueName,
+          label: item.queueDisplayName ?? item.queueName,
+        })),
+    [queues, queue?.queueId],
+  );
+  const overflowExtensionOptions = useMemo(
+    () =>
+      allAgents.map((agent) => ({
+        value: agent.extension,
+        label: `${agent.extension} · ${agent.agentName}`,
+      })),
+    [allAgents],
+  );
   const availableTableScroll = availableAgents.length > 6 ? { y: 360 } : undefined;
   const draftTableScroll = draftMembers.length > 6 ? { y: 360 } : undefined;
 
@@ -331,8 +371,30 @@ export function QueueEditModal({
     setSaving(true);
     try {
       const values = canEditSettings ? await form.validateFields() : {};
+      const {
+        overflowEnabled: useOverflow,
+        overflowWaitSeconds,
+        overflowTargetType,
+        overflowTargetValue,
+        ...queueValues
+      } = values;
       await apiClient.patch(`/queues/${queue.queueId}`, {
-        ...values,
+        ...queueValues,
+        ...(canEditSettings
+          ? {
+              overflowRules: useOverflow
+                ? [{
+                    triggerMode: 'AFTER_WAIT',
+                    waitSeconds: overflowWaitSeconds ?? 25,
+                    targetType: overflowTargetType ?? 'AI_CENTER',
+                    targetValue: overflowTargetValue,
+                    resultCode: 'AI_OVERFLOW',
+                    enabled: true,
+                    priority: 100,
+                  }]
+                : [],
+            }
+          : {}),
         ...(canEditMembers
           ? {
               members: draftMembers.map((item, index) => ({
@@ -389,6 +451,9 @@ export function QueueEditModal({
           }
           if ('unconditionalTargetType' in changedValues) {
             form.setFieldValue('unconditionalTargetValue', undefined);
+          }
+          if ('overflowTargetType' in changedValues) {
+            form.setFieldValue('overflowTargetValue', undefined);
           }
         }}
       >
@@ -459,6 +524,56 @@ export function QueueEditModal({
               <Form.Item label="후처리 시간(초)" name="wrapupSeconds" style={{ marginBottom: 0 }}>
                 <InputNumber min={0} max={600} style={{ width: '100%' }} disabled={!canEditSettings} />
               </Form.Item>
+            </div>
+          </Card>
+
+          <Card title="대기 오버플로우" size="small">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
+              <Form.Item label="사용" name="overflowEnabled" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Switch disabled={!canEditSettings} />
+              </Form.Item>
+              {overflowEnabled ? (
+                <>
+                  <Form.Item
+                    label="대기 시간(초)"
+                    name="overflowWaitSeconds"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '대기 시간을 입력하세요' }]}
+                  >
+                    <InputNumber min={1} max={600} style={{ width: '100%' }} disabled={!canEditSettings} />
+                  </Form.Item>
+                  <Form.Item
+                    label="대상 유형"
+                    name="overflowTargetType"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '대상 유형을 선택하세요' }]}
+                  >
+                    <Select
+                      disabled={!canEditSettings}
+                      options={[
+                        { value: 'AI_CENTER', label: 'AI센터' },
+                        { value: 'EXTERNAL_NUMBER', label: '외부번호' },
+                        { value: 'QUEUE', label: '분배룰' },
+                        { value: 'EXTENSION', label: '상담원 내선' },
+                      ]}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={overflowTargetType === 'QUEUE' ? '대상 분배룰' : overflowTargetType === 'EXTENSION' ? '대상 내선' : '대상 번호'}
+                    name="overflowTargetValue"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '오버플로우 대상을 입력하세요' }]}
+                  >
+                    {overflowTargetType === 'QUEUE' ? (
+                      <Select showSearch optionFilterProp="label" options={overflowQueueOptions} disabled={!canEditSettings} />
+                    ) : overflowTargetType === 'EXTENSION' ? (
+                      <Select showSearch optionFilterProp="label" options={overflowExtensionOptions} disabled={!canEditSettings} />
+                    ) : (
+                      <Input placeholder="07080120000" maxLength={16} disabled={!canEditSettings} />
+                    )}
+                  </Form.Item>
+                </>
+              ) : null}
             </div>
           </Card>
 

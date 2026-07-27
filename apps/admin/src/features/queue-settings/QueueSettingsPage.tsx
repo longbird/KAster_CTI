@@ -16,6 +16,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -40,6 +41,7 @@ function renderSingleLine(text: string) {
 }
 
 export function QueueSettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const queuePermission = usePermissionStore((state) => state.permissionsByMenu['settings/queues']);
   const canEditQueue = queuePermission?.canUpdate !== false;
   const canEditMembers = queuePermission?.canOperate !== false;
@@ -72,6 +74,16 @@ export function QueueSettingsPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!rows || !canOpenEditor) return;
+    const resourceId = searchParams.get('resourceId');
+    if (!resourceId || editing?.queueId === resourceId) return;
+    const target = rows.find((row) => row.queueId === resourceId);
+    if (!target) return;
+    setShowCreate(false);
+    setEditing(target);
+  }, [canOpenEditor, editing?.queueId, rows, searchParams]);
 
   const deactivate = async (queueId: string) => {
     try {
@@ -282,7 +294,14 @@ export function QueueSettingsPage() {
           queue={editing}
           canEditSettings={canEditQueue}
           canEditMembers={canEditMembers}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            setEditing(null);
+            if (searchParams.has('resourceId')) {
+              const next = new URLSearchParams(searchParams);
+              next.delete('resourceId');
+              setSearchParams(next, { replace: true });
+            }
+          }}
           onSaved={() => void load()}
         />
       ) : null}

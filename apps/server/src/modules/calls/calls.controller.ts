@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Headers, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { createReadStream, promises as fs } from 'node:fs';
 import { ApiBearerAuth, ApiHeader, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
@@ -121,39 +120,26 @@ export class CallsController {
     }
 
     const recording = await this.callsService.getRecordingFile(req.user.tenantId, recordingId);
-    const stat = await fs.stat(recording.filePath).catch(() => null);
-    if (!stat?.isFile()) {
+    const rangeHeader = typeof req.headers.range === 'string' ? req.headers.range : undefined;
+    const payload = await this.callsService.openRecordingReadStream(recording, rangeHeader);
+    if (!payload) {
+      if (rangeHeader) {
+        res.status(416);
+        res.end();
+        return;
+      }
       throw new NotFoundException('Recording file not found');
     }
-
-    const rangeHeader = typeof req.headers.range === 'string' ? req.headers.range : undefined;
 
     res.setHeader('Content-Type', recording.contentType);
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'private, no-store');
-
-    if (!rangeHeader) {
-      res.setHeader('Content-Length', stat.size);
-      createReadStream(recording.filePath).pipe(res);
-      return;
+    res.status(payload.statusCode);
+    res.setHeader('Content-Length', payload.size);
+    if (payload.contentRange) {
+      res.setHeader('Content-Range', payload.contentRange);
     }
-
-    const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
-    const start = match?.[1] ? Number.parseInt(match[1], 10) : 0;
-    const requestedEnd = match?.[2] ? Number.parseInt(match[2], 10) : stat.size - 1;
-    const end = Number.isFinite(requestedEnd) ? Math.min(requestedEnd, stat.size - 1) : stat.size - 1;
-
-    if (!match || !Number.isFinite(start) || start < 0 || start > end || start >= stat.size) {
-      res.status(416);
-      res.setHeader('Content-Range', `bytes */${stat.size}`);
-      res.end();
-      return;
-    }
-
-    res.status(206);
-    res.setHeader('Content-Length', end - start + 1);
-    res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
-    createReadStream(recording.filePath, { start, end }).pipe(res);
+    payload.stream.pipe(res);
   }
 
   @Get('recordings/:recordingId/download')
@@ -170,8 +156,8 @@ export class CallsController {
     }
 
     const recording = await this.callsService.getRecordingFile(req.user.tenantId, recordingId);
-    const stat = await fs.stat(recording.filePath).catch(() => null);
-    if (!stat?.isFile()) {
+    const payload = await this.callsService.openRecordingReadStream(recording);
+    if (!payload) {
       throw new NotFoundException('Recording file not found');
     }
 
@@ -183,10 +169,10 @@ export class CallsController {
     });
 
     res.setHeader('Content-Type', recording.contentType);
-    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Content-Length', payload.size);
     res.setHeader('Content-Disposition', buildDownloadDisposition(recording.fileName));
     res.setHeader('Cache-Control', 'private, no-store');
-    createReadStream(recording.filePath).pipe(res);
+    payload.stream.pipe(res);
   }
 
   @Get(':callId')

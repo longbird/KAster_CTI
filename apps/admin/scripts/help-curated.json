@@ -56,6 +56,44 @@
     "reviewStatus": "APPROVED",
     "updatedAt": "2026-05-19"
   },
+  "pbx.trunkGroup": {
+    "featureKey": "pbx.trunkGroup",
+    "title": "국선 그룹",
+    "summary": "여러 국선 회선을 하나의 발신 그룹으로 묶어 기본 발신 풀과 장애 우회 순서를 관리합니다.",
+    "howTo": [
+      "PBX 설정의 트렁크 탭에서 국선 그룹을 추가합니다.",
+      "그룹에 포함할 회선을 선택하고 우선순위를 지정합니다.",
+      "기본 발신 그룹으로 지정하면 상담원 외부 발신 시 우선순위 순서로 회선을 사용합니다."
+    ],
+    "examples": ["KT 주회선을 우선순위 100, 백업 회선을 200으로 지정해 주회선 장애 시 백업 회선을 사용합니다."],
+    "warnings": [
+      "기본 발신 그룹은 tenant 기준 1개만 유지됩니다.",
+      "비활성 회선이나 비활성 멤버는 발신 Dial 대상에서 제외됩니다."
+    ],
+    "relatedRoutes": [{ "route": "/settings/asterisk", "label": "PBX 설정" }],
+    "sources": [{ "kind": "spec", "ref": "pbx-selected-features-development-plan-20260514.md / 국선 그룹" }],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-07-16"
+  },
+  "pbx.speedDial": {
+    "featureKey": "pbx.speedDial",
+    "title": "단축 발신",
+    "summary": "상담원 SIP 전화기에서 짧은 단축번호를 눌러 내선 또는 외부번호로 발신합니다.",
+    "howTo": [
+      "PBX 설정의 단축 발신 탭에서 단축번호와 대상번호를 등록합니다.",
+      "단축번호는 내선번호나 외부 발신번호와 충돌하지 않도록 * 또는 # 조합을 권장합니다.",
+      "외부번호 대상은 기존 발신번호 정책과 국선 그룹 경로를 사용합니다."
+    ],
+    "examples": ["*01을 01012345678로 등록하면 상담원이 *01을 눌러 해당 번호로 발신합니다."],
+    "warnings": [
+      "단축번호는 내선 패턴과 외부 발신 패턴으로 사용할 수 없습니다.",
+      "SIP 전화기 직접 발신이 차단된 상담원은 단축 발신도 사용할 수 없습니다."
+    ],
+    "relatedRoutes": [{ "route": "/settings/asterisk?tab=speed-dials", "label": "단축 발신" }],
+    "sources": [{ "kind": "spec", "ref": "pbx-selected-features-development-plan-20260514.md / 직통전화와 단축 발신" }],
+    "reviewStatus": "APPROVED",
+    "updatedAt": "2026-07-16"
+  },
   "forwarding.condition": {
     "featureKey": "forwarding.condition",
     "title": "착신전환 조건",

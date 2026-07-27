@@ -24,6 +24,37 @@ export interface AsteriskTrunkInput {
   enabled?: boolean;
 }
 
+export interface AsteriskTrunkGroupMember {
+  id: string;
+  trunkId: string;
+  priority: number;
+  enabled: boolean;
+  trunk: AsteriskTrunk;
+}
+
+export interface AsteriskTrunkGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  strategy: 'PRIORITY';
+  isDefault: boolean;
+  enabled: boolean;
+  members: AsteriskTrunkGroupMember[];
+}
+
+export interface AsteriskTrunkGroupInput {
+  name: string;
+  description?: string | null;
+  strategy?: 'PRIORITY';
+  isDefault?: boolean;
+  enabled?: boolean;
+  members: Array<{
+    trunkId: string;
+    priority?: number;
+    enabled?: boolean;
+  }>;
+}
+
 export interface AsteriskBulkTrunkEntryInput {
   name?: string;
   host?: string;
@@ -50,6 +81,7 @@ export interface AsteriskDid {
   description: string | null;
   ivrMenuId: string | null;
   directQueue: string | null;
+  directExtension: string | null;
   enabled: boolean;
   branchMappings?: Array<{
     branch: {
@@ -58,6 +90,23 @@ export interface AsteriskDid {
       branchName: string;
     };
   }>;
+}
+
+export interface AsteriskSpeedDial {
+  id: string;
+  code: string;
+  targetNumber: string;
+  displayName: string | null;
+  description: string | null;
+  enabled: boolean;
+}
+
+export interface AsteriskSpeedDialInput {
+  code: string;
+  targetNumber: string;
+  displayName?: string | null;
+  description?: string | null;
+  enabled?: boolean;
 }
 
 export interface DistributionRuleOption {

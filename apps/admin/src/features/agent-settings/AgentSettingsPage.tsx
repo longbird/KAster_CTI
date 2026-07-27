@@ -18,6 +18,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -50,6 +51,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function AgentSettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const agentPermission = usePermissionStore((state) => state.permissionsByMenu['settings/agents']);
   const [rows, setRows] = useState<AgentRow[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -72,6 +74,16 @@ export function AgentSettingsPage() {
     }, 5000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!rows) return;
+    const resourceId = searchParams.get('resourceId');
+    if (!resourceId || editing?.agentId === resourceId) return;
+    const target = rows.find((row) => row.agentId === resourceId);
+    if (!target) return;
+    setShowCreate(false);
+    setEditing(target);
+  }, [editing?.agentId, rows, searchParams]);
 
   const deactivate = async (agentId: string) => {
     try {
@@ -238,6 +250,11 @@ export function AgentSettingsPage() {
           agent={showCreate ? null : editing}
           onClose={() => {
             setEditing(null);
+            if (searchParams.has('resourceId')) {
+              const next = new URLSearchParams(searchParams);
+              next.delete('resourceId');
+              setSearchParams(next, { replace: true });
+            }
           }}
           onSaved={() => void load()}
         />

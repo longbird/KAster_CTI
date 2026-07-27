@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parseScreenFilename, mergeHelpEntries, validateHelpEntry, sourceRecordsToDrafts } from './buildHelp';
+import {
+  parseScreenFilename,
+  mergeHelpEntries,
+  validateHelpEntry,
+  sourceRecordsToDrafts,
+  sourceTextToDrafts,
+} from './buildHelp';
 import type { FeatureHelpEntry } from '../src/shared/help/types';
 
 const approved: FeatureHelpEntry = {
@@ -89,5 +95,37 @@ describe('sourceRecordsToDrafts', () => {
       updatedAt: '2026-05-21',
     });
     expect(drafts['integration.automation'].sources).toHaveLength(2);
+  });
+});
+
+describe('sourceTextToDrafts', () => {
+  it('매뉴얼/엑셀 텍스트에서 MMC 코드와 화면 파일명을 매칭해 초안을 만든다', () => {
+    const drafts = sourceTextToDrafts(
+      [{ mmcCode: '102', label: '착신전환' }],
+      '사용자는 MMC 102 착신전환 메뉴에서 무조건 전환과 무응답 전환을 설정한다.',
+      'manual',
+      'manual.pdf',
+      '2026-07-16',
+    );
+
+    expect(drafts['mmc.102']).toMatchObject({
+      featureKey: 'mmc.102',
+      title: '착신전환',
+      reviewStatus: 'AUTO_DRAFT',
+      sources: [{ kind: 'manual', ref: 'manual.pdf' }],
+    });
+    expect(drafts['mmc.102'].howTo[0]).toContain('무조건 전환');
+  });
+
+  it('관련 텍스트가 없으면 초안을 만들지 않는다', () => {
+    expect(
+      sourceTextToDrafts(
+        [{ mmcCode: '999', label: '없는기능' }],
+        '다른 기능 설명',
+        'spreadsheet',
+        'draft.xlsx',
+        '2026-07-16',
+      ),
+    ).toEqual({});
   });
 });

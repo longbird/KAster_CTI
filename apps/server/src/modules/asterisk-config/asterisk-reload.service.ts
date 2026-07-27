@@ -874,11 +874,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
 
     const {
       trunks,
+      trunkGroups,
+      speedDials,
       agents,
       pjsipAgents,
       dids,
       ivrMenus,
       forwardingRules,
+      queueOverflowRules,
       holidayRules,
       blocklistEntries,
       sipRegisterPort,
@@ -891,13 +894,21 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
 
     const pjsipContent = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const rtpContent = this.renderRtpConf();
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, holidayRules, blocklistEntries });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids,
+      ivrMenus,
+      forwardingRules,
+      queueOverflowRules,
+      holidayRules,
+      blocklistEntries,
+    });
     const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
       trunks,
+      trunkGroups,
       agents: agents.map((agent) => {
         const profile = normalizeAgentRuntimeProfile(agent.settingsProfile);
         return {
@@ -910,6 +921,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         };
       }),
       outboundCallerIdRules,
+      speedDials,
     });
     const queuesContent = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -960,11 +972,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   async previewConfFiles(tenantId: string): Promise<RenderedConfFiles> {
     const {
       trunks,
+      trunkGroups,
+      speedDials,
       agents,
       pjsipAgents,
       dids,
       ivrMenus,
       forwardingRules,
+      queueOverflowRules,
       holidayRules,
       blocklistEntries,
       sipRegisterPort,
@@ -977,13 +992,21 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
 
     const pjsip = renderPjsip({ trunks, agents: pjsipAgents, sipRegisterPort, ...this.getPjsipNatConfig() });
     const rtp = this.renderRtpConf();
-    const { extensionsInbound, extensionsQueue } = renderDialplan({ dids, ivrMenus, forwardingRules, holidayRules, blocklistEntries });
+    const { extensionsInbound, extensionsQueue } = renderDialplan({
+      dids,
+      ivrMenus,
+      forwardingRules,
+      queueOverflowRules,
+      holidayRules,
+      blocklistEntries,
+    });
     const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
       trunks,
+      trunkGroups,
       agents: agents.map((agent) => {
         const profile = normalizeAgentRuntimeProfile(agent.settingsProfile);
         return {
@@ -996,6 +1019,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         };
       }),
       outboundCallerIdRules,
+      speedDials,
     });
     const queues = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -1192,8 +1216,27 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   }
 
   private async fetchTenantData(tenantId: string) {
-    const [trunks, agents, didRows, ivrMenus, forwardingRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
+    const [trunks, trunkGroups, speedDials, agents, didRows, ivrMenus, forwardingRules, queueOverflowRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
+      (this.prisma as any).asteriskTrunkGroup?.findMany
+        ? (this.prisma as any).asteriskTrunkGroup.findMany({
+          where: { tenantId, enabled: true },
+          include: {
+            members: {
+              where: { enabled: true },
+              include: { trunk: true },
+              orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+            },
+          },
+          orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+        })
+        : Promise.resolve([]),
+      (this.prisma as any).asteriskSpeedDial?.findMany
+        ? (this.prisma as any).asteriskSpeedDial.findMany({
+          where: { tenantId, enabled: true },
+          orderBy: [{ code: 'asc' }],
+        })
+        : Promise.resolve([]),
       this.prisma.agents.findMany({
         where: { tenantId, isActive: true },
         include: {
@@ -1223,6 +1266,17 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         include: { entries: true },
       }),
       this.prisma.asteriskForwardingRules.findMany({ where: { tenantId, enabled: true } }),
+      (this.prisma as any).queueOverflowRules?.findMany
+        ? (this.prisma as any).queueOverflowRules.findMany({
+          where: { tenantId, enabled: true },
+          include: {
+            queue: {
+              select: { queueName: true, isActive: true },
+            },
+          },
+          orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+        })
+        : Promise.resolve([]),
       this.prisma.asteriskBlocklistEntry.findMany({ where: { tenantId, isActive: true } }),
       (this.prisma as any).tenantHolidayRules?.findMany
         ? (this.prisma as any).tenantHolidayRules.findMany({ where: { tenantId, isActive: true } })
@@ -1276,6 +1330,8 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
 
     return {
       trunks,
+      trunkGroups,
+      speedDials,
       sipRegisterPort: typedSettings?.sipRegisterPort ?? 36070,
       allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),
@@ -1298,6 +1354,29 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       dids,
       ivrMenus,
       forwardingRules,
+      queueOverflowRules: (queueOverflowRules as Array<{
+        queueOverflowRuleId: string;
+        queue?: { queueName: string; isActive: boolean } | null;
+        triggerMode: string;
+        waitSeconds: number | null;
+        targetType: string;
+        targetValue: string;
+        resultCode: string | null;
+        enabled: boolean;
+        priority: number | null;
+      }>)
+        .filter((rule) => rule.queue?.isActive)
+        .map((rule) => ({
+          id: rule.queueOverflowRuleId,
+          queueName: rule.queue?.queueName ?? '',
+          triggerMode: rule.triggerMode,
+          waitSeconds: rule.waitSeconds,
+          targetType: rule.targetType,
+          targetValue: rule.targetValue,
+          resultCode: rule.resultCode,
+          enabled: rule.enabled,
+          priority: rule.priority,
+        })),
       holidayRules,
       blocklistEntries,
     };

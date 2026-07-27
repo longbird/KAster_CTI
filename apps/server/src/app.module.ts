@@ -22,6 +22,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
 import { OutboundRulesModule } from './modules/outbound-rules/outbound-rules.module';
 import { ShareRulesModule } from './modules/share-rules/share-rules.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { RecordingPipelineModule } from './modules/recording-pipeline/recording-pipeline.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
     EventsModule,
     OutboxModule,
     SessionRecoveryModule,
+    RecordingPipelineModule,
     AmiModule,
     RealtimeModule,
     AuthModule,

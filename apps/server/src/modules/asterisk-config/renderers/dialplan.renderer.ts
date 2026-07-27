@@ -87,6 +87,7 @@ export interface DidInput {
   description: string | null;
   ivrMenuId: string | null;
   directQueue: string | null;
+  directExtension?: string | null;
   branchPromptKeys?: string[] | null;
   branchPromptQueueDelaySeconds?: number | null;
   branchPromptWaitForCompletion?: boolean | null;
@@ -117,6 +118,7 @@ export interface DialplanInput {
   dids: DidInput[];
   ivrMenus: IvrMenuInput[];
   forwardingRules?: ForwardingRuleInput[];
+  queueOverflowRules?: QueueOverflowRuleInput[];
   blocklistEntries?: BlocklistEntryInput[];
   holidayRules?: HolidayRuleInput[];
 }
@@ -140,6 +142,18 @@ export interface ForwardingRuleInput {
   daysOfWeek: string | null;
   scheduleJson?: string | null;
   enabled: boolean;
+}
+
+export interface QueueOverflowRuleInput {
+  id: string;
+  queueName: string;
+  triggerMode: string;
+  waitSeconds: number | null;
+  targetType: string;
+  targetValue: string;
+  resultCode?: string | null;
+  enabled: boolean;
+  priority?: number | null;
 }
 
 export interface HolidayRuleInput {
@@ -344,7 +358,7 @@ function buildTargetGotoLines(forwardType: string, targetValue: string): string[
   if (forwardType === 'QUEUE') {
     return [` same => n,Goto(queue-entry,${targetValue},1)`];
   }
-  if (forwardType === 'EXTERNAL_NUMBER') {
+  if (forwardType === 'EXTERNAL_NUMBER' || forwardType === 'AI_CENTER') {
     return [` same => n,Goto(transfer-target,${targetValue},1)`];
   }
   return null;
@@ -361,6 +375,53 @@ function buildDynamicDispatchLines(): string[] {
     ' same => n,NoOp(Unsupported forward type ${FORWARD_TYPE})',
     ' same => n,Hangup()',
   ];
+}
+
+function normalizeQueueOverflowWaitSeconds(rule: QueueOverflowRuleInput): number {
+  const waitSeconds = Math.trunc(rule.waitSeconds ?? DEFAULT_QUEUE_TIMEOUT_SECONDS);
+  return Math.max(1, waitSeconds);
+}
+
+function renderQueueOverflowTimeoutContext(queueOverflowRules: QueueOverflowRuleInput[]): string {
+  const lines = [
+    '[queue-overflow-timeout]',
+    'exten => _.,1,Return()',
+  ];
+
+  for (const rule of queueOverflowRules) {
+    assertNoNewlines(rule.queueName, 'queueOverflow.queueName');
+    lines.push(
+      `exten => ${rule.queueName},1,Set(__QUEUE_TIMEOUT_SECS=${normalizeQueueOverflowWaitSeconds(rule)})`,
+      ' same => n,Return()',
+    );
+  }
+
+  return lines.join('\n');
+}
+
+function renderQueueOverflowContext(queueOverflowRules: QueueOverflowRuleInput[]): string {
+  const lines = [
+    '[queue-overflow]',
+    'exten => _.,1,Playback(custom/queue_timeout)',
+    ' same => n,Hangup()',
+  ];
+
+  for (const rule of queueOverflowRules) {
+    assertNoNewlines(rule.queueName, 'queueOverflow.queueName');
+    const targetLines = buildTargetGotoLines(rule.targetType, rule.targetValue);
+    if (!targetLines) {
+      console.warn(`[DialplanRenderer] Queue ${rule.queueName} has unsupported overflow target ${rule.targetType} — skipped`);
+      continue;
+    }
+    const resultCode = rule.resultCode?.trim() || 'QUEUE_OVERFLOW';
+    assertNoNewlines(resultCode, 'queueOverflow.resultCode');
+    lines.push(
+      `exten => ${rule.queueName},1,NoOp(Queue Overflow / ${rule.queueName} / ${resultCode})`,
+      ...targetLines,
+    );
+  }
+
+  return lines.join('\n');
 }
 
 function parseForwardingSchedules(forwardingRule: ForwardingRuleInput): ForwardingScheduleInput[] {
@@ -497,6 +558,15 @@ function renderDidFallbackRoute(did: DidInput, ivrMenus: IvrMenuInput[]): string
   if (did.directQueue) {
     assertNoNewlines(did.directQueue, 'directQueue');
     return [` same => n,Goto(queue-entry,${did.directQueue},1)`];
+  }
+
+  if (did.directExtension) {
+    assertNoNewlines(did.directExtension, 'directExtension');
+    return [
+      ` same => n,NoOp(Direct DID to extension ${did.directExtension})`,
+      ` same => n,Dial(PJSIP/${did.directExtension},20,tTU(agent-pre-bridge))`,
+      ' same => n,Hangup()',
+    ];
   }
 
   return null;
@@ -748,7 +818,7 @@ function renderDidStandardRoute(
       ...fallbackLines,
     ].join('\n');
   }
-  console.warn(`[DialplanRenderer] DID ${did.did} has neither ivrMenuId nor directQueue — skipped`);
+  console.warn(`[DialplanRenderer] DID ${did.did} has no routing target — skipped`);
   return null;
 }
 
@@ -1212,6 +1282,9 @@ function renderOptOutContexts(): string {
 
 export function renderDialplan(input: DialplanInput): DialplanOutput {
   const forwardingRules = input.forwardingRules ?? [];
+  const queueOverflowRules = (input.queueOverflowRules ?? [])
+    .filter((rule) => rule.enabled)
+    .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
   const blocklistEntries = input.blocklistEntries ?? [];
   const holidayRules = input.holidayRules ?? [];
   const enabledDids = input.dids.filter((d) => d.enabled);
@@ -1247,6 +1320,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     'exten => s,1,ExecIf($["${LEN(${QUEUE_NAME})}"="0"]?Set(__QUEUE_NAME=${QUEUE_NAME}))',
     ' same => n,ExecIf($["${LEN(${QUEUE_NAME})}"="0"]?Set(__QUEUE_NAME=${EXTEN}))',
     ' same => n,NoOp(Queue Entry / ${QUEUE_NAME} / ${CHANNEL(linkedid)})',
+    ' same => n,Gosub(queue-overflow-timeout,${QUEUE_NAME},1)',
     ` same => n,ExecIf($["\${LEN(\${QUEUE_TIMEOUT_SECS})}"="0"]?Set(__QUEUE_TIMEOUT_SECS=${DEFAULT_QUEUE_TIMEOUT_SECONDS}))`,
     ' same => n,ExecIf($["${LEN(${QUEUE_PROMPT_MOH_CLASS})}"!="0" & "${QUEUE_PROMPT_KEEP_IN_QUEUE}"="1" & "${QUEUE_PROMPT_PRESTARTED}"!="1"]?Set(CHANNEL(musicclass)=${QUEUE_PROMPT_MOH_CLASS}))',
     ' same => n,ExecIf($["${SMART_FORWARD_ENABLED}"="1"]?Set(__QUEUE_READY_COUNT=${QUEUE_MEMBER(${QUEUE_NAME},ready)}))',
@@ -1261,11 +1335,11 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     '[queue-exit]',
     'exten => s,1,NoOp(Queue Exit / STATUS=${QUEUESTATUS} / ABANDONED?=${ABANDONED})',
     ' same => n,ExecIf($["${QUEUESTATUS}"="TIMEOUT" & "${FORWARD_AFTER_QUEUE_ENABLED}"="1"]?Goto(forward-dispatch,s,1))',
-    ' same => n,ExecIf($["${QUEUESTATUS}"="TIMEOUT"]?Playback(custom/queue_timeout))',
+    ' same => n,GotoIf($["${QUEUESTATUS}"="TIMEOUT"]?queue-overflow,${QUEUE_NAME},1)',
     ' same => n,Hangup()',
   ].join('\n');
 
-  const extensionsQueue = [queueEntry, renderOptOutContexts(), ...input.ivrMenus
+  const extensionsQueue = [queueEntry, renderQueueOverflowTimeoutContext(queueOverflowRules), renderQueueOverflowContext(queueOverflowRules), renderOptOutContexts(), ...input.ivrMenus
     .filter((m) => m.entries.length > 0)
     .map(renderIvrMenu), ...smartArsContexts, buildDynamicDispatchLines().join('\n')]
     .join('\n\n');

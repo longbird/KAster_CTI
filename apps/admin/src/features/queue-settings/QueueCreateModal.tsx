@@ -86,6 +86,10 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
     distributionMode?: string;
     unconditionalTargetType?: 'AGENT' | 'QUEUE' | 'EXTERNAL_NUMBER';
     unconditionalTargetValue?: string;
+    overflowEnabled?: boolean;
+    overflowWaitSeconds?: number;
+    overflowTargetType?: 'AI_CENTER' | 'EXTERNAL_NUMBER' | 'QUEUE' | 'EXTENSION';
+    overflowTargetValue?: string;
     strategy?: string;
     ringTimeoutSeconds?: number;
     wrapupSeconds?: number;
@@ -104,6 +108,8 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
   const [saving, setSaving] = useState(false);
   const distributionMode = Form.useWatch('distributionMode', form) ?? 'DISTRIBUTE';
   const unconditionalTargetType = Form.useWatch('unconditionalTargetType', form) ?? 'AGENT';
+  const overflowEnabled = Form.useWatch('overflowEnabled', form) ?? false;
+  const overflowTargetType = Form.useWatch('overflowTargetType', form) ?? 'AI_CENTER';
 
   useEffect(() => {
     if (!open) {
@@ -174,6 +180,22 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
       })),
     [queues],
   );
+  const overflowQueueOptions = useMemo(
+    () =>
+      queues.map((queue) => ({
+        value: queue.queueName,
+        label: queue.queueDisplayName ?? queue.queueName,
+      })),
+    [queues],
+  );
+  const overflowExtensionOptions = useMemo(
+    () =>
+      allAgents.map((agent) => ({
+        value: agent.extension,
+        label: `${agent.extension} · ${agent.agentName}`,
+      })),
+    [allAgents],
+  );
 
   const availableTableScroll = availableAgents.length > 6 ? { y: 360 } : undefined;
   const draftTableScroll = draftMembers.length > 6 ? { y: 360 } : undefined;
@@ -230,10 +252,28 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
 
   const handleOk = async () => {
     const values = await form.validateFields();
+    const {
+      overflowEnabled: useOverflow,
+      overflowWaitSeconds,
+      overflowTargetType,
+      overflowTargetValue,
+      ...queueValues
+    } = values;
     setSaving(true);
     try {
       await apiClient.post('/queues', {
-        ...values,
+        ...queueValues,
+        overflowRules: useOverflow
+          ? [{
+              triggerMode: 'AFTER_WAIT',
+              waitSeconds: overflowWaitSeconds ?? 25,
+              targetType: overflowTargetType ?? 'AI_CENTER',
+              targetValue: overflowTargetValue,
+              resultCode: 'AI_OVERFLOW',
+              enabled: true,
+              priority: 100,
+            }]
+          : [],
         members: draftMembers.map((item, index) => ({
           agentId: item.agentId,
           penalty: item.penalty,
@@ -284,6 +324,9 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
           wrapupSeconds: 30,
           maxWaitSeconds: 45,
           autopause: true,
+          overflowEnabled: false,
+          overflowWaitSeconds: 25,
+          overflowTargetType: 'AI_CENTER',
         }}
         onValuesChange={(changedValues) => {
           if ('distributionMode' in changedValues && changedValues.distributionMode !== 'UNCONDITIONAL') {
@@ -291,6 +334,9 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
           }
           if ('unconditionalTargetType' in changedValues) {
             form.setFieldValue('unconditionalTargetValue', undefined);
+          }
+          if ('overflowTargetType' in changedValues) {
+            form.setFieldValue('overflowTargetValue', undefined);
           }
         }}
       >
@@ -350,6 +396,55 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
               <Form.Item label="후처리 시간(초)" name="wrapupSeconds" style={{ marginBottom: 0 }}>
                 <InputNumber min={0} max={600} style={{ width: '100%' }} />
               </Form.Item>
+            </div>
+          </Card>
+
+          <Card title="대기 오버플로우" size="small">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
+              <Form.Item label="사용" name="overflowEnabled" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Switch />
+              </Form.Item>
+              {overflowEnabled ? (
+                <>
+                  <Form.Item
+                    label="대기 시간(초)"
+                    name="overflowWaitSeconds"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '대기 시간을 입력하세요' }]}
+                  >
+                    <InputNumber min={1} max={600} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item
+                    label="대상 유형"
+                    name="overflowTargetType"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '대상 유형을 선택하세요' }]}
+                  >
+                    <Select
+                      options={[
+                        { value: 'AI_CENTER', label: 'AI센터' },
+                        { value: 'EXTERNAL_NUMBER', label: '외부번호' },
+                        { value: 'QUEUE', label: '분배룰' },
+                        { value: 'EXTENSION', label: '상담원 내선' },
+                      ]}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={overflowTargetType === 'QUEUE' ? '대상 분배룰' : overflowTargetType === 'EXTENSION' ? '대상 내선' : '대상 번호'}
+                    name="overflowTargetValue"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ required: true, message: '오버플로우 대상을 입력하세요' }]}
+                  >
+                    {overflowTargetType === 'QUEUE' ? (
+                      <Select showSearch optionFilterProp="label" options={overflowQueueOptions} />
+                    ) : overflowTargetType === 'EXTENSION' ? (
+                      <Select showSearch optionFilterProp="label" options={overflowExtensionOptions} />
+                    ) : (
+                      <Input placeholder="07080120000" maxLength={16} />
+                    )}
+                  </Form.Item>
+                </>
+              ) : null}
             </div>
           </Card>
 

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PBX 운영 검증 Runbook</title>
+  <style>
+    :root { color-scheme: light; --bg: #f5f7fb; --paper: #ffffff; --ink: #172033; --muted: #5d667a; --line: #d9deea; --accent: #155eef; --accent-soft: #e8f0ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", Arial, sans-serif; line-height: 1.65; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 36px 22px 72px; }
+    article { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 34px 40px; box-shadow: 0 10px 26px rgba(21, 32, 51, .06); }
+    h1 { margin: 0 0 18px; font-size: 31px; line-height: 1.25; letter-spacing: 0; }
+    h2 { margin: 42px 0 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 23px; letter-spacing: 0; }
+    h3 { margin: 30px 0 10px; font-size: 19px; letter-spacing: 0; }
+    h4 { margin: 24px 0 8px; font-size: 16px; }
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 24px; }
+    li { margin: 5px 0; }
+    blockquote { margin: 18px 0 24px; padding: 14px 18px; background: var(--accent-soft); border-left: 4px solid var(--accent); color: #20304d; }
+    code { background: #eef1f7; border: 1px solid #dde3ee; border-radius: 4px; padding: 1px 5px; font-family: Consolas, "SFMono-Regular", monospace; font-size: .92em; }
+    pre { overflow: auto; background: #101828; color: #eef4ff; border-radius: 8px; padding: 16px; }
+    pre code { background: transparent; border: 0; color: inherit; padding: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 13px; }
+    th, td { border: 1px solid var(--line); padding: 8px 9px; vertical-align: top; }
+    th { background: #eef3fb; text-align: left; font-weight: 700; }
+    tr:nth-child(even) td { background: #fbfcff; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { font-weight: 700; }
+    hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+    @media (max-width: 900px) { .shell { padding: 18px 12px 48px; } article { padding: 22px 18px; } h1 { font-size: 25px; } h2 { font-size: 20px; } table { display: block; overflow-x: auto; white-space: nowrap; } }
+
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <article>
+<h1 id="pbx-runbook">PBX 운영 환경 검증 Runbook</h1>
+<p>작성일: 2026-07-16</p>
+<h2 id="_1">목적</h2>
+<p>코드와 단위 테스트로 확인한 PBX 설정 기능을 실제 운영 PBX 환경에서 검증하기 위한 절차다. 이 문서는 착신전환, 대리응답, 무조건 착신, 시간 동기화의 실제 동작 확인을 목표로 한다.</p>
+<h2 id="_2">전제 조건</h2>
+<ul>
+<li>운영 또는 리허설 PBX에 안전하게 테스트할 수 있는 DID, 상담원 내선, 호 분배룰이 준비되어 있어야 한다.</li>
+<li>테스트 고객 번호 또는 테스트 발신 회선이 준비되어 있어야 한다.</li>
+<li>관리자 앱에서 PBX 설정 미리보기와 리로드 권한을 가진 계정이 필요하다.</li>
+<li>테스트 중 실제 고객 인입이 섞이지 않도록 테스트 DID 또는 테스트 시간대를 사용한다.</li>
+</ul>
+<h2 id="_3">공통 확인</h2>
+<ol>
+<li>관리자 앱에서 테스트 지사, DID, 상담원, 호 분배룰을 확인한다.</li>
+<li>PBX 설정 미리보기에서 DID 라우팅, 큐 전략, 착신전환 분기, 공휴일/시간 조건이 예상대로 렌더링되는지 확인한다.</li>
+<li>설정 변경 후 PBX 리로드가 성공했는지 확인한다.</li>
+<li>테스트 통화 후 <code>통화 현황 조회</code>, <code>호 로그</code>, <code>미연결 콜</code>에서 같은 linkedid 흐름이 이어지는지 확인한다.</li>
+</ol>
+<h2 id="1">1. 착신전환 조건 검증</h2>
+<h3 id="_4">즉시 전환</h3>
+<ol>
+<li>테스트 DID에 즉시 착신전환을 설정한다.</li>
+<li>대상은 테스트 상담원 내선 또는 테스트 분배룰로 지정한다.</li>
+<li>외부에서 테스트 DID로 발신한다.</li>
+<li>원래 DID 기본 경로보다 착신전환 대상이 우선되는지 확인한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>통화가 착신전환 대상에 연결된다.</li>
+<li>통화 로그에 DID와 전환 대상이 추적된다.</li>
+</ul>
+<h3 id="_5">대기시간 초과 전환</h3>
+<ol>
+<li>테스트 DID의 기본 경로를 테스트 분배룰로 지정한다.</li>
+<li>착신전환 조건을 대기시간 초과로 설정한다.</li>
+<li>상담원을 모두 통화불가 또는 미응답 상태로 둔다.</li>
+<li>외부에서 테스트 DID로 발신한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>지정 대기시간 이후 fallback 대상에 연결된다.</li>
+<li>큐 대기시간과 전환 시간이 운영 화면에 일관되게 표시된다.</li>
+</ul>
+<h3 id="_6">상담원 없음 전환</h3>
+<ol>
+<li>테스트 분배룰의 상담원을 모두 로그아웃 또는 비활성 상태로 만든다.</li>
+<li>상담원 없음 조건 착신전환을 설정한다.</li>
+<li>외부에서 테스트 DID로 발신한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>큐 대기 없이 fallback 대상에 연결된다.</li>
+</ul>
+<h2 id="2">2. 대리응답 검증</h2>
+<h3 id="_7">같은 그룹 또는 같은 분배룰</h3>
+<ol>
+<li>상담원 A와 상담원 B를 같은 상담원 그룹 또는 같은 호 분배룰에 배치한다.</li>
+<li>상담원 A 대상 또는 해당 분배룰 대상 통화를 발생시킨다.</li>
+<li>상담원 B 계정에서 실시간 콜 화면의 대리응답 대상 통화를 선택한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>대리응답 요청이 수락된다.</li>
+<li>상담원 B가 통화를 받는다.</li>
+<li>중복 대리응답 요청은 실패하거나 무시된다.</li>
+</ul>
+<h3 id="_8">다른 그룹 또는 다른 분배룰</h3>
+<ol>
+<li>상담원 C를 다른 그룹 또는 다른 분배룰에 배치한다.</li>
+<li>상담원 C 계정에서 같은 통화에 대리응답을 시도한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>권한 또는 범위 제한으로 대리응답이 거부된다.</li>
+</ul>
+<h2 id="3">3. 무조건 착신 검증</h2>
+<h3 id="_9">상담원 대상</h3>
+<ol>
+<li>호 분배룰의 외부 착신 방식을 <code>무조건</code>으로 설정한다.</li>
+<li>대상 유형을 상담원으로 지정한다.</li>
+<li>테스트 DID를 해당 호 분배룰에 연결하고 외부 발신한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>지정 상담원에게 즉시 연결된다.</li>
+</ul>
+<h3 id="_10">호 분배룰 대상</h3>
+<ol>
+<li>무조건 착신 대상 유형을 다른 호 분배룰로 지정한다.</li>
+<li>자기 자신을 대상으로 지정할 수 없는지 확인한다.</li>
+<li>외부 발신 후 대상 호 분배룰로 연결되는지 확인한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>자기 참조는 저장 단계에서 거부된다.</li>
+<li>정상 대상은 지정된 호 분배룰로 연결된다.</li>
+</ul>
+<h3 id="_11">외부번호 대상</h3>
+<ol>
+<li>무조건 착신 대상 유형을 외부번호로 지정한다.</li>
+<li>테스트 외부번호를 입력한다.</li>
+<li>외부 발신 후 외부번호로 전환되는지 확인한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>외부번호 형식 검증을 통과한 경우에만 저장된다.</li>
+<li>통화가 외부번호로 연결된다.</li>
+</ul>
+<h2 id="4">4. 시간 동기화 검증</h2>
+<ol>
+<li>시스템 설정 화면에서 시간 동기화 상태를 조회한다.</li>
+<li><code>appTime</code>, <code>pbxTime</code>, <code>driftSeconds</code>, <code>status</code>를 기록한다.</li>
+<li>PBX 시간 조회가 실패할 경우 <code>UNKNOWN</code> 상태와 오류 메시지가 표시되는지 확인한다.</li>
+<li>착신전환 시간 조건 테스트와 같은 시점에 drift가 허용 범위인지 확인한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>정상 상태에서는 앱 서버와 PBX 기준 시간 차이가 운영 허용 범위 안에 있다.</li>
+<li>PBX 시간 조회 실패 시 설정 변경은 막지 않더라도 운영자가 위험을 인지할 수 있다.</li>
+</ul>
+<h2 id="5">5. 다중 국선 장애 우회 검증</h2>
+<h3 id="_12">사전 준비</h3>
+<ol>
+<li>테스트 가능한 국선 트렁크를 2개 이상 준비한다.</li>
+<li>각 트렁크의 통신사, 표시번호, 인증 방식, 사용 목적, 장애 테스트 가능 여부를 기록한다.</li>
+<li>PBX 설정 &gt; 트렁크에서 각 트렁크가 정상 등록 또는 발신 가능 상태인지 확인한다.</li>
+<li>PBX 설정 &gt; 트렁크 &gt; 국선 그룹에서 테스트 기본 발신 그룹을 만든다.</li>
+<li>그룹 멤버 우선순위는 주 회선 100, 백업 회선 200처럼 명확히 둔다.</li>
+<li>테스트 상담원은 직접 SIP 발신이 허용되어 있어야 하며 기본 발신번호가 설정되어 있어야 한다.</li>
+</ol>
+<h3 id="_13">정상 발신</h3>
+<ol>
+<li>기본 국선 그룹을 활성화한다.</li>
+<li>상담원 단말 또는 CTI 발신 경로에서 외부 테스트 번호로 발신한다.</li>
+<li>PBX 로그에서 <code>Dial(PJSIP/...@trunk-...)</code> 대상이 국선 그룹 멤버 순서대로 생성되는지 확인한다.</li>
+<li>통화가 정상 연결되는지 확인한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>발신이 성공한다.</li>
+<li>설정 미리보기의 <code>extensions_agent.conf</code>에 국선 그룹 멤버가 반영된다.</li>
+<li>운영 로그에서 어느 트렁크가 실제 연결되었는지 식별 가능해야 한다. 현재 CTI가 실제 사용 트렁크를 DB에 저장하지 못하면 후속 구현 항목으로 기록한다.</li>
+</ul>
+<h3 id="_14">주 회선 장애 우회</h3>
+<ol>
+<li>테스트 시간에 주 회선을 장애 상태로 만든다.</li>
+<li>가능한 방식: 테스트 PBX에서 주 트렁크 비활성화, 잘못된 host로 변경, 통신사 테스트 차단, 또는 안전한 네트워크 차단.</li>
+<li>백업 회선은 정상 상태로 유지한다.</li>
+<li>외부 테스트 번호로 발신한다.</li>
+<li>발신이 백업 회선으로 성공하는지 확인한다.</li>
+<li>실패 시 PBX 로그의 Dial 실패 코드와 시도 순서를 기록한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>주 회선 장애 시 백업 회선으로 발신이 성공한다.</li>
+<li>실패 원인이 주 회선 장애인지, 발신번호/인증/라우팅 정책 문제인지 구분된다.</li>
+</ul>
+<h3 id="_15">원복 검증</h3>
+<ol>
+<li>주 회선을 정상 상태로 복구한다.</li>
+<li>동일 번호로 다시 발신한다.</li>
+<li>발신 경로가 주 회선을 다시 사용할 수 있는지 확인한다.</li>
+</ol>
+<p>기대 결과:</p>
+<ul>
+<li>현재 구현은 국선 그룹 우선순위 기반이므로 주 회선이 정상화되면 우선순위상 주 회선을 다시 사용할 수 있어야 한다.</li>
+<li>자동 health 판단과 동적 제외/복귀는 아직 구현 범위가 아니므로, 필요하면 별도 요구로 기록한다.</li>
+</ul>
+<h3 id="_16">지사별/사업자별 라우팅 요구 확인</h3>
+<p>다음 질문에 답을 기록한다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>확인 내용</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>지사별 국선</td>
+<td>지사마다 반드시 다른 국선 그룹을 써야 하는가</td>
+<td>필요/불필요/미정</td>
+</tr>
+<tr>
+<td>상담원 기준</td>
+<td>상담원 소속 지사 기준으로 국선을 선택해야 하는가</td>
+<td>필요/불필요/미정</td>
+</tr>
+<tr>
+<td>DID 기준</td>
+<td>인입 DID 또는 대표번호 기준으로 발신 국선을 선택해야 하는가</td>
+<td>필요/불필요/미정</td>
+</tr>
+<tr>
+<td>번호대 기준</td>
+<td><code>02</code>, <code>031</code>, <code>010</code>, 국제전화 등 목적지 번호대별 라우팅이 필요한가</td>
+<td>필요/불필요/미정</td>
+</tr>
+<tr>
+<td>통신사/요금 기준</td>
+<td>특정 통신사 또는 요금제 때문에 발신 회선을 나눠야 하는가</td>
+<td>필요/불필요/미정</td>
+</tr>
+<tr>
+<td>예외 번호</td>
+<td>긴급번호, 특수번호, 수신자부담번호 예외 처리가 필요한가</td>
+<td>필요/불필요/미정</td>
+</tr>
+<tr>
+<td>장애 판단</td>
+<td>PBX가 자동으로 장애 회선을 제외해야 하는가</td>
+<td>필요/불필요/미정</td>
+</tr>
+</tbody>
+</table>
+<p>요구가 확정되면 다음 구현 후보로 승격한다.</p>
+<ul>
+<li>지사별 기본 국선 그룹 매핑.</li>
+<li>목적지 번호 prefix 기반 발신 라우팅 룰.</li>
+<li>트렁크 health 수집과 동적 제외/복귀.</li>
+<li>발신 call leg의 실제 사용 트렁크 기록.</li>
+</ul>
+<h2 id="_17">검증 결과 기록 양식</h2>
+<table>
+<thead>
+<tr>
+<th>검증일</th>
+<th>환경</th>
+<th>시나리오</th>
+<th>결과</th>
+<th>linkedid/콜ID</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td>즉시 착신전환</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>대기시간 초과 전환</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>상담원 없음 전환</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>대리응답 허용</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>대리응답 거부</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>무조건 착신 상담원</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>무조건 착신 호 분배룰</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>무조건 착신 외부번호</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>시간 동기화</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>다중 국선 정상 발신</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>주 회선 장애 우회</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>주 회선 원복</td>
+<td>PASS/FAIL</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+    </article>
+  </main>
+</body>
+</html>

@@ -12,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { QueueOverflowRuleDto } from './queue-overflow-rule.dto';
 import { QueueMemberItemDto } from './set-queue-members.dto';
 
 const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
@@ -77,4 +78,10 @@ export class CreateQueueDto {
   @ValidateNested({ each: true })
   @Type(() => QueueMemberItemDto)
   members?: QueueMemberItemDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QueueOverflowRuleDto)
+  overflowRules?: QueueOverflowRuleDto[];
 }

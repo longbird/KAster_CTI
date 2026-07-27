@@ -6,6 +6,7 @@ export class CreateDidDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsUUID() ivrMenuId?: string;
   @IsOptional() @IsString({ message: '직접 연결할 호 분배룰은 문자열이어야 합니다.' }) directQueue?: string;
+  @IsOptional() @IsString({ message: '직접 연결할 내선은 문자열이어야 합니다.' }) @Matches(/^[0-9]{2,16}$/, { message: 'directExtension must be 2-16 digits' }) directExtension?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
 }
 

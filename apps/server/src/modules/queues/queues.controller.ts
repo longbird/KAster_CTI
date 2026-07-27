@@ -77,7 +77,8 @@ export class QueuesController {
       dto.maxWaitSeconds !== undefined ||
       dto.ringTimeoutSeconds !== undefined ||
       dto.wrapupSeconds !== undefined ||
-      dto.autopause !== undefined;
+      dto.autopause !== undefined ||
+      dto.overflowRules !== undefined;
 
     if (queueFieldsRequested) {
       await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'settings/queues', 'update', user.sub);

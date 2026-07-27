@@ -1,17 +1,22 @@
 import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
-import { createTrunk, createTrunksBulk, deleteTrunk, getTrunks, updateTrunk } from '../api/asteriskConfigApi';
-import type { AsteriskBulkTrunkInput, AsteriskTrunk, AsteriskTrunkInput } from '../types/asterisk-config';
+import { createTrunk, createTrunkGroup, createTrunksBulk, deleteTrunk, deleteTrunkGroup, getTrunkGroups, getTrunks, updateTrunk, updateTrunkGroup } from '../api/asteriskConfigApi';
+import type { AsteriskBulkTrunkInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput } from '../types/asterisk-config';
 import { BulkTrunkModal } from './BulkTrunkModal';
+import { TrunkGroupForm } from './TrunkGroupForm';
 import { TrunkForm } from './TrunkForm';
 import { usePermissionStore } from '../../../store/usePermissionStore';
+import { FeatureHelpButton } from '../../../shared/help/FeatureHelpButton';
 
 export function TrunksTab() {
   const [rows, setRows] = useState<AsteriskTrunk[]>([]);
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [editing, setEditing] = useState<AsteriskTrunk | null>(null);
+  const [groups, setGroups] = useState<AsteriskTrunkGroup[]>([]);
+  const [editingGroup, setEditingGroup] = useState<AsteriskTrunkGroup | null>(null);
   const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
   const canCreate = permission?.canCreate ?? true;
   const canUpdate = permission?.canUpdate ?? true;
@@ -19,7 +24,11 @@ export function TrunksTab() {
 
   const load = async () => {
     setLoading(true);
-    try { setRows(await getTrunks()); } finally { setLoading(false); }
+    try {
+      const [nextRows, nextGroups] = await Promise.all([getTrunks(), getTrunkGroups()]);
+      setRows(nextRows);
+      setGroups(nextGroups);
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { void load(); }, []);
@@ -55,6 +64,29 @@ export function TrunksTab() {
       await load();
     } catch {
       notification.error({ message: '삭제 실패' });
+    }
+  };
+
+  const handleGroupSave = async (values: AsteriskTrunkGroupInput) => {
+    try {
+      if (editingGroup) await updateTrunkGroup(editingGroup.id, values);
+      else await createTrunkGroup(values);
+      notification.success({ message: '국선 그룹이 저장되었습니다.' });
+      setGroupFormOpen(false);
+      setEditingGroup(null);
+      await load();
+    } catch {
+      notification.error({ message: '국선 그룹 저장 실패' });
+    }
+  };
+
+  const handleGroupDelete = async (id: string) => {
+    try {
+      await deleteTrunkGroup(id);
+      notification.success({ message: '국선 그룹이 삭제되었습니다.' });
+      await load();
+    } catch {
+      notification.error({ message: '국선 그룹 삭제 실패' });
     }
   };
 
@@ -95,6 +127,53 @@ export function TrunksTab() {
     },
   ];
 
+  const groupColumns = [
+    { title: '그룹명', dataIndex: 'name' },
+    {
+      title: '기본',
+      dataIndex: 'isDefault',
+      width: 90,
+      render: (value: boolean) => (value ? <Tag color="blue">기본</Tag> : <Tag>일반</Tag>),
+    },
+    {
+      title: '회선',
+      dataIndex: 'members',
+      render: (members: AsteriskTrunkGroup['members']) => (
+        <Space wrap size={[4, 4]}>
+          {members
+            .slice()
+            .sort((a, b) => a.priority - b.priority)
+            .map((member) => (
+              <Tag key={member.id} color={member.enabled && member.trunk.enabled ? 'green' : 'default'}>
+                {member.priority} · {member.trunk.name}
+              </Tag>
+            ))}
+        </Space>
+      ),
+    },
+    {
+      title: '상태',
+      dataIndex: 'enabled',
+      width: 80,
+      render: (value: boolean) => <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>,
+    },
+    {
+      title: '관리',
+      width: 120,
+      fixed: 'right' as const,
+      render: (_: unknown, row: AsteriskTrunkGroup) => (
+        <Space>
+          {canUpdate ? <Button size="small" onClick={() => { setEditingGroup(row); setGroupFormOpen(true); }}>수정</Button> : null}
+          {canDelete ? (
+            <Popconfirm title="삭제할까요?" onConfirm={() => handleGroupDelete(row.id)}>
+              <Button size="small" danger>삭제</Button>
+            </Popconfirm>
+          ) : null}
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Card>
@@ -125,8 +204,38 @@ export function TrunksTab() {
           scroll={{ x: 980 }}
         />
       </Card>
+      <Card
+        title={(
+          <Space>
+            <span>국선 그룹</span>
+            <FeatureHelpButton featureKey="pbx.trunkGroup" featureName="국선 그룹" />
+          </Space>
+        )}
+        extra={canCreate ? <Button onClick={() => { setEditingGroup(null); setGroupFormOpen(true); }}>국선 그룹 추가</Button> : null}
+      >
+        <Typography.Paragraph type="secondary">
+          여러 회선을 하나의 발신 풀로 묶습니다. 기본 그룹이 있으면 발신 시 우선순위 순서로 회선을 사용합니다.
+        </Typography.Paragraph>
+        <Table
+          rowKey="id"
+          dataSource={groups}
+          columns={groupColumns}
+          loading={loading}
+          pagination={false}
+          size="small"
+          tableLayout="fixed"
+          scroll={{ x: 900 }}
+        />
+      </Card>
       <TrunkForm open={formOpen} initial={editing} onOk={handleSave} onCancel={() => { setFormOpen(false); setEditing(null); }} />
       <BulkTrunkModal open={bulkOpen} onOk={handleBulkSave} onCancel={() => setBulkOpen(false)} />
+      <TrunkGroupForm
+        open={groupFormOpen}
+        trunks={rows}
+        initial={editingGroup}
+        onOk={handleGroupSave}
+        onCancel={() => { setGroupFormOpen(false); setEditingGroup(null); }}
+      />
     </Space>
   );
 }

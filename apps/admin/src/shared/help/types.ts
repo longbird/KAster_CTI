@@ -1,6 +1,6 @@
 export type HelpReviewStatus = 'AUTO_DRAFT' | 'APPROVED';
 
-export type HelpSourceKind = 'manual' | 'spec' | 'screen' | 'search';
+export type HelpSourceKind = 'manual' | 'spreadsheet' | 'spec' | 'screen' | 'search';
 
 export interface HelpSource {
   kind: HelpSourceKind;

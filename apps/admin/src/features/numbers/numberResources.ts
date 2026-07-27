@@ -5,6 +5,7 @@ export interface NumberDidRow {
   primaryQueueName?: string | null;
   ivrMenuName?: string | null;
   directQueue?: string | null;
+  directExtension?: string | null;
   ivrMenuId?: string | null;
   representativeNumber?: string | null;
   isActive?: boolean;
@@ -47,7 +48,7 @@ const FEATURE_CODE_ROWS: Array<Omit<NumberResourceRow, 'hasConflict'>> = [
     label: '대리응답',
     routeSummary: '대리응답',
     status: 'ACTIVE',
-    targetRoute: '/calls/active?feature=pickup',
+    targetRoute: '/live-calls?feature=pickup',
   },
   {
     id: 'feature-attended-transfer-complete',
@@ -56,7 +57,7 @@ const FEATURE_CODE_ROWS: Array<Omit<NumberResourceRow, 'hasConflict'>> = [
     label: '상담 전환 완료',
     routeSummary: '상담 전환 완료',
     status: 'ACTIVE',
-    targetRoute: '/calls/active?feature=attended-transfer',
+    targetRoute: '/live-calls?feature=attended-transfer',
   },
 ];
 
@@ -64,6 +65,7 @@ function didRouteSummary(did: NumberDidRow): string {
   if (did.ivrMenuName || did.ivrMenuId) return 'ARS 사용';
   const queueName = did.primaryQueueName || did.directQueue;
   if (queueName) return `호 분배룰 ${queueName}`;
+  if (did.directExtension) return `내선 ${did.directExtension}`;
   return '미설정';
 }
 
@@ -80,7 +82,7 @@ export function buildNumberResourceRows(input: {
       label: did.description || did.representativeNumber || 'DID',
       routeSummary: didRouteSummary(did),
       status: did.isActive === false ? 'INACTIVE' as const : 'ACTIVE' as const,
-      targetRoute: `/asterisk-config?tab=dids&resourceId=${did.id}`,
+      targetRoute: `/asterisk?tab=dids&resourceId=${did.id}`,
     })),
     ...input.agents.map((agent) => ({
       id: `agent-${agent.agentId}`,

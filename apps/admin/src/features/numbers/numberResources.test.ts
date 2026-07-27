@@ -40,7 +40,7 @@ describe('buildNumberResourceRows', () => {
           number: '07010001000',
           resourceType: 'DID',
           routeSummary: 'ARS 사용',
-          targetRoute: '/asterisk-config?tab=dids&resourceId=did-1',
+          targetRoute: '/asterisk?tab=dids&resourceId=did-1',
         }),
         expect.objectContaining({
           number: '1001',
@@ -56,6 +56,7 @@ describe('buildNumberResourceRows', () => {
           number: '*8',
           resourceType: 'FEATURE_CODE',
           routeSummary: '대리응답',
+          targetRoute: '/live-calls?feature=pickup',
         }),
       ]),
     );
