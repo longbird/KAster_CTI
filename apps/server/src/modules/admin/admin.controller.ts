@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -200,12 +200,30 @@ export class AdminController {
     return this.adminService.createHolidayRule(user.tenantId, dto);
   }
 
+  @Patch('settings/holiday-rules/:holidayRuleId')
+  @Roles('supervisor', 'admin')
+  async patchHolidayRule(
+    @CurrentUser() user: any,
+    @Param('holidayRuleId') holidayRuleId: string,
+    @Body() dto: UpdateHolidayRuleDto,
+  ) {
+    return this.updateHolidayRuleForUser(user, holidayRuleId, dto);
+  }
+
   @Post('settings/holiday-rules/:holidayRuleId')
   @Roles('supervisor', 'admin')
   async updateHolidayRule(
     @CurrentUser() user: any,
     @Param('holidayRuleId') holidayRuleId: string,
     @Body() dto: UpdateHolidayRuleDto,
+  ) {
+    return this.updateHolidayRuleForUser(user, holidayRuleId, dto);
+  }
+
+  private async updateHolidayRuleForUser(
+    user: any,
+    holidayRuleId: string,
+    dto: UpdateHolidayRuleDto,
   ) {
     await this.menuPermissionService.assertMenuAction(
       user.tenantId,
