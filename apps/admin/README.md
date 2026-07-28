@@ -25,18 +25,15 @@ npm run preview
 - 팀별 상담원 현황
 - 실시간 활성 콜 테이블
 - 시스템 경보 패널
-- 5초 주기 mock 데이터 갱신
+- 실 API 기반 데이터 갱신
 
-## 실제 API로 바꾸는 위치
+## API 설정
 
-- `src/features/dashboard/api/dashboardApi.ts`
-
-현재는 mock 데이터를 반환합니다. 나중에 실제 백엔드가 붙으면 이 파일에서 `/admin/dashboard` 호출로 교체하면 됩니다.
+- `VITE_API_BASE_URL`에 NestJS global prefix 포함 URL을 지정합니다.
+- 대시보드는 `/admin/dashboard`와 `/calls/active`를 호출합니다.
 
 ## 추천 다음 단계
 
-- Axios 인스턴스 추가
-- 로그인/권한 라우팅 추가
 - Socket.IO 또는 WebSocket 연결 추가
 - Queue 상세 페이지 추가
 - 상담원 상세 drawer 추가

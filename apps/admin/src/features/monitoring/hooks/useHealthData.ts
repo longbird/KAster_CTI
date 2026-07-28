@@ -1,20 +1,8 @@
 // apps/admin/src/features/monitoring/hooks/useHealthData.ts
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { API_BASE_URL, USE_MOCK } from '../../../config';
+import { API_BASE_URL } from '../../../config';
 import type { HealthResponse } from '../types/health';
-
-// 데모/QA 환경에서 화면이 채워진 상태를 보여주기 위해 의도적으로 비제로 값 사용
-const MOCK_HEALTH: HealthResponse = {
-  status: 'ok',
-  timestamp: new Date().toISOString(),
-  instanceId: 'mock',
-  leader: true,
-  checks: { db: 'up', redis: 'up', ami: 'connected' },
-  call: { active: 5, queued: 2, ringing: 1, talking: 3, hold: 0, transferring: 0, stuck: 0, longestWaitingSeconds: 45 },
-  agent: { available: 8, talking: 3, ringing: 1, paused: 2, loggedIn: 14 },
-  queue: { waiting: 2, ringing: 1, talking: 3, availableAgents: 8, longestWaitSeconds: 45 },
-};
 
 export interface UseHealthDataOptions {
   intervalMs?: number;
@@ -45,15 +33,6 @@ export function useHealthData({ intervalMs = 10_000 }: UseHealthDataOptions = {}
   const doFetch = useCallback(async () => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-
-    if (USE_MOCK) {
-      setData({ ...MOCK_HEALTH, timestamp: new Date().toISOString() });
-      setLastUpdated(new Date());
-      setIsLoading(false);
-      setError(null);
-      fetchingRef.current = false;
-      return;
-    }
 
     try {
       // /health 는 ResponseTransformInterceptor 제외 대상이 아니므로 envelope { success, data }

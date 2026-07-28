@@ -1,17 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
 describe('listCustomers', () => {
-  it('returns built-in customer rows in mock mode without calling the backend', async () => {
+  it('loads customer rows from the backend API', async () => {
     vi.resetModules();
-    vi.doMock('../../../config', () => ({ USE_MOCK: true }));
-    const get = vi.fn();
+    const get = vi.fn(() => Promise.resolve({ data: { data: [{ customerId: 'customer-1', primaryPhoneNumber: '01012345678' }] } }));
     vi.doMock('../../../shared/lib/apiClient', () => ({ apiClient: { get } }));
 
     const { listCustomers } = await import('./customersApi');
-    const rows = await listCustomers();
+    const rows = await listCustomers({ keyword: '010' });
 
-    expect(get).not.toHaveBeenCalled();
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows[0]).toHaveProperty('primaryPhoneNumber');
+    expect(get).toHaveBeenCalledWith('/customers', { params: { keyword: '010' } });
+    expect(rows).toEqual([{ customerId: 'customer-1', primaryPhoneNumber: '01012345678' }]);
   });
 });

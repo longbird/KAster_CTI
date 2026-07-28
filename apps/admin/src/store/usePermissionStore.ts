@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { USE_MOCK } from '../config';
 import { apiClient } from '../shared/lib/apiClient';
 import { ADMIN_MENU_CONFIG, allLeafMenuKeys, menuKeyToPath } from '../shared/permissions/menuConfig';
 import type { AgentInfo } from './useAuthStore';
@@ -35,22 +34,17 @@ function defaultAllowedPaths(role: string | null | undefined) {
 export const usePermissionStore = create<PermissionState>((set) => ({
   allowedPaths: defaultAllowedPaths(null),
   permissionsByMenu: {},
-  loaded: USE_MOCK,
+  loaded: false,
   loading: false,
   clear: () =>
     set({
       allowedPaths: defaultAllowedPaths(null),
       permissionsByMenu: {},
-      loaded: USE_MOCK,
+      loaded: false,
       loading: false,
     }),
   loadForAgent: async (agent) => {
     const role = agent?.role;
-    if (USE_MOCK) {
-      set({ allowedPaths: defaultAllowedPaths(role), permissionsByMenu: {}, loaded: true, loading: false });
-      return;
-    }
-
     if (!role) {
       set({ allowedPaths: defaultAllowedPaths(role), permissionsByMenu: {}, loaded: false, loading: false });
       return;

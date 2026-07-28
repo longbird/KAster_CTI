@@ -1,6 +1,4 @@
 import { apiClient } from '../../../shared/lib/apiClient';
-import { USE_MOCK } from '../../../config';
-import { baseDashboardData } from '../mocks/mockDashboard';
 import type {
   ActiveCallItem,
   AgentStatusSummaryItem,
@@ -134,11 +132,4 @@ async function fetchReal(branchId?: string): Promise<DashboardData> {
   return mapDashboardPayload(dashboardRes.data?.data, activeCallsRes.data?.data ?? []);
 }
 
-async function fetchMock(): Promise<DashboardData> {
-  return {
-    ...baseDashboardData,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-export const fetchDashboardData = USE_MOCK ? fetchMock : fetchReal;
+export const fetchDashboardData = fetchReal;

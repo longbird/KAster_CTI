@@ -84,17 +84,43 @@ describe('mapDashboardPayload', () => {
 });
 
 describe('fetchDashboardData', () => {
-  it('returns built-in dashboard data in mock mode without calling the backend', async () => {
+  it('loads dashboard data from the backend APIs', async () => {
     vi.resetModules();
-    vi.doMock('../../../config', () => ({ USE_MOCK: true }));
-    const get = vi.fn();
+    const get = vi.fn((url: string) => {
+      if (url === '/admin/dashboard') {
+        return Promise.resolve({
+          data: {
+            data: {
+              queues: [{ queueName: 'support', waiting: 2, talking: 1, available: 3 }],
+              agentStatusDistribution: { AVAILABLE: 3 },
+              today: { answered: 7, abandoned: 1 },
+              teams: [],
+              traffic: [],
+              alerts: [],
+              generatedAt: '2026-07-28T00:00:00.000Z',
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: {
+          data: [{ callId: 'call-1', queueName: 'support', ani: '01012345678', sessionStatus: 'TALKING' }],
+        },
+      });
+    });
     vi.doMock('../../../shared/lib/apiClient', () => ({ apiClient: { get } }));
 
     const { fetchDashboardData } = await import('./dashboardApi');
-    const data = await fetchDashboardData();
+    const data = await fetchDashboardData('branch-1');
 
-    expect(get).not.toHaveBeenCalled();
-    expect(data.kpis.length).toBeGreaterThan(0);
-    expect(data.activeCalls.length).toBeGreaterThan(0);
+    expect(get).toHaveBeenCalledWith('/admin/dashboard', { params: { branchId: 'branch-1' } });
+    expect(get).toHaveBeenCalledWith('/calls/active', { params: { branchId: 'branch-1', limit: 500 } });
+    expect(data.kpis).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'waiting', value: '2' }),
+      expect.objectContaining({ key: 'today', value: '7' }),
+    ]));
+    expect(data.activeCalls).toEqual([
+      expect.objectContaining({ id: 'call-1', customerPhone: '01012345678' }),
+    ]);
   });
 });

@@ -1,10 +1,9 @@
-import { Button, Grid, Layout, Menu, Result, Space, Spin, Tag, Typography } from 'antd';
+import { Button, Grid, Layout, Menu, Result, Space, Spin, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { logout } from '../api/authApi';
-import { USE_MOCK } from '../config';
 import brandImage from '../assets/kaster-admin-brand.webp';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionStore } from '../store/usePermissionStore';
@@ -53,7 +52,7 @@ export function AppLayout() {
   const pathname = location.pathname || '/dashboard';
   const normalizedPath = pathname === '/' ? '/dashboard' : pathname;
   const activePath = normalizedPath;
-  const isAllowed = USE_MOCK || allowedPathSet.has(activePath);
+  const isAllowed = allowedPathSet.has(activePath);
   const activeGroupKeys = useMemo(() => openMenuGroupKeysForPath(activePath), [activePath]);
   const visibleGroupKeys = useMemo(
     () => new Set(allGroupMenuKeys(menuItems)),
@@ -75,7 +74,7 @@ export function AppLayout() {
     });
   }, [visibleGroupKeys]);
 
-  if (!USE_MOCK && (!loaded || loading)) {
+  if (!loaded || loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Spin size="large" />
@@ -129,7 +128,6 @@ export function AppLayout() {
             <Typography.Title level={4} style={{ margin: 0 }}>
               관리자 운영 콘솔
             </Typography.Title>
-            {USE_MOCK && <Tag color="processing">Mock Feed</Tag>}
           </Space>
           <Space>
             <ThemeModeSwitch />
