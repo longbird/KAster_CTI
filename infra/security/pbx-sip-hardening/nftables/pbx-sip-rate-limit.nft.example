@@ -1,0 +1,22 @@
+#!/usr/sbin/nft -f
+
+table inet kaster_pbx_sip {
+  set sip_trusted_ipv4 {
+    type ipv4_addr
+    flags interval
+    elements = {
+      27.255.98.132,
+      61.42.53.61
+    }
+  }
+
+  chain input {
+    type filter hook input priority -50; policy accept;
+
+    udp dport 36070 ip saddr @sip_trusted_ipv4 accept
+    udp dport 36070 ct state established,related accept
+
+    # Drop repeated unauthenticated SIP scans before PBX parsing work grows.
+    udp dport 36070 limit rate over 20/minute burst 20 packets drop
+  }
+}

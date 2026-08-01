@@ -1,0 +1,11 @@
+[kaster-pbx-sip]
+enabled = true
+filter = asterisk-pjsip-scan
+logpath = /var/log/asterisk/security
+          /var/log/asterisk/messages
+port = 36070
+protocol = udp
+maxretry = 5
+findtime = 300
+bantime = 86400
+action = iptables-multiport[name=kaster-pbx-sip, port="36070", protocol=udp]
