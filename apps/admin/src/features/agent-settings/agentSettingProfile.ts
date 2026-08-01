@@ -15,6 +15,13 @@ export interface AgentSettingsProfile {
   autoChangeToAcw: boolean;
   acwToReadyDelay: 'NOT_USE' | '30' | '60' | '120';
   popupCloseToReady: 'NOT_USE' | 'IMMEDIATE';
+  outboundDialPermissions: {
+    phoneDirect: boolean;
+    domestic: boolean;
+    representative: boolean;
+    paid: boolean;
+    international: boolean;
+  };
 }
 
 export const DEFAULT_AGENT_SETTINGS_PROFILE: AgentSettingsProfile = {
@@ -34,6 +41,13 @@ export const DEFAULT_AGENT_SETTINGS_PROFILE: AgentSettingsProfile = {
   autoChangeToAcw: false,
   acwToReadyDelay: 'NOT_USE',
   popupCloseToReady: 'NOT_USE',
+  outboundDialPermissions: {
+    phoneDirect: false,
+    domestic: true,
+    representative: true,
+    paid: false,
+    international: false,
+  },
 };
 
 // Deferred in the current product version. Values remain in the stored profile
@@ -102,8 +116,17 @@ export const POPUP_CLOSE_READY_OPTIONS = [
 ];
 
 export function normalizeAgentSettingsProfile(input: any): AgentSettingsProfile {
+  const source = input && typeof input === 'object' ? input : {};
+  const permissions = source.outboundDialPermissions && typeof source.outboundDialPermissions === 'object'
+    ? source.outboundDialPermissions
+    : {};
+
   return {
     ...DEFAULT_AGENT_SETTINGS_PROFILE,
-    ...(input && typeof input === 'object' ? input : {}),
+    ...source,
+    outboundDialPermissions: {
+      ...DEFAULT_AGENT_SETTINGS_PROFILE.outboundDialPermissions,
+      ...permissions,
+    },
   };
 }

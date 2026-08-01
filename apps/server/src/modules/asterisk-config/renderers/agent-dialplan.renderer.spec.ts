@@ -31,6 +31,13 @@ describe('renderAgentDialplan', () => {
         outboundEnabled: true,
         callerIdPrivacy: 'prohib',
         liveRecordingEnabled: true,
+        outboundDialPermissions: {
+          phoneDirect: true,
+          domestic: true,
+          representative: true,
+          paid: false,
+          international: false,
+        },
       }],
     });
 
@@ -45,6 +52,53 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('U(agent-pre-bridge)');
     expect(rendered).toContain('[agent-pre-bridge-1001]');
     expect(rendered).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},b)');
+  });
+
+  it('전화기 직접 발신은 기본 차단하고 outbound-main 은 클라이언트 발신용으로 유지한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+    });
+
+    expect(rendered).toContain('exten => _00.,1,NoOp(Blocked outbound dial agent 1001 / ${EXTEN})');
+    expect(rendered).toContain('exten => _060XXXXXXX,1,NoOp(Blocked outbound dial outbound-main 1001 / ${EXTEN})');
+    expect(rendered).not.toContain('exten => _15XXXXXX,1,NoOp(Blocked outbound dial outbound-main 1001 / ${EXTEN})');
+    expect(rendered).toContain('NoOp(Phone direct outbound disabled for agent 1001)');
+    expect(rendered).not.toContain('Goto(outbound-main-1001,${EXTEN},1)');
+    expect(rendered).toContain('exten => _15XXXXXX,1,NoOp(Outbound representative ${EXTEN})');
+  });
+
+  it('상담원 권한에서 대표번호를 끄면 PBX direct dial 도 대표번호를 차단한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+        outboundDialPermissions: {
+          phoneDirect: true,
+          domestic: true,
+          representative: false,
+          paid: false,
+          international: false,
+        },
+      }],
+    });
+
+    expect(rendered).toContain('exten => _15XXXXXX,1,NoOp(Blocked outbound dial agent 1001 / ${EXTEN})');
+    expect(rendered).toContain('exten => _16XXXXXX,1,NoOp(Blocked outbound dial outbound-main 1001 / ${EXTEN})');
   });
 
   it('기본 국선 그룹이 있으면 우선순위 순서의 회선 풀로 아웃바운드를 생성한다', () => {
@@ -91,6 +145,13 @@ describe('renderAgentDialplan', () => {
         outboundEnabled: true,
         callerIdPrivacy: 'allowed_not_screened',
         liveRecordingEnabled: false,
+        outboundDialPermissions: {
+          phoneDirect: true,
+          domestic: true,
+          representative: true,
+          paid: false,
+          international: false,
+        },
       }],
       speedDials: [
         { code: '*01', targetNumber: '01012345678', displayName: '긴급 연락처', enabled: true },

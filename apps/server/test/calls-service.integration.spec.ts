@@ -369,6 +369,9 @@ describe('CallsService branch filter integration', () => {
         fileFormat: true,
         fileSizeBytes: true,
         storageProvider: true,
+        recordingStatus: true,
+        encryptionStatus: true,
+        encryptedFilePath: true,
         callId: true,
         linkedid: true,
       },
@@ -682,6 +685,140 @@ describe('CallsService branch filter integration', () => {
     ).rejects.toThrow('허용되지 않은 발신번호입니다.');
   });
 
+  it('originate 는 해외 발신과 060 유료 번호 발신을 거부하고 대표번호는 허용한다', async () => {
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      allowedOutboundCallerIds: '07052346380',
+      defaultOutboundCallerId: '07052346380',
+    });
+    asteriskManager.originate.mockReturnValue({ channel: 'PJSIP/1001' });
+
+    await expect(
+      service.originate('tenant-1', {
+        agentExtension: '1001',
+        phoneNumber: '00181312345678',
+      }),
+    ).rejects.toThrow('해외 발신은 차단되어 있습니다.');
+
+    await expect(
+      service.originate('tenant-1', {
+        agentExtension: '1001',
+        phoneNumber: '0601234567',
+      }),
+    ).rejects.toThrow('유료 번호 발신은 차단되어 있습니다.');
+
+    const result = await service.originate('tenant-1', {
+      agentExtension: '1001',
+      phoneNumber: '1577-1577',
+    });
+
+    expect(asteriskManager.originate).toHaveBeenCalledTimes(1);
+    expect(asteriskManager.originate).toHaveBeenCalledWith({
+      agentExtension: '1001',
+      phoneNumber: '15771577',
+      callerId: '07052346380',
+    });
+    expect(result.data).toMatchObject({ accepted: true, channel: 'PJSIP/1001' });
+  });
+
+  it('originate 는 상담원 세부 권한에 따라 대표번호와 060 유료 발신을 제어한다', async () => {
+    prisma.agents.findFirst.mockResolvedValueOnce({
+      agentId: 'agent-1',
+      extension: '1001',
+      role: 'agent',
+      settingsProfile: {
+        outboundDialPermissions: {
+          phoneDirect: false,
+          domestic: true,
+          representative: false,
+          paid: false,
+          international: false,
+        },
+      },
+    });
+
+    await expect(
+      service.originate(
+        'tenant-1',
+        {
+          agentExtension: '1001',
+          phoneNumber: '15771577',
+        },
+        undefined,
+        {
+          agentId: 'agent-1',
+          extension: '1001',
+          role: 'agent',
+        },
+      ),
+    ).rejects.toThrow('대표번호 발신 권한이 없습니다.');
+
+    prisma.agents.findFirst.mockResolvedValueOnce({
+      agentId: 'agent-1',
+      extension: '1001',
+      role: 'agent',
+      settingsProfile: {
+        outboundDialPermissions: {
+          phoneDirect: false,
+          domestic: true,
+          representative: true,
+          paid: true,
+          international: false,
+        },
+      },
+    });
+    prisma.tenantSystemSettings.findUnique.mockResolvedValue({
+      allowedOutboundCallerIds: '07052346380',
+      defaultOutboundCallerId: '07052346380',
+    });
+    asteriskManager.originate.mockReturnValue({ channel: 'PJSIP/1001' });
+
+    await service.originate(
+      'tenant-1',
+      {
+        agentExtension: '1001',
+        phoneNumber: '0601234567',
+      },
+      undefined,
+      {
+        agentId: 'agent-1',
+        extension: '1001',
+        role: 'agent',
+      },
+    );
+
+    expect(asteriskManager.originate).toHaveBeenCalledWith({
+      agentExtension: '1001',
+      phoneNumber: '0601234567',
+      callerId: '07052346380',
+    });
+  });
+
+  it('originate 는 일반 상담원이 다른 내선을 가장한 발신 요청을 보내면 거부한다', async () => {
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+      extension: '1001',
+      role: 'agent',
+    });
+
+    await expect(
+      service.originate(
+        'tenant-1',
+        {
+          agentExtension: '2001',
+          phoneNumber: '01012345678',
+        },
+        undefined,
+        {
+          agentId: 'agent-1',
+          extension: '1001',
+          role: 'agent',
+        },
+      ),
+    ).rejects.toThrow('본인 내선으로만 발신할 수 있습니다.');
+
+    expect(asteriskManager.originate).not.toHaveBeenCalled();
+  });
+
   it('originateInternal 은 현재 상담원 내선에서 대상 상담원에게 click-to-call 을 요청한다', async () => {
     prisma.agents.findFirst.mockResolvedValue({
       agentId: 'agent-2',
@@ -807,6 +944,128 @@ describe('CallsService branch filter integration', () => {
     expect(prisma.callTransfers.create.mock.calls[0][0].data.requestedAt.toISOString()).toBe(
       result.data.requestedAt,
     );
+  });
+
+  it('transfer 는 클라이언트가 보낸 fromExtension 대신 실제 agent leg 내선을 기록한다', async () => {
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+      extension: '1001',
+      role: 'agent',
+    });
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-spoof-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-spoof-1',
+      primaryAgentId: 'agent-1',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000abc',
+        },
+      ],
+    });
+    prisma.callTransfers.create.mockResolvedValue({ transferId: 'transfer-spoof-1' });
+    prisma.callSessions.update.mockResolvedValue({
+      callId: 'call-spoof-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-spoof-1',
+      sessionStatus: 'TRANSFERRING',
+    });
+
+    await service.transfer(
+      'tenant-1',
+      'call-spoof-1',
+      {
+        transferType: 'blind',
+        target: '2001',
+        fromExtension: '9999',
+      },
+      undefined,
+      {
+        agentId: 'agent-1',
+        extension: '1001',
+        role: 'agent',
+      },
+    );
+
+    expect(prisma.callTransfers.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        fromExtension: '1001',
+        toExtension: '2001',
+      }),
+    });
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'ami.command.transfer.requested',
+      expect.objectContaining({
+        fromExtension: '1001',
+        target: '2001',
+      }),
+      'tenant-1',
+    );
+  });
+
+  it('transfer 는 해외/유료 번호 대상 전환을 AMI 전송 전에 거부한다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-paid-transfer-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-paid-transfer-1',
+      primaryAgentId: 'agent-1',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000abc',
+        },
+      ],
+    });
+
+    await expect(
+      service.transfer('tenant-1', 'call-paid-transfer-1', {
+        transferType: 'blind',
+        target: '0601234567',
+        fromExtension: '1001',
+      }),
+    ).rejects.toThrow('유료 번호 발신은 차단되어 있습니다.');
+
+    expect(prisma.callTransfers.create).not.toHaveBeenCalled();
+    expect(asteriskManager.blindTransfer).not.toHaveBeenCalled();
+  });
+
+  it('hangup 은 일반 상담원이 다른 상담원의 통화를 제어하려 하면 거부한다', async () => {
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+      extension: '1001',
+      role: 'agent',
+    });
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-deny-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-deny-1',
+      primaryAgentId: 'agent-2',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/2002-00000def',
+        },
+      ],
+    });
+
+    await expect(
+      service.hangup(
+        'tenant-1',
+        'call-deny-1',
+        undefined,
+        {
+          agentId: 'agent-1',
+          extension: '1001',
+          role: 'agent',
+        },
+      ),
+    ).rejects.toThrow('본인에게 배정된 통화만 제어할 수 있습니다.');
+
+    expect(asteriskManager.hangup).not.toHaveBeenCalled();
   });
 
   it('blind transfer 요청은 REQUESTED candidate 를 만들지 않는다', async () => {

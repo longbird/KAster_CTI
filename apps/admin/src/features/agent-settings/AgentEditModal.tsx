@@ -418,6 +418,47 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
                     </Form.Item>
                   </div>
                 </Col>
+                <Col span={24}>
+                  <div
+                    style={{
+                      padding: 16,
+                      borderRadius: 14,
+                      background: '#ffffff',
+                      border: '1px solid rgba(195, 197, 215, 0.35)',
+                    }}
+                  >
+                    <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>
+                      발신 번호 권한
+                    </Typography.Text>
+                    <Row gutter={[12, 8]}>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'phoneDirect']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                          <Checkbox>전화기 직접 발신</Checkbox>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'domestic']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                          <Checkbox>국내 일반번호</Checkbox>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'representative']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                          <Checkbox>대표번호</Checkbox>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'paid']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                          <Checkbox>060 유료번호</Checkbox>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'international']} valuePropName="checked" style={{ marginBottom: 0 }}>
+                          <Checkbox>해외번호</Checkbox>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </div>
+                </Col>
               </Row>
             </Card>
           </Col>

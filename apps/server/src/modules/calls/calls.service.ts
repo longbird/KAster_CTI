@@ -5,6 +5,13 @@ import { Readable } from 'node:stream';
 import { Prisma } from '@prisma/client';
 import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
 import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
+import {
+  assertOutboundDialAllowed,
+  classifyOutboundDialNumber,
+  extractOutboundDialPermissions,
+  normalizeAllowedOutboundDialNumber,
+  OutboundDialPermissions,
+} from '../../common/outbound-dial-policy.util';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { EventBusService } from '../events/event-bus.service';
@@ -20,6 +27,15 @@ import { TransferDetectorService } from './transfer-detector.service';
 import { normalizePhone } from '../customers/customers.service';
 import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { RecordingEncryptionService } from '../recording-pipeline/recording-encryption.service';
+
+const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
+
+export interface CallCommandActor {
+  agentId: string;
+  extension?: string | null;
+  role?: string | null;
+  outboundDialPermissions?: OutboundDialPermissions;
+}
 
 @Injectable()
 export class CallsService {
@@ -37,6 +53,90 @@ export class CallsService {
 
   private muteStateKey(callId: string) {
     return `kaster:cti:call:${callId}:mute`;
+  }
+
+  private isSupervisoryActor(actor?: CallCommandActor | null) {
+    return SUPERVISORY_ROLES.has(actor?.role ?? '');
+  }
+
+  private async resolveCommandActor(
+    tenantId: string,
+    actor?: CallCommandActor,
+  ): Promise<CallCommandActor | null> {
+    if (!actor) return null;
+
+    const agent = await this.prisma.agents.findFirst({
+      where: {
+        tenantId,
+        agentId: actor.agentId,
+        isActive: true,
+      },
+      select: {
+        agentId: true,
+        extension: true,
+        role: true,
+        settingsProfile: true,
+      },
+    });
+    if (!agent) {
+      throw new ForbiddenException('인증된 상담원 세션을 확인할 수 없습니다.');
+    }
+
+    const tokenExtension = actor.extension?.trim();
+    if (tokenExtension && tokenExtension !== agent.extension) {
+      throw new ForbiddenException('인증 세션의 내선이 현재 상담원 정보와 일치하지 않습니다.');
+    }
+
+    return {
+      agentId: agent.agentId,
+      extension: agent.extension,
+      role: agent.role,
+      outboundDialPermissions: extractOutboundDialPermissions(agent.settingsProfile),
+    };
+  }
+
+  private getChannelEndpoint(channelName?: string | null) {
+    const channel = channelName?.trim();
+    if (!channel) return null;
+
+    const slash = channel.indexOf('/');
+    if (slash < 0 || slash === channel.length - 1) return null;
+
+    const endpoint = channel
+      .slice(slash + 1)
+      .split(/[@;]/, 1)[0]
+      ?.replace(/-[0-9a-fA-F]{6,}$/, '')
+      .trim();
+    return endpoint || null;
+  }
+
+  private assertActorCanControlCall(
+    call: { primaryAgentId?: string | null },
+    agentLeg: { channelName?: string | null } | null | undefined,
+    actor: CallCommandActor | null,
+  ) {
+    if (!actor || this.isSupervisoryActor(actor)) {
+      return;
+    }
+
+    if (call.primaryAgentId && call.primaryAgentId === actor.agentId) {
+      return;
+    }
+
+    const actorExtension = actor.extension?.trim();
+    const legEndpoint = this.getChannelEndpoint(agentLeg?.channelName);
+    if (actorExtension && legEndpoint === actorExtension) {
+      return;
+    }
+
+    throw new ForbiddenException('본인에게 배정된 통화만 제어할 수 있습니다.');
+  }
+
+  private assertTransferTargetAllowed(target: string, actor?: CallCommandActor | null) {
+    if (classifyOutboundDialNumber(target) === 'UNSUPPORTED') {
+      return;
+    }
+    assertOutboundDialAllowed(target, actor?.outboundDialPermissions);
   }
 
   private parseBooleanFilter(value?: string) {
@@ -559,24 +659,49 @@ export class CallsService {
     };
   }
 
-  async originate(tenantId: string, dto: OriginateDto, metaInput?: CommandMetaInput) {
+  async originate(
+    tenantId: string,
+    dto: OriginateDto,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
+    let agentExtension = dto.agentExtension.trim();
+    if (!agentExtension) {
+      throw new BadRequestException('상담원 내선이 필요합니다.');
+    }
+    if (verifiedActor && !this.isSupervisoryActor(verifiedActor)) {
+      if (agentExtension !== verifiedActor.extension) {
+        throw new ForbiddenException('본인 내선으로만 발신할 수 있습니다.');
+      }
+      agentExtension = verifiedActor.extension ?? agentExtension;
+    }
+
+    const phoneNumber = normalizeAllowedOutboundDialNumber(
+      dto.phoneNumber,
+      verifiedActor?.outboundDialPermissions,
+    );
     const callerId = await this.resolveAllowedOutboundCallerId(tenantId, dto.callerId);
     this.sessionEngine?.registerPendingOriginate({
       tenantId,
-      agentExtension: dto.agentExtension,
-      phoneNumber: dto.phoneNumber,
+      agentExtension,
+      phoneNumber,
       callerId,
       customerId: dto.customerId,
     });
     const { channel } = this.asteriskManager.originate({
-      agentExtension: dto.agentExtension,
-      phoneNumber: dto.phoneNumber,
+      agentExtension,
+      phoneNumber,
       callerId,
     });
 
     await this.eventBus.publish('ami.command.originate.requested', {
-      ...dto,
+      agentExtension,
+      phoneNumber,
+      callerId,
+      customerId: dto.customerId,
+      requestedByAgentId: verifiedActor?.agentId ?? null,
       ...meta,
     }, tenantId);
 
@@ -591,13 +716,16 @@ export class CallsService {
     tenantId: string,
     params: { agentId: string; agentExtension: string; targetExtension: string; targetAgentId?: string },
     metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
   ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
+    const requesterExtension = verifiedActor?.extension ?? params.agentExtension.trim();
     const targetExtension = params.targetExtension.trim();
     if (!targetExtension) {
       throw new BadRequestException('대상 내선이 필요합니다.');
     }
-    if (targetExtension === params.agentExtension) {
+    if (targetExtension === requesterExtension) {
       throw new BadRequestException('본인 내선으로는 통화 요청을 보낼 수 없습니다.');
     }
 
@@ -619,13 +747,13 @@ export class CallsService {
     }
 
     const { channel } = this.asteriskManager.originateInternal({
-      agentExtension: params.agentExtension,
+      agentExtension: requesterExtension,
       targetExtension,
     });
 
     const payload = {
-      requestedByAgentId: params.agentId,
-      requestedByExtension: params.agentExtension,
+      requestedByAgentId: verifiedActor?.agentId ?? params.agentId,
+      requestedByExtension: requesterExtension,
       targetAgentId: targetAgent.agentId,
       targetExtension: targetAgent.extension,
       ...meta,
@@ -642,9 +770,16 @@ export class CallsService {
     };
   }
 
-  async transfer(tenantId: string, callId: string, dto: TransferDto, metaInput?: CommandMetaInput) {
+  async transfer(
+    tenantId: string,
+    callId: string,
+    dto: TransferDto,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
     const meta = normalizeCommandMeta(metaInput);
     const requestedAt = new Date(meta.requestedAt);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -655,13 +790,27 @@ export class CallsService {
       throw new NotFoundException('Call not found');
     }
 
+    // conv 26 leg 선택 규칙: "legType === 'agent' 이면서 아직 끝나지 않은" leg.
+    // 가장 최근 leg 휴리스틱보다 정확 — transfer 는 상담원 쪽 채널을 redirect
+    // 하는 동작이므로 고객 쪽 trunk leg 를 잡으면 안 된다.
+    const agentLeg = call.callLegs.find(
+      (leg) => leg.legType === 'agent' && !leg.endedAt,
+    );
+    const controlChannel = agentLeg?.channelName;
+    if (!controlChannel) {
+      throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
+    }
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
+    this.assertTransferTargetAllowed(dto.target, verifiedActor);
+    const fromExtension = this.getChannelEndpoint(controlChannel) ?? dto.fromExtension.trim();
+
     await this.prisma.callTransfers.create({
       data: {
         tenantId: call.tenantId,
         callId: call.callId,
         linkedid: call.linkedid,
         transferType: dto.transferType,
-        fromExtension: dto.fromExtension,
+        fromExtension,
         toExtension: dto.target,
         requestedAt,
         transferResult: 'REQUESTED',
@@ -678,33 +827,26 @@ export class CallsService {
         tenantId: call.tenantId,
         linkedid: call.linkedid,
         fromAgentId: call.primaryAgentId ?? undefined,
-        fromExtension: dto.fromExtension,
+        fromExtension,
         toExtension: dto.target,
       });
     }
 
-    // conv 26 leg 선택 규칙: "legType === 'agent' 이면서 아직 끝나지 않은" leg.
-    // 가장 최근 leg 휴리스틱보다 정확 — transfer 는 상담원 쪽 채널을 redirect
-    // 하는 동작이므로 고객 쪽 trunk leg 를 잡으면 안 된다.
-    const agentLeg = call.callLegs.find(
-      (leg) => leg.legType === 'agent' && !leg.endedAt,
-    );
-    const controlChannel = agentLeg?.channelName;
-
-    if (controlChannel) {
-      if (dto.transferType === 'attended') {
-        this.asteriskManager.attendedTransfer(controlChannel, dto.target);
-      } else {
-        this.asteriskManager.blindTransfer(controlChannel, dto.target);
-      }
+    if (dto.transferType === 'attended') {
+      this.asteriskManager.attendedTransfer(controlChannel, dto.target);
     } else {
-      this.logger.warn(
-        `transfer: no active agent leg for callId=${callId}, AMI action skipped`,
-      );
+      this.asteriskManager.blindTransfer(controlChannel, dto.target);
     }
 
     await this.eventBus.publish(REALTIME_EVENTS.CALL_UPDATED, updatedCall, call.tenantId);
-    await this.eventBus.publish('ami.command.transfer.requested', { callId, ...dto, ...meta }, call.tenantId);
+    await this.eventBus.publish('ami.command.transfer.requested', {
+      callId,
+      transferType: dto.transferType,
+      target: dto.target,
+      fromExtension,
+      requestedByAgentId: verifiedActor?.agentId ?? null,
+      ...meta,
+    }, call.tenantId);
 
     return {
       success: true,
@@ -713,8 +855,14 @@ export class CallsService {
     };
   }
 
-  async cancelAttendedTransfer(tenantId: string, callId: string, metaInput?: CommandMetaInput) {
+  async cancelAttendedTransfer(
+    tenantId: string,
+    callId: string,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -745,6 +893,7 @@ export class CallsService {
     if (!agentLeg?.channelName) {
       throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
     }
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
 
     const now = new Date();
     await this.prisma.attendedTransferCandidates.update({
@@ -801,8 +950,14 @@ export class CallsService {
     };
   }
 
-  async completeAttendedTransfer(tenantId: string, callId: string, metaInput?: CommandMetaInput) {
+  async completeAttendedTransfer(
+    tenantId: string,
+    callId: string,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -833,6 +988,7 @@ export class CallsService {
     if (!agentLeg?.channelName) {
       throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
     }
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
 
     const now = new Date();
     await this.prisma.callSessions.update({
@@ -865,8 +1021,15 @@ export class CallsService {
     callId: string,
     params: { agentId: string; extension: string },
     metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
   ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
+    if (verifiedActor && !this.isSupervisoryActor(verifiedActor)) {
+      if (params.agentId !== verifiedActor.agentId || params.extension !== verifiedActor.extension) {
+        throw new ForbiddenException('본인 내선으로만 당겨받을 수 있습니다.');
+      }
+    }
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: {
@@ -959,8 +1122,15 @@ export class CallsService {
     throw new ForbiddenException('같은 상담원 그룹 또는 같은 호 분배룰 소속 상담원만 당겨받을 수 있습니다.');
   }
 
-  async mute(tenantId: string, callId: string, dto: MuteCallDto, metaInput?: CommandMetaInput) {
+  async mute(
+    tenantId: string,
+    callId: string,
+    dto: MuteCallDto,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
@@ -975,6 +1145,7 @@ export class CallsService {
     if (!agentLeg?.channelName) {
       throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
     }
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
 
     const state = dto.state ?? 'on';
     const direction = dto.direction ?? 'all';
@@ -1026,8 +1197,10 @@ export class CallsService {
     callId: string,
     action: 'hold' | 'resume',
     metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
   ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
     const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
     const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
     const featureCode = action === 'hold' ? holdCode : resumeCode;
@@ -1049,6 +1222,7 @@ export class CallsService {
     if (!agentLeg?.channelName) {
       throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
     }
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
 
     this.asteriskManager.sendFeatureCode(agentLeg.channelName, featureCode);
     await this.eventBus.publish('ami.command.hold.requested', {
@@ -1092,8 +1266,14 @@ export class CallsService {
     return { success: true, data: memo, error: null };
   }
 
-  async hangup(tenantId: string, callId: string, metaInput?: CommandMetaInput) {
+  async hangup(
+    tenantId: string,
+    callId: string,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
     const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
     const call = await this.prisma.callSessions.findFirst({
       where: { callId, tenantId },
       include: { callLegs: { orderBy: { startedAt: 'desc' } } },
@@ -1106,6 +1286,7 @@ export class CallsService {
     const agentLeg = call.callLegs.find(
       (leg) => leg.legType === 'agent' && !leg.endedAt,
     );
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
     if (agentLeg?.channelName) {
       this.asteriskManager.hangup(agentLeg.channelName);
     } else {

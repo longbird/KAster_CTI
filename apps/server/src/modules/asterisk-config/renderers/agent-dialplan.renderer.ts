@@ -1,3 +1,12 @@
+import {
+  getBlockedOutboundDialplanPatterns,
+  DOMESTIC_OUTBOUND_DIALPLAN_PATTERNS,
+  INTERNATIONAL_OUTBOUND_DIALPLAN_PATTERNS,
+  normalizeOutboundDialPermissions,
+  OutboundDialPermissions,
+  PAID_OUTBOUND_DIALPLAN_PATTERNS,
+  REPRESENTATIVE_OUTBOUND_DIALPLAN_PATTERNS,
+} from '../../../common/outbound-dial-policy.util';
 import { assertNoNewlines, toSlug } from './renderer-utils';
 
 export interface AgentDialplanTrunkInput {
@@ -24,6 +33,7 @@ export interface AgentDialplanAgentInput {
   liveRecordingEnabled: boolean;
   extensionLockMode?: 'UNLOCKED' | 'OUTBOUND_LOCKED' | 'FULL_LOCKED';
   branchIds?: string[];
+  outboundDialPermissions?: OutboundDialPermissions;
 }
 
 export interface AgentDialplanSpeedDialInput {
@@ -104,6 +114,87 @@ function buildRecordFileLines(): string[] {
   ];
 }
 
+function buildBlockedOutboundDialLines(
+  contextLabel: string,
+  permissions?: OutboundDialPermissions,
+): string[] {
+  return getBlockedOutboundDialplanPatterns(permissions).flatMap((pattern) => [
+    `exten => ${pattern},1,NoOp(Blocked outbound dial ${contextLabel} / \${EXTEN})`,
+    ' same => n,Playback(ss-noservice)',
+    ' same => n,Hangup()',
+  ]);
+}
+
+function buildAllowedOutboundEntryNoOps(agent: AgentDialplanAgentInput): string[] {
+  return getAllowedOutboundDialplanPatterns(agent.outboundDialPermissions).map(({ pattern, label }) =>
+    `exten => ${pattern},1,NoOp(Agent endpoint ${label} call ${agent.extension} / \${EXTEN})`,
+  );
+}
+
+function buildAllowedOutboundEntryRoutes(agent: AgentDialplanAgentInput): string[] {
+  return buildAllowedOutboundEntryNoOps(agent).flatMap((noOpLine) => [
+    noOpLine,
+    ` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`,
+  ]);
+}
+
+function buildAllowedOutboundRouteLines(permissions?: OutboundDialPermissions): string[] {
+  return getAllowedOutboundDialplanPatterns(permissions).map(
+    ({ pattern, label }) => `exten => ${pattern},1,NoOp(Outbound ${label} \${EXTEN})`,
+  );
+}
+
+function getAllowedOutboundDialplanPatterns(permissionsInput?: OutboundDialPermissions) {
+  const permissions = normalizeOutboundDialPermissions(permissionsInput);
+  return [
+    ...(permissions.international
+      ? INTERNATIONAL_OUTBOUND_DIALPLAN_PATTERNS.map((pattern) => ({ pattern, label: 'international' }))
+      : []),
+    ...(permissions.paid
+      ? PAID_OUTBOUND_DIALPLAN_PATTERNS.map((pattern) => ({ pattern, label: 'paid' }))
+      : []),
+    ...(permissions.representative
+      ? REPRESENTATIVE_OUTBOUND_DIALPLAN_PATTERNS.map((pattern) => ({ pattern, label: 'representative' }))
+      : []),
+    ...(permissions.domestic
+      ? DOMESTIC_OUTBOUND_DIALPLAN_PATTERNS.map((pattern) => ({ pattern, label: 'domestic' }))
+      : []),
+  ];
+}
+
+function buildOutboundNoServiceRoute(noOpLine: string): string[] {
+  return [
+    noOpLine,
+    ' same => n,Playback(ss-noservice)',
+    ' same => n,Hangup()',
+  ];
+}
+
+function buildOutboundDialRoute(
+  noOpLine: string,
+  agent: AgentDialplanAgentInput,
+  trunkDialTarget: string,
+  callerId: string,
+  cidRulesContextName: string | null,
+): string[] {
+  const lines = [
+    noOpLine,
+    ...buildRecordFileLines(),
+  ];
+  if (cidRulesContextName) {
+    // 룰 sub-context 가 CALLERID(num) / CALLERID(name) 을 set 후 Return.
+    // sub-context 의 fallback 이 defaultCallerId 도 처리하므로 inline Set 은 제거.
+    lines.push(` same => n,Gosub(${cidRulesContextName},\${EXTEN},1)`);
+  } else {
+    lines.push(` same => n,Set(CALLERID(num)=${callerId})`);
+    lines.push(` same => n,Set(CALLERID(name)=${callerId})`);
+  }
+  lines.push(` same => n,Set(CALLERID(pres)=${agent.callerIdPrivacy})`);
+  lines.push(` same => n,Dial(${trunkDialTarget},60,b(func-set-sipheaders^s^1)U(agent-pre-bridge))`);
+  lines.push(' same => n,Hangup()');
+  return lines;
+}
+
 function renderAgentSpeedDialLines(
   agent: AgentDialplanAgentInput,
   allowDirectSipDial: boolean,
@@ -141,27 +232,30 @@ function renderAgentEntryContext(
   const contextName = `agent-phone-${agent.extension}`;
   const lines = [
     `[${contextName}]`,
-    `exten => _0X.,1,NoOp(Agent endpoint context ${agent.extension} / \${EXTEN})`,
+    ...buildBlockedOutboundDialLines(`agent ${agent.extension}`, agent.outboundDialPermissions),
   ];
 
   if (agent.extensionLockMode === 'FULL_LOCKED') {
-    lines[1] = `exten => _X.,1,NoOp(Agent endpoint ${agent.extension} is FULL_LOCKED)`;
+    lines.length = 1;
+    lines.push(`exten => _X.,1,NoOp(Agent endpoint ${agent.extension} is FULL_LOCKED)`);
     lines.push(' same => n,Playback(ss-noservice)');
     lines.push(' same => n,Hangup()');
     return lines.join('\n');
   }
 
-  if (!allowDirectSipDial || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED') {
+  const phoneDirectEnabled = normalizeOutboundDialPermissions(agent.outboundDialPermissions).phoneDirect;
+  if (!allowDirectSipDial || !agent.outboundEnabled || !phoneDirectEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED') {
     if (agent.extensionLockMode === 'OUTBOUND_LOCKED') {
-      lines.push(` same => n,NoOp(Outbound disabled for agent ${agent.extension}: OUTBOUND_LOCKED)`);
+      lines.push(`exten => _X.,1,NoOp(Outbound disabled for agent ${agent.extension}: OUTBOUND_LOCKED)`);
+    } else if (!phoneDirectEnabled) {
+      lines.push(`exten => _X.,1,NoOp(Phone direct outbound disabled for agent ${agent.extension})`);
     }
-    lines.push(' same => n,Playback(ss-noservice)');
-    lines.push(' same => n,Hangup()');
+    lines.push(...buildAllowedOutboundEntryNoOps(agent).flatMap((noOpLine) => buildOutboundNoServiceRoute(noOpLine)));
   } else {
-    lines.push(` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`);
+    lines.push(...buildAllowedOutboundEntryRoutes(agent));
   }
 
-  lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial, speedDials));
+  lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial && phoneDirectEnabled, speedDials));
   lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
   lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
   lines.push(' same => n,Hangup()');
@@ -177,30 +271,29 @@ function renderAgentOutboundRoute(
   const contextName = `outbound-main-${agent.extension}`;
   const lines = [
     `[${contextName}]`,
-    'exten => _0X.,1,NoOp(Outbound ${EXTEN})',
+    ...buildBlockedOutboundDialLines(`outbound-main ${agent.extension}`, agent.outboundDialPermissions),
+  ];
+  const routeNoOps = [
+    ...buildAllowedOutboundRouteLines(agent.outboundDialPermissions),
   ];
 
   if (!trunkDialTarget || !callerId) {
-    lines.push(' same => n,Playback(ss-noservice)');
-    lines.push(' same => n,Hangup()');
+    lines.push(...routeNoOps.flatMap((noOpLine) => buildOutboundNoServiceRoute(noOpLine)));
     return lines.join('\n');
   }
 
   assertNoNewlines(callerId, 'defaultOutboundCallerId');
   assertNoNewlines(trunkDialTarget, 'trunkDialTarget');
 
-  lines.push(...buildRecordFileLines());
-  if (cidRulesContextName) {
-    // 룰 sub-context 가 CALLERID(num) / CALLERID(name) 을 set 후 Return.
-    // sub-context 의 fallback 이 defaultCallerId 도 처리하므로 inline Set 은 제거.
-    lines.push(` same => n,Gosub(${cidRulesContextName},\${EXTEN},1)`);
-  } else {
-    lines.push(` same => n,Set(CALLERID(num)=${callerId})`);
-    lines.push(` same => n,Set(CALLERID(name)=${callerId})`);
-  }
-  lines.push(` same => n,Set(CALLERID(pres)=${agent.callerIdPrivacy})`);
-  lines.push(` same => n,Dial(${trunkDialTarget},60,b(func-set-sipheaders^s^1)U(agent-pre-bridge))`);
-  lines.push(' same => n,Hangup()');
+  lines.push(
+    ...routeNoOps.flatMap((noOpLine) => buildOutboundDialRoute(
+      noOpLine,
+      agent,
+      trunkDialTarget,
+      callerId,
+      cidRulesContextName,
+    )),
+  );
   return lines.join('\n');
 }
 

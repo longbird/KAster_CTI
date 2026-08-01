@@ -917,6 +917,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
           liveRecordingEnabled: profile.liveRecording === 'USE',
           extensionLockMode: (agent as any).extensionLockMode ?? 'UNLOCKED',
+          outboundDialPermissions: profile.outboundDialPermissions,
           branchIds: ((agent as any).branchMappings ?? []).map((mapping: { branchId: string }) => mapping.branchId),
         };
       }),
@@ -1015,6 +1016,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           callerIdPrivacy: profile.numberMasking === 'USE' ? 'prohib' : 'allowed_not_screened',
           liveRecordingEnabled: profile.liveRecording === 'USE',
           extensionLockMode: (agent as any).extensionLockMode ?? 'UNLOCKED',
+          outboundDialPermissions: profile.outboundDialPermissions,
           branchIds: ((agent as any).branchMappings ?? []).map((mapping: { branchId: string }) => mapping.branchId),
         };
       }),

@@ -27,6 +27,14 @@ function getClientIp(req: any) {
   return req.ip ?? req.socket?.remoteAddress ?? null;
 }
 
+function getCommandActor(req: any) {
+  return {
+    agentId: req.user.sub,
+    extension: req.user.extension,
+    role: req.user.role,
+  };
+}
+
 @ApiTags('calls')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -215,9 +223,19 @@ export class CallsController {
           'operate',
           req.user.sub,
         )
-        .then(() => this.callsService.originate(req.user.tenantId, dto, { correlationId, idempotencyKey }));
+        .then(() => this.callsService.originate(
+          req.user.tenantId,
+          dto,
+          { correlationId, idempotencyKey },
+          getCommandActor(req),
+        ));
     }
-    return this.callsService.originate(req.user.tenantId, dto, { correlationId, idempotencyKey });
+    return this.callsService.originate(
+      req.user.tenantId,
+      dto,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post('originate/internal')
@@ -249,14 +267,14 @@ export class CallsController {
           agentExtension: req.user.extension,
           targetExtension: dto.targetExtension,
           targetAgentId: dto.targetAgentId,
-        }, { correlationId, idempotencyKey }));
+        }, { correlationId, idempotencyKey }, getCommandActor(req)));
     }
     return this.callsService.originateInternal(req.user.tenantId, {
       agentId: req.user.sub,
       agentExtension: req.user.extension,
       targetExtension: dto.targetExtension,
       targetAgentId: dto.targetAgentId,
-    }, { correlationId, idempotencyKey });
+    }, { correlationId, idempotencyKey }, getCommandActor(req));
   }
 
   @Post(':callId/transfer')
@@ -284,7 +302,13 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.transfer(req.user.tenantId, callId, dto, { correlationId, idempotencyKey });
+    return this.callsService.transfer(
+      req.user.tenantId,
+      callId,
+      dto,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post(':callId/transfer/attended/cancel')
@@ -311,7 +335,12 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.cancelAttendedTransfer(req.user.tenantId, callId, { correlationId, idempotencyKey });
+    return this.callsService.cancelAttendedTransfer(
+      req.user.tenantId,
+      callId,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post(':callId/transfer/attended/complete')
@@ -338,7 +367,12 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.completeAttendedTransfer(req.user.tenantId, callId, { correlationId, idempotencyKey });
+    return this.callsService.completeAttendedTransfer(
+      req.user.tenantId,
+      callId,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post(':callId/pickup')
@@ -368,7 +402,7 @@ export class CallsController {
     return this.callsService.pickup(req.user.tenantId, callId, {
       agentId: req.user.sub,
       extension: req.user.extension,
-    }, { correlationId, idempotencyKey });
+    }, { correlationId, idempotencyKey }, getCommandActor(req));
   }
 
   @Post(':callId/mute')
@@ -396,7 +430,13 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.mute(req.user.tenantId, callId, dto, { correlationId, idempotencyKey });
+    return this.callsService.mute(
+      req.user.tenantId,
+      callId,
+      dto,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post(':callId/hold')
@@ -423,7 +463,13 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.hold(req.user.tenantId, callId, 'hold', { correlationId, idempotencyKey });
+    return this.callsService.hold(
+      req.user.tenantId,
+      callId,
+      'hold',
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post(':callId/resume')
@@ -450,7 +496,13 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.hold(req.user.tenantId, callId, 'resume', { correlationId, idempotencyKey });
+    return this.callsService.hold(
+      req.user.tenantId,
+      callId,
+      'resume',
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 
   @Post(':callId/memo')
@@ -492,6 +544,11 @@ export class CallsController {
         req.user.sub,
       );
     }
-    return this.callsService.hangup(req.user.tenantId, callId, { correlationId, idempotencyKey });
+    return this.callsService.hangup(
+      req.user.tenantId,
+      callId,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
   }
 }

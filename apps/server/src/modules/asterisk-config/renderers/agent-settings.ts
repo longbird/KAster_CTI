@@ -1,3 +1,9 @@
+import {
+  DEFAULT_OUTBOUND_DIAL_PERMISSIONS,
+  normalizeOutboundDialPermissions,
+  OutboundDialPermissions,
+} from '../../../common/outbound-dial-policy.util';
+
 export interface AgentRuntimeProfile {
   inoutType: 'IN_OUTBOUND' | 'INBOUND_ONLY' | 'OUTBOUND_ONLY';
   answerMode: 'MANUAL' | 'AUTO';
@@ -14,6 +20,7 @@ export interface AgentRuntimeProfile {
   autoChangeToAcw: boolean;
   acwToReadyDelay: 'NOT_USE' | '30' | '60' | '120';
   popupCloseToReady: 'NOT_USE' | 'IMMEDIATE';
+  outboundDialPermissions: OutboundDialPermissions;
   description: string;
 }
 
@@ -34,6 +41,7 @@ export const DEFAULT_AGENT_RUNTIME_PROFILE: AgentRuntimeProfile = {
   autoChangeToAcw: false,
   acwToReadyDelay: 'NOT_USE',
   popupCloseToReady: 'NOT_USE',
+  outboundDialPermissions: { ...DEFAULT_OUTBOUND_DIAL_PERMISSIONS },
 };
 
 export function normalizeAgentRuntimeProfile(input: unknown): AgentRuntimeProfile {
@@ -41,9 +49,11 @@ export function normalizeAgentRuntimeProfile(input: unknown): AgentRuntimeProfil
     return { ...DEFAULT_AGENT_RUNTIME_PROFILE };
   }
 
+  const source = input as Partial<AgentRuntimeProfile>;
   return {
     ...DEFAULT_AGENT_RUNTIME_PROFILE,
-    ...(input as Partial<AgentRuntimeProfile>),
+    ...source,
+    outboundDialPermissions: normalizeOutboundDialPermissions(source.outboundDialPermissions),
   };
 }
 
