@@ -132,13 +132,17 @@ interface BranchSmartArsProfile {
   actions: BranchSmartArsAction[];
 }
 
+interface BranchCidProgramProfile {
+  programKey: 'LOGI' | 'CALLMANOR' | 'ICON';
+  inboundEnabled: boolean;
+  outboundEnabled: boolean;
+  includeOriginalCallerId: boolean;
+  enabled: boolean;
+}
+
 interface BranchSmdrProfile {
   enabled: boolean;
-  endpointUrl: string | null;
-  authToken: string | null;
-  secret: string | null;
-  timeoutSeconds: number;
-  eventTypes: string[];
+  programs: BranchCidProgramProfile[];
 }
 
 interface BranchSettingsProfile {
@@ -208,17 +212,14 @@ const DEFAULT_BRANCH_SETTINGS_PROFILE: BranchSettingsProfile = {
   },
   smdr: {
     enabled: false,
-    endpointUrl: null,
-    authToken: null,
-    secret: null,
-    timeoutSeconds: 5,
-    eventTypes: ['CALL_END'],
+    programs: [],
   },
 };
 
 const WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const TIME_TEXT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const BLOCKLIST080_MODES: Blocklist080Mode[] = ['IMMEDIATE_OPT_OUT', 'DTMF_MENU', 'SMART_OPT_OUT'];
+const CID_PROGRAM_KEYS = ['LOGI', 'CALLMANOR', 'ICON'] as const;
 const BLOCKLIST080_DTMF_ACTION_TYPES: Blocklist080DtmfActionType[] = [
   'QUEUE_ROUTE',
   'REGISTER_OPT_OUT',
@@ -432,20 +433,42 @@ function normalizeUrlText(value: unknown): string | null {
 
 function normalizeSmdrProfile(value: unknown): BranchSmdrProfile {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-  const eventTypes = normalizeStringArray(source.eventTypes);
+  const programMap = new Map<string, BranchCidProgramProfile>();
+  if (Array.isArray(source.programs)) {
+    for (const item of source.programs) {
+      const program = normalizeCidProgramProfile(item);
+      if (program) {
+        programMap.set(program.programKey, program);
+      }
+    }
+  }
 
   return {
     enabled: typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.enabled,
-    endpointUrl: normalizeUrlText(source.endpointUrl),
-    authToken: normalizeOptionalString(source.authToken),
-    secret: normalizeOptionalString(source.secret),
-    timeoutSeconds: clampInteger(
-      source.timeoutSeconds,
-      DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.timeoutSeconds,
-      1,
-      30,
-    ),
-    eventTypes: eventTypes.length > 0 ? eventTypes : DEFAULT_BRANCH_SETTINGS_PROFILE.smdr.eventTypes,
+    programs: CID_PROGRAM_KEYS.map((programKey) => programMap.get(programKey) ?? {
+      programKey,
+      inboundEnabled: true,
+      outboundEnabled: true,
+      includeOriginalCallerId: true,
+      enabled: false,
+    }),
+  };
+}
+
+function normalizeCidProgramProfile(value: unknown): BranchCidProgramProfile | null {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const programKey = typeof source.programKey === 'string' && CID_PROGRAM_KEYS.includes(source.programKey as any)
+    ? source.programKey as BranchCidProgramProfile['programKey']
+    : null;
+  if (!programKey) return null;
+
+  return {
+    programKey,
+    inboundEnabled: typeof source.inboundEnabled === 'boolean' ? source.inboundEnabled : true,
+    outboundEnabled: typeof source.outboundEnabled === 'boolean' ? source.outboundEnabled : true,
+    includeOriginalCallerId:
+      typeof source.includeOriginalCallerId === 'boolean' ? source.includeOriginalCallerId : true,
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : true,
   };
 }
 
@@ -690,8 +713,17 @@ function validateBranchSettingsProfile(
     throw new BadRequestException('큐 인입 지연 시간은 0초 이상 300초 이하 정수여야 합니다.');
   }
 
-  if (profile.smdr.enabled && !profile.smdr.endpointUrl) {
-    throw new BadRequestException('SMDR 외부 알림을 사용하려면 수신 URL이 필요합니다.');
+  if (profile.smdr.enabled) {
+    const enabledPrograms = profile.smdr.programs.filter((program) => program.enabled);
+    if (enabledPrograms.length === 0) {
+      throw new BadRequestException('CID 연동을 사용하려면 로지/콜마너/아이콘 중 1개 이상 선택해야 합니다.');
+    }
+
+    for (const program of enabledPrograms) {
+      if (!program.inboundEnabled && !program.outboundEnabled) {
+        throw new BadRequestException('CID 연동 프로그램사는 수신 또는 발신 중 하나 이상 허용해야 합니다.');
+      }
+    }
   }
 
   const smartArs = profile.smartArs;
@@ -843,7 +875,7 @@ function buildBranchSettingsSummary(profile: BranchSettingsProfile, counts: { qu
     { key: 'recording', enabled: profile.recording.enabled, label: '녹취' },
     { key: 'blocklist080', enabled: profile.blocklist080.enabled, label: '080 수신거부' },
     { key: 'cid', enabled: profile.cid.enabled && !!profile.cid.defaultOutboundCallerId, label: 'CID' },
-    { key: 'smdr', enabled: profile.smdr.enabled, label: 'SMDR' },
+    { key: 'smdr', enabled: profile.smdr.enabled && profile.smdr.programs.some((program) => program.enabled), label: 'CID 연동' },
   ];
 }
 

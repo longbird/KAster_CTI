@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Col, Collapse, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Checkbox, Col, Collapse, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -6,7 +6,7 @@ import { formatPhoneNumber } from '../../shared/lib/format';
 import { FeatureHelpButton } from '../../shared/help';
 import { formatBranchForwardingRuleLabel, type BranchForwardingRuleOption } from './branchForwardingRuleLabel';
 import type { BranchRow } from './BranchEditModal';
-import { SMDR_EVENT_TYPE_OPTIONS, buildSmdrPayload, hydrateSmdrFormFields, type SmdrProfile } from './smdrSettings';
+import { CID_PROGRAM_OPTIONS, buildSmdrPayload, hydrateSmdrFormFields, type CidProgramSetting, type SmdrProfile } from './smdrSettings';
 
 interface AgentOption {
   agentId: string;
@@ -76,11 +76,7 @@ interface BranchOperationFormValue {
   cidEnabled: boolean;
   defaultOutboundCallerId?: string;
   smdrEnabled: boolean;
-  smdrEndpointUrl?: string;
-  smdrAuthToken?: string;
-  smdrSecret?: string;
-  smdrTimeoutSeconds: number;
-  smdrEventTypes: string[];
+  smdrPrograms: CidProgramSetting[];
 }
 
 interface Props {
@@ -352,7 +348,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                     {featureStatusTag(cidEnabled)}
                     <Typography.Text>CID</Typography.Text>
                     {featureStatusTag(smdrEnabled)}
-                    <Typography.Text>SMDR</Typography.Text>
+                    <Typography.Text>CID 프로그램 연동</Typography.Text>
                   </Space>
                   <div style={{ marginTop: 12 }}>
                     <Typography.Text type="secondary">
@@ -547,7 +543,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                   key: 'cid',
                   label: (
                     <Space>
-                      <Typography.Text strong>CID / SMDR 설정</Typography.Text>
+                      <Typography.Text strong>CID 프로그램 연동 설정</Typography.Text>
                       {featureStatusTag(cidEnabled || smdrEnabled)}
                     </Space>
                   ),
@@ -559,7 +555,7 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                             <Switch checkedChildren="CID 사용" unCheckedChildren="CID 미사용" />
                           </Form.Item>
                           <Form.Item name="smdrEnabled" valuePropName="checked" noStyle>
-                            <Switch checkedChildren="SMDR 사용" unCheckedChildren="SMDR 미사용" />
+                            <Switch checkedChildren="연동 사용" unCheckedChildren="연동 미사용" />
                           </Form.Item>
                         </Space>
                         <Button type="link" size="small" onClick={() => moveTo('/system')}>
@@ -578,42 +574,47 @@ export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {
                           options={callerIdOptions}
                         />
                       </Form.Item>
-                      <Row gutter={12}>
-                        <Col xs={24} lg={14}>
-                          <Form.Item
-                            label="SMDR 수신 URL"
-                            name="smdrEndpointUrl"
-                            rules={[{ required: smdrEnabled, message: 'SMDR 수신 URL을 입력하세요.' }]}
-                          >
-                            <Input disabled={!smdrEnabled} placeholder="https://example.com/smdr" />
-                          </Form.Item>
-                        </Col>
-                        <Col xs={24} lg={10}>
-                          <Form.Item label="SMDR 타임아웃(초)" name="smdrTimeoutSeconds">
-                            <InputNumber min={1} max={30} disabled={!smdrEnabled} style={{ width: '100%' }} />
-                          </Form.Item>
-                        </Col>
-                        <Col xs={24}>
-                          <Form.Item label="SMDR 이벤트" name="smdrEventTypes">
-                            <Select
-                              mode="multiple"
-                              disabled={!smdrEnabled}
-                              options={SMDR_EVENT_TYPE_OPTIONS}
-                              placeholder="전송할 이벤트를 선택하세요"
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col xs={24} lg={12}>
-                          <Form.Item label="SMDR 인증 토큰" name="smdrAuthToken">
-                            <Input.Password disabled={!smdrEnabled} autoComplete="new-password" />
-                          </Form.Item>
-                        </Col>
-                        <Col xs={24} lg={12}>
-                          <Form.Item label="SMDR 서명 시크릿" name="smdrSecret">
-                            <Input.Password disabled={!smdrEnabled} autoComplete="new-password" />
-                          </Form.Item>
-                        </Col>
-                      </Row>
+                      <Form.List name="smdrPrograms">
+                        {(fields) => (
+                          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                            <Typography.Text strong>프로그램사별 CID 전송</Typography.Text>
+                            {fields.map((field) => (
+                              <Card key={field.key} size="small">
+                                <Row gutter={8} align="middle">
+                                  <Col xs={24} lg={5}>
+                                    <Form.Item name={[field.name, 'programKey']} hidden>
+                                      <Input />
+                                    </Form.Item>
+                                    <Typography.Text strong>
+                                      {CID_PROGRAM_OPTIONS[field.name]?.label ?? '프로그램'}
+                                    </Typography.Text>
+                                    <br />
+                                    <Typography.Text type="secondary">
+                                      포트 {CID_PROGRAM_OPTIONS[field.name]?.defaultPort ?? '-'}
+                                    </Typography.Text>
+                                  </Col>
+                                  <Col xs={24} lg={16}>
+                                    <Space wrap>
+                                      <Form.Item name={[field.name, 'enabled']} valuePropName="checked" noStyle>
+                                        <Checkbox disabled={!smdrEnabled}>사용</Checkbox>
+                                      </Form.Item>
+                                      <Form.Item name={[field.name, 'inboundEnabled']} valuePropName="checked" noStyle>
+                                        <Checkbox disabled={!smdrEnabled}>수신</Checkbox>
+                                      </Form.Item>
+                                      <Form.Item name={[field.name, 'outboundEnabled']} valuePropName="checked" noStyle>
+                                        <Checkbox disabled={!smdrEnabled}>발신</Checkbox>
+                                      </Form.Item>
+                                      <Form.Item name={[field.name, 'includeOriginalCallerId']} valuePropName="checked" noStyle>
+                                        <Checkbox disabled={!smdrEnabled}>원번호</Checkbox>
+                                      </Form.Item>
+                                    </Space>
+                                  </Col>
+                                </Row>
+                              </Card>
+                            ))}
+                          </Space>
+                        )}
+                      </Form.List>
                     </Space>
                   ),
                 },

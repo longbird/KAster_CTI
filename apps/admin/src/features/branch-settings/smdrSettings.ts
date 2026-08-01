@@ -1,63 +1,71 @@
-export const SMDR_EVENT_TYPE_OPTIONS = [
-  { value: 'CALL_START', label: '통화 시작' },
-  { value: 'CALL_ANSWER', label: '통화 응답' },
-  { value: 'CALL_END', label: '통화 종료' },
-  { value: 'QUEUE_ENTER', label: '대기열 진입' },
-  { value: 'TRANSFER', label: '전환' },
-];
+export type CidProgramKey = 'LOGI' | 'CALLMANOR' | 'ICON';
+
+export interface CidProgramOption {
+  key: CidProgramKey;
+  label: string;
+  defaultPort: number;
+}
+
+export interface CidProgramSetting {
+  programKey: CidProgramKey;
+  enabled?: boolean | null;
+  inboundEnabled?: boolean | null;
+  outboundEnabled?: boolean | null;
+  includeOriginalCallerId?: boolean | null;
+}
 
 export interface SmdrProfile {
   enabled?: boolean;
-  endpointUrl?: string | null;
-  authToken?: string | null;
-  secret?: string | null;
-  timeoutSeconds?: number | null;
-  eventTypes?: string[] | null;
+  programs?: CidProgramSetting[] | null;
 }
 
 export interface SmdrFormFields {
   smdrEnabled?: boolean;
-  smdrEndpointUrl?: string;
-  smdrAuthToken?: string;
-  smdrSecret?: string;
-  smdrTimeoutSeconds?: number;
-  smdrEventTypes?: string[];
+  smdrPrograms?: CidProgramSetting[];
 }
 
-function normalizeOptionalText(value?: string | null): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+export const CID_PROGRAM_OPTIONS: CidProgramOption[] = [
+  { key: 'LOGI', label: '로지', defaultPort: 28002 },
+  { key: 'CALLMANOR', label: '콜마너', defaultPort: 28004 },
+  { key: 'ICON', label: '아이콘', defaultPort: 28003 },
+];
+
+const CID_PROGRAM_KEYS = new Set<CidProgramKey>(CID_PROGRAM_OPTIONS.map((program) => program.key));
+
+function isCidProgramKey(value: unknown): value is CidProgramKey {
+  return typeof value === 'string' && CID_PROGRAM_KEYS.has(value as CidProgramKey);
 }
 
-function normalizeTimeoutSeconds(value?: number | null): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return 5;
+function normalizeProgram(row: Partial<CidProgramSetting>, fallback: CidProgramOption): CidProgramSetting {
+  return {
+    programKey: isCidProgramKey(row.programKey) ? row.programKey : fallback.key,
+    enabled: row.enabled ?? false,
+    inboundEnabled: row.inboundEnabled ?? true,
+    outboundEnabled: row.outboundEnabled ?? true,
+    includeOriginalCallerId: row.includeOriginalCallerId ?? true,
+  };
+}
+
+function normalizePrograms(value?: CidProgramSetting[] | null): CidProgramSetting[] {
+  const byKey = new Map<CidProgramKey, CidProgramSetting>();
+  for (const row of value ?? []) {
+    if (!isCidProgramKey(row.programKey)) continue;
+    byKey.set(row.programKey, normalizeProgram(row, CID_PROGRAM_OPTIONS.find((item) => item.key === row.programKey)!));
   }
-  return Math.max(1, Math.min(30, Math.trunc(value)));
-}
 
-function normalizeEventTypes(value?: string[] | null): string[] {
-  const eventTypes = Array.from(new Set((value ?? []).map((item) => item.trim()).filter(Boolean)));
-  return eventTypes.length > 0 ? eventTypes : ['CALL_END'];
+  return CID_PROGRAM_OPTIONS.map((program) => normalizeProgram(byKey.get(program.key) ?? {}, program));
 }
 
 export function hydrateSmdrFormFields(profile?: SmdrProfile | null): Required<SmdrFormFields> {
   return {
     smdrEnabled: profile?.enabled ?? false,
-    smdrEndpointUrl: profile?.endpointUrl ?? '',
-    smdrAuthToken: profile?.authToken ?? '',
-    smdrSecret: profile?.secret ?? '',
-    smdrTimeoutSeconds: normalizeTimeoutSeconds(profile?.timeoutSeconds),
-    smdrEventTypes: normalizeEventTypes(profile?.eventTypes),
+    smdrPrograms: normalizePrograms(profile?.programs),
   };
 }
 
-export function buildSmdrPayload(values: SmdrFormFields) {
+export function buildSmdrPayload(values: SmdrFormFields): SmdrProfile {
   return {
     enabled: values.smdrEnabled ?? false,
-    endpointUrl: normalizeOptionalText(values.smdrEndpointUrl),
-    authToken: normalizeOptionalText(values.smdrAuthToken),
-    secret: normalizeOptionalText(values.smdrSecret),
-    timeoutSeconds: normalizeTimeoutSeconds(values.smdrTimeoutSeconds),
-    eventTypes: normalizeEventTypes(values.smdrEventTypes),
+    programs: normalizePrograms(values.smdrPrograms),
   };
 }

@@ -22,11 +22,14 @@ interface EventBusMessage {
   tenantId?: string;
 }
 
+type EventBusListener = (event: string, payload: unknown, tenantId?: string) => void | Promise<void>;
+
 @Injectable()
 export class EventBusService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventBusService.name);
   private subClient: Redis | null = null;
   private readonly nodeId = `${process.pid}@${process.env.HOSTNAME || 'local'}`;
+  private readonly listeners = new Set<EventBusListener>();
 
   constructor(
     private readonly realtimeGateway: RealtimeGateway,
@@ -40,6 +43,7 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
       try {
         const { event, payload, tenantId } = JSON.parse(raw) as EventBusMessage;
         this.realtimeGateway.broadcast(event, payload, tenantId);
+        void this.notifyListeners(event, payload, tenantId);
       } catch (err) {
         this.logger.warn(`bad pubsub message: ${(err as Error).message}`);
       }
@@ -65,6 +69,22 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
       // Redis 장애 시에도 최소한 현재 노드의 WS 클라이언트는 받게 한다.
       this.logger.error(`redis publish failed, local fallback: ${(err as Error).message}`);
       this.realtimeGateway.broadcast(event, payload, tenantId);
+      await this.notifyListeners(event, payload, tenantId);
+    }
+  }
+
+  subscribe(listener: EventBusListener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private async notifyListeners(event: string, payload: unknown, tenantId?: string) {
+    for (const listener of this.listeners) {
+      try {
+        await listener(event, payload, tenantId);
+      } catch (err) {
+        this.logger.warn(`event listener failed for ${event}: ${(err as Error).message}`);
+      }
     }
   }
 }

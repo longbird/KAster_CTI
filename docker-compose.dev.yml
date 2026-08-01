@@ -109,6 +109,11 @@ services:
       # CORS: web(5173)/admin(5174) + host 직접 접속 허용
       REST_CORS_ORIGIN: "http://localhost:5173,http://localhost:5174,http://49.247.46.86:5173,http://49.247.46.86:5174"
       WS_CORS_ORIGIN: "*"
+      # 타사 CID 프로그램(로지/콜마너/아이콘)용 Call Report TCP feed.
+      CID_TCP_HOST: 0.0.0.0
+      CID_LOGI_TCP_PORT: ${CID_LOGI_TCP_PORT:-28002}
+      CID_CALLMANOR_TCP_PORT: ${CID_CALLMANOR_TCP_PORT:-28004}
+      CID_ICON_TCP_PORT: ${CID_ICON_TCP_PORT:-28003}
       # Softphone 는 운영 환경 준비 전까지 명시적으로 비활성화한다.
       SOFTPHONE_ENABLED: ${SOFTPHONE_ENABLED:-false}
       SOFTPHONE_SIP_DOMAIN: ${SOFTPHONE_SIP_DOMAIN:-}
@@ -123,6 +128,9 @@ services:
       - /home/blueadm/kaster_cti/agent-artifacts:/var/lib/kaster/agent-artifacts:ro
     ports:
       - "3000:3000"
+      - "${CID_LOGI_TCP_PORT:-28002}:${CID_LOGI_TCP_PORT:-28002}"
+      - "${CID_CALLMANOR_TCP_PORT:-28004}:${CID_CALLMANOR_TCP_PORT:-28004}"
+      - "${CID_ICON_TCP_PORT:-28003}:${CID_ICON_TCP_PORT:-28003}"
 
   web:
     build:

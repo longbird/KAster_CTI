@@ -30,3 +30,13 @@ download/
 .tmp-*/
 .lazyweb/
 .claude/worktrees/
+.understand-anything/
+backups/
+
+# Local deployment/archive scratch files kept at repo root
+/*.tar
+/*.zip
+/*.b64
+/*-check.png
+scp_test.txt
+tmp_*_backfill.sql

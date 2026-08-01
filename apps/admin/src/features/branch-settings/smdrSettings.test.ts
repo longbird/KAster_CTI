@@ -1,40 +1,76 @@
 import { describe, expect, it } from 'vitest';
 import { buildSmdrPayload, hydrateSmdrFormFields } from './smdrSettings';
 
-describe('SMDR branch settings payload', () => {
-  it('builds normalized external alert settings for branch mapping saves', () => {
-    expect(buildSmdrPayload({
-      smdrEnabled: true,
-      smdrEndpointUrl: ' https://ops.example.com/smdr ',
-      smdrAuthToken: ' token-123 ',
-      smdrSecret: ' secret-456 ',
-      smdrTimeoutSeconds: 20.8,
-      smdrEventTypes: ['CALL_END', 'CALL_START'],
-    })).toEqual({
+describe('CID program branch settings payload', () => {
+  it('always serializes the three supported program slots', () => {
+    expect(
+      buildSmdrPayload({
+        smdrEnabled: true,
+        smdrPrograms: [
+          {
+            programKey: 'CALLMANOR',
+            enabled: true,
+            inboundEnabled: true,
+            outboundEnabled: false,
+            includeOriginalCallerId: true,
+          },
+        ],
+      }),
+    ).toEqual({
       enabled: true,
-      endpointUrl: 'https://ops.example.com/smdr',
-      authToken: 'token-123',
-      secret: 'secret-456',
-      timeoutSeconds: 20,
-      eventTypes: ['CALL_END', 'CALL_START'],
+      programs: [
+        {
+          programKey: 'LOGI',
+          enabled: false,
+          inboundEnabled: true,
+          outboundEnabled: true,
+          includeOriginalCallerId: true,
+        },
+        {
+          programKey: 'CALLMANOR',
+          enabled: true,
+          inboundEnabled: true,
+          outboundEnabled: false,
+          includeOriginalCallerId: true,
+        },
+        {
+          programKey: 'ICON',
+          enabled: false,
+          inboundEnabled: true,
+          outboundEnabled: true,
+          includeOriginalCallerId: true,
+        },
+      ],
     });
   });
 
-  it('hydrates defaults from stored SMDR settings', () => {
-    expect(hydrateSmdrFormFields({
-      enabled: true,
-      endpointUrl: 'https://ops.example.com/smdr',
-      authToken: 'token-123',
-      secret: 'secret-456',
-      timeoutSeconds: 12,
-      eventTypes: ['CALL_END'],
-    })).toEqual({
+  it('hydrates defaults from stored CID program settings', () => {
+    expect(
+      hydrateSmdrFormFields({
+        enabled: true,
+        programs: [
+          {
+            programKey: 'LOGI',
+            enabled: true,
+            inboundEnabled: false,
+            outboundEnabled: true,
+            includeOriginalCallerId: false,
+          },
+        ],
+      }),
+    ).toMatchObject({
       smdrEnabled: true,
-      smdrEndpointUrl: 'https://ops.example.com/smdr',
-      smdrAuthToken: 'token-123',
-      smdrSecret: 'secret-456',
-      smdrTimeoutSeconds: 12,
-      smdrEventTypes: ['CALL_END'],
+      smdrPrograms: [
+        {
+          programKey: 'LOGI',
+          enabled: true,
+          inboundEnabled: false,
+          outboundEnabled: true,
+          includeOriginalCallerId: false,
+        },
+        { programKey: 'CALLMANOR', enabled: false },
+        { programKey: 'ICON', enabled: false },
+      ],
     });
   });
 });

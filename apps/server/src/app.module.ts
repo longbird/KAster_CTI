@@ -23,6 +23,7 @@ import { OutboundRulesModule } from './modules/outbound-rules/outbound-rules.mod
 import { ShareRulesModule } from './modules/share-rules/share-rules.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { RecordingPipelineModule } from './modules/recording-pipeline/recording-pipeline.module';
+import { SmdrModule } from './modules/smdr/smdr.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { RecordingPipelineModule } from './modules/recording-pipeline/recording-
     OutboundRulesModule,
     ShareRulesModule,
     IntegrationsModule,
+    SmdrModule,
     HealthModule,
   ],
   providers: [PrismaService],

@@ -71,11 +71,11 @@ export class OutboxPublisherService implements OnModuleInit {
     tenantId: string,
     payload: Record<string, any>,
   ): Promise<Record<string, any>> {
-    if (eventType !== 'call.created' && eventType !== 'call.updated') {
+    if (eventType !== 'call.created' && eventType !== 'call.updated' && eventType !== 'call.ended') {
       return payload;
     }
 
-    const [latestTransfer, customer, muteRaw] = await Promise.all([
+    const [latestTransfer, customer, primaryAgent, muteRaw] = await Promise.all([
       payload.linkedid
         ? this.prisma.attendedTransferCandidates.findFirst({
             where: { tenantId, linkedid: payload.linkedid },
@@ -90,6 +90,7 @@ export class OutboxPublisherService implements OnModuleInit {
           })
         : Promise.resolve(null),
       this.resolveCustomerSummary(tenantId, payload),
+      this.resolvePrimaryAgentSummary(tenantId, payload),
       payload.callId ? this.redis.getClient().get(this.muteStateKey(payload.callId)) : Promise.resolve(null),
     ]);
 
@@ -97,6 +98,7 @@ export class OutboxPublisherService implements OnModuleInit {
       ...payload,
       latestTransfer: latestTransfer ?? null,
       customer,
+      primaryAgent,
       isMuted: muteRaw === '1',
     };
 
@@ -178,5 +180,19 @@ export class OutboxPublisherService implements OnModuleInit {
       lastCalledAt: phone.customer.lastCalledAt?.toISOString() ?? undefined,
       recentCalls,
     };
+  }
+
+  private async resolvePrimaryAgentSummary(tenantId: string, payload: Record<string, any>) {
+    if (!payload.primaryAgentId) return null;
+    const agent = await this.prisma.agents.findFirst({
+      where: { tenantId, agentId: payload.primaryAgentId },
+      select: {
+        agentId: true,
+        agentName: true,
+        extension: true,
+        extensionDisplayName: true,
+      },
+    });
+    return agent ?? null;
   }
 }
