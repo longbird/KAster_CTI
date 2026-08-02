@@ -2,7 +2,7 @@ import { AmiConnectionService } from './ami-connection.service';
 
 describe('AmiConnectionService pending action handling', () => {
   it('finishes event-list actions immediately when AMI returns an error response', async () => {
-    const service = new AmiConnectionService({} as any, {} as any, {} as any, {} as any) as any;
+    const service = new AmiConnectionService({} as any, {} as any, {} as any, {} as any, {} as any) as any;
     const resolved: any[] = [];
     const pending = {
       eventList: true,

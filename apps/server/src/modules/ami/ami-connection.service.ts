@@ -5,6 +5,7 @@ import { AmiEventNormalizerService } from './ami-event-normalizer.service';
 import { isAsteriskBanner, parseAmiFrame, ParsedAmiFrame, splitAmiFrames } from './ami.parser';
 import { SessionEngineService } from '../calls/session-engine.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
+import { SipSecurityService } from '../sip-security/sip-security.service';
 
 export interface AmiHealthSnapshot {
   connected: boolean;
@@ -39,6 +40,7 @@ export class AmiConnectionService implements OnModuleInit {
     private readonly normalizer: AmiEventNormalizerService,
     private readonly sessionEngine: SessionEngineService,
     private readonly leader: AmiLeaderElectionService,
+    private readonly sipSecurity: SipSecurityService,
   ) {}
 
   onModuleInit(): void {
@@ -88,6 +90,7 @@ export class AmiConnectionService implements OnModuleInit {
           // 있도록 해두지만, DB/WS 정규화는 건너뛴다. conv 44 멀티노드 원칙.
           continue;
         }
+        await this.sipSecurity.processAmiEvent(normalized);
         await this.sessionEngine.processNormalizedEvent(normalized);
       }
     });

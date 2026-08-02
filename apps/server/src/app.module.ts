@@ -24,6 +24,7 @@ import { ShareRulesModule } from './modules/share-rules/share-rules.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { RecordingPipelineModule } from './modules/recording-pipeline/recording-pipeline.module';
 import { SmdrModule } from './modules/smdr/smdr.module';
+import { SipSecurityModule } from './modules/sip-security/sip-security.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SmdrModule } from './modules/smdr/smdr.module';
     OutboxModule,
     SessionRecoveryModule,
     RecordingPipelineModule,
+    SipSecurityModule,
     AmiModule,
     RealtimeModule,
     AuthModule,

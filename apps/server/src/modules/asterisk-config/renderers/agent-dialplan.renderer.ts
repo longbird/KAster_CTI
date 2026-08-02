@@ -134,8 +134,15 @@ function buildAllowedOutboundEntryNoOps(agent: AgentDialplanAgentInput): string[
 function buildAllowedOutboundEntryRoutes(agent: AgentDialplanAgentInput): string[] {
   return buildAllowedOutboundEntryNoOps(agent).flatMap((noOpLine) => [
     noOpLine,
+    ...buildRegisteredEndpointGuard(agent),
     ` same => n,Goto(outbound-main-${agent.extension},\${EXTEN},1)`,
   ]);
+}
+
+function buildRegisteredEndpointGuard(agent: AgentDialplanAgentInput): string[] {
+  return [
+    ` same => n,GotoIf($["\${PJSIP_DIAL_CONTACTS(${agent.extension})}"=""]?unregistered-agent,1)`,
+  ];
 }
 
 function buildAllowedOutboundRouteLines(permissions?: OutboundDialPermissions): string[] {
@@ -213,6 +220,7 @@ function renderAgentSpeedDialLines(
       if (label) assertNoNewlines(label, 'speedDialDisplayName');
       const lines = [
         `exten => ${item.code},1,NoOp(Speed dial ${item.code} -> ${label})`,
+        ...buildRegisteredEndpointGuard(agent),
       ];
       if (/^[12]\d{3}$/.test(item.targetNumber)) {
         lines.push(` same => n,Dial(PJSIP/${item.targetNumber},20,tTU(agent-pre-bridge))`);
@@ -257,7 +265,11 @@ function renderAgentEntryContext(
 
   lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial && phoneDirectEnabled, speedDials));
   lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
+  lines.push(...buildRegisteredEndpointGuard(agent));
   lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
+  lines.push(' same => n,Hangup()');
+  lines.push(`exten => unregistered-agent,1,NoOp(Registered contact not found for agent ${agent.extension})`);
+  lines.push(' same => n,Playback(ss-noservice)');
   lines.push(' same => n,Hangup()');
   return lines.join('\n');
 }

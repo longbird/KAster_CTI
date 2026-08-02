@@ -42,6 +42,8 @@ describe('renderAgentDialplan', () => {
     });
 
     expect(rendered).toContain('Goto(outbound-main-1001,${EXTEN},1)');
+    expect(rendered).toContain('GotoIf($["${PJSIP_DIAL_CONTACTS(1001)}"=""]?unregistered-agent,1)');
+    expect(rendered).toContain('exten => unregistered-agent,1,NoOp(Registered contact not found for agent 1001)');
     expect(rendered).toContain('exten => _[12]XXX,1,NoOp(Internal endpoint call 1001 / ${EXTEN})');
     expect(rendered).toContain('Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
     expect(rendered).toContain('Set(CALLERID(num)=07052346380)');

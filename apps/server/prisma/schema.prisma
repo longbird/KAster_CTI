@@ -63,6 +63,7 @@ model tenants {
   asteriskPrompts     AsteriskPrompt[]
   promptGenerationJobs promptGenerationJobs[]
   asteriskBlocklistEntries AsteriskBlocklistEntry[]
+  sipSecurityBlocks   sipSecurityBlocks[]
   asteriskTrunks       AsteriskTrunk[]
   asteriskTrunkGroups  AsteriskTrunkGroup[]
   asteriskTrunkGroupMembers AsteriskTrunkGroupMember[]
@@ -1066,6 +1067,29 @@ model AsteriskBlocklistEntry {
 
   @@unique([tenantId, matchType, phoneNumber])
   @@index([tenantId, isActive])
+}
+
+model sipSecurityBlocks {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  blockType    String   @db.VarChar(16)
+  blockKey     String   @db.VarChar(96)
+  value        String   @db.VarChar(64)
+  reason       String   @db.VarChar(64)
+  sourceIp     String?  @db.VarChar(64)
+  sourceNumber String?  @db.VarChar(64)
+  targetNumber String?  @db.VarChar(64)
+  hitCount     Int      @default(0)
+  blockedUntil DateTime @db.Timestamptz(6)
+  metadata     Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, blockKey])
+  @@index([tenantId, blockType, blockedUntil])
+  @@index([tenantId, value])
 }
 
 model tenantSmsTemplate {
