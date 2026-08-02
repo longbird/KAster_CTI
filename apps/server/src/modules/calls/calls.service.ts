@@ -18,6 +18,7 @@ import { EventBusService } from '../events/event-bus.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { SessionEngineService } from './session-engine.service';
 import { CreateMemoDto } from './dto/create-memo.dto';
+import { ClientOriginateCommandDto } from './dto/client-originate-command.dto';
 import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
@@ -36,6 +37,16 @@ export interface CallCommandActor {
   role?: string | null;
   outboundDialPermissions?: OutboundDialPermissions;
 }
+
+export interface ClientCommandProtocolInput {
+  protocol?: string | null;
+  timestamp?: string | null;
+  nonce?: string | null;
+}
+
+const CLIENT_CALL_COMMAND_PROTOCOL = 'kaster-desktop-v1';
+const CLIENT_COMMAND_TIMESTAMP_SKEW_MS = 60_000;
+const CLIENT_COMMAND_NONCE_TTL_SECONDS = 120;
 
 @Injectable()
 export class CallsService {
@@ -93,6 +104,40 @@ export class CallsService {
       role: agent.role,
       outboundDialPermissions: extractOutboundDialPermissions(agent.settingsProfile),
     };
+  }
+
+  private assertClientCommandProtocol(input: ClientCommandProtocolInput) {
+    const protocol = input.protocol?.trim();
+    if (protocol !== CLIENT_CALL_COMMAND_PROTOCOL) {
+      throw new ForbiddenException('허용되지 않은 발신 클라이언트 프로토콜입니다.');
+    }
+
+    const timestamp = Number(input.timestamp);
+    if (!Number.isFinite(timestamp)) {
+      throw new BadRequestException('발신 명령 시간이 필요합니다.');
+    }
+    if (Math.abs(Date.now() - timestamp) > CLIENT_COMMAND_TIMESTAMP_SKEW_MS) {
+      throw new ForbiddenException('발신 명령 시간이 유효하지 않습니다.');
+    }
+
+    const nonce = input.nonce?.trim();
+    if (!nonce || nonce.length < 16 || nonce.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(nonce)) {
+      throw new BadRequestException('발신 명령 nonce 가 유효하지 않습니다.');
+    }
+
+    return { protocol, timestamp, nonce };
+  }
+
+  private async assertClientCommandNonceUnused(
+    tenantId: string,
+    agentId: string,
+    nonce: string,
+  ) {
+    const key = `kaster:cti:client-command:nonce:${tenantId}:${agentId}:${nonce}`;
+    const result = await this.redis.getClient().set(key, '1', 'EX', CLIENT_COMMAND_NONCE_TTL_SECONDS, 'NX');
+    if (result !== 'OK') {
+      throw new ForbiddenException('재사용된 발신 명령입니다.');
+    }
   }
 
   private getChannelEndpoint(channelName?: string | null) {
@@ -657,6 +702,97 @@ export class CallsService {
       allowedCallerIds,
       defaultCallerId: settings?.defaultOutboundCallerId ?? allowedCallerIds[0] ?? null,
     };
+  }
+
+  async getOutboundCallCapabilities(tenantId: string, agentId: string) {
+    const agent = await this.prisma.agents.findFirst({
+      where: {
+        tenantId,
+        agentId,
+        isActive: true,
+      },
+      select: {
+        extension: true,
+        settingsProfile: true,
+      },
+    });
+    if (!agent) {
+      throw new ForbiddenException('인증된 상담원 세션을 확인할 수 없습니다.');
+    }
+
+    const outboundDialOptions = await this.getOutboundDialOptions(tenantId);
+    const outboundDialPermissions = extractOutboundDialPermissions(agent.settingsProfile);
+    const disabledReasons: string[] = [];
+    const hasExtension = Boolean(agent.extension?.trim());
+    const hasExternalCategoryPermission =
+      outboundDialPermissions.domestic
+      || outboundDialPermissions.representative
+      || outboundDialPermissions.paid
+      || outboundDialPermissions.international;
+
+    if (!hasExtension) {
+      disabledReasons.push('상담원 내선이 설정되어 있지 않습니다.');
+    }
+    if (outboundDialOptions.allowedCallerIds.length === 0) {
+      disabledReasons.push('허용된 발신번호가 설정되어 있지 않습니다.');
+    }
+    if (!hasExternalCategoryPermission) {
+      disabledReasons.push('외부 발신 번호 유형 권한이 없습니다.');
+    }
+
+    return {
+      canOriginateExternal: disabledReasons.length === 0,
+      canOriginateInternal: hasExtension,
+      canUsePhoneDirect: outboundDialPermissions.phoneDirect,
+      outboundDialPermissions,
+      outboundDialOptions,
+      disabledReasons,
+    };
+  }
+
+  async originateFromClientProtocol(
+    tenantId: string,
+    dto: ClientOriginateCommandDto,
+    protocolInput: ClientCommandProtocolInput,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
+    const verifiedProtocol = this.assertClientCommandProtocol(protocolInput);
+    if (!metaInput?.correlationId?.trim() || !metaInput?.idempotencyKey?.trim()) {
+      throw new BadRequestException('발신 명령 correlationId 와 idempotencyKey 가 필요합니다.');
+    }
+
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
+    if (!verifiedActor?.extension?.trim()) {
+      throw new ForbiddenException('인증된 상담원 내선을 확인할 수 없습니다.');
+    }
+    await this.assertClientCommandNonceUnused(tenantId, verifiedActor.agentId, verifiedProtocol.nonce);
+
+    const result = await this.originate(
+      tenantId,
+      {
+        agentExtension: verifiedActor.extension,
+        phoneNumber: dto.phoneNumber,
+        customerId: dto.customerId,
+        callerId: dto.callerId,
+      },
+      metaInput,
+      verifiedActor,
+    );
+
+    await this.eventBus.publish('client.call.command.originate.accepted', {
+      commandId: dto.commandId,
+      protocol: verifiedProtocol.protocol,
+      requestedByAgentId: verifiedActor.agentId,
+      requestedByExtension: verifiedActor.extension,
+      phoneNumber: dto.phoneNumber,
+      callerId: dto.callerId ?? null,
+      correlationId: result.data.correlationId,
+      idempotencyKey: result.data.idempotencyKey,
+      requestedAt: result.data.requestedAt,
+    }, tenantId);
+
+    return result;
   }
 
   async originate(

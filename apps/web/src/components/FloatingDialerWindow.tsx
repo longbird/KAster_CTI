@@ -1,7 +1,7 @@
 import { message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { AGENT_META } from './statusMeta';
-import type { AgentDirectoryItem } from '../types/cti';
+import type { AgentDirectoryItem, CallCapabilities } from '../types/cti';
 import { formatPhoneNumber } from '../utils/format';
 
 const LS_CALLER_ID_KEY = 'kaster.outbound_caller_id';
@@ -10,6 +10,7 @@ interface Props {
   agents: AgentDirectoryItem[];
   callerIds: string[];
   defaultCallerId: string | null;
+  callCapabilities?: CallCapabilities | null;
   minimized: boolean;
   onMinimize: () => void;
   onRestore: () => void;
@@ -23,6 +24,7 @@ export function FloatingDialerWindow({
   agents,
   callerIds,
   defaultCallerId,
+  callCapabilities,
   minimized,
   onMinimize,
   onRestore,
@@ -61,6 +63,13 @@ export function FloatingDialerWindow({
           .some((value) => String(value).toLowerCase().includes(keyword));
       });
   }, [agentQuery, agents]);
+  const externalDialEnabled = callCapabilities?.canOriginateExternal !== false;
+  const externalDialDisabledReason =
+    callCapabilities?.canOriginateExternal === false
+      ? callCapabilities.disabledReasons[0] ?? '외부 발신 권한이 없습니다.'
+      : callerIds.length === 0
+        ? '설정된 발신번호가 없습니다.'
+        : null;
 
   if (minimized) {
     return (
@@ -121,6 +130,7 @@ export function FloatingDialerWindow({
             <select
               value={selectedCallerId}
               onChange={(event) => setSelectedCallerId(event.target.value)}
+              disabled={!externalDialEnabled}
               className="mt-3 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-3 text-sm text-on-surface outline-none transition-all focus:border-primary"
             >
               {callerIds.length === 0 ? (
@@ -142,7 +152,7 @@ export function FloatingDialerWindow({
             />
             <button
               type="button"
-              disabled={!phoneNumber.trim() || callerIds.length === 0}
+              disabled={!phoneNumber.trim() || callerIds.length === 0 || !externalDialEnabled}
               onClick={async () => {
                 if (!selectedCallerId) {
                   message.warning('발신번호를 먼저 선택해 주세요');
@@ -156,6 +166,9 @@ export function FloatingDialerWindow({
             >
               발신 요청
             </button>
+            {externalDialDisabledReason ? (
+              <p className="mt-3 text-xs text-outline">{externalDialDisabledReason}</p>
+            ) : null}
           </div>
         </div>
       ) : (

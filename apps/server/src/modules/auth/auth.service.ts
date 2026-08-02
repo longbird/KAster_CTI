@@ -258,6 +258,7 @@ export class AuthService {
       },
     });
     const outboundDialOptions = await this.callsService.getOutboundDialOptions(user.tenantId);
+    const callCapabilities = await this.callsService.getOutboundCallCapabilities(user.tenantId, user.sub);
 
     return {
       success: true,
@@ -265,8 +266,18 @@ export class AuthService {
         agent,
         callControlCapabilities: this.callsService.getCallControlCapabilities(),
         outboundDialOptions,
+        callCapabilities,
         softphoneConfig: this.buildSoftphoneConfig(agent),
       },
+      error: null,
+    };
+  }
+
+  async getCallCapabilities(user: { tenantId: string; sub: string }) {
+    const callCapabilities = await this.callsService.getOutboundCallCapabilities(user.tenantId, user.sub);
+    return {
+      success: true,
+      data: callCapabilities,
       error: null,
     };
   }
@@ -444,6 +455,7 @@ export class AuthService {
           role: agent.role,
         },
         softphoneConfig: await this.buildDesktopSoftphoneConfig(agent),
+        callCapabilities: await this.callsService.getOutboundCallCapabilities(user.tenantId, user.sub),
       },
       error: null,
     };

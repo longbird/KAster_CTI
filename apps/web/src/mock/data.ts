@@ -13,6 +13,23 @@ export const initialAgentSession: AgentSession = {
     allowedCallerIds: ['07052346380', '07052346381'],
     defaultCallerId: '07052346380',
   },
+  callCapabilities: {
+    canOriginateExternal: true,
+    canOriginateInternal: true,
+    canUsePhoneDirect: false,
+    outboundDialPermissions: {
+      phoneDirect: false,
+      domestic: true,
+      representative: true,
+      paid: false,
+      international: false,
+    },
+    outboundDialOptions: {
+      allowedCallerIds: ['07052346380', '07052346381'],
+      defaultCallerId: '07052346380',
+    },
+    disabledReasons: [],
+  },
 };
 
 export const initialAgentDirectory: AgentDirectoryItem[] = [

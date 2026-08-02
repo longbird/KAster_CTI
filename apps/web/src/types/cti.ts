@@ -36,6 +36,29 @@ export interface AgentSession {
     allowedCallerIds: string[];
     defaultCallerId: string | null;
   };
+  callCapabilities?: CallCapabilities;
+}
+
+export interface OutboundDialPermissions {
+  phoneDirect: boolean;
+  domestic: boolean;
+  representative: boolean;
+  paid: boolean;
+  international: boolean;
+}
+
+export interface OutboundDialOptions {
+  allowedCallerIds: string[];
+  defaultCallerId: string | null;
+}
+
+export interface CallCapabilities {
+  canOriginateExternal: boolean;
+  canOriginateInternal: boolean;
+  canUsePhoneDirect: boolean;
+  outboundDialPermissions: OutboundDialPermissions;
+  outboundDialOptions: OutboundDialOptions;
+  disabledReasons: string[];
 }
 
 export interface AgentDirectoryItem {

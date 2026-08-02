@@ -269,7 +269,6 @@ export interface DesktopApi {
   hangup(callId: string): Promise<import('./cti').CommandAck>;
   pickup(callId: string): Promise<import('./cti').CommandAck>;
   originate(params: {
-    agentExtension: string;
     phoneNumber: string;
     callerId?: string;
   }): Promise<import('./cti').CommandAck & { channel?: string }>;
@@ -278,6 +277,7 @@ export interface DesktopApi {
     targetExtension: string;
   }): Promise<import('./cti').CommandAck>;
   getCallerIds(): Promise<DesktopCallerIdConfig>;
+  getCallCapabilities(): Promise<import('./cti').CallCapabilities>;
   getAgentDirectory(): Promise<DesktopAgentDirectoryItem[]>;
   getCallHistory(): Promise<DesktopCallHistoryItem[]>;
   getCallContext(callId: string): Promise<DesktopCallContext | null>;

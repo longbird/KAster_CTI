@@ -7,6 +7,7 @@ import { CustomersModule } from '../customers/customers.module';
 import { QueuesModule } from '../queues/queues.module';
 import { RecordingPipelineModule } from '../recording-pipeline/recording-pipeline.module';
 import { CallsController } from './calls.controller';
+import { ClientCallCommandsController } from './client-call-commands.controller';
 import { CallsService } from './calls.service';
 import { SessionEngineService } from './session-engine.service';
 import { AgentStateService } from './agent-state.service';
@@ -15,7 +16,7 @@ import { TransferDetectorService } from './transfer-detector.service';
 
 @Module({
   imports: [EventsModule, QueuesModule, CustomersModule, RecordingPipelineModule, forwardRef(() => AmiModule)],
-  controllers: [CallsController],
+  controllers: [CallsController, ClientCallCommandsController],
   providers: [
     CallsService,
     SessionEngineService,

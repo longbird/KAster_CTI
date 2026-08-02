@@ -79,6 +79,18 @@ export class AuthController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Get('me/call-capabilities')
+  @ApiOperation({
+    summary: '현재 상담원 발신 권한 조회',
+    description: '로그인 이후 클라이언트가 발신 UI 활성화 여부를 판단하기 위한 권한, 발신번호, 직접 전화기 발신 금지 상태를 조회한다.',
+  })
+  @ApiOkResponse({ type: ApiResponseDto })
+  callCapabilities(@CurrentUser() user: any) {
+    return this.authService.getCallCapabilities(user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get('auth/desktop/session')
   @ApiOperation({
     summary: 'Desktop 전용 세션 조회',

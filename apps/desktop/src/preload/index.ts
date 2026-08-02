@@ -28,6 +28,7 @@ const desktopApi: DesktopApi = {
   originate: (params) => ipcRenderer.invoke('desktop:originate', params),
   originateInternal: (input) => ipcRenderer.invoke('desktop:originate-internal', input),
   getCallerIds: () => ipcRenderer.invoke('desktop:get-caller-ids'),
+  getCallCapabilities: () => ipcRenderer.invoke('desktop:get-call-capabilities'),
   getAgentDirectory: () => ipcRenderer.invoke('desktop:get-agent-directory'),
   getCallHistory: () => ipcRenderer.invoke('desktop:get-call-history'),
   getCallContext: (callId) => ipcRenderer.invoke('desktop:get-call-context', callId),

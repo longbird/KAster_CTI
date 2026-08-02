@@ -277,7 +277,7 @@ describe('CtiRuntime', () => {
     );
   });
 
-  it('originate 는 상담원 내선과 대상 번호로 발신 요청을 보낸다', async () => {
+  it('originate 는 클라이언트 명령 endpoint 로 발신 요청을 보낸다', async () => {
     post.mockResolvedValueOnce({
       data: {
         data: {
@@ -295,19 +295,22 @@ describe('CtiRuntime', () => {
     });
 
     const result = await runtime.originate({
-      agentExtension: '1001',
       phoneNumber: '01012345678',
     });
 
     expect(post).toHaveBeenCalledWith(
-      '/calls/originate',
+      '/client/call-commands/originate',
       {
-        agentExtension: '1001',
+        commandId: 'corr-1',
         phoneNumber: '01012345678',
       },
       {
         headers: {
           'x-correlation-id': 'corr-1',
+          'idempotency-key': 'corr-1',
+          'x-client-protocol': 'kaster-desktop-v1',
+          'x-command-timestamp': expect.any(String),
+          'x-command-nonce': 'corr-1',
         },
       },
     );
@@ -349,7 +352,7 @@ describe('CtiRuntime', () => {
     );
   });
 
-  it('getCallerIds 는 me session 의 등록 발신번호를 반환한다', async () => {
+  it('getCallerIds 는 capability 의 등록 발신번호를 반환한다', async () => {
     get.mockResolvedValueOnce({
       data: {
         data: {
@@ -370,7 +373,7 @@ describe('CtiRuntime', () => {
       callerIds: ['15777893', '07052346380'],
       defaultCallerId: '07052346380',
     });
-    expect(get).toHaveBeenCalledWith('/me/session');
+    expect(get).toHaveBeenCalledWith('/me/call-capabilities');
   });
 
   it('getAgentDirectory 는 상담원 목록을 데스크톱 타입으로 정규화하고 그룹 정보를 보존한다', async () => {

@@ -56,6 +56,23 @@ const desktopApi = {
     callerIds: [],
     defaultCallerId: null,
   }),
+  getCallCapabilities: vi.fn().mockResolvedValue({
+    canOriginateExternal: false,
+    canOriginateInternal: false,
+    canUsePhoneDirect: false,
+    outboundDialPermissions: {
+      phoneDirect: false,
+      domestic: true,
+      representative: true,
+      paid: false,
+      international: false,
+    },
+    outboundDialOptions: {
+      allowedCallerIds: [],
+      defaultCallerId: null,
+    },
+    disabledReasons: ['발신 권한을 조회하지 못했습니다.'],
+  }),
   getAgentDirectory: vi.fn().mockResolvedValue([]),
   getCallHistory: vi.fn().mockResolvedValue([]),
   mute: vi.fn(),
@@ -82,6 +99,24 @@ const desktopApi = {
 };
 
 vi.stubGlobal('window', { desktopApi });
+
+const ENABLED_CALL_CAPABILITIES = {
+  canOriginateExternal: true,
+  canOriginateInternal: true,
+  canUsePhoneDirect: false,
+  outboundDialPermissions: {
+    phoneDirect: false,
+    domestic: true,
+    representative: true,
+    paid: false,
+    international: false,
+  },
+  outboundDialOptions: {
+    allowedCallerIds: ['15777893'],
+    defaultCallerId: '15777893',
+  },
+  disabledReasons: [],
+};
 
 describe('useDesktopStore pairing', () => {
   beforeEach(() => {
@@ -243,9 +278,12 @@ describe('useDesktopStore pairing', () => {
         role: 'agent',
       },
     });
-    desktopApi.getCallerIds.mockResolvedValueOnce({
-      callerIds: ['15777893', '07052346380'],
-      defaultCallerId: '15777893',
+    desktopApi.getCallCapabilities.mockResolvedValueOnce({
+      ...ENABLED_CALL_CAPABILITIES,
+      outboundDialOptions: {
+        allowedCallerIds: ['15777893', '07052346380'],
+        defaultCallerId: '15777893',
+      },
     });
     desktopApi.getAgentDirectory.mockResolvedValueOnce([
       {
@@ -810,6 +848,7 @@ describe('useDesktopStore pairing', () => {
         localHold: false,
       },
       updateState: null,
+      callCapabilities: ENABLED_CALL_CAPABILITIES,
       initialize: useDesktopStore.getState().initialize,
       pair: useDesktopStore.getState().pair,
       originate: useDesktopStore.getState().originate,
@@ -836,7 +875,6 @@ describe('useDesktopStore pairing', () => {
 
     expect(inviteSpy).not.toHaveBeenCalled();
     expect(desktopApi.originate).toHaveBeenCalledWith({
-      agentExtension: '1001',
       phoneNumber: '01012345678',
       callerId: '15777893',
     });
@@ -886,6 +924,7 @@ describe('useDesktopStore pairing', () => {
         localHold: false,
       },
       defaultCallerId: '15777893',
+      callCapabilities: ENABLED_CALL_CAPABILITIES,
       events: [],
       runtimeConnection: 'connected',
       originate: useDesktopStore.getState().originate,
@@ -895,7 +934,6 @@ describe('useDesktopStore pairing', () => {
 
     expect(inviteSpy).not.toHaveBeenCalled();
     expect(desktopApi.originate).toHaveBeenCalledWith({
-      agentExtension: '1001',
       phoneNumber: '01012345678',
       callerId: '15777893',
     });
@@ -923,6 +961,7 @@ describe('useDesktopStore pairing', () => {
       audioPreferences: null,
       softphone: null,
       defaultCallerId: null,
+      callCapabilities: ENABLED_CALL_CAPABILITIES,
       events: [],
       runtimeConnection: 'connected',
       originate: useDesktopStore.getState().originate,
@@ -931,7 +970,6 @@ describe('useDesktopStore pairing', () => {
     await useDesktopStore.getState().originate('01012345678', '');
 
     expect(desktopApi.originate).toHaveBeenCalledWith({
-      agentExtension: '1001',
       phoneNumber: '01012345678',
       callerId: undefined,
     });

@@ -42,6 +42,7 @@ export default function App() {
     audioCapabilities,
     generalPreferences,
     softphone,
+    callCapabilities,
     callerIds,
     defaultCallerId,
     agentDirectory,
@@ -223,6 +224,7 @@ export default function App() {
           audioDevices={audioDevices}
           audioCapabilities={audioCapabilities}
           softphone={softphone}
+          callCapabilities={callCapabilities}
           callerIds={callerIds}
           defaultCallerId={defaultCallerId}
           agentDirectory={agentDirectory}

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
@@ -230,12 +230,7 @@ export class CallsController {
           getCommandActor(req),
         ));
     }
-    return this.callsService.originate(
-      req.user.tenantId,
-      dto,
-      { correlationId, idempotencyKey },
-      getCommandActor(req),
-    );
+    throw new ForbiddenException('상담원 외부 발신은 클라이언트 전용 발신 프로토콜을 사용해야 합니다.');
   }
 
   @Post('originate/internal')

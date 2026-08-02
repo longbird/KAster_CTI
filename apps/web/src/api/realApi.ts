@@ -7,6 +7,7 @@ import type {
   Announcement,
   AgentStatusCode,
   ApiResponse,
+  CallCapabilities,
   CallHistoryItem,
   CommandAck,
   QueueSummary,
@@ -32,6 +33,40 @@ function requireCommandAck(data: unknown): CommandAck {
     idempotencyKey: typeof ack.idempotencyKey === 'string' || ack.idempotencyKey === null
       ? ack.idempotencyKey
       : null,
+  };
+}
+
+function makeClientCommandId() {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function normalizeCallCapabilities(raw: any, fallbackOutboundDialOptions?: AgentSession['outboundDialOptions']): CallCapabilities {
+  const outboundDialOptions = raw?.outboundDialOptions ?? fallbackOutboundDialOptions ?? {};
+  const allowedCallerIds = Array.isArray(outboundDialOptions.allowedCallerIds)
+    ? outboundDialOptions.allowedCallerIds.filter((value: unknown): value is string => typeof value === 'string')
+    : [];
+  return {
+    canOriginateExternal: raw?.canOriginateExternal === true,
+    canOriginateInternal: raw?.canOriginateInternal !== false,
+    canUsePhoneDirect: raw?.canUsePhoneDirect === true,
+    outboundDialPermissions: {
+      phoneDirect: raw?.outboundDialPermissions?.phoneDirect === true,
+      domestic: raw?.outboundDialPermissions?.domestic !== false,
+      representative: raw?.outboundDialPermissions?.representative !== false,
+      paid: raw?.outboundDialPermissions?.paid === true,
+      international: raw?.outboundDialPermissions?.international === true,
+    },
+    outboundDialOptions: {
+      allowedCallerIds,
+      defaultCallerId: typeof outboundDialOptions.defaultCallerId === 'string'
+        ? outboundDialOptions.defaultCallerId
+        : allowedCallerIds[0] ?? null,
+    },
+    disabledReasons: Array.isArray(raw?.disabledReasons)
+      ? raw.disabledReasons.filter((value: unknown): value is string => typeof value === 'string')
+      : [],
   };
 }
 
@@ -95,6 +130,12 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
   const agent = res.data?.data?.agent;
   const capabilities = res.data?.data?.callControlCapabilities;
   const outboundDialOptions = res.data?.data?.outboundDialOptions;
+  const callCapabilities = normalizeCallCapabilities(res.data?.data?.callCapabilities, {
+    allowedCallerIds: Array.isArray(outboundDialOptions?.allowedCallerIds)
+      ? outboundDialOptions.allowedCallerIds
+      : [],
+    defaultCallerId: outboundDialOptions?.defaultCallerId ?? null,
+  });
   // 현재 백엔드는 오늘 통계를 /agents/:id 에 노출. 기본값은 0 으로 채운다.
   const session: AgentSession = {
     agentId: agent?.agentId ?? '',
@@ -115,6 +156,7 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
         : [],
       defaultCallerId: outboundDialOptions?.defaultCallerId ?? null,
     },
+    callCapabilities,
   };
 
   // 오늘 통계 보강 — agents/:id
@@ -400,12 +442,25 @@ export async function originateExternalCall(
   phoneNumber: string,
   callerId?: string,
 ): Promise<ApiResponse<CommandAck & { channel: string; phoneNumber: string; callerId?: string }>> {
-  const agentExtension = useAuthStore.getState().agent?.extension ?? '';
-  const res = await apiClient.post('/calls/originate', {
-    agentExtension,
-    phoneNumber,
-    callerId,
-  });
+  const correlationId = makeClientCommandId();
+  const idempotencyKey = makeClientCommandId();
+  const res = await apiClient.post(
+    '/client/call-commands/originate',
+    {
+      commandId: makeClientCommandId(),
+      phoneNumber,
+      ...(callerId ? { callerId } : {}),
+    },
+    {
+      headers: {
+        'x-correlation-id': correlationId,
+        'idempotency-key': idempotencyKey,
+        'x-client-protocol': 'kaster-desktop-v1',
+        'x-command-timestamp': String(Date.now()),
+        'x-command-nonce': makeClientCommandId(),
+      },
+    },
+  );
   const data = res.data?.data;
   const ack = requireCommandAck(data);
   return {

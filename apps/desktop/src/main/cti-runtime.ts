@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { randomUUID } from 'node:crypto';
 import { io, type Socket } from 'socket.io-client';
-import type { AgentStatusCode, CommandAck, CtiEvent } from '../shared/cti';
+import type { AgentStatusCode, CallCapabilities, CommandAck, CtiEvent } from '../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
   DesktopCallContext,
@@ -137,17 +137,27 @@ export class CtiRuntime {
   }
 
   async originate(params: {
-    agentExtension: string;
     phoneNumber: string;
     callerId?: string;
   }): Promise<CommandAck & { channel?: string }> {
     const correlationId = randomUUID();
+    const idempotencyKey = randomUUID();
+    const commandId = randomUUID();
+    const nonce = randomUUID();
     const response = await this.http.post(
-      '/calls/originate',
-      params,
+      '/client/call-commands/originate',
+      {
+        commandId,
+        phoneNumber: params.phoneNumber,
+        ...(params.callerId ? { callerId: params.callerId } : {}),
+      },
       {
         headers: {
           'x-correlation-id': correlationId,
+          'idempotency-key': idempotencyKey,
+          'x-client-protocol': 'kaster-desktop-v1',
+          'x-command-timestamp': String(Date.now()),
+          'x-command-nonce': nonce,
         },
       },
     );
@@ -174,7 +184,7 @@ export class CtiRuntime {
   }
 
   async getCallerIds(): Promise<DesktopCallerIdConfig> {
-    const response = await this.http.get('/me/session');
+    const response = await this.http.get('/me/call-capabilities');
     const outboundDialOptions = response.data?.data?.outboundDialOptions;
     const callerIds = Array.isArray(outboundDialOptions?.allowedCallerIds)
       ? outboundDialOptions.allowedCallerIds.filter((value: unknown): value is string => typeof value === 'string')
@@ -188,6 +198,37 @@ export class CtiRuntime {
       defaultCallerId: defaultCallerId && callerIds.includes(defaultCallerId)
         ? defaultCallerId
         : callerIds[0] ?? null,
+    };
+  }
+
+  async getCallCapabilities(): Promise<CallCapabilities> {
+    const response = await this.http.get('/me/call-capabilities');
+    const data = response.data?.data ?? {};
+    const outboundDialOptions = data.outboundDialOptions ?? {};
+    const allowedCallerIds = Array.isArray(outboundDialOptions.allowedCallerIds)
+      ? outboundDialOptions.allowedCallerIds.filter((value: unknown): value is string => typeof value === 'string')
+      : [];
+
+    return {
+      canOriginateExternal: data.canOriginateExternal === true,
+      canOriginateInternal: data.canOriginateInternal !== false,
+      canUsePhoneDirect: data.canUsePhoneDirect === true,
+      outboundDialPermissions: {
+        phoneDirect: data.outboundDialPermissions?.phoneDirect === true,
+        domestic: data.outboundDialPermissions?.domestic !== false,
+        representative: data.outboundDialPermissions?.representative !== false,
+        paid: data.outboundDialPermissions?.paid === true,
+        international: data.outboundDialPermissions?.international === true,
+      },
+      outboundDialOptions: {
+        allowedCallerIds,
+        defaultCallerId: typeof outboundDialOptions.defaultCallerId === 'string'
+          ? outboundDialOptions.defaultCallerId
+          : allowedCallerIds[0] ?? null,
+      },
+      disabledReasons: Array.isArray(data.disabledReasons)
+        ? data.disabledReasons.filter((value: unknown): value is string => typeof value === 'string')
+        : [],
     };
   }
 

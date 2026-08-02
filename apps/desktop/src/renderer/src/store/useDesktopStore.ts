@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActiveCall, AgentStatusCode, CtiEvent, QueueSummary } from '../../../shared/cti';
+import type { ActiveCall, AgentStatusCode, CallCapabilities, CtiEvent, QueueSummary } from '../../../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
   DesktopAgentProfile,
@@ -86,6 +86,7 @@ interface DesktopStore {
   audioDevices: AudioDeviceCatalog;
   audioCapabilities: AudioCapabilities;
   softphone: SoftphoneState | null;
+  callCapabilities: CallCapabilities | null;
   callerIds: string[];
   defaultCallerId: string | null;
   agentDirectory: DesktopAgentDirectoryItem[];
@@ -164,6 +165,23 @@ const DEFAULT_AUDIO_CAPABILITIES: AudioCapabilities = {
 const EMPTY_CALLER_ID_CONFIG: DesktopCallerIdConfig = {
   callerIds: [],
   defaultCallerId: null,
+};
+const DEFAULT_CALL_CAPABILITIES: CallCapabilities = {
+  canOriginateExternal: false,
+  canOriginateInternal: false,
+  canUsePhoneDirect: false,
+  outboundDialPermissions: {
+    phoneDirect: false,
+    domestic: true,
+    representative: true,
+    paid: false,
+    international: false,
+  },
+  outboundDialOptions: {
+    allowedCallerIds: [],
+    defaultCallerId: null,
+  },
+  disabledReasons: ['발신 권한을 조회하지 못했습니다.'],
 };
 const DEFAULT_GENERAL_PREFERENCES: DesktopGeneralPreferences = {
   autoStart: false,
@@ -486,6 +504,13 @@ function loadCallerIdConfig() {
     : Promise.resolve(EMPTY_CALLER_ID_CONFIG);
 }
 
+function loadCallCapabilities() {
+  const desktopApi = getDesktopApi();
+  return desktopApi.getCallCapabilities
+    ? desktopApi.getCallCapabilities().catch(() => DEFAULT_CALL_CAPABILITIES)
+    : Promise.resolve(DEFAULT_CALL_CAPABILITIES);
+}
+
 function loadAgentDirectory() {
   const desktopApi = getDesktopApi();
   return desktopApi.getAgentDirectory
@@ -744,10 +769,10 @@ async function hydrateAuthenticatedDesktopSession(
   bindRuntimeEvents(set);
   const desktopApi = getDesktopApi();
   await desktopApi.connectRuntime();
-  const [audioPreferences, update, callerIdConfig, agentDirectory] = await Promise.all([
+  const [audioPreferences, update, callCapabilities, agentDirectory] = await Promise.all([
     desktopApi.getAudioPreferences(),
     desktopApi.checkForUpdates(),
-    loadCallerIdConfig(),
+    loadCallCapabilities(),
     loadAgentDirectory(),
   ]);
   const controller = getAudioController();
@@ -774,8 +799,9 @@ async function hydrateAuthenticatedDesktopSession(
     audioPermission: getMediaDevices()?.enumerateDevices ? current.audioPermission : 'unsupported',
     audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
     softphone,
-    callerIds: callerIdConfig.callerIds,
-    defaultCallerId: callerIdConfig.defaultCallerId,
+    callCapabilities,
+    callerIds: callCapabilities.outboundDialOptions.allowedCallerIds,
+    defaultCallerId: callCapabilities.outboundDialOptions.defaultCallerId,
     agentDirectory,
     events: pushEvent(current.events, input.eventMessage),
     updateState: update
@@ -818,6 +844,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
   audioDevices: EMPTY_AUDIO_DEVICES,
   audioCapabilities: DEFAULT_AUDIO_CAPABILITIES,
   softphone: null,
+  callCapabilities: null,
   callerIds: [],
   defaultCallerId: null,
   agentDirectory: [],
@@ -875,6 +902,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
         audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
         softphone: storedSession?.softphoneConfig ? createSoftphoneState(storedSession.softphoneConfig) : null,
+        callCapabilities: null,
         callerIds: [],
         defaultCallerId: null,
         agentDirectory: [],
@@ -905,9 +933,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         bindRuntimeEvents(set);
         const desktopApi = getDesktopApi();
         await desktopApi.connectRuntime();
-        const [update, callerIdConfig, agentDirectory] = await Promise.all([
+        const [update, callCapabilities, agentDirectory] = await Promise.all([
           desktopApi.checkForUpdates(),
-          loadCallerIdConfig(),
+          loadCallCapabilities(),
           loadAgentDirectory(),
         ]);
         if (update) {
@@ -921,14 +949,16 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
               verified: false,
               applying: false,
             },
-            callerIds: callerIdConfig.callerIds,
-            defaultCallerId: callerIdConfig.defaultCallerId,
+            callCapabilities,
+            callerIds: callCapabilities.outboundDialOptions.allowedCallerIds,
+            defaultCallerId: callCapabilities.outboundDialOptions.defaultCallerId,
             agentDirectory,
           });
         } else {
           set({
-            callerIds: callerIdConfig.callerIds,
-            defaultCallerId: callerIdConfig.defaultCallerId,
+            callCapabilities,
+            callerIds: callCapabilities.outboundDialOptions.allowedCallerIds,
+            defaultCallerId: callCapabilities.outboundDialOptions.defaultCallerId,
             agentDirectory,
           });
         }
@@ -959,6 +989,7 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       audioPermission: getMediaDevices()?.enumerateDevices ? 'unknown' : 'unsupported',
       audioCapabilities: controller?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
       softphone,
+      callCapabilities: session ? current.callCapabilities : null,
       callerIds: session ? current.callerIds : [],
       defaultCallerId: session ? current.defaultCallerId : null,
       agentDirectory: session ? current.agentDirectory : [],
@@ -1046,10 +1077,10 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     const session = await desktopApi.exchangeHandoff(params.handoffToken);
     bindRuntimeEvents(set);
     await desktopApi.connectRuntime();
-    const [update, audioPreferences, callerIdConfig, agentDirectory] = await Promise.all([
+    const [update, audioPreferences, callCapabilities, agentDirectory] = await Promise.all([
       desktopApi.checkForUpdates(),
       desktopApi.getAudioPreferences(),
-      loadCallerIdConfig(),
+      loadCallCapabilities(),
       loadAgentDirectory(),
     ]);
     const softphone = session.softphoneConfig ? createSoftphoneState(session.softphoneConfig) : null;
@@ -1064,8 +1095,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       audioPreferences,
       audioCapabilities: getAudioController()?.getCapabilities() ?? DEFAULT_AUDIO_CAPABILITIES,
       softphone,
-      callerIds: callerIdConfig.callerIds,
-      defaultCallerId: callerIdConfig.defaultCallerId,
+      callCapabilities,
+      callerIds: callCapabilities.outboundDialOptions.allowedCallerIds,
+      defaultCallerId: callCapabilities.outboundDialOptions.defaultCallerId,
       agentDirectory,
       events: appendEvents(current.events, [`센터 설정 저장 완료: ${config.serverUrl}`]),
       updateState: update
@@ -1148,8 +1180,12 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
 
     try {
       await getDesktopApi().connectRuntime();
+      const callCapabilities = await loadCallCapabilities();
       set((state) => ({
         runtimeConnection: resolveRuntimeConnection(true, state.runtimeConnection),
+        callCapabilities,
+        callerIds: callCapabilities.outboundDialOptions.allowedCallerIds,
+        defaultCallerId: callCapabilities.outboundDialOptions.defaultCallerId,
       }));
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'unknown';
@@ -1172,7 +1208,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     }));
   },
   async originate(phoneNumber, callerId) {
-    const agent = useDesktopStore.getState().agent;
+    const state = useDesktopStore.getState();
+    const agent = state.agent;
+    const capabilities = state.callCapabilities;
     const normalized = phoneNumber.trim();
     void getDesktopApi().recordDiagnosticEvent({
       stage: 'store:originate-enter',
@@ -1180,8 +1218,9 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
         hasAgent: Boolean(agent),
         phoneNumber: normalized,
         callerId: callerId || null,
-        softphoneRegistration: useDesktopStore.getState().softphone?.registration ?? null,
-        runtimeConnection: useDesktopStore.getState().runtimeConnection,
+        softphoneRegistration: state.softphone?.registration ?? null,
+        runtimeConnection: state.runtimeConnection,
+        canOriginateExternal: capabilities?.canOriginateExternal ?? false,
       },
     });
     if (!agent || !normalized) {
@@ -1194,12 +1233,23 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
       });
       return;
     }
+    if (!capabilities?.canOriginateExternal) {
+      const reason = capabilities?.disabledReasons[0] ?? '외부 발신 권한이 없습니다.';
+      void getDesktopApi().recordDiagnosticEvent({
+        stage: 'store:originate-permission-blocked',
+        detail: {
+          agentId: agent.agentId,
+          phoneNumber: normalized,
+          reason,
+        },
+      });
+      throw new Error(reason);
+    }
 
-    const effectiveCallerId = callerId || useDesktopStore.getState().defaultCallerId || undefined;
+    const effectiveCallerId = callerId || state.defaultCallerId || undefined;
     void getDesktopApi().recordDiagnosticEvent({
       stage: 'store:originate-runtime',
       detail: {
-        agentExtension: agent.extension,
         phoneNumber: normalized,
         callerId: effectiveCallerId ?? null,
       },
@@ -1208,14 +1258,12 @@ export const useDesktopStore = create<DesktopStore>((set) => ({
     void getDesktopApi().recordDiagnosticEvent({
       stage: 'store:originate-softphone-pending',
       detail: {
-        agentExtension: agent.extension,
         phoneNumber: normalized,
         callerId: effectiveCallerId ?? null,
       },
     });
     try {
       await getDesktopApi().originate({
-        agentExtension: agent.extension,
         phoneNumber: normalized,
         callerId: effectiveCallerId,
       });

@@ -276,6 +276,10 @@ export const useCtiStore = create<CtiState>((set, get) => ({
   originateExternal: async (phoneNumber, callerId) => {
     const normalized = phoneNumber.trim();
     if (!normalized) return;
+    const capabilities = get().agentSession?.callCapabilities;
+    if (!capabilities?.canOriginateExternal) {
+      throw new Error(capabilities?.disabledReasons[0] ?? '외부 발신 권한이 없습니다.');
+    }
 
     const ack = await originateExternalCall(normalized, callerId);
     const msg = enrichCommandMessage(

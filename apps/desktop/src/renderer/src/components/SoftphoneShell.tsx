@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ActiveCall, AgentStatusCode } from '../../../shared/cti';
+import type { ActiveCall, AgentStatusCode, CallCapabilities } from '../../../shared/cti';
 import type {
   DesktopAgentDirectoryItem,
   DesktopAudioPreferences,
@@ -90,6 +90,7 @@ export function SoftphoneShell({
   audioDevices,
   audioCapabilities,
   softphone,
+  callCapabilities,
   callerIds,
   defaultCallerId,
   agentDirectory,
@@ -138,6 +139,7 @@ export function SoftphoneShell({
     sinkSelectionSupported: boolean;
   };
   softphone: SoftphoneState | null;
+  callCapabilities: CallCapabilities | null;
   callerIds: string[];
   defaultCallerId: string | null;
   agentDirectory: DesktopAgentDirectoryItem[];
@@ -452,8 +454,16 @@ export function SoftphoneShell({
   );
   const canDialExternal =
     runtimeReady
+    && callCapabilities?.canOriginateExternal === true
+    && callerIds.length > 0
     && Boolean(dialNumber.trim())
     && !dialPending;
+  const externalDialDisabledReason =
+    callCapabilities?.canOriginateExternal === false
+      ? callCapabilities.disabledReasons[0] ?? '외부 발신 권한이 없습니다.'
+      : callerIds.length === 0
+        ? '등록된 발신번호가 없습니다.'
+        : null;
   const canAnswerRinging =
     activeCall
       ? runtimeReady
@@ -467,6 +477,7 @@ export function SoftphoneShell({
         canDialExternal,
         hasDialNumber: Boolean(dialNumber.trim()),
         callerIdsCount: callerIds.length,
+        canOriginateExternal: callCapabilities?.canOriginateExternal ?? null,
         softphoneRegistration: softphone?.registration ?? null,
         dialPending,
       },
@@ -476,6 +487,7 @@ export function SoftphoneShell({
     canDialExternal,
     dialNumber,
     callerIds.length,
+    callCapabilities?.canOriginateExternal,
     softphone?.registration,
     dialPending,
   ]);
@@ -488,6 +500,7 @@ export function SoftphoneShell({
           runtimeReady,
           hasDialNumber: Boolean(dialNumber.trim()),
           callerIdsCount: callerIds.length,
+          canOriginateExternal: callCapabilities?.canOriginateExternal ?? null,
           softphoneRegistration: softphone?.registration ?? null,
           dialPending,
         },
@@ -923,7 +936,7 @@ export function SoftphoneShell({
                 aria-label="발신번호"
                 value={selectedCallerId}
                 onChange={(event) => setSelectedCallerId(event.target.value)}
-                disabled={callerIds.length === 0}
+                disabled={callerIds.length === 0 || callCapabilities?.canOriginateExternal === false}
               >
                 {callerIds.length === 0 ? <option value="">등록된 발신번호 없음</option> : null}
                 {callerIds.map((callerId) => (
@@ -947,6 +960,7 @@ export function SoftphoneShell({
                 {dialPending ? '발신 중' : '발신'}
               </button>
             </div>
+            {externalDialDisabledReason ? <p className="console-muted">{externalDialDisabledReason}</p> : null}
             {dialError ? <p className="console-muted dial-error">{dialError}</p> : null}
           </section>
 

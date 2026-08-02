@@ -645,7 +645,6 @@ app.whenReady().then(async () => {
     return runtime.changeAgentStatus(agentId, statusCode, reasonCode);
   });
   ipcMain.handle('desktop:originate', (_event, params: {
-    agentExtension: string;
     phoneNumber: string;
     callerId?: string;
   }) => {
@@ -653,7 +652,6 @@ app.whenReady().then(async () => {
       stage: 'main:originate-ipc',
       detail: {
         hasRuntime: Boolean(runtime),
-        agentExtension: params.agentExtension,
         phoneNumber: params.phoneNumber,
         callerId: params.callerId ?? null,
       },
@@ -704,6 +702,25 @@ app.whenReady().then(async () => {
       return { callerIds: [], defaultCallerId: null };
     }
     return runtime.getCallerIds();
+  });
+  ipcMain.handle('desktop:get-call-capabilities', () => {
+    if (!runtime) {
+      return {
+        canOriginateExternal: false,
+        canOriginateInternal: false,
+        canUsePhoneDirect: false,
+        outboundDialPermissions: {
+          phoneDirect: false,
+          domestic: true,
+          representative: true,
+          paid: false,
+          international: false,
+        },
+        outboundDialOptions: { allowedCallerIds: [], defaultCallerId: null },
+        disabledReasons: ['runtime 이 연결되어 있지 않습니다.'],
+      };
+    }
+    return runtime.getCallCapabilities();
   });
   ipcMain.handle('desktop:get-agent-directory', () => {
     if (!runtime) {
