@@ -15,6 +15,7 @@ function createService(overrides?: {
         settingsProfile: overrides?.agentSettingsProfile ?? {
           outboundDialPermissions: {
             phoneDirect: false,
+            phoneDirectAllowedIps: [],
             domestic: true,
             representative: true,
             paid: false,

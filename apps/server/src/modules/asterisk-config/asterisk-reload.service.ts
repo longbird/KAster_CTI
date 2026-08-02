@@ -1339,20 +1339,24 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),
       defaultOutboundCallerId: typedSettings?.defaultOutboundCallerId ?? null,
       agents,
-      pjsipAgents: agents.map((agent) => ({
-        extension: agent.extension,
-        agentName: agent.agentName,
-        extensionDisplayName: (agent as any).extensionDisplayName ?? null,
-        sipPassword: agent.sipPassword || defaultSipPassword,
-        context: `agent-phone-${agent.extension}`,
-        callerIdPrivacy: (
-          normalizeAgentRuntimeProfile(agent.settingsProfile).numberMasking === 'USE'
-            ? 'prohib'
-            : 'allowed_not_screened'
-        ) as 'prohib' | 'allowed_not_screened',
-        pickupGroup: buildPickupGroupName(agent.defaultQueueId),
-        pickupType: normalizeAgentRuntimeProfile(agent.settingsProfile).pickupType,
-      })),
+      pjsipAgents: agents.map((agent) => {
+        const profile = normalizeAgentRuntimeProfile(agent.settingsProfile);
+        return {
+          extension: agent.extension,
+          agentName: agent.agentName,
+          extensionDisplayName: (agent as any).extensionDisplayName ?? null,
+          sipPassword: agent.sipPassword || defaultSipPassword,
+          phoneDirectAllowedIps: profile.outboundDialPermissions.phoneDirectAllowedIps,
+          context: `agent-phone-${agent.extension}`,
+          callerIdPrivacy: (
+            profile.numberMasking === 'USE'
+              ? 'prohib'
+              : 'allowed_not_screened'
+          ) as 'prohib' | 'allowed_not_screened',
+          pickupGroup: buildPickupGroupName(agent.defaultQueueId),
+          pickupType: profile.pickupType,
+        };
+      }),
       dids,
       ivrMenus,
       forwardingRules,

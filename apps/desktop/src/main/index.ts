@@ -711,6 +711,7 @@ app.whenReady().then(async () => {
         canUsePhoneDirect: false,
         outboundDialPermissions: {
           phoneDirect: false,
+          phoneDirectAllowedIps: [],
           domestic: true,
           representative: true,
           paid: false,

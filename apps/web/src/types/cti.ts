@@ -41,6 +41,7 @@ export interface AgentSession {
 
 export interface OutboundDialPermissions {
   phoneDirect: boolean;
+  phoneDirectAllowedIps: string[];
   domestic: boolean;
   representative: boolean;
   paid: boolean;

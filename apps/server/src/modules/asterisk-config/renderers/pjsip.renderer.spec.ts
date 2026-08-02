@@ -77,6 +77,7 @@ describe('renderPjsip', () => {
         extension: '1001',
         agentName: 'Agent1',
         sipPassword: 'sip123',
+        phoneDirectAllowedIps: ['203.0.113.10', '203.0.113.11/32'],
         callerIdPrivacy: 'prohib',
         pickupGroup: 'queue-sales',
         pickupType: 'STRONG',
@@ -97,6 +98,9 @@ describe('renderPjsip', () => {
     expect(result).toContain('webrtc=yes');
     expect(result).toContain('moh_suggest=default');
     expect(result).toContain('callerid_privacy=prohib');
+    expect(result).toContain('deny=0.0.0.0/0.0.0.0');
+    expect(result).toContain('permit=203.0.113.10');
+    expect(result).toContain('permit=203.0.113.11/32');
     expect(result).toContain('named_call_group=queue-sales');
     expect(result).toContain('named_pickup_group=queue-sales,all-agents');
   });

@@ -172,6 +172,7 @@ const DEFAULT_CALL_CAPABILITIES: CallCapabilities = {
   canUsePhoneDirect: false,
   outboundDialPermissions: {
     phoneDirect: false,
+    phoneDirectAllowedIps: [],
     domestic: true,
     representative: true,
     paid: false,

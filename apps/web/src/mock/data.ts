@@ -19,6 +19,7 @@ export const initialAgentSession: AgentSession = {
     canUsePhoneDirect: false,
     outboundDialPermissions: {
       phoneDirect: false,
+      phoneDirectAllowedIps: [],
       domestic: true,
       representative: true,
       paid: false,

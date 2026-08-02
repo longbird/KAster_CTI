@@ -62,6 +62,7 @@ const desktopApi = {
     canUsePhoneDirect: false,
     outboundDialPermissions: {
       phoneDirect: false,
+      phoneDirectAllowedIps: [],
       domestic: true,
       representative: true,
       paid: false,
@@ -106,6 +107,7 @@ const ENABLED_CALL_CAPABILITIES = {
   canUsePhoneDirect: false,
   outboundDialPermissions: {
     phoneDirect: false,
+    phoneDirectAllowedIps: [],
     domestic: true,
     representative: true,
     paid: false,

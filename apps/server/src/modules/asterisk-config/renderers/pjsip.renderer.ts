@@ -14,6 +14,7 @@ export interface AgentInput {
   agentName: string;
   extensionDisplayName?: string | null;
   sipPassword: string | null;
+  phoneDirectAllowedIps?: string[];
   context?: string;
   callerIdPrivacy?: 'allowed_not_screened' | 'prohib';
   pickupGroup?: string | null;
@@ -33,6 +34,15 @@ import { assertNoNewlines, toSlug } from './renderer-utils';
 
 const SIP_WS_PORT = 8088;
 const ASTERISK_AUTH_REALM = 'asterisk';
+
+function isValidIpv4Cidr(value: string) {
+  if (!/^\d{1,3}(?:\.\d{1,3}){3}(?:\/(?:[0-9]|[12][0-9]|3[0-2]))?$/.test(value)) return false;
+  const [address] = value.split('/');
+  return address.split('.').every((part) => {
+    const octet = Number(part);
+    return Number.isInteger(octet) && octet >= 0 && octet <= 255;
+  });
+}
 
 function renderTransportNatLines(input: PjsipInput, localNets: string[]): string[] {
   return [
@@ -100,6 +110,10 @@ function renderAgent(agent: AgentInput): string {
   assertNoNewlines(agent.sipPassword, 'sipPassword');
   if (agent.context) assertNoNewlines(agent.context, 'context');
   if (agent.pickupGroup) assertNoNewlines(agent.pickupGroup, 'pickupGroup');
+  const phoneDirectAllowedIps = [...new Set((agent.phoneDirectAllowedIps ?? [])
+    .map((ip) => ip.trim())
+    .filter((ip) => ip && isValidIpv4Cidr(ip)))];
+  phoneDirectAllowedIps.forEach((ip) => assertNoNewlines(ip, 'phoneDirectAllowedIp'));
 
   const namedCallGroup = agent.pickupType && agent.pickupType !== 'NOT_USE'
     ? agent.pickupGroup || 'all-agents'
@@ -131,6 +145,12 @@ function renderAgent(agent: AgentInput): string {
     `aors=${agent.extension}`,
     `callerid=${agent.extensionDisplayName?.trim() || agent.agentName} <${agent.extension}>`,
     `callerid_privacy=${agent.callerIdPrivacy || 'allowed_not_screened'}`,
+    ...(phoneDirectAllowedIps.length > 0
+      ? [
+          `deny=0.0.0.0/0.0.0.0`,
+          ...phoneDirectAllowedIps.map((ip) => `permit=${ip}`),
+        ]
+      : []),
     ...(namedCallGroup ? [`named_call_group=${namedCallGroup}`] : []),
     ...(namedPickupGroup ? [`named_pickup_group=${namedPickupGroup}`] : []),
     `direct_media=no`,

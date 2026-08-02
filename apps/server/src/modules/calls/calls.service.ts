@@ -743,7 +743,8 @@ export class CallsService {
     return {
       canOriginateExternal: disabledReasons.length === 0,
       canOriginateInternal: hasExtension,
-      canUsePhoneDirect: outboundDialPermissions.phoneDirect,
+      canUsePhoneDirect: outboundDialPermissions.phoneDirect
+        && outboundDialPermissions.phoneDirectAllowedIps.length > 0,
       outboundDialPermissions,
       outboundDialOptions,
       disabledReasons,

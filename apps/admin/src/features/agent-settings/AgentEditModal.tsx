@@ -7,6 +7,7 @@ import {
   CLOSE_STATUS_PERMISSION_OPTIONS,
   DEFAULT_AGENT_SETTINGS_PROFILE,
   INOUT_TYPE_OPTIONS,
+  normalizeIpList,
   normalizeAgentSettingsProfile,
   NUMBER_MASKING_OPTIONS,
   PICKUP_TYPE_OPTIONS,
@@ -457,6 +458,17 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
                         </Form.Item>
                       </Col>
                     </Row>
+                    <Form.Item
+                      label="전화기 직접 발신 허용 IP"
+                      name={['settingsProfile', 'outboundDialPermissions', 'phoneDirectAllowedIps']}
+                      getValueProps={(value) => ({
+                        value: Array.isArray(value) ? value.join('\n') : '',
+                      })}
+                      normalize={(value) => normalizeIpList(value)}
+                      style={{ marginTop: 12, marginBottom: 0 }}
+                    >
+                      <Input.TextArea rows={2} placeholder="예: 203.0.113.10" />
+                    </Form.Item>
                   </div>
                 </Col>
               </Row>

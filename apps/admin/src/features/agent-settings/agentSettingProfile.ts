@@ -17,6 +17,7 @@ export interface AgentSettingsProfile {
   popupCloseToReady: 'NOT_USE' | 'IMMEDIATE';
   outboundDialPermissions: {
     phoneDirect: boolean;
+    phoneDirectAllowedIps: string[];
     domestic: boolean;
     representative: boolean;
     paid: boolean;
@@ -43,6 +44,7 @@ export const DEFAULT_AGENT_SETTINGS_PROFILE: AgentSettingsProfile = {
   popupCloseToReady: 'NOT_USE',
   outboundDialPermissions: {
     phoneDirect: false,
+    phoneDirectAllowedIps: [],
     domestic: true,
     representative: true,
     paid: false,
@@ -127,6 +129,25 @@ export function normalizeAgentSettingsProfile(input: any): AgentSettingsProfile 
     outboundDialPermissions: {
       ...DEFAULT_AGENT_SETTINGS_PROFILE.outboundDialPermissions,
       ...permissions,
+      phoneDirectAllowedIps: normalizeIpList(permissions.phoneDirectAllowedIps),
     },
   };
+}
+
+export function normalizeIpList(input: unknown): string[] {
+  const values = Array.isArray(input)
+    ? input
+    : typeof input === 'string'
+      ? input.split(/[,\n\r\t ]+/)
+      : [];
+  return [...new Set(values
+    .map((item) => typeof item === 'string' ? item.trim() : '')
+    .filter((value) => {
+      if (!/^\d{1,3}(?:\.\d{1,3}){3}(?:\/(?:[0-9]|[12][0-9]|3[0-2]))?$/.test(value)) return false;
+      const [address] = value.split('/');
+      return address.split('.').every((part) => {
+        const octet = Number(part);
+        return Number.isInteger(octet) && octet >= 0 && octet <= 255;
+      });
+    }))];
 }

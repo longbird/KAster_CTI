@@ -9,6 +9,7 @@ export type OutboundDialNumberCategory =
 
 export interface OutboundDialPermissions {
   phoneDirect: boolean;
+  phoneDirectAllowedIps: string[];
   domestic: boolean;
   representative: boolean;
   paid: boolean;
@@ -17,6 +18,7 @@ export interface OutboundDialPermissions {
 
 export const DEFAULT_OUTBOUND_DIAL_PERMISSIONS: OutboundDialPermissions = {
   phoneDirect: false,
+  phoneDirectAllowedIps: [],
   domestic: true,
   representative: true,
   paid: false,
@@ -37,6 +39,22 @@ function digitsOnly(value: string): string {
   return value.replace(/\D/g, '');
 }
 
+function normalizeAllowedIps(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const unique = new Set<string>();
+  for (const item of input) {
+    if (typeof item !== 'string') continue;
+    const value = item.trim();
+    if (!value || value.length > 64) continue;
+    if (!/^\d{1,3}(?:\.\d{1,3}){3}(?:\/(?:[0-9]|[12][0-9]|3[0-2]))?$/.test(value)) continue;
+    const [address] = value.split('/');
+    const octets = address.split('.').map((part) => Number(part));
+    if (octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) continue;
+    unique.add(value);
+  }
+  return [...unique];
+}
+
 export function normalizeOutboundDialPermissions(input: unknown): OutboundDialPermissions {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { ...DEFAULT_OUTBOUND_DIAL_PERMISSIONS };
@@ -48,6 +66,7 @@ export function normalizeOutboundDialPermissions(input: unknown): OutboundDialPe
     phoneDirect: typeof source.phoneDirect === 'boolean'
       ? source.phoneDirect
       : DEFAULT_OUTBOUND_DIAL_PERMISSIONS.phoneDirect,
+    phoneDirectAllowedIps: normalizeAllowedIps(source.phoneDirectAllowedIps),
     domestic: typeof source.domestic === 'boolean' ? source.domestic : DEFAULT_OUTBOUND_DIAL_PERMISSIONS.domestic,
     representative: typeof source.representative === 'boolean'
       ? source.representative

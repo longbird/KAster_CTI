@@ -33,6 +33,7 @@ describe('renderAgentDialplan', () => {
         liveRecordingEnabled: true,
         outboundDialPermissions: {
           phoneDirect: true,
+          phoneDirectAllowedIps: ['203.0.113.10'],
           domestic: true,
           representative: true,
           paid: false,
@@ -91,6 +92,7 @@ describe('renderAgentDialplan', () => {
         liveRecordingEnabled: false,
         outboundDialPermissions: {
           phoneDirect: true,
+          phoneDirectAllowedIps: ['203.0.113.10'],
           domestic: true,
           representative: false,
           paid: false,
@@ -149,6 +151,7 @@ describe('renderAgentDialplan', () => {
         liveRecordingEnabled: false,
         outboundDialPermissions: {
           phoneDirect: true,
+          phoneDirectAllowedIps: ['203.0.113.10'],
           domestic: true,
           representative: true,
           paid: false,

@@ -251,12 +251,15 @@ function renderAgentEntryContext(
     return lines.join('\n');
   }
 
-  const phoneDirectEnabled = normalizeOutboundDialPermissions(agent.outboundDialPermissions).phoneDirect;
+  const permissions = normalizeOutboundDialPermissions(agent.outboundDialPermissions);
+  const phoneDirectEnabled = permissions.phoneDirect && permissions.phoneDirectAllowedIps.length > 0;
   if (!allowDirectSipDial || !agent.outboundEnabled || !phoneDirectEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED') {
     if (agent.extensionLockMode === 'OUTBOUND_LOCKED') {
       lines.push(`exten => _X.,1,NoOp(Outbound disabled for agent ${agent.extension}: OUTBOUND_LOCKED)`);
-    } else if (!phoneDirectEnabled) {
+    } else if (!permissions.phoneDirect) {
       lines.push(`exten => _X.,1,NoOp(Phone direct outbound disabled for agent ${agent.extension})`);
+    } else if (permissions.phoneDirectAllowedIps.length === 0) {
+      lines.push(`exten => _X.,1,NoOp(Phone direct outbound IP allowlist empty for agent ${agent.extension})`);
     }
     lines.push(...buildAllowedOutboundEntryNoOps(agent).flatMap((noOpLine) => buildOutboundNoServiceRoute(noOpLine)));
   } else {

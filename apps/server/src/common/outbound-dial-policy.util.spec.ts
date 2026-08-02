@@ -11,11 +11,19 @@ describe('outbound-dial-policy.util', () => {
   it('defaults phone direct dialing to disabled while client-originated domestic and representative calls are allowed', () => {
     expect(normalizeOutboundDialPermissions(null)).toMatchObject({
       phoneDirect: false,
+      phoneDirectAllowedIps: [],
       domestic: true,
       representative: true,
       paid: false,
       international: false,
     });
+  });
+
+  it('normalizes phone direct source IP allowlist and drops invalid values', () => {
+    expect(normalizeOutboundDialPermissions({
+      phoneDirect: true,
+      phoneDirectAllowedIps: ['203.0.113.10', '203.0.113.10', '10.0.0.0/24', '999.1.1.1', 'bad'],
+    }).phoneDirectAllowedIps).toEqual(['203.0.113.10', '10.0.0.0/24']);
   });
 
   it('allows normalized domestic public phone numbers', () => {

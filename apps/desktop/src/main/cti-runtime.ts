@@ -215,6 +215,9 @@ export class CtiRuntime {
       canUsePhoneDirect: data.canUsePhoneDirect === true,
       outboundDialPermissions: {
         phoneDirect: data.outboundDialPermissions?.phoneDirect === true,
+        phoneDirectAllowedIps: Array.isArray(data.outboundDialPermissions?.phoneDirectAllowedIps)
+          ? data.outboundDialPermissions.phoneDirectAllowedIps.filter((item: unknown) => typeof item === 'string')
+          : [],
         domestic: data.outboundDialPermissions?.domestic !== false,
         representative: data.outboundDialPermissions?.representative !== false,
         paid: data.outboundDialPermissions?.paid === true,

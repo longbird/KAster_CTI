@@ -54,6 +54,13 @@
 
 상담원 endpoint 발신 경로에서는 현재 REGISTER contact가 없는 내선이면 발신 라우팅 전에 `Hangup()` 한다.
 
+극히 일부 전화기 직접 발신 요구사항은 예외로 허용한다. 단, 다음 조건을 모두 만족해야 한다.
+
+- 상담원 `outboundDialPermissions.phoneDirect`가 `true`이다.
+- `outboundDialPermissions.phoneDirectAllowedIps`에 허용 IP 또는 CIDR이 1개 이상 등록되어 있다.
+- PBX `pjsip.conf` endpoint에 `deny=0.0.0.0/0.0.0.0`와 `permit=<허용 IP>`가 생성되어 REGISTER와 INVITE가 지정 IP에서만 들어온다.
+- 다이얼플랜에서 `PJSIP_DIAL_CONTACTS(<내선>)`가 비어 있지 않은지 확인한 뒤에만 직접 발신 라우팅을 수행한다.
+
 트렁크 인입에는 이 규칙을 적용하지 않는다. 정상 통신사 인입은 내선 REGISTER 상태와 무관하며, 트렁크 `identify match`와 DID allowlist로 판단해야 한다.
 
 ### 2차: 번호 임시 차단
