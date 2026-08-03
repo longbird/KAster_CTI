@@ -82,6 +82,12 @@ export class AdminController {
     return this.adminService.listAnnouncements(user.tenantId);
   }
 
+  @Get('announcements/login-updates')
+  @Roles('supervisor', 'admin')
+  async listLoginUpdateAnnouncements(@CurrentUser() user: any) {
+    return this.adminService.listLoginUpdateAnnouncements(user.tenantId, user.sub);
+  }
+
   @Post('announcements')
   @Roles('supervisor', 'admin')
   async createAnnouncement(@CurrentUser() user: any, @Body() dto: CreateAnnouncementDto) {
@@ -89,6 +95,12 @@ export class AdminController {
     return this.adminService.createAnnouncement(user.tenantId, dto, {
       agentName: user.agentName,
     });
+  }
+
+  @Post('announcements/:announcementId/read')
+  @Roles('supervisor', 'admin')
+  async acknowledgeAnnouncement(@CurrentUser() user: any, @Param('announcementId') announcementId: string) {
+    return this.adminService.acknowledgeAnnouncement(user.tenantId, announcementId, user.sub);
   }
 
   @Post('announcements/:announcementId')

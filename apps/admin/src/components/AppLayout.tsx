@@ -1,13 +1,15 @@
-import { Button, Grid, Layout, Menu, Result, Space, Spin, Typography } from 'antd';
+import { Button, Grid, Layout, List, Menu, Modal, Result, Space, Spin, Tag, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { logout } from '../api/authApi';
 import brandImage from '../assets/kaster-admin-brand.webp';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionStore } from '../store/usePermissionStore';
 import { ThemeModeSwitch } from './ThemeModeSwitch';
+import { apiClient } from '../shared/lib/apiClient';
 import {
   ADMIN_MENU_CONFIG,
   allGroupMenuKeys,
@@ -18,6 +20,15 @@ import {
 
 const { Header, Sider, Content } = Layout;
 
+interface LoginUpdateNotice {
+  announcementId: string;
+  title: string;
+  body: string;
+  severity?: 'INFO' | 'IMPORTANT' | 'CRITICAL';
+  releaseTag?: string | null;
+  createdAt: string;
+}
+
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -26,10 +37,44 @@ export function AppLayout() {
   const loaded = usePermissionStore((s) => s.loaded);
   const loading = usePermissionStore((s) => s.loading);
   const loadForAgent = usePermissionStore((s) => s.loadForAgent);
+  const [loginUpdates, setLoginUpdates] = useState<LoginUpdateNotice[]>([]);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [acknowledgingUpdates, setAcknowledgingUpdates] = useState(false);
+  const [checkedUpdateAgentId, setCheckedUpdateAgentId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadForAgent(agent);
   }, [agent, loadForAgent]);
+
+  useEffect(() => {
+    if (!loaded || loading || !agent?.agentId || checkedUpdateAgentId === agent.agentId) return;
+    setCheckedUpdateAgentId(agent.agentId);
+    void apiClient
+      .get('/admin/announcements/login-updates')
+      .then((res) => {
+        const rows = res.data?.data ?? [];
+        setLoginUpdates(rows);
+        setUpdateModalOpen(rows.length > 0);
+      })
+      .catch(() => {
+        setLoginUpdates([]);
+      });
+  }, [agent?.agentId, checkedUpdateAgentId, loaded, loading]);
+
+  const acknowledgeLoginUpdates = async () => {
+    setAcknowledgingUpdates(true);
+    try {
+      await Promise.all(
+        loginUpdates.map((item) => apiClient.post(`/admin/announcements/${item.announcementId}/read`)),
+      );
+      setUpdateModalOpen(false);
+      setLoginUpdates([]);
+    } catch {
+      message.error('업데이트 확인 처리에 실패했습니다.');
+    } finally {
+      setAcknowledgingUpdates(false);
+    }
+  };
 
   const screens = Grid.useBreakpoint();
   const isMobile = screens.md === false;
@@ -154,6 +199,47 @@ export function AppLayout() {
         </Content>
       </Layout>
       {showOverlay && <div className="sider-backdrop" onClick={() => setCollapsed(true)} />}
+      <Modal
+        title="업데이트 내역"
+        open={updateModalOpen}
+        onOk={() => void acknowledgeLoginUpdates()}
+        okText="확인"
+        cancelButtonProps={{ style: { display: 'none' } }}
+        closable={false}
+        maskClosable={false}
+        confirmLoading={acknowledgingUpdates}
+      >
+        <List
+          dataSource={loginUpdates}
+          renderItem={(item) => {
+            const color = item.severity === 'CRITICAL' ? 'red' : item.severity === 'IMPORTANT' ? 'orange' : 'blue';
+            const label = item.severity === 'CRITICAL' ? '긴급' : item.severity === 'IMPORTANT' ? '중요' : '일반';
+            return (
+              <List.Item>
+                <List.Item.Meta
+                  title={(
+                    <Space wrap>
+                      <Typography.Text strong>{item.title}</Typography.Text>
+                      <Tag color={color}>{label}</Tag>
+                      {item.releaseTag ? <Tag>{item.releaseTag}</Tag> : null}
+                    </Space>
+                  )}
+                  description={(
+                    <Space direction="vertical" size={4}>
+                      <Typography.Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                        {item.body}
+                      </Typography.Paragraph>
+                      <Typography.Text type="secondary">
+                        {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
+                      </Typography.Text>
+                    </Space>
+                  )}
+                />
+              </List.Item>
+            );
+          }}
+        />
+      </Modal>
     </Layout>
   );
 }

@@ -52,6 +52,7 @@ model tenants {
   agentDesktopReleases agentDesktopReleases[]
   agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
   announcements       announcements[]
+  announcementReads   announcementReads[]
   branches            branches[]
   branchAgents        branchAgents[]
   branchQueues        branchQueues[]
@@ -140,6 +141,7 @@ model agents {
   menuPermissions    agentMenuPermissions[]
   branchCallerIds    agentBranchCallerIds[]
   shareRuleAgents    shareRuleAgents[]
+  announcementReads  announcementReads[]
 
   @@unique([tenantId, loginId])
   @@unique([tenantId, agentCode])
@@ -640,12 +642,37 @@ model announcements {
   body           String
   authorName     String   @db.VarChar(50)
   pinned         Boolean  @default(false)
+  category       String   @default("NOTICE") @db.VarChar(32)
+  targetApp      String   @default("ALL") @db.VarChar(16)
+  showOnLogin    Boolean  @default(false)
+  severity       String   @default("INFO") @db.VarChar(16)
+  releaseTag     String?  @db.VarChar(64)
+  effectiveFrom  DateTime? @db.Timestamptz(6)
+  expiresAt      DateTime? @db.Timestamptz(6)
   createdAt      DateTime @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @db.Timestamptz(6)
 
   tenant         tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  reads          announcementReads[]
 
   @@index([tenantId, pinned, createdAt(sort: Desc)])
+  @@index([tenantId, category, targetApp, showOnLogin, createdAt(sort: Desc)])
+}
+
+model announcementReads {
+  announcementReadId String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.Uuid
+  announcementId     String   @db.Uuid
+  agentId            String   @db.Uuid
+  readAt             DateTime @default(now()) @db.Timestamptz(6)
+  acknowledgedAt     DateTime? @db.Timestamptz(6)
+
+  tenant       tenants       @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  announcement announcements @relation(fields: [announcementId], references: [announcementId], onDelete: Cascade)
+  agent        agents        @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([tenantId, announcementId, agentId])
+  @@index([tenantId, agentId, acknowledgedAt])
 }
 
 model branches {

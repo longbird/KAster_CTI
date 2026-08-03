@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateAnnouncementDto {
   @ApiProperty({ example: '시스템 점검 안내' })
@@ -22,4 +22,40 @@ export class CreateAnnouncementDto {
   @IsOptional()
   @IsBoolean()
   pinned?: boolean;
+
+  @ApiProperty({ required: false, example: 'NOTICE', enum: ['NOTICE', 'UPDATE'] })
+  @IsOptional()
+  @IsIn(['NOTICE', 'UPDATE'])
+  category?: string;
+
+  @ApiProperty({ required: false, example: 'ADMIN', enum: ['ADMIN', 'AGENT', 'ALL'] })
+  @IsOptional()
+  @IsIn(['ADMIN', 'AGENT', 'ALL'])
+  targetApp?: string;
+
+  @ApiProperty({ required: false, example: true })
+  @IsOptional()
+  @IsBoolean()
+  showOnLogin?: boolean;
+
+  @ApiProperty({ required: false, example: 'INFO', enum: ['INFO', 'IMPORTANT', 'CRITICAL'] })
+  @IsOptional()
+  @IsIn(['INFO', 'IMPORTANT', 'CRITICAL'])
+  severity?: string;
+
+  @ApiProperty({ required: false, example: '2026.08.03' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  releaseTag?: string;
+
+  @ApiProperty({ required: false, example: '2026-08-03T00:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  effectiveFrom?: string;
+
+  @ApiProperty({ required: false, example: '2026-08-10T00:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
 }

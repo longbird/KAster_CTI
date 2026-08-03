@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, PushpinOutlined } from '@ant-design/icons';
-import { Button, Card, Form, Input, Modal, Space, Switch, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, DatePicker, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -11,7 +11,36 @@ interface Notice {
   body: string;
   authorName: string;
   createdAt: string;
+  category?: 'NOTICE' | 'UPDATE';
+  targetApp?: 'ADMIN' | 'AGENT' | 'ALL';
+  showOnLogin?: boolean;
+  severity?: 'INFO' | 'IMPORTANT' | 'CRITICAL';
+  releaseTag?: string | null;
+  effectiveFrom?: string | null;
+  expiresAt?: string | null;
   pinned: boolean;
+}
+
+interface NoticeFormValue {
+  title: string;
+  body: string;
+  authorName?: string;
+  pinned?: boolean;
+  category?: 'NOTICE' | 'UPDATE';
+  targetApp?: 'ADMIN' | 'AGENT' | 'ALL';
+  showOnLogin?: boolean;
+  severity?: 'INFO' | 'IMPORTANT' | 'CRITICAL';
+  releaseTag?: string;
+  effectiveFrom?: dayjs.Dayjs | null;
+  expiresAt?: dayjs.Dayjs | null;
+}
+
+function toPayload(values: NoticeFormValue) {
+  return {
+    ...values,
+    effectiveFrom: values.effectiveFrom ? values.effectiveFrom.toISOString() : null,
+    expiresAt: values.expiresAt ? values.expiresAt.toISOString() : null,
+  };
 }
 
 export function AnnouncementsPage() {
@@ -20,7 +49,7 @@ export function AnnouncementsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Notice | null>(null);
-  const [form] = Form.useForm<{ title: string; body: string; authorName?: string; pinned?: boolean }>();
+  const [form] = Form.useForm<NoticeFormValue>();
   const permission = usePermissionStore((s) => s.permissionsByMenu['announcements']);
   const canCreate = permission?.canCreate ?? true;
   const canUpdate = permission?.canUpdate ?? true;
@@ -47,11 +76,12 @@ export function AnnouncementsPage() {
     const values = await form.validateFields();
     setSubmitting(true);
     try {
+      const payload = toPayload(values);
       if (editing) {
-        await apiClient.post(`/admin/announcements/${editing.announcementId}`, values);
+        await apiClient.post(`/admin/announcements/${editing.announcementId}`, payload);
         message.success('공지사항을 수정했습니다.');
       } else {
-        await apiClient.post('/admin/announcements', values);
+        await apiClient.post('/admin/announcements', payload);
         message.success('공지사항을 등록했습니다.');
       }
       form.resetFields();
@@ -88,7 +118,13 @@ export function AnnouncementsPage() {
             onClick={() => {
               setEditing(null);
               form.resetFields();
-              form.setFieldsValue({ pinned: false });
+              form.setFieldsValue({
+                pinned: false,
+                category: 'NOTICE',
+                targetApp: 'ALL',
+                showOnLogin: false,
+                severity: 'INFO',
+              });
               setOpen(true);
             }}
           >
@@ -103,7 +139,7 @@ export function AnnouncementsPage() {
         loading={loading}
         size="small"
         tableLayout="fixed"
-        scroll={{ x: 1120 }}
+        scroll={{ x: 1400 }}
         expandable={{
           expandedRowRender: (row) => (
             <Typography.Paragraph style={{ margin: 0 }}>{row.body}</Typography.Paragraph>
@@ -113,7 +149,7 @@ export function AnnouncementsPage() {
           {
             title: '제목',
             dataIndex: 'title',
-            width: 420,
+            width: 360,
             render: (value: string, row: Notice) => (
               <Space style={{ maxWidth: '100%' }}>
                 {row.pinned && (
@@ -126,9 +162,41 @@ export function AnnouncementsPage() {
             ),
           },
           {
+            title: '유형',
+            dataIndex: 'category',
+            width: 130,
+            render: (value: Notice['category'], row: Notice) => (
+              <Space size={4}>
+                <Tag color={value === 'UPDATE' ? 'blue' : 'default'}>
+                  {value === 'UPDATE' ? '업데이트' : '공지'}
+                </Tag>
+                {row.showOnLogin ? <Tag color="green">로그인</Tag> : null}
+              </Space>
+            ),
+          },
+          {
+            title: '대상',
+            dataIndex: 'targetApp',
+            width: 90,
+            render: (value: Notice['targetApp']) => {
+              const label = value === 'ADMIN' ? '관리자' : value === 'AGENT' ? '상담원' : '전체';
+              return <Tag>{label}</Tag>;
+            },
+          },
+          {
+            title: '중요도',
+            dataIndex: 'severity',
+            width: 100,
+            render: (value: Notice['severity']) => {
+              const color = value === 'CRITICAL' ? 'red' : value === 'IMPORTANT' ? 'orange' : 'default';
+              const label = value === 'CRITICAL' ? '긴급' : value === 'IMPORTANT' ? '중요' : '일반';
+              return <Tag color={color}>{label}</Tag>;
+            },
+          },
+          {
             title: '내용',
             dataIndex: 'body',
-            width: 340,
+            width: 300,
             render: (value: string) => (
               <Typography.Text type="secondary" ellipsis={{ tooltip: value }}>
                 {value}
@@ -159,6 +227,13 @@ export function AnnouncementsPage() {
                         body: row.body,
                         authorName: row.authorName,
                         pinned: row.pinned,
+                        category: row.category ?? 'NOTICE',
+                        targetApp: row.targetApp ?? 'ALL',
+                        showOnLogin: row.showOnLogin ?? false,
+                        severity: row.severity ?? 'INFO',
+                        releaseTag: row.releaseTag ?? undefined,
+                        effectiveFrom: row.effectiveFrom ? dayjs(row.effectiveFrom) : null,
+                        expiresAt: row.expiresAt ? dayjs(row.expiresAt) : null,
                       });
                       setOpen(true);
                     }}
@@ -191,7 +266,11 @@ export function AnnouncementsPage() {
         cancelText="취소"
         confirmLoading={submitting}
       >
-        <Form form={form} layout="vertical" initialValues={{ pinned: false }}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ pinned: false, category: 'NOTICE', targetApp: 'ALL', showOnLogin: false, severity: 'INFO' }}
+        >
           <Form.Item label="제목" name="title" rules={[{ required: true, message: '제목을 입력하세요' }]}>
             <Input maxLength={200} />
           </Form.Item>
@@ -201,9 +280,53 @@ export function AnnouncementsPage() {
           <Form.Item label="작성자" name="authorName">
             <Input maxLength={50} placeholder="관리자" />
           </Form.Item>
-          <Form.Item label="상단 고정" name="pinned" valuePropName="checked">
-            <Switch />
+          <Space style={{ width: '100%' }} align="start">
+            <Form.Item label="유형" name="category" style={{ flex: 1 }}>
+              <Select
+                options={[
+                  { value: 'NOTICE', label: '공지' },
+                  { value: 'UPDATE', label: '업데이트' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="대상" name="targetApp" style={{ flex: 1 }}>
+              <Select
+                options={[
+                  { value: 'ALL', label: '전체' },
+                  { value: 'ADMIN', label: '관리자' },
+                  { value: 'AGENT', label: '상담원' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="중요도" name="severity" style={{ flex: 1 }}>
+              <Select
+                options={[
+                  { value: 'INFO', label: '일반' },
+                  { value: 'IMPORTANT', label: '중요' },
+                  { value: 'CRITICAL', label: '긴급' },
+                ]}
+              />
+            </Form.Item>
+          </Space>
+          <Form.Item label="릴리스 태그" name="releaseTag">
+            <Input maxLength={64} placeholder="2026.08.03" />
           </Form.Item>
+          <Space style={{ width: '100%' }} align="start">
+            <Form.Item label="노출 시작" name="effectiveFrom" style={{ flex: 1 }}>
+              <DatePicker showTime style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item label="노출 종료" name="expiresAt" style={{ flex: 1 }}>
+              <DatePicker showTime style={{ width: '100%' }} />
+            </Form.Item>
+          </Space>
+          <Space>
+            <Form.Item label="상단 고정" name="pinned" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item label="로그인 표시" name="showOnLogin" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Space>
         </Form>
       </Modal>
     </Card>

@@ -61,6 +61,28 @@ interface BranchRoutingRule {
   daysOfWeek: string[];
 }
 
+type AnnouncementWriteDto = CreateAnnouncementDto | UpdateAnnouncementDto;
+
+function nullableDate(value?: string | null) {
+  return value ? new Date(value) : null;
+}
+
+function buildAnnouncementData(dto: AnnouncementWriteDto, actor?: { agentName?: string }) {
+  return {
+    title: dto.title,
+    body: dto.body,
+    authorName: dto.authorName || actor?.agentName || '관리자',
+    pinned: dto.pinned ?? false,
+    category: dto.category ?? 'NOTICE',
+    targetApp: dto.targetApp ?? 'ALL',
+    showOnLogin: dto.showOnLogin ?? false,
+    severity: dto.severity ?? 'INFO',
+    releaseTag: dto.releaseTag?.trim() || null,
+    effectiveFrom: nullableDate(dto.effectiveFrom),
+    expiresAt: nullableDate(dto.expiresAt),
+  };
+}
+
 interface BranchForwardingRuleSchedule {
   conditionType: 'ALWAYS' | 'TIME_RANGE';
   timeStart: string | null;
@@ -1930,13 +1952,11 @@ export class AdminService {
     dto: CreateAnnouncementDto,
     actor?: { agentName?: string },
   ) {
+    const data = buildAnnouncementData(dto, actor);
     const row = await this.prisma.announcements.create({
       data: {
         tenantId,
-        title: dto.title,
-        body: dto.body,
-        authorName: dto.authorName || actor?.agentName || '관리자',
-        pinned: dto.pinned ?? false,
+        ...data,
       },
     });
 
@@ -1949,6 +1969,11 @@ export class AdminService {
         body: row.body,
         authorName: row.authorName,
         pinned: row.pinned,
+        category: row.category,
+        targetApp: row.targetApp,
+        showOnLogin: row.showOnLogin,
+        severity: row.severity,
+        releaseTag: row.releaseTag,
         createdAt: row.createdAt,
       },
       tenantId,
@@ -1963,13 +1988,11 @@ export class AdminService {
     dto: UpdateAnnouncementDto,
     actor?: { agentName?: string },
   ) {
+    const data = buildAnnouncementData(dto, actor);
     const row = await this.prisma.announcements.updateMany({
       where: { tenantId, announcementId },
       data: {
-        title: dto.title,
-        body: dto.body,
-        authorName: dto.authorName || actor?.agentName || '관리자',
-        pinned: dto.pinned ?? false,
+        ...data,
         updatedAt: new Date(),
       },
     });
@@ -1980,16 +2003,84 @@ export class AdminService {
         {
           action: 'updated',
           announcementId,
-          title: dto.title,
-          body: dto.body,
-          authorName: dto.authorName || actor?.agentName || '관리자',
-          pinned: dto.pinned ?? false,
+          ...data,
         },
         tenantId,
       );
     }
 
     return { success: true, data: { updated: row.count > 0, announcementId }, error: null };
+  }
+
+  async listLoginUpdateAnnouncements(tenantId: string, agentId: string) {
+    const now = new Date();
+    const rows = await this.prisma.announcements.findMany({
+      where: {
+        tenantId,
+        category: 'UPDATE',
+        targetApp: { in: ['ADMIN', 'ALL'] },
+        showOnLogin: true,
+        OR: [
+          { effectiveFrom: null },
+          { effectiveFrom: { lte: now } },
+        ],
+        AND: [
+          {
+            OR: [
+              { expiresAt: null },
+              { expiresAt: { gt: now } },
+            ],
+          },
+          {
+            reads: {
+              none: {
+                tenantId,
+                agentId,
+                acknowledgedAt: { not: null },
+              },
+            },
+          },
+        ],
+      },
+      orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
+      take: 10,
+    });
+
+    return { success: true, data: rows, error: null };
+  }
+
+  async acknowledgeAnnouncement(tenantId: string, announcementId: string, agentId: string) {
+    const announcement = await this.prisma.announcements.findFirst({
+      where: { tenantId, announcementId },
+      select: { announcementId: true },
+    });
+    if (!announcement) {
+      throw new NotFoundException('공지사항을 찾을 수 없습니다.');
+    }
+
+    const now = new Date();
+    const row = await this.prisma.announcementReads.upsert({
+      where: {
+        tenantId_announcementId_agentId: {
+          tenantId,
+          announcementId,
+          agentId,
+        },
+      },
+      create: {
+        tenantId,
+        announcementId,
+        agentId,
+        readAt: now,
+        acknowledgedAt: now,
+      },
+      update: {
+        readAt: now,
+        acknowledgedAt: now,
+      },
+    });
+
+    return { success: true, data: row, error: null };
   }
 
   async deleteAnnouncement(tenantId: string, announcementId: string) {
