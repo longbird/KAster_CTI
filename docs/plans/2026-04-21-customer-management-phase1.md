@@ -761,7 +761,7 @@ git commit -m "Show customer summaries in agent web app"
 
 **Files:**
 - Modify: `docs/design/2026-04-21-customer-management-phase1-design.md`
-- Create: `docs/superpowers/verification/customer-management-phase1-checklist.md`
+- Create: `docs/qa/2026-04-21-customer-management-phase1-verification.md`
 
 - [ ] **Step 1: Add a manual verification checklist**
 
@@ -806,7 +806,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/superpowers/verification/customer-management-phase1-checklist.md docs/design/2026-04-21-customer-management-phase1-design.md
+git add docs/qa/2026-04-21-customer-management-phase1-verification.md docs/design/2026-04-21-customer-management-phase1-design.md
 git commit -m "Add customer management verification checklist"
 ```
 
