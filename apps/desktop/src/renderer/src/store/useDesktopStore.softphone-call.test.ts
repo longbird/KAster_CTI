@@ -198,6 +198,25 @@ function resetStore() {
   });
 }
 
+const ENABLED_CALL_CAPABILITIES = {
+  canOriginateExternal: true,
+  canOriginateInternal: true,
+  canUsePhoneDirect: false,
+  outboundDialPermissions: {
+    phoneDirect: false,
+    phoneDirectAllowedIps: [],
+    domestic: true,
+    representative: true,
+    paid: false,
+    international: false,
+  },
+  outboundDialOptions: {
+    allowedCallerIds: ['15777893'],
+    defaultCallerId: '15777893',
+  },
+  disabledReasons: [],
+};
+
 describe('useDesktopStore softphone call state', () => {
   beforeEach(() => {
     softphoneClientMocks.start.mockClear();
@@ -273,6 +292,8 @@ describe('useDesktopStore softphone call state', () => {
 
   it('PBX 발신 직후 들어온 상담원 INVITE 는 수신 알림 없이 발신 연결로 자동 응답한다', async () => {
     await useDesktopStore.getState().initialize();
+    // originate 는 발신 권한을 요구한다. 권한 조회 없이는 즉시 거부된다.
+    useDesktopStore.setState({ callCapabilities: ENABLED_CALL_CAPABILITIES } as any);
 
     await useDesktopStore.getState().originate('01034623453', '07052346380');
     softphoneClientMocks.getCallbacks()?.onCallState({

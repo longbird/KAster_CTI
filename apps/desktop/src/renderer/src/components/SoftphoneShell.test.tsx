@@ -10,7 +10,27 @@ const desktopApi = {
 
 vi.stubGlobal('window', { desktopApi });
 
+const ENABLED_CALL_CAPABILITIES = {
+  canOriginateExternal: true,
+  canOriginateInternal: true,
+  canUsePhoneDirect: false,
+  outboundDialPermissions: {
+    phoneDirect: false,
+    phoneDirectAllowedIps: [],
+    domestic: true,
+    representative: true,
+    paid: false,
+    international: false,
+  },
+  outboundDialOptions: {
+    allowedCallerIds: ['15777893'],
+    defaultCallerId: '15777893',
+  },
+  disabledReasons: [],
+};
+
 const baseProps = {
+  callCapabilities: ENABLED_CALL_CAPABILITIES,
   config: {
     serverUrl: 'https://cti-center-a.example.com',
     channel: 'stable',
@@ -302,7 +322,8 @@ describe('SoftphoneShell', () => {
     expect(baseProps.onOriginate).toHaveBeenCalledWith('01012345678', '15777893');
   });
 
-  it('발신번호 목록이 비어 있어도 PBX runtime 연결 상태면 외부 발신을 허용한다', () => {
+  it('발신번호가 없으면 외부 발신을 막고 사유를 보여준다', () => {
+    // 발신번호 정책이 강화되면서(outbound caller ID 필수) 빈 목록은 더 이상 허용되지 않는다.
     render(<SoftphoneShell {...baseProps} softphone={null} callerIds={[]} defaultCallerId={null} />);
 
     fireEvent.change(screen.getByLabelText('외부 발신 번호'), {
@@ -310,7 +331,29 @@ describe('SoftphoneShell', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '발신' }));
 
-    expect(baseProps.onOriginate).toHaveBeenCalledWith('01012345678', '');
+    expect(baseProps.onOriginate).not.toHaveBeenCalled();
+    expect(screen.getByText('등록된 발신번호가 없습니다.')).toBeTruthy();
+  });
+
+  it('발신 권한이 없으면 서버가 준 사유를 그대로 보여준다', () => {
+    render(
+      <SoftphoneShell
+        {...baseProps}
+        callCapabilities={{
+          ...ENABLED_CALL_CAPABILITIES,
+          canOriginateExternal: false,
+          disabledReasons: ['외부 발신 번호 유형 권한이 없습니다.'],
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('외부 발신 번호'), {
+      target: { value: '01012345678' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '발신' }));
+
+    expect(baseProps.onOriginate).not.toHaveBeenCalled();
+    expect(screen.getByText('외부 발신 번호 유형 권한이 없습니다.')).toBeTruthy();
   });
 
   it('내선 상담원 클릭 후 확인 팝업에서 연결한다', async () => {
