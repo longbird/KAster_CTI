@@ -98,3 +98,37 @@ describe('SMDR call report formatter', () => {
     })).toBeNull();
   });
 });
+
+describe('SMDR CDR 시각의 타임존 독립성', () => {
+  // 서버가 UTC 로 배포돼도 CID 프로그램에는 KST 로 찍혀야 한다.
+  // getHours() 같은 로컬 접근자를 쓰면 9시간 어긋난 통화 이력이 현장에 표시된다.
+  const KST_NOON = new Date('2026-07-29T12:34:56+09:00');
+
+  function lineFor(date: Date) {
+    return buildSmdrCallReport(REALTIME_EVENTS.CALL_ENDED, {
+      callId: 'call-tz',
+      direction: 'inbound',
+      ani: '15990001',
+      dnis: '1001',
+      startedAt: date,
+      answeredAt: date,
+      endedAt: date,
+      talkSeconds: 37,
+      agentExtension: '1001',
+    } as any)?.line;
+  }
+
+  it('프로세스 TZ 와 무관하게 같은 시각을 낸다', () => {
+    const original = process.env.TZ;
+    try {
+      const rendered = new Set<string>();
+      for (const tz of ['UTC', 'America/New_York', 'Asia/Seoul']) {
+        process.env.TZ = tz;
+        rendered.add(lineFor(KST_NOON)?.slice(26, 40) ?? 'none');
+      }
+      expect([...rendered]).toEqual(['07/29 12:34:56']);
+    } finally {
+      process.env.TZ = original;
+    }
+  });
+});

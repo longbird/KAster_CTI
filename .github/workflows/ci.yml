@@ -42,6 +42,10 @@ jobs:
     defaults:
       run:
         working-directory: apps/server
+    # prisma validate / migrate diff 는 datasource url 을 파싱한다. 실제 연결은 하지 않지만
+    # 변수가 없으면 P1012 로 죽는다.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

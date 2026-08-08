@@ -350,7 +350,7 @@ describe('CallsService branch filter integration', () => {
     prisma.callRecordings.findFirst.mockResolvedValue({
       recordingId: 'rec-local-1',
       tenantId: 'tenant-1',
-      filePath: 'D:\\recordings\\2026\\rec-local-1.wav',
+      filePath: '/var/spool/asterisk/monitor/2026/rec-local-1.wav',
       fileName: 'rec-local-1.wav',
       fileFormat: 'wav',
       fileSizeBytes: BigInt(2048),
@@ -360,7 +360,7 @@ describe('CallsService branch filter integration', () => {
     await expect(service.getRecordingFile('tenant-1', 'rec-local-1')).resolves.toMatchObject({
       recordingId: 'rec-local-1',
       tenantId: 'tenant-1',
-      filePath: 'D:\\recordings\\2026\\rec-local-1.wav',
+      filePath: '/var/spool/asterisk/monitor/2026/rec-local-1.wav',
       fileName: 'rec-local-1.wav',
       fileSizeBytes: BigInt(2048),
       contentType: 'audio/wav',
@@ -396,29 +396,29 @@ describe('CallsService branch filter integration', () => {
     prisma.callRecordings.findFirst.mockResolvedValue({
       recordingId: 'rec-stereo-1',
       tenantId: 'tenant-1',
-      filePath: 'D:\\recordings\\2026\\rec-stereo-1.raw',
+      filePath: '/var/spool/asterisk/monitor/2026/rec-stereo-1.raw',
       fileName: 'rec-stereo-1.raw',
       fileFormat: 'raw',
       fileSizeBytes: BigInt(4096),
       storageProvider: 'local',
       encryptionStatus: 'ENCRYPTED',
-      encryptedFilePath: 'E:\\recordings-secure\\2026\\rec-stereo-1.raw.enc',
-      playbackFilePath: 'D:\\recordings\\2026\\rec-stereo-1.wav',
+      encryptedFilePath: '/var/spool/asterisk/secure/2026/rec-stereo-1.raw.enc',
+      playbackFilePath: '/var/spool/asterisk/monitor/2026/rec-stereo-1.wav',
       playbackFileFormat: 'wav',
       playbackFileSizeBytes: BigInt(8192),
-      encryptedPlaybackFilePath: 'E:\\recordings-secure\\2026\\rec-stereo-1.wav.enc',
+      encryptedPlaybackFilePath: '/var/spool/asterisk/secure/2026/rec-stereo-1.wav.enc',
       callId: 'call-1',
       linkedid: 'L-1',
     });
 
     await expect(service.getRecordingFile('tenant-1', 'rec-stereo-1')).resolves.toMatchObject({
       recordingId: 'rec-stereo-1',
-      filePath: 'D:\\recordings\\2026\\rec-stereo-1.wav',
+      filePath: '/var/spool/asterisk/monitor/2026/rec-stereo-1.wav',
       fileName: 'rec-stereo-1.wav',
       fileFormat: 'wav',
       fileSizeBytes: BigInt(8192),
       encryptionStatus: 'ENCRYPTED',
-      encryptedFilePath: 'E:\\recordings-secure\\2026\\rec-stereo-1.wav.enc',
+      encryptedFilePath: '/var/spool/asterisk/secure/2026/rec-stereo-1.wav.enc',
       contentType: 'audio/wav',
     });
   });

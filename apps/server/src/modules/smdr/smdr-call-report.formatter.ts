@@ -123,13 +123,30 @@ function toDate(value?: string | Date | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// CDR 시각은 서버의 로컬 타임존이 아니라 **명시된 타임존**으로 찍는다.
+// getHours() 같은 로컬 접근자를 쓰면 UTC 로 배포된 서버가 CID 프로그램에 9시간 어긋난
+// 시각을 보낸다. 현장 프로그램은 이 값을 그대로 통화 이력으로 표시한다.
+const CDR_TIMEZONE = process.env.PBX_CDR_TIMEZONE?.trim() || 'Asia/Seoul';
+
+const CDR_DATE_FORMAT = new Intl.DateTimeFormat('en-US', {
+  timeZone: CDR_TIMEZONE,
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+});
+
 function formatSamsungDateTime(value: Date) {
-  const mm = String(value.getMonth() + 1).padStart(2, '0');
-  const dd = String(value.getDate()).padStart(2, '0');
-  const hh = String(value.getHours()).padStart(2, '0');
-  const mi = String(value.getMinutes()).padStart(2, '0');
-  const ss = String(value.getSeconds()).padStart(2, '0');
-  return `${mm}/${dd} ${hh}:${mi}:${ss}`;
+  const parts = Object.fromEntries(
+    CDR_DATE_FORMAT.formatToParts(value)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  );
+  // hour12:false 는 자정을 '24' 로 주는 구현이 있어 '00' 으로 정규화한다.
+  const hh = parts.hour === '24' ? '00' : parts.hour;
+  return `${parts.month}/${parts.day} ${hh}:${parts.minute}:${parts.second}`;
 }
 
 function formatHhMmSs(totalSeconds: number) {
