@@ -915,6 +915,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       trunks,
       trunkGroups,
       speedDials,
+      featureCodes,
       agents,
       pjsipAgents,
       dids,
@@ -965,6 +966,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       }),
       outboundCallerIdRules,
       speedDials,
+      featureCodes,
     });
     const queuesContent = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -1017,6 +1019,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       trunks,
       trunkGroups,
       speedDials,
+      featureCodes,
       agents,
       pjsipAgents,
       dids,
@@ -1067,6 +1070,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       }),
       outboundCallerIdRules,
       speedDials,
+      featureCodes,
     });
     const queues = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -1263,7 +1267,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
   }
 
   private async fetchTenantData(tenantId: string) {
-    const [trunks, trunkGroups, speedDials, agents, didRows, ivrMenus, forwardingRules, queueOverflowRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
+    const [trunks, trunkGroups, speedDials, featureCodes, agents, didRows, ivrMenus, forwardingRules, queueOverflowRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
       (this.prisma as any).asteriskTrunkGroup?.findMany
         ? (this.prisma as any).asteriskTrunkGroup.findMany({
@@ -1282,6 +1286,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         ? (this.prisma as any).asteriskSpeedDial.findMany({
           where: { tenantId, enabled: true },
           orderBy: [{ code: 'asc' }],
+        })
+        : Promise.resolve([]),
+      (this.prisma as any).featureCodes?.findMany
+        ? (this.prisma as any).featureCodes.findMany({
+          where: { tenantId, enabled: true },
+          orderBy: [{ featureKey: 'asc' }],
         })
         : Promise.resolve([]),
       this.prisma.agents.findMany({
@@ -1381,6 +1391,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       trunks,
       trunkGroups,
       speedDials,
+      featureCodes,
       sipRegisterPort: typedSettings?.sipRegisterPort ?? DEFAULT_SIP_REGISTER_PORT,
       recordingChannelMode: normalizeRecordingChannelMode(typedSettings?.recordingChannelMode),
       allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,

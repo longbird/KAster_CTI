@@ -264,7 +264,7 @@ export class AuthService {
       success: true,
       data: {
         agent,
-        callControlCapabilities: this.callsService.getCallControlCapabilities(),
+        callControlCapabilities: await this.callsService.getCallControlCapabilities(agent.tenantId),
         outboundDialOptions,
         callCapabilities,
         softphoneConfig: this.buildSoftphoneConfig(agent),

@@ -190,6 +190,88 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('Dial(PJSIP/1002,20,tTU(agent-pre-bridge))');
   });
 
+  describe('기능코드', () => {
+    const agent = {
+      extension: '1001',
+      outboundEnabled: true,
+      callerIdPrivacy: 'allowed_not_screened' as const,
+      liveRecordingEnabled: false,
+    };
+    const base = {
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [agent],
+    };
+
+    it('대리응답 코드는 네이티브 Pickup() 으로 렌더링한다', () => {
+      // pjsip.renderer 가 이미 named_pickup_group 을 내보내므로 대상 선택은
+      // PBX 가 한다. 서버 훅이 필요 없다.
+      const rendered = renderAgentDialplan({
+        ...base,
+        featureCodes: [{ featureKey: 'pickup', code: '*8', enabled: true }],
+      });
+
+      expect(rendered).toContain('exten => *8,1,NoOp(Feature code pickup / agent 1001)');
+      expect(rendered).toContain(' same => n,Pickup()');
+    });
+
+    it('서버 발신 DTMF 기능은 dialplan 에 렌더링하지 않는다', () => {
+      // hold/resume/상담전환완료 는 서버가 PBX 로 보내는 DTMF 다.
+      // 단말 다이얼로 열면 CTI 세션 상태와 어긋난다.
+      const rendered = renderAgentDialplan({
+        ...base,
+        featureCodes: [
+          { featureKey: 'hold', code: '*71', enabled: true },
+          { featureKey: 'resume', code: '*72', enabled: true },
+          { featureKey: 'attendedTransferComplete', code: '*2', enabled: true },
+        ],
+      });
+
+      expect(rendered).not.toContain('exten => *71,');
+      expect(rendered).not.toContain('exten => *72,');
+      expect(rendered).not.toContain('exten => *2,');
+    });
+
+    it('비활성이거나 코드가 없으면 렌더링하지 않는다', () => {
+      const rendered = renderAgentDialplan({
+        ...base,
+        featureCodes: [
+          { featureKey: 'pickup', code: '*8', enabled: false },
+        ],
+      });
+
+      expect(rendered).not.toContain('Pickup()');
+    });
+
+    it('카탈로그에 없는 키는 무시한다', () => {
+      const rendered = renderAgentDialplan({
+        ...base,
+        featureCodes: [{ featureKey: '알수없는기능', code: '*9', enabled: true }],
+      });
+
+      expect(rendered).not.toContain('exten => *9,');
+    });
+
+    it('전체 잠금 상담원에게는 기능코드를 열지 않는다', () => {
+      const rendered = renderAgentDialplan({
+        ...base,
+        agents: [{ ...agent, extensionLockMode: 'FULL_LOCKED' as const }],
+        featureCodes: [{ featureKey: 'pickup', code: '*8', enabled: true }],
+      });
+
+      expect(rendered).not.toContain('Pickup()');
+    });
+
+    it('코드에 개행이 섞이면 렌더링을 거부한다', () => {
+      expect(() => renderAgentDialplan({
+        ...base,
+        featureCodes: [{ featureKey: 'pickup', code: '*8\nexten => evil,1,Hangup()', enabled: true }],
+      })).toThrow('illegal newline');
+    });
+  });
+
   it('인바운드 전용 상담원은 외부 발신 컨텍스트에서 차단한다', () => {
     const rendered = renderAgentDialplan({
       allowDirectSipDial: true,

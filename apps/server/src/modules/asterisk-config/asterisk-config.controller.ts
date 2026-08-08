@@ -18,6 +18,7 @@ import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptTtsDto } from './dto/create-prompt-tts.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateSpeedDialDto, UpdateSpeedDialDto } from './dto/speed-dial.dto';
+import { UpsertFeatureCodeDto } from './dto/feature-code.dto';
 import { CreateBulkTrunksDto, CreateTrunkDto, CreateTrunkGroupDto, UpdateTrunkDto, UpdateTrunkGroupDto } from './dto/trunk.dto';
 import { UpdateSipPasswordDto } from './dto/update-sip-password.dto';
 import { ExecuteOptOutActionDto } from '../opt-out/dto/execute-opt-out-action.dto';
@@ -103,6 +104,9 @@ export class AsteriskConfigController {
   @Delete('dids/:id') @HttpCode(204) @ApiResponse({ status: 204, description: 'Deleted' }) async deleteDid(@CurrentUser() u: any, @Param('id') id: string) { await this.assertAsteriskAction(u, 'delete'); return this.svc.deleteDid(u.tenantId, id); }
 
   // Speed dials
+  @Get('feature-codes') async getFeatureCodes(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getFeatureCodes(u.tenantId); }
+  @Put('feature-codes') async upsertFeatureCode(@CurrentUser() u: any, @Body() dto: UpsertFeatureCodeDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.upsertFeatureCode(u.tenantId, dto); }
+
   @Get('speed-dials') async getSpeedDials(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.svc.getSpeedDials(u.tenantId); }
   @Post('speed-dials') async createSpeedDial(@CurrentUser() u: any, @Body() dto: CreateSpeedDialDto) { await this.assertAsteriskAction(u, 'create'); return this.svc.createSpeedDial(u.tenantId, dto); }
   @Put('speed-dials/:id') async updateSpeedDial(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateSpeedDialDto) { await this.assertAsteriskAction(u, 'update'); return this.svc.updateSpeedDial(u.tenantId, id, dto); }

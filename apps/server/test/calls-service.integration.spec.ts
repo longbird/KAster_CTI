@@ -22,6 +22,9 @@ describe('CallsService branch filter integration', () => {
     tenantSystemSettings: {
       findUnique: jest.fn(),
     },
+    featureCodes: {
+      findFirst: jest.fn(),
+    },
     attendedTransferCandidates: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -780,8 +783,8 @@ describe('CallsService branch filter integration', () => {
     });
   });
 
-  it('getCallControlCapabilities 는 현재 제공 불가능한 제어 기능의 이유를 노출한다', () => {
-    const result = service.getCallControlCapabilities();
+  it('getCallControlCapabilities 는 현재 제공 불가능한 제어 기능의 이유를 노출한다', async () => {
+    const result = await service.getCallControlCapabilities('tenant-1');
 
     expect(result).toEqual(expect.objectContaining({
       answerEnabled: true,

@@ -17,6 +17,13 @@ import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwardi
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateSpeedDialDto, UpdateSpeedDialDto } from './dto/speed-dial.dto';
+import { UpsertFeatureCodeDto } from './dto/feature-code.dto';
+import {
+  assertFeatureCodeUsable,
+  FEATURE_CODE_CATALOG,
+  getFeatureCodeCatalogEntry,
+  normalizeFeatureCode,
+} from '../../common/feature-code-catalog';
 import { CreateBulkTrunksDto, CreateTrunkDto, CreateTrunkGroupDto, TrunkGroupMemberDto, UpdateTrunkDto, UpdateTrunkGroupDto } from './dto/trunk.dto';
 
 const FORWARDING_CONDITION_TYPES = new Set(['ALWAYS', 'TIME_RANGE']);
@@ -668,6 +675,86 @@ export class AsteriskConfigService {
   }
 
   // ─── Speed dials ──────────────────────────────────────────────────────────
+
+  /**
+   * 카탈로그 전체를 반환한다. 저장된 행이 없는 기능은 기본값으로 채워 보낸다.
+   * 화면이 "지원하는 기능 목록"과 "설정된 값"을 따로 조회하지 않아도 되게 한다.
+   */
+  async getFeatureCodes(tenantId: string) {
+    const rows = await (this.prisma as any).featureCodes.findMany({ where: { tenantId } });
+    const byKey = new Map<string, any>(rows.map((row: any) => [row.featureKey, row]));
+
+    return FEATURE_CODE_CATALOG.map((entry) => {
+      const row = byKey.get(entry.featureKey);
+      return {
+        featureKey: entry.featureKey,
+        label: entry.label,
+        description: entry.description,
+        invocation: entry.invocation,
+        optional: entry.optional,
+        defaultCode: entry.defaultCode,
+        code: row ? row.code : entry.defaultCode,
+        enabled: row ? row.enabled : Boolean(entry.defaultCode),
+        configured: Boolean(row),
+      };
+    });
+  }
+
+  async upsertFeatureCode(tenantId: string, dto: UpsertFeatureCodeDto) {
+    const code = normalizeFeatureCode(dto.code);
+    if (code) {
+      assertFeatureCodeUsable(code, await this.collectFeatureCodeConflictResources(tenantId, dto.featureKey));
+    }
+
+    const enabled = dto.enabled ?? true;
+    if (enabled && !code) {
+      const entry = getFeatureCodeCatalogEntry(dto.featureKey);
+      if (entry && !entry.optional) {
+        throw new BadRequestException(`${entry.label} 은 코드 없이 활성화할 수 없습니다.`);
+      }
+    }
+
+    const existing = await (this.prisma as any).featureCodes.findFirst({
+      where: { tenantId, featureKey: dto.featureKey },
+      select: { featureCodeId: true },
+    });
+
+    const row = existing
+      ? await (this.prisma as any).featureCodes.update({
+        where: { featureCodeId: existing.featureCodeId },
+        data: { code, enabled },
+      })
+      : await (this.prisma as any).featureCodes.create({
+        data: { tenantId, featureKey: dto.featureKey, code, enabled },
+      });
+
+    this.reload.scheduleReload(tenantId);
+    return row;
+  }
+
+  private async collectFeatureCodeConflictResources(tenantId: string, featureKey: string) {
+    const [speedDials, agents, queues, dids, otherFeatureCodes] = await Promise.all([
+      this.prisma.asteriskSpeedDial.findMany({ where: { tenantId }, select: { code: true } }),
+      this.prisma.agents.findMany({ where: { tenantId }, select: { extension: true } }),
+      this.prisma.queues.findMany({ where: { tenantId }, select: { queueExten: true } }),
+      this.prisma.asteriskDid.findMany({ where: { tenantId }, select: { did: true } }),
+      (this.prisma as any).featureCodes.findMany({
+        where: { tenantId, featureKey: { not: featureKey } },
+        select: { code: true },
+      }),
+    ]);
+
+    return {
+      // 다른 기능코드와의 충돌도 같은 자리에서 잡는다. DB unique 는 최종 방어선이다.
+      speedDialCodes: [
+        ...speedDials.map((row) => row.code),
+        ...otherFeatureCodes.map((row: any) => row.code).filter(Boolean),
+      ],
+      extensions: agents.map((row) => row.extension),
+      queueExtens: queues.map((row) => row.queueExten).filter((value): value is string => Boolean(value)),
+      didNumbers: dids.map((row) => row.did),
+    };
+  }
 
   getSpeedDials(tenantId: string) {
     return this.prisma.asteriskSpeedDial.findMany({

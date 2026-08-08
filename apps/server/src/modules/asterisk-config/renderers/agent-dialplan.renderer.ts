@@ -14,6 +14,7 @@ import {
   RecordingChannelMode,
 } from './recording-mode';
 import { assertNoNewlines, toSlug } from './renderer-utils';
+import { isHandsetDialFeature } from '../../../common/feature-code-catalog';
 
 export interface AgentDialplanTrunkInput {
   id?: string;
@@ -49,6 +50,12 @@ export interface AgentDialplanSpeedDialInput {
   enabled: boolean;
 }
 
+export interface AgentDialplanFeatureCodeInput {
+  featureKey: string;
+  code: string | null;
+  enabled: boolean;
+}
+
 export type OutboundCallerIdRuleMatchType =
   | 'EXACT'
   | 'PREFIX'
@@ -74,6 +81,12 @@ export interface AgentDialplanInput {
   trunkGroups?: AgentDialplanTrunkGroupInput[];
   agents: AgentDialplanAgentInput[];
   speedDials?: AgentDialplanSpeedDialInput[];
+  /**
+   * 기능코드 registry. HANDSET_DIAL 성격인 것만 렌더링한다.
+   * SERVER_DTMF 성격(보류/해제/상담전환 완료)은 서버가 PBX 로 보내는 DTMF 라
+   * dialplan 에 열면 CTI 세션 상태와 어긋난다.
+   */
+  featureCodes?: AgentDialplanFeatureCodeInput[];
   /**
    * 아웃바운드 발신번호 매핑 룰. 빈 배열이면 dialplan 은 기존처럼 단일
    * defaultOutboundCallerId 만 사용한다. PR1-3B 에서 도입.
@@ -241,10 +254,35 @@ function renderAgentSpeedDialLines(
     });
 }
 
+function renderAgentFeatureCodeLines(
+  agent: AgentDialplanAgentInput,
+  featureCodes: AgentDialplanFeatureCodeInput[],
+): string[] {
+  return featureCodes
+    .filter((item) => item.enabled && item.code && isHandsetDialFeature(item.featureKey))
+    .flatMap((item) => {
+      const code = item.code as string;
+      assertNoNewlines(code, 'featureCode');
+
+      if (item.featureKey === 'pickup') {
+        // 대상 채널 선택은 PBX 가 한다. pjsip.renderer 가 상담원 endpoint 에
+        // named_pickup_group 을 이미 내보내므로 그룹 제한도 PBX 쪽에서 걸린다.
+        // 당겨받은 뒤 생기는 BridgeEnter 를 SessionEngine 이 받아 세션에 반영한다.
+        return [
+          `exten => ${code},1,NoOp(Feature code pickup / agent ${agent.extension})`,
+          ' same => n,Pickup()',
+          ' same => n,Hangup()',
+        ];
+      }
+      return [];
+    });
+}
+
 function renderAgentEntryContext(
   agent: AgentDialplanAgentInput,
   allowDirectSipDial: boolean,
   speedDials: AgentDialplanSpeedDialInput[] = [],
+  featureCodes: AgentDialplanFeatureCodeInput[] = [],
 ): string {
   const contextName = `agent-phone-${agent.extension}`;
   const lines = [
@@ -276,6 +314,9 @@ function renderAgentEntryContext(
   }
 
   lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial && phoneDirectEnabled, speedDials));
+  // 기능코드는 외부 발신 권한과 무관하다. 인바운드 전용 상담원도 당겨받기는 해야 한다.
+  // FULL_LOCKED 는 위에서 이미 early return 으로 걸러졌다.
+  lines.push(...renderAgentFeatureCodeLines(agent, featureCodes));
   lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
   lines.push(...buildRegisteredEndpointGuard(agent));
   lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
@@ -460,6 +501,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
   const recordingChannelMode = normalizeRecordingChannelMode(input.recordingChannelMode);
   const trunkDialTarget = getOutboundTrunkDialTarget(input.trunks, input.trunkGroups);
   const speedDials = input.speedDials ?? [];
+  const featureCodes = input.featureCodes ?? [];
   const allowedCallerIdText = input.allowedOutboundCallerIds.length > 0
     ? input.allowedOutboundCallerIds.join(',')
     : 'none';
@@ -507,7 +549,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
 
   const sections: string[] = [
     header,
-    ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial, speedDials)),
+    ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial, speedDials, featureCodes)),
     ...input.agents.map((agent) =>
       renderAgentOutboundRoute(
         agent,

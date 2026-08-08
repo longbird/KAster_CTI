@@ -47,6 +47,13 @@ const CLIENT_CALL_COMMAND_PROTOCOL = 'kaster-desktop-v1';
 const CLIENT_COMMAND_TIMESTAMP_SKEW_MS = 60_000;
 const CLIENT_COMMAND_NONCE_TTL_SECONDS = 120;
 
+// 기능코드 registry 도입 전 배포와의 호환. registry 에 행이 없을 때만 쓰인다.
+const FEATURE_CODE_ENV_FALLBACK: Record<string, string> = {
+  hold: 'ASTERISK_HOLD_FEATURE_CODE',
+  resume: 'ASTERISK_RESUME_FEATURE_CODE',
+  attendedTransferComplete: 'ASTERISK_ATXFER_COMPLETE_CODE',
+};
+
 // 당겨받기 키를 연달아 눌러도 2초 안에서는 1회만 인정한다.
 // 근거: 비씨앤 IP PBX 초안 `주요연동` 시트 — "당겨받기 기능> 키버튼 누름> 2초이내 1회만 인정".
 const PICKUP_DEBOUNCE_MS = 2_000;
@@ -1371,9 +1378,32 @@ export class CallsService {
     };
   }
 
-  getCallControlCapabilities() {
-    const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
-    const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
+  /**
+   * 기능코드 registry 를 먼저 보고, 저장된 행이 없을 때만 env 로 폴백한다.
+   * 행이 있는데 비활성이면 env 로 되돌아가지 않는다 — 운영자가 명시적으로 끈 것이다.
+   */
+  private async resolveFeatureCode(tenantId: string, featureKey: string): Promise<string> {
+    const envFallback = FEATURE_CODE_ENV_FALLBACK[featureKey];
+    let row: { code: string | null; enabled: boolean } | null = null;
+    try {
+      row = await (this.prisma as any).featureCodes?.findFirst({
+        where: { tenantId, featureKey },
+        select: { code: true, enabled: true },
+      });
+    } catch (err) {
+      // registry 조회 실패로 통화 제어가 멈추면 안 된다. env 값으로 계속 간다.
+      this.logger.warn(`feature code lookup failed (${featureKey}): ${(err as Error).message}`);
+    }
+
+    if (row) return row.enabled ? (row.code ?? '') : '';
+    return envFallback ? (process.env[envFallback]?.trim() ?? '') : '';
+  }
+
+  async getCallControlCapabilities(tenantId: string) {
+    const [holdCode, resumeCode] = await Promise.all([
+      this.resolveFeatureCode(tenantId, 'hold'),
+      this.resolveFeatureCode(tenantId, 'resume'),
+    ]);
     return {
       muteEnabled: true,
       answerEnabled: true,
@@ -1440,9 +1470,7 @@ export class CallsService {
   ) {
     const meta = normalizeCommandMeta(metaInput);
     const verifiedActor = await this.resolveCommandActor(tenantId, actor);
-    const holdCode = process.env.ASTERISK_HOLD_FEATURE_CODE?.trim() ?? '';
-    const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
-    const featureCode = action === 'hold' ? holdCode : resumeCode;
+    const featureCode = await this.resolveFeatureCode(tenantId, action);
     if (!featureCode) {
       throw new BadRequestException('현재 PBX 설정에서는 hold/resume 제어가 비활성화되어 있습니다.');
     }
