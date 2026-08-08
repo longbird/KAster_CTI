@@ -214,4 +214,58 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     expect(preview.extensionsAgent).toContain('Gosub(outbound-cid-rules-1001,${EXTEN},1)');
     expect(preview.extensionsAgent).toContain('Set(CALLERID(num)=0211111111)');
   });
+
+  it('passes system stereo recording mode into generated queue and agent dialplans', async () => {
+    const prisma = {
+      asteriskTrunk: { findMany: jest.fn().mockResolvedValue([{ name: 'Carrier Main', enabled: true }]) },
+      agents: {
+        findMany: jest.fn().mockResolvedValue([{
+          agentId: 'agent-1',
+          tenantId: 'tenant-1',
+          extension: '1001',
+          agentName: 'Agent 1',
+          sipPassword: null,
+          settingsProfile: { liveRecording: 'USE' },
+          extensionLockMode: 'UNLOCKED',
+          branchMappings: [],
+        }]),
+      },
+      asteriskDid: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskIvrMenu: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskForwardingRules: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskBlocklistEntry: { findMany: jest.fn().mockResolvedValue([]) },
+      tenantHolidayRules: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskPrompt: { findMany: jest.fn().mockResolvedValue([]) },
+      queues: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([]),
+      },
+      tenantSystemSettings: {
+        findUnique: jest.fn().mockResolvedValue({
+          allowDirectSipDial: false,
+          defaultSipPassword: null,
+          allowedOutboundCallerIds: '',
+          defaultOutboundCallerId: null,
+          sipRegisterPort: 36070,
+          recordingChannelMode: 'STEREO_RAW',
+        }),
+      },
+      outboundCallerIdRules: { findMany: jest.fn().mockResolvedValue([]) },
+    } as any;
+    const config = {
+      get: jest.fn((key: string, fallback?: string) => fallback),
+    } as any;
+    const service = new AsteriskReloadService(prisma, config, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
+
+    const preview = await service.previewConfFiles('tenant-1');
+
+    expect(prisma.tenantSystemSettings.findUnique).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1' },
+      select: expect.objectContaining({ recordingChannelMode: true }),
+    });
+    expect(preview.extensionsQueue).toContain('${UNIQUEID}.raw)');
+    expect(preview.extensionsAgent).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},bD)');
+  });
 });

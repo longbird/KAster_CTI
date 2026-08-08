@@ -2773,6 +2773,7 @@ export class AdminService {
     } as any) as
       | {
           recordingEnabled: boolean;
+          recordingChannelMode?: string | null;
           defaultMaxWaitSeconds: number;
           allowDirectSipDial?: boolean | null;
           defaultSipPassword?: string | null;
@@ -2787,6 +2788,7 @@ export class AdminService {
     const defaults = {
       tenantId,
       recordingEnabled: true,
+      recordingChannelMode: 'MONO',
       defaultMaxWaitSeconds: 45,
       allowDirectSipDial: false,
       defaultSipPassword: '',
@@ -2802,6 +2804,7 @@ export class AdminService {
       data: row
         ? {
           ...row,
+          recordingChannelMode: row.recordingChannelMode ?? 'MONO',
           defaultSipPassword: row.defaultSipPassword ?? '',
           allowedOutboundCallerIds: row.allowedOutboundCallerIds ?? '',
           defaultOutboundCallerId: row.defaultOutboundCallerId ?? '',
@@ -2873,6 +2876,7 @@ export class AdminService {
     const defaultOutboundCallerId = dto.defaultOutboundCallerId?.trim()
       ? parseAllowedCallerIds(dto.defaultOutboundCallerId)[0]
       : null;
+    const recordingChannelMode = dto.recordingChannelMode ?? 'MONO';
 
     if (defaultOutboundCallerId && !allowedOutboundCallerIds.includes(defaultOutboundCallerId)) {
       throw new BadRequestException('기본 발신번호는 허용된 발신번호 목록에 포함되어야 합니다.');
@@ -2887,6 +2891,7 @@ export class AdminService {
       create: {
         tenantId,
         recordingEnabled: dto.recordingEnabled,
+        recordingChannelMode,
         defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
         allowDirectSipDial: dto.allowDirectSipDial,
         defaultSipPassword: dto.defaultSipPassword?.trim() || null,
@@ -2898,6 +2903,7 @@ export class AdminService {
       } as any,
       update: {
         recordingEnabled: dto.recordingEnabled,
+        recordingChannelMode,
         defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
         allowDirectSipDial: dto.allowDirectSipDial,
         defaultSipPassword: dto.defaultSipPassword?.trim() || null,

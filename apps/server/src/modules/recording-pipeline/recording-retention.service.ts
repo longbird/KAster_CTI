@@ -28,6 +28,8 @@ export class RecordingRetentionService implements OnModuleInit {
         recordingId: true,
         filePath: true,
         encryptedFilePath: true,
+        playbackFilePath: true,
+        encryptedPlaybackFilePath: true,
       },
       take: 100,
     });
@@ -36,6 +38,12 @@ export class RecordingRetentionService implements OnModuleInit {
       await this.deleteIfPresent(recording.filePath);
       if (recording.encryptedFilePath) {
         await this.deleteIfPresent(recording.encryptedFilePath);
+      }
+      if (recording.playbackFilePath) {
+        await this.deleteIfPresent(recording.playbackFilePath);
+      }
+      if (recording.encryptedPlaybackFilePath) {
+        await this.deleteIfPresent(recording.encryptedPlaybackFilePath);
       }
       await (this.prisma as any).callRecordings.update({
         where: { recordingId: recording.recordingId },

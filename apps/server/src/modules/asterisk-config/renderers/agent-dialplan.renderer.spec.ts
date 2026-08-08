@@ -57,6 +57,26 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},b)');
   });
 
+  it('스테레오 녹취 모드에서는 RAW 파일명과 MixMonitor D 옵션을 생성한다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: true,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      recordingChannelMode: 'STEREO_RAW',
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: true,
+      }],
+    } as any);
+
+    expect(rendered).toContain('Set(__REC_FILE=${STRFTIME(${EPOCH},,%Y/%m/%d)}/${CHANNEL(linkedid)}-${UNIQUEID}.raw)');
+    expect(rendered).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},bD)');
+    expect(rendered).not.toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},b)');
+  });
+
   it('전화기 직접 발신은 기본 차단하고 outbound-main 은 클라이언트 발신용으로 유지한다', () => {
     const rendered = renderAgentDialplan({
       allowDirectSipDial: true,

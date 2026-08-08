@@ -1,4 +1,9 @@
 import { assertNoNewlines, toSlug } from './renderer-utils';
+import {
+  getRecordingFileExtension,
+  normalizeRecordingChannelMode,
+  RecordingChannelMode,
+} from './recording-mode';
 
 const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
 const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
@@ -117,6 +122,7 @@ export interface IvrMenuInput {
 export interface DialplanInput {
   dids: DidInput[];
   ivrMenus: IvrMenuInput[];
+  recordingChannelMode?: RecordingChannelMode;
   forwardingRules?: ForwardingRuleInput[];
   queueOverflowRules?: QueueOverflowRuleInput[];
   blocklistEntries?: BlocklistEntryInput[];
@@ -1281,6 +1287,8 @@ function renderOptOutContexts(): string {
 }
 
 export function renderDialplan(input: DialplanInput): DialplanOutput {
+  const recordingChannelMode = normalizeRecordingChannelMode(input.recordingChannelMode);
+  const recordingFileExtension = getRecordingFileExtension(recordingChannelMode);
   const forwardingRules = input.forwardingRules ?? [];
   const queueOverflowRules = (input.queueOverflowRules ?? [])
     .filter((rule) => rule.enabled)
@@ -1325,7 +1333,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     ' same => n,ExecIf($["${LEN(${QUEUE_PROMPT_MOH_CLASS})}"!="0" & "${QUEUE_PROMPT_KEEP_IN_QUEUE}"="1" & "${QUEUE_PROMPT_PRESTARTED}"!="1"]?Set(CHANNEL(musicclass)=${QUEUE_PROMPT_MOH_CLASS}))',
     ' same => n,ExecIf($["${SMART_FORWARD_ENABLED}"="1"]?Set(__QUEUE_READY_COUNT=${QUEUE_MEMBER(${QUEUE_NAME},ready)}))',
     ' same => n,ExecIf($["${SMART_FORWARD_ENABLED}"="1" & "${QUEUE_READY_COUNT}"="0"]?Goto(forward-dispatch,s,1))',
-    ' same => n,Set(__REC_FILE=${STRFTIME(${EPOCH},,%Y/%m/%d)}/${CHANNEL(linkedid)}-${UNIQUEID}.wav)',
+    ` same => n,Set(__REC_FILE=\${STRFTIME(\${EPOCH},,%Y/%m/%d)}/\${CHANNEL(linkedid)}-\${UNIQUEID}.${recordingFileExtension})`,
     ' same => n,Set(__CALL_START_TS=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})',
     ' same => n,Set(CDR(userfield)=linkedid=${CHANNEL(linkedid)};queue=${QUEUE_NAME};rec=${REC_FILE})',
     ' same => n,Queue(${QUEUE_NAME},tT,,,${QUEUE_TIMEOUT_SECS},,,agent-pre-bridge)',

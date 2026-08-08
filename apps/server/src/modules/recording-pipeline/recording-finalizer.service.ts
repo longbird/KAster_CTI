@@ -1,5 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { createReadStream, createWriteStream, promises as fs } from 'fs';
+import * as path from 'path';
+import { pipeline } from 'stream/promises';
 import { EventBusService } from '../events/event-bus.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
 import { RecordingEncryptionService } from './recording-encryption.service';
@@ -16,6 +19,7 @@ interface RecordingFinalizeJob {
 
 const DEFAULT_RETENTION_DAYS = 1095;
 const MAX_JOBS_PER_SWEEP = 50;
+const WAV_HEADER_BYTES = 44;
 
 @Injectable()
 export class RecordingFinalizerService implements OnModuleInit {
@@ -83,6 +87,7 @@ export class RecordingFinalizerService implements OnModuleInit {
   async finalizeJob(job: RecordingFinalizeJob) {
     try {
       const inspected = await this.storage.inspectLocalFile(job.recFile);
+      const playback = await this.createPlaybackVariant(inspected.filePath, inspected.fileFormat);
 
       if (inspected.fileSizeBytes <= 0) {
         await this.saveRecording(job, {
@@ -94,6 +99,10 @@ export class RecordingFinalizerService implements OnModuleInit {
           recordingStatus: 'FAILED_ZERO_BYTES',
           encryptionStatus: 'NONE',
           encryptedFilePath: null,
+          playbackFilePath: playback?.filePath ?? null,
+          playbackFileFormat: playback?.fileFormat ?? null,
+          playbackFileSizeBytes: playback ? BigInt(playback.fileSizeBytes) : null,
+          encryptedPlaybackFilePath: null,
           keyRef: null,
           failureReason: 'recording file has zero bytes',
           finalizedAt: null,
@@ -105,6 +114,9 @@ export class RecordingFinalizerService implements OnModuleInit {
       }
 
       const encrypted = await this.encryption.encryptFile(inspected.filePath);
+      const encryptedPlayback = playback
+        ? await this.encryption.encryptFile(playback.filePath)
+        : { encryptionStatus: 'NONE' as const, encryptedFilePath: null, keyRef: null };
       const finalizedAt = new Date();
       const saved = await this.saveRecording(job, {
         filePath: inspected.filePath,
@@ -115,6 +127,10 @@ export class RecordingFinalizerService implements OnModuleInit {
         recordingStatus: 'READY',
         encryptionStatus: encrypted.encryptionStatus,
         encryptedFilePath: encrypted.encryptedFilePath,
+        playbackFilePath: playback?.filePath ?? null,
+        playbackFileFormat: playback?.fileFormat ?? null,
+        playbackFileSizeBytes: playback ? BigInt(playback.fileSizeBytes) : null,
+        encryptedPlaybackFilePath: encryptedPlayback.encryptedFilePath,
         keyRef: encrypted.keyRef,
         failureReason: null,
         finalizedAt,
@@ -140,6 +156,10 @@ export class RecordingFinalizerService implements OnModuleInit {
         recordingStatus: 'MISSING',
         encryptionStatus: 'NONE',
         encryptedFilePath: null,
+        playbackFilePath: null,
+        playbackFileFormat: null,
+        playbackFileSizeBytes: null,
+        encryptedPlaybackFilePath: null,
         keyRef: null,
         failureReason: `recording file not found or unreadable: ${message}`,
         finalizedAt: null,
@@ -255,5 +275,47 @@ export class RecordingFinalizerService implements OnModuleInit {
   private fileFormatFromRecFile(recFile: string) {
     const fileName = this.fileNameFromRecFile(recFile);
     return fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() || 'wav' : 'wav';
+  }
+
+  private async createPlaybackVariant(filePath: string, fileFormat: string) {
+    if (fileFormat !== 'raw') {
+      return null;
+    }
+
+    const playbackPath = filePath.replace(/\.raw$/i, '.wav');
+    const stat = await fs.stat(filePath);
+    await fs.mkdir(path.dirname(playbackPath), { recursive: true });
+    await fs.writeFile(playbackPath, this.buildStereoPcmWavHeader(stat.size));
+    await pipeline(createReadStream(filePath), createWriteStream(playbackPath, { flags: 'a' }));
+    const playbackStat = await fs.stat(playbackPath);
+    return {
+      filePath: playbackPath,
+      fileFormat: 'wav',
+      fileSizeBytes: playbackStat.size,
+    };
+  }
+
+  private buildStereoPcmWavHeader(dataSize: number) {
+    const sampleRate = Math.max(1, Number.parseInt(process.env.RECORDING_STEREO_RAW_SAMPLE_RATE ?? '8000', 10));
+    const bitsPerSample = Math.max(8, Number.parseInt(process.env.RECORDING_STEREO_RAW_BITS_PER_SAMPLE ?? '16', 10));
+    const channels = 2;
+    const blockAlign = channels * bitsPerSample / 8;
+    const byteRate = sampleRate * blockAlign;
+    const header = Buffer.alloc(WAV_HEADER_BYTES);
+
+    header.write('RIFF', 0, 'ascii');
+    header.writeUInt32LE(36 + dataSize, 4);
+    header.write('WAVE', 8, 'ascii');
+    header.write('fmt ', 12, 'ascii');
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(channels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitsPerSample, 34);
+    header.write('data', 36, 'ascii');
+    header.writeUInt32LE(dataSize, 40);
+    return header;
   }
 }

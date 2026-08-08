@@ -140,7 +140,7 @@ export class CallsController {
     }
 
     res.setHeader('Content-Type', recording.contentType);
-    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Accept-Ranges', payload.acceptRanges ? 'bytes' : 'none');
     res.setHeader('Cache-Control', 'private, no-store');
     res.status(payload.statusCode);
     res.setHeader('Content-Length', payload.size);

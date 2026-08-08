@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ConfigService } from '@nestjs/config';
 import { RecordingEncryptionService } from './recording-encryption.service';
 import { RecordingFinalizerService } from './recording-finalizer.service';
 import { RecordingStorageService } from './recording-storage.service';
@@ -14,6 +13,12 @@ function createPrismaMock() {
     callRecordings: recording,
     recordingFinalizeJobs: job,
     recordingRetentionPolicies: policy,
+  } as any;
+}
+
+function configFromObject(values: Record<string, string>) {
+  return {
+    get: jest.fn((key: string, fallback?: string) => values[key] ?? fallback),
   } as any;
 }
 
@@ -41,8 +46,8 @@ describe('RecordingFinalizerService', () => {
 
     const service = new RecordingFinalizerService(
       prisma,
-      new RecordingStorageService(new ConfigService({ RECORDING_STORAGE_ROOT: tmpDir })),
-      new RecordingEncryptionService(new ConfigService({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
+      new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
+      new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
       {} as any,
     );
 
@@ -78,8 +83,8 @@ describe('RecordingFinalizerService', () => {
 
     const service = new RecordingFinalizerService(
       prisma,
-      new RecordingStorageService(new ConfigService({ RECORDING_STORAGE_ROOT: tmpDir })),
-      new RecordingEncryptionService(new ConfigService({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
+      new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
+      new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
       {} as any,
     );
 
@@ -103,6 +108,46 @@ describe('RecordingFinalizerService', () => {
         status: 'RETRY',
         attempts: 2,
         nextAttemptAt: expect.any(Date),
+      }),
+    }));
+  });
+
+  it('creates a playable WAV variant for stereo RAW recordings', async () => {
+    const recFile = '2026/08/08/stereo.raw';
+    const absolute = path.join(tmpDir, recFile);
+    fs.mkdirSync(path.dirname(absolute), { recursive: true });
+    fs.writeFileSync(absolute, Buffer.from([1, 0, 2, 0, 3, 0, 4, 0]));
+
+    const prisma = createPrismaMock();
+    prisma.callRecordings.findFirst.mockResolvedValue(null);
+    prisma.callRecordings.create.mockResolvedValue({ recordingId: 'rec-raw-1' });
+    prisma.recordingRetentionPolicies.findUnique.mockResolvedValue(null);
+
+    const service = new RecordingFinalizerService(
+      prisma,
+      new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
+      new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
+      {} as any,
+    );
+
+    await service.finalizeJob({
+      recordingFinalizeJobId: 'job-raw-1',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      callId: '11111111-1111-1111-1111-111111111111',
+      linkedid: 'linked-raw-1',
+      recFile,
+      attempts: 0,
+    });
+
+    const playbackPath = path.join(tmpDir, '2026', '08', '08', 'stereo.wav');
+    expect(fs.readFileSync(playbackPath).subarray(0, 4).toString('ascii')).toBe('RIFF');
+    expect(prisma.callRecordings.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        fileFormat: 'raw',
+        playbackFilePath: playbackPath,
+        playbackFileFormat: 'wav',
+        playbackFileSizeBytes: BigInt(52),
+        encryptedPlaybackFilePath: null,
       }),
     }));
   });

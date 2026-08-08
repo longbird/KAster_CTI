@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { createReadStream, promises as fs } from 'node:fs';
-import { extname } from 'node:path';
-import { Readable } from 'node:stream';
+import { basename, extname } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { buildAcceptedCommand, CommandMetaInput, normalizeCommandMeta } from '../../common/command-meta.util';
 import { normalizeCallerId, parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
@@ -1662,7 +1661,7 @@ export class CallsService {
   }
 
   async getRecordingFile(tenantId: string, recordingId: string) {
-    const recording = await this.prisma.callRecordings.findFirst({
+    const recording = await (this.prisma as any).callRecordings.findFirst({
       where: {
         tenantId,
         recordingId,
@@ -1678,10 +1677,14 @@ export class CallsService {
         recordingStatus: true,
         encryptionStatus: true,
         encryptedFilePath: true,
+        playbackFilePath: true,
+        playbackFileFormat: true,
+        playbackFileSizeBytes: true,
+        encryptedPlaybackFilePath: true,
         callId: true,
         linkedid: true,
       },
-    });
+    } as any);
 
     if (!recording) {
       throw new NotFoundException('Recording not found');
@@ -1693,6 +1696,42 @@ export class CallsService {
 
     return {
       ...recording,
+      ...this.resolveRecordingServingVariant(recording),
+    };
+  }
+
+  private resolveRecordingServingVariant(recording: {
+    filePath: string;
+    fileName: string;
+    fileFormat: string | null;
+    fileSizeBytes?: bigint | number | null;
+    encryptionStatus?: string | null;
+    encryptedFilePath?: string | null;
+    playbackFilePath?: string | null;
+    playbackFileFormat?: string | null;
+    playbackFileSizeBytes?: bigint | number | null;
+    encryptedPlaybackFilePath?: string | null;
+  }) {
+    if (recording.playbackFilePath && recording.playbackFileFormat) {
+      const fileName = basename(recording.playbackFilePath);
+      return {
+        filePath: recording.playbackFilePath,
+        fileName,
+        fileFormat: recording.playbackFileFormat,
+        fileSizeBytes: recording.playbackFileSizeBytes ?? recording.fileSizeBytes,
+        encryptionStatus: recording.encryptedPlaybackFilePath ? 'ENCRYPTED' : 'NONE',
+        encryptedFilePath: recording.encryptedPlaybackFilePath ?? null,
+        contentType: this.getRecordingContentType(recording.playbackFileFormat, fileName),
+      };
+    }
+
+    return {
+      filePath: recording.filePath,
+      fileName: recording.fileName,
+      fileFormat: recording.fileFormat,
+      fileSizeBytes: recording.fileSizeBytes,
+      encryptionStatus: recording.encryptionStatus,
+      encryptedFilePath: recording.encryptedFilePath,
       contentType: this.getRecordingContentType(recording.fileFormat, recording.fileName),
     };
   }
@@ -1709,13 +1748,19 @@ export class CallsService {
     size: number;
     statusCode: 200 | 206;
     contentRange?: string;
+    acceptRanges: boolean;
   } | null> {
     if (recording.encryptionStatus === 'ENCRYPTED') {
       if (!recording.encryptedFilePath || !this.recordingEncryption) {
         throw new BadRequestException('암호화 녹취를 복호화할 수 없습니다.');
       }
-      const buffer = await this.recordingEncryption.decryptFileToBuffer(recording.encryptedFilePath);
-      return this.buildBufferReadStream(buffer, rangeHeader);
+      const decrypted = await this.recordingEncryption.openDecryptedReadStream(recording.encryptedFilePath);
+      return {
+        stream: decrypted.stream,
+        size: decrypted.size,
+        statusCode: 200,
+        acceptRanges: false,
+      };
     }
 
     const stat = await fs.stat(recording.filePath).catch(() => null);
@@ -1724,7 +1769,12 @@ export class CallsService {
     }
     const range = this.parseRange(rangeHeader, stat.size);
     if (!rangeHeader) {
-      return { stream: createReadStream(recording.filePath), size: stat.size, statusCode: 200 };
+      return {
+        stream: createReadStream(recording.filePath),
+        size: stat.size,
+        statusCode: 200,
+        acceptRanges: true,
+      };
     }
     if (!range) return null;
     return {
@@ -1732,20 +1782,7 @@ export class CallsService {
       size: range.end - range.start + 1,
       statusCode: 206,
       contentRange: `bytes ${range.start}-${range.end}/${stat.size}`,
-    };
-  }
-
-  private buildBufferReadStream(buffer: Buffer, rangeHeader?: string) {
-    const range = this.parseRange(rangeHeader, buffer.length);
-    if (!rangeHeader) {
-      return { stream: Readable.from(buffer), size: buffer.length, statusCode: 200 as const };
-    }
-    if (!range) return null;
-    return {
-      stream: Readable.from(buffer.subarray(range.start, range.end + 1)),
-      size: range.end - range.start + 1,
-      statusCode: 206 as const,
-      contentRange: `bytes ${range.start}-${range.end}/${buffer.length}`,
+      acceptRanges: true,
     };
   }
 

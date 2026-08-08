@@ -7,6 +7,12 @@ import {
   PAID_OUTBOUND_DIALPLAN_PATTERNS,
   REPRESENTATIVE_OUTBOUND_DIALPLAN_PATTERNS,
 } from '../../../common/outbound-dial-policy.util';
+import {
+  getMixMonitorOptions,
+  getRecordingFileExtension,
+  normalizeRecordingChannelMode,
+  RecordingChannelMode,
+} from './recording-mode';
 import { assertNoNewlines, toSlug } from './renderer-utils';
 
 export interface AgentDialplanTrunkInput {
@@ -63,6 +69,7 @@ export interface AgentDialplanInput {
   allowDirectSipDial: boolean;
   defaultOutboundCallerId: string | null;
   allowedOutboundCallerIds: string[];
+  recordingChannelMode?: RecordingChannelMode;
   trunks: AgentDialplanTrunkInput[];
   trunkGroups?: AgentDialplanTrunkGroupInput[];
   agents: AgentDialplanAgentInput[];
@@ -108,9 +115,10 @@ function getOutboundTrunkDialTarget(
   return endpoints.map((endpoint) => `PJSIP/\${EXTEN}@${endpoint}`).join('&');
 }
 
-function buildRecordFileLines(): string[] {
+function buildRecordFileLines(recordingChannelMode: RecordingChannelMode): string[] {
+  const extension = getRecordingFileExtension(recordingChannelMode);
   return [
-    ' same => n,ExecIf($["${LEN(${REC_FILE})}"="0"]?Set(__REC_FILE=${STRFTIME(${EPOCH},,%Y/%m/%d)}/${CHANNEL(linkedid)}-${UNIQUEID}.wav))',
+    ` same => n,ExecIf($["\${LEN(\${REC_FILE})}"="0"]?Set(__REC_FILE=\${STRFTIME(\${EPOCH},,%Y/%m/%d)}/\${CHANNEL(linkedid)}-\${UNIQUEID}.${extension}))`,
   ];
 }
 
@@ -183,10 +191,11 @@ function buildOutboundDialRoute(
   trunkDialTarget: string,
   callerId: string,
   cidRulesContextName: string | null,
+  recordingChannelMode: RecordingChannelMode,
 ): string[] {
   const lines = [
     noOpLine,
-    ...buildRecordFileLines(),
+    ...buildRecordFileLines(recordingChannelMode),
   ];
   if (cidRulesContextName) {
     // 룰 sub-context 가 CALLERID(num) / CALLERID(name) 을 set 후 Return.
@@ -282,6 +291,7 @@ function renderAgentOutboundRoute(
   trunkDialTarget: string | null,
   callerId: string | null,
   cidRulesContextName: string | null,
+  recordingChannelMode: RecordingChannelMode,
 ): string {
   const contextName = `outbound-main-${agent.extension}`;
   const lines = [
@@ -307,6 +317,7 @@ function renderAgentOutboundRoute(
       trunkDialTarget,
       callerId,
       cidRulesContextName,
+      recordingChannelMode,
     )),
   );
   return lines.join('\n');
@@ -413,14 +424,17 @@ function getAgentOutboundCidRules(
   return rules.filter((rule) => !rule.branchId || branchIds.has(rule.branchId));
 }
 
-function renderPreBridgeAgentBranch(agent: AgentDialplanAgentInput): string {
+function renderPreBridgeAgentBranch(
+  agent: AgentDialplanAgentInput,
+  recordingChannelMode: RecordingChannelMode,
+): string {
   const lines = [
     `[agent-pre-bridge-${agent.extension}]`,
     'exten => s,1,NoOp(Agent pre-bridge handler)',
   ];
 
   if (agent.liveRecordingEnabled) {
-    lines.push(' same => n,ExecIf($["${LEN(${REC_FILE})}"!="0"]?MixMonitor(${REC_BASE_DIR}/${REC_FILE},b))');
+    lines.push(` same => n,ExecIf($["\${LEN(\${REC_FILE})}"!="0"]?MixMonitor(\${REC_BASE_DIR}/\${REC_FILE},${getMixMonitorOptions(recordingChannelMode)}))`);
   }
 
   lines.push(' same => n,Return()');
@@ -443,6 +457,7 @@ function renderPreBridgeDispatcher(agents: AgentDialplanAgentInput[]): string {
 }
 
 export function renderAgentDialplan(input: AgentDialplanInput): string {
+  const recordingChannelMode = normalizeRecordingChannelMode(input.recordingChannelMode);
   const trunkDialTarget = getOutboundTrunkDialTarget(input.trunks, input.trunkGroups);
   const speedDials = input.speedDials ?? [];
   const allowedCallerIdText = input.allowedOutboundCallerIds.length > 0
@@ -479,7 +494,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
   const fromQueue = [
     '[from-queue]',
     'exten => _X.,1,NoOp(From Queue to Agent ${EXTEN})',
-    ...buildRecordFileLines(),
+    ...buildRecordFileLines(recordingChannelMode),
     ' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))',
     ' same => n,Hangup()',
   ].join('\n');
@@ -499,12 +514,13 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
         trunkDialTarget,
         input.defaultOutboundCallerId,
         hasUsableRules ? getAgentCidContextName(agent, hasBranchScopedRules) : null,
+        recordingChannelMode,
       ),
     ),
     fromQueue,
     sipHeaderHook,
     renderPreBridgeDispatcher(input.agents),
-    ...input.agents.map(renderPreBridgeAgentBranch),
+    ...input.agents.map((agent) => renderPreBridgeAgentBranch(agent, recordingChannelMode)),
   ];
 
   sections.push(...cidRuleContexts);

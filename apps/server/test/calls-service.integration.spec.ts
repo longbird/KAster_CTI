@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Readable } from 'node:stream';
 import { PrismaService } from '../src/common/prisma.service';
 import { CallsService } from '../src/modules/calls/calls.service';
 import { EventBusService } from '../src/modules/events/event-bus.service';
@@ -6,6 +7,11 @@ import { AsteriskManagerService } from '../src/modules/calls/asterisk-manager.se
 import { TransferDetectorService } from '../src/modules/calls/transfer-detector.service';
 import { RedisService } from '../src/modules/redis/redis.service';
 import { REALTIME_EVENTS } from '../src/modules/realtime/realtime-events';
+import { RecordingEncryptionService } from '../src/modules/recording-pipeline/recording-encryption.service';
+
+function ReadableFromString(value: string) {
+  return Readable.from([Buffer.from(value)]);
+}
 
 describe('CallsService branch filter integration', () => {
   let service: CallsService;
@@ -81,6 +87,9 @@ describe('CallsService branch filter integration', () => {
   const redis = {
     getClient: jest.fn(() => redisClient),
   };
+  const recordingEncryption = {
+    openDecryptedReadStream: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -104,6 +113,7 @@ describe('CallsService branch filter integration', () => {
         { provide: EventBusService, useValue: eventBus },
         { provide: AsteriskManagerService, useValue: asteriskManager },
         { provide: TransferDetectorService, useValue: transferDetector },
+        { provide: RecordingEncryptionService, useValue: recordingEncryption },
       ],
     }).compile();
 
@@ -372,9 +382,66 @@ describe('CallsService branch filter integration', () => {
         recordingStatus: true,
         encryptionStatus: true,
         encryptedFilePath: true,
+        playbackFilePath: true,
+        playbackFileFormat: true,
+        playbackFileSizeBytes: true,
+        encryptedPlaybackFilePath: true,
         callId: true,
         linkedid: true,
       },
+    });
+  });
+
+  it('getRecordingFile 는 재생용 WAV variant 를 우선 선택한다', async () => {
+    prisma.callRecordings.findFirst.mockResolvedValue({
+      recordingId: 'rec-stereo-1',
+      tenantId: 'tenant-1',
+      filePath: 'D:\\recordings\\2026\\rec-stereo-1.raw',
+      fileName: 'rec-stereo-1.raw',
+      fileFormat: 'raw',
+      fileSizeBytes: BigInt(4096),
+      storageProvider: 'local',
+      encryptionStatus: 'ENCRYPTED',
+      encryptedFilePath: 'E:\\recordings-secure\\2026\\rec-stereo-1.raw.enc',
+      playbackFilePath: 'D:\\recordings\\2026\\rec-stereo-1.wav',
+      playbackFileFormat: 'wav',
+      playbackFileSizeBytes: BigInt(8192),
+      encryptedPlaybackFilePath: 'E:\\recordings-secure\\2026\\rec-stereo-1.wav.enc',
+      callId: 'call-1',
+      linkedid: 'L-1',
+    });
+
+    await expect(service.getRecordingFile('tenant-1', 'rec-stereo-1')).resolves.toMatchObject({
+      recordingId: 'rec-stereo-1',
+      filePath: 'D:\\recordings\\2026\\rec-stereo-1.wav',
+      fileName: 'rec-stereo-1.wav',
+      fileFormat: 'wav',
+      fileSizeBytes: BigInt(8192),
+      encryptionStatus: 'ENCRYPTED',
+      encryptedFilePath: 'E:\\recordings-secure\\2026\\rec-stereo-1.wav.enc',
+      contentType: 'audio/wav',
+    });
+  });
+
+  it('openRecordingReadStream 은 암호화 녹취를 버퍼가 아닌 복호화 스트림으로 연다', async () => {
+    const stream = ReadableFromString('decrypted-audio');
+    recordingEncryption.openDecryptedReadStream.mockResolvedValue({
+      stream,
+      size: 15,
+    });
+
+    const payload = await service.openRecordingReadStream({
+      filePath: 'D:\\recordings\\rec.wav',
+      encryptedFilePath: 'E:\\recordings-secure\\rec.wav.enc',
+      encryptionStatus: 'ENCRYPTED',
+    }, 'bytes=0-3');
+
+    expect(recordingEncryption.openDecryptedReadStream).toHaveBeenCalledWith('E:\\recordings-secure\\rec.wav.enc');
+    expect(payload).toMatchObject({
+      stream,
+      size: 15,
+      statusCode: 200,
+      acceptRanges: false,
     });
   });
 

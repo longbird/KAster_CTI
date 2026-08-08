@@ -7,6 +7,7 @@ import { getTimeSyncStatusMeta } from './timeSyncStatus';
 
 interface SystemSettingsFormValue {
   recordingEnabled: boolean;
+  recordingChannelMode: 'MONO' | 'STEREO_RAW';
   defaultMaxWaitSeconds: number;
   allowDirectSipDial: boolean;
   defaultSipPassword?: string;
@@ -37,6 +38,11 @@ const DATE_FORMAT_OPTIONS = [
   { value: 'YYYY-MM-DD HH:mm:ss', label: 'YYYY-MM-DD HH:mm:ss' },
   { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
   { value: 'YYYY.MM.DD HH:mm', label: 'YYYY.MM.DD HH:mm' },
+];
+
+const RECORDING_CHANNEL_MODE_OPTIONS = [
+  { value: 'MONO', label: '모노 믹스 WAV' },
+  { value: 'STEREO_RAW', label: '스테레오 분리 RAW' },
 ];
 
 function normalizeCallerId(value: string): string {
@@ -74,6 +80,7 @@ export function SystemSettingsPage() {
       setNewCallerId('');
       form.setFieldsValue({
         ...data,
+        recordingChannelMode: data?.recordingChannelMode ?? 'MONO',
         allowedOutboundCallerIds: parsedCallerIds.join('\n'),
         defaultOutboundCallerId:
           parsedCallerIds.includes(data?.defaultOutboundCallerId ?? '')
@@ -212,6 +219,14 @@ export function SystemSettingsPage() {
 
           <Form.Item name="recordingEnabled" label="기본 녹취 사용" valuePropName="checked">
             <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+          </Form.Item>
+
+          <Form.Item
+            name="recordingChannelMode"
+            label="녹취 채널 방식"
+            rules={[{ required: true, message: '녹취 채널 방식을 선택하세요.' }]}
+          >
+            <Select options={RECORDING_CHANNEL_MODE_OPTIONS} style={{ width: 240 }} />
           </Form.Item>
 
           <Form.Item

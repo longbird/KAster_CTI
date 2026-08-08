@@ -10,6 +10,7 @@ import { renderAgentDialplan } from './renderers/agent-dialplan.renderer';
 import { renderDialplan } from './renderers/dialplan.renderer';
 import { renderMusiconholdConf } from './renderers/musiconhold.renderer';
 import { renderPjsip } from './renderers/pjsip.renderer';
+import { normalizeRecordingChannelMode } from './renderers/recording-mode';
 import { renderQueuesConf } from './renderers/queues.renderer';
 import { renderRtp } from './renderers/rtp.renderer';
 import {
@@ -888,6 +889,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
+      recordingChannelMode,
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
     const outboundCallerIdRules = await this.fetchOutboundCallerIdRules(tenantId);
@@ -901,12 +903,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       queueOverflowRules,
       holidayRules,
       blocklistEntries,
+      recordingChannelMode,
     });
     const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
+      recordingChannelMode,
       trunks,
       trunkGroups,
       agents: agents.map((agent) => {
@@ -987,6 +991,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
+      recordingChannelMode,
     } = await this.fetchTenantData(tenantId);
     const rawQueues = await this.fetchQueueData(tenantId);
     const outboundCallerIdRules = await this.fetchOutboundCallerIdRules(tenantId);
@@ -1000,12 +1005,14 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       queueOverflowRules,
       holidayRules,
       blocklistEntries,
+      recordingChannelMode,
     });
     const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
+      recordingChannelMode,
       trunks,
       trunkGroups,
       agents: agents.map((agent) => {
@@ -1299,6 +1306,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           allowedOutboundCallerIds: true,
           defaultOutboundCallerId: true,
           sipRegisterPort: true,
+          recordingChannelMode: true,
         },
       } as any),
     ]);
@@ -1309,6 +1317,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           allowedOutboundCallerIds?: string | null;
           defaultOutboundCallerId?: string | null;
           sipRegisterPort?: number | null;
+          recordingChannelMode?: string | null;
         }
       | null;
     const defaultSipPassword = settings?.defaultSipPassword ?? null;
@@ -1335,6 +1344,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       trunkGroups,
       speedDials,
       sipRegisterPort: typedSettings?.sipRegisterPort ?? 36070,
+      recordingChannelMode: normalizeRecordingChannelMode(typedSettings?.recordingChannelMode),
       allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),
       defaultOutboundCallerId: typedSettings?.defaultOutboundCallerId ?? null,

@@ -15,6 +15,17 @@ describe('renderDialplan', () => {
     expect(extensionsInbound).toContain('[inbound-main]');
   });
 
+  it('uses RAW recording file names when stereo recording is enabled', () => {
+    const { extensionsQueue } = renderDialplan({
+      dids: [],
+      ivrMenus: [],
+      recordingChannelMode: 'STEREO_RAW',
+    } as any);
+
+    expect(extensionsQueue).toContain('Set(__REC_FILE=${STRFTIME(${EPOCH},,%Y/%m/%d)}/${CHANNEL(linkedid)}-${UNIQUEID}.raw)');
+    expect(extensionsQueue).not.toContain('${UNIQUEID}.wav)');
+  });
+
   it('renders DID with IVR menu link', () => {
     const { extensionsInbound } = renderDialplan({
       dids: [{ id: 'd1', did: '07012345678', ivrMenuId: 'm1', directQueue: null, enabled: true, description: null }],
