@@ -6,6 +6,7 @@ import { CommandAckResponseDto } from '../../common/dto/command-ack-response.dto
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { MenuPermissionService } from '../../common/menu-permission.service';
 import { CallsService } from './calls.service';
+import { ConsultationDto } from './dto/consultation.dto';
 import { CreateMemoDto } from './dto/create-memo.dto';
 import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
@@ -338,6 +339,38 @@ export class CallsController {
     );
   }
 
+  @Post(':callId/reconnect')
+  @ApiOperation({
+    summary: '상담 전환 협의 통화 취소 후 원 통화 복귀',
+    description:
+      '문서의 ReconnectCall에 해당한다. 현재 구조에서는 열린 attended transfer candidate 를 닫고 CancelAtxfer 를 요청한다.',
+  })
+  @ApiHeader({ name: 'x-correlation-id', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: CommandAckResponseDto })
+  async reconnect(
+    @Req() req: any,
+    @Param('callId') callId: string,
+    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+        req.user.sub,
+      );
+    }
+    return this.callsService.reconnectConsultation(
+      req.user.tenantId,
+      callId,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
+  }
+
   @Post(':callId/transfer/attended/complete')
   @ApiOperation({
     summary: '상담 전환 완료',
@@ -370,6 +403,75 @@ export class CallsController {
     );
   }
 
+  @Post(':callId/transfer-call')
+  @ApiOperation({
+    summary: '상담 전환 완료',
+    description:
+      '문서의 TransferCall에 해당한다. 기존 attended transfer 완료 API와 같은 동작이며, 후속 AttendedTransfer 이벤트로 최종 성공을 판정한다.',
+  })
+  @ApiHeader({ name: 'x-correlation-id', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: CommandAckResponseDto })
+  async transferCall(
+    @Req() req: any,
+    @Param('callId') callId: string,
+    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+        req.user.sub,
+      );
+    }
+    return this.callsService.completeAttendedTransfer(
+      req.user.tenantId,
+      callId,
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
+  }
+
+  @Post(':callId/consultation')
+  @ApiOperation({
+    summary: '상담 전환 협의 통화 시작',
+    description:
+      '문서의 ConsultationCall에 해당한다. 현재 PBX 구조에서는 attended transfer 시작으로 처리한다.',
+  })
+  @ApiHeader({ name: 'x-correlation-id', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: CommandAckResponseDto })
+  async consultation(
+    @Req() req: any,
+    @Param('callId') callId: string,
+    @Body() dto: ConsultationDto,
+    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+        req.user.sub,
+      );
+    }
+    return this.callsService.startConsultation(
+      req.user.tenantId,
+      callId,
+      {
+        target: dto.target,
+        fromExtension: req.user.extension,
+      },
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
+  }
+
   @Post(':callId/pickup')
   @ApiOperation({
     summary: '대기 콜 당겨받기 요청',
@@ -395,6 +497,36 @@ export class CallsController {
       );
     }
     return this.callsService.pickup(req.user.tenantId, callId, {
+      agentId: req.user.sub,
+      extension: req.user.extension,
+    }, { correlationId, idempotencyKey }, getCommandActor(req));
+  }
+
+  @Post(':callId/answer')
+  @ApiOperation({
+    summary: '수신 콜 응답 요청',
+    description:
+      '문서의 AnswerCall에 해당한다. 현재 구성에서는 큐 대기/상담원 호출 중인 고객 leg 를 현재 상담원 내선으로 Redirect 하는 당겨받기 경로를 사용한다.',
+  })
+  @ApiHeader({ name: 'x-correlation-id', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: CommandAckResponseDto })
+  async answer(
+    @Param('callId') callId: string,
+    @Req() req: any,
+    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+        req.user.sub,
+      );
+    }
+    return this.callsService.answer(req.user.tenantId, callId, {
       agentId: req.user.sub,
       extension: req.user.extension,
     }, { correlationId, idempotencyKey }, getCommandActor(req));

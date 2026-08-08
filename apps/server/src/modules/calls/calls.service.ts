@@ -189,6 +189,42 @@ export class CallsService {
     return undefined;
   }
 
+  private applyCallTypeFilter(where: Prisma.callSessionsWhereInput, callType?: string) {
+    switch (callType) {
+      case 'I':
+        where.direction = 'inbound';
+        where.answeredAt = { not: null };
+        where.transferFlag = false;
+        break;
+      case 'O':
+        where.direction = 'outbound';
+        where.answeredAt = { not: null };
+        where.transferFlag = false;
+        break;
+      case 'N':
+      case 'C':
+        where.direction = 'outbound';
+        where.answeredAt = null;
+        break;
+      case 'A':
+      case 'M':
+      case 'R':
+        where.direction = 'inbound';
+        where.answeredAt = null;
+        break;
+      case 'IT':
+        where.direction = 'inbound';
+        where.transferFlag = true;
+        break;
+      case 'OT':
+        where.direction = 'outbound';
+        where.transferFlag = true;
+        break;
+      default:
+        break;
+    }
+  }
+
   private getMissedReason(row: {
     answeredAt?: Date | null;
     abandonFlag?: boolean | null;
@@ -1323,9 +1359,59 @@ export class CallsService {
     const resumeCode = process.env.ASTERISK_RESUME_FEATURE_CODE?.trim() ?? '';
     return {
       muteEnabled: true,
+      answerEnabled: true,
+      answerMode: 'pickup_redirect',
       holdEnabled: Boolean(holdCode && resumeCode),
       holdMode: holdCode && resumeCode ? 'feature_code' : 'disabled',
+      consultationTransferEnabled: true,
+      dndEnabled: true,
+      dndMode: 'queue_pause',
+      singleStepConferenceEnabled: false,
+      singleStepConferenceUnavailableReason:
+        '현재 PBX/DB 모델은 3자 회의 세션과 참가자 leg 상태를 저장하지 않으므로, Conference 기능은 dialplan 및 세션 모델 확장이 먼저 필요합니다.',
+      extensionForwardingEnabled: false,
+      extensionForwardingUnavailableReason:
+        '현재 착신전환은 DID 인입 라우팅 규칙으로 제공됩니다. 문서의 내선 단말 착신전환은 endpoint별 dialplan/ASTDB 계약이 없어 즉시 제공할 수 없습니다.',
     };
+  }
+
+  async answer(
+    tenantId: string,
+    callId: string,
+    params: { agentId: string; extension: string },
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
+    return this.pickup(tenantId, callId, params, metaInput, actor);
+  }
+
+  async startConsultation(
+    tenantId: string,
+    callId: string,
+    params: { target: string; fromExtension: string },
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
+    return this.transfer(
+      tenantId,
+      callId,
+      {
+        transferType: 'attended',
+        target: params.target,
+        fromExtension: params.fromExtension,
+      },
+      metaInput,
+      actor,
+    );
+  }
+
+  async reconnectConsultation(
+    tenantId: string,
+    callId: string,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
+    return this.cancelAttendedTransfer(tenantId, callId, metaInput, actor);
   }
 
   async hold(
@@ -1446,11 +1532,13 @@ export class CallsService {
     const from = q.from ? new Date(q.from) : new Date(Date.now() - 7 * 86_400_000);
     const to   = q.to   ? new Date(q.to)   : new Date();
     const branchScope = await this.getBranchScope(tenantId, q.branchId);
+    const take = q.limit ?? 500;
+    const branchFilter = this.buildBranchCallFilter(branchScope);
 
     const where: Prisma.callSessionsWhereInput = {
       tenantId,
       startedAt: { gte: from, lte: to },
-      ...(this.buildBranchCallFilter(branchScope) ?? {}),
+      ...(branchFilter ?? {}),
     };
     if (q.agentId)           where.primaryAgentId = q.agentId;
     if (q.status)            where.sessionStatus  = q.status;
@@ -1458,6 +1546,29 @@ export class CallsService {
     if (q.resultCode)        where.resultCode = q.resultCode;
     if (q.queueName)         where.queueName = q.queueName;
     if (q.direction)         where.direction = q.direction;
+    this.applyCallTypeFilter(where, q.callType);
+    const remoteNumber = q.remoteNumber?.trim();
+    if (remoteNumber) {
+      const normalizedRemote = normalizePhone(remoteNumber);
+      const remoteFilter: Prisma.callSessionsWhereInput = {
+        OR: [
+          { ani: { contains: remoteNumber } },
+          { dnis: { contains: remoteNumber } },
+          ...(normalizedRemote && normalizedRemote !== remoteNumber
+            ? [
+                { aniNormalized: { contains: normalizedRemote } },
+                { dnis: { contains: normalizedRemote } },
+              ]
+            : []),
+        ],
+      };
+      if (branchFilter) {
+        delete where.OR;
+        where.AND = [branchFilter, remoteFilter];
+      } else {
+        Object.assign(where, remoteFilter);
+      }
+    }
     const abandon = this.parseBooleanFilter(q.abandon);
     if (abandon !== undefined) where.abandonFlag = abandon;
     const recording = this.parseBooleanFilter(q.recording);
@@ -1466,7 +1577,7 @@ export class CallsService {
     const rows = await this.prisma.callSessions.findMany({
       where,
       orderBy: { startedAt: 'desc' },
-      take: 500,
+      take,
       select: {
         callId: true, linkedid: true, ani: true, dnis: true, didNumber: true, queueName: true,
         sessionStatus: true, direction: true,

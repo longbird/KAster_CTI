@@ -19,7 +19,8 @@ describe('AgentsService', () => {
     } as any;
     const reload = { scheduleReload: jest.fn() } as any;
     const ami = { sendActionWithResponse: jest.fn().mockResolvedValue([]) } as any;
-    const service = new AgentsService(prisma, reload, ami);
+    const agentStateService = { changeStatus: jest.fn() } as any;
+    const service = new AgentsService(prisma, reload, ami, agentStateService);
 
     await service.update('tenant-1', 'agent-1', { extensionDisplayName: ' 본사 1번 데스크 ' });
 
@@ -48,7 +49,8 @@ describe('AgentsService', () => {
     } as any;
     const reload = { scheduleReload: jest.fn() } as any;
     const ami = { sendActionWithResponse: jest.fn().mockResolvedValue([]) } as any;
-    const service = new AgentsService(prisma, reload, ami);
+    const agentStateService = { changeStatus: jest.fn() } as any;
+    const service = new AgentsService(prisma, reload, ami, agentStateService);
 
     await service.update('tenant-1', 'agent-1', { sipPassword: '' });
 

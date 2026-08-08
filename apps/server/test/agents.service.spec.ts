@@ -3,17 +3,23 @@ import { PrismaService } from '../src/common/prisma.service';
 import { AgentsService } from '../src/modules/agents/agents.service';
 import { AmiConnectionService } from '../src/modules/ami/ami-connection.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
+import { AgentStateService } from '../src/modules/calls/agent-state.service';
 
 describe('AgentsService listForTenant', () => {
   let service: AgentsService;
+  let ami: { sendAction: jest.Mock; sendActionWithResponse: jest.Mock };
+  let agentStateService: { changeStatus: jest.Mock };
 
   const prisma = {
     agents: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
     agentStatusHistory: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      updateMany: jest.fn(),
+      create: jest.fn(),
     },
     refreshTokens: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -36,10 +42,18 @@ describe('AgentsService listForTenant', () => {
             sendActionWithResponse: jest.fn().mockResolvedValue([]),
           },
         },
+        {
+          provide: AgentStateService,
+          useValue: {
+            changeStatus: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get(AgentsService);
+    ami = module.get(AmiConnectionService);
+    agentStateService = module.get(AgentStateService);
   });
 
   it('상담원 목록 조회는 현재 상태를 일괄 조회해 N+1 쿼리를 피한다', async () => {
@@ -151,6 +165,40 @@ describe('AgentsService listForTenant', () => {
           },
         }),
       ],
+      error: null,
+    });
+  });
+
+  it('DND 설정은 상담원 내선을 모든 큐에서 pause 처리하고 현재 상태를 BREAK 로 기록한다', async () => {
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+      tenantId: 'tenant-1',
+      extension: '1001',
+      isActive: true,
+    });
+    agentStateService.changeStatus.mockResolvedValue({
+      agentId: 'agent-1',
+      statusCode: 'BREAK',
+      reasonCode: 'DND',
+    });
+
+    const result = await service.setDndMode('tenant-1', 'agent-1', true);
+
+    expect(ami.sendAction).toHaveBeenCalledWith({
+      Action: 'QueuePause',
+      Interface: 'PJSIP/1001',
+      Paused: 'true',
+      Reason: 'DND',
+    });
+    expect(agentStateService.changeStatus).toHaveBeenCalledWith('agent-1', 'BREAK', 'DND');
+    expect(result).toEqual({
+      success: true,
+      data: {
+        agentId: 'agent-1',
+        extension: '1001',
+        dndEnabled: true,
+        status: expect.objectContaining({ statusCode: 'BREAK' }),
+      },
       error: null,
     });
   });

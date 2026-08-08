@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class ListCallsQueryDto {
   @ApiPropertyOptional()
@@ -24,4 +25,10 @@ export class ListCallsQueryDto {
   @IsOptional() @IsIn(['true', 'false']) recording?: string;
   @ApiPropertyOptional({ enum: ['inbound', 'outbound', 'internal'] })
   @IsOptional() @IsIn(['inbound', 'outbound', 'internal']) direction?: string;
+  @ApiPropertyOptional({ description: '발신자/수신자 번호 부분 검색' })
+  @IsOptional() @IsString() remoteNumber?: string;
+  @ApiPropertyOptional({ enum: ['I', 'O', 'N', 'A', 'M', 'C', 'R', 'IT', 'OT'] })
+  @IsOptional() @IsIn(['I', 'O', 'N', 'A', 'M', 'C', 'R', 'IT', 'OT']) callType?: string;
+  @ApiPropertyOptional({ description: '반환 건수. 기본 500, 최대 1000' })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000) limit?: number;
 }

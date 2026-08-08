@@ -654,6 +654,49 @@ describe('CallsService branch filter integration', () => {
     });
   });
 
+  it('listHistory 는 번호/CallType/limit 필터를 기존 branch filter 와 함께 적용한다', async () => {
+    prisma.branchAgents.findMany.mockResolvedValue([{ agentId: 'agent-5' }]);
+    prisma.branchQueues.findMany.mockResolvedValue([{ queueId: 'queue-5' }]);
+    prisma.callSessions.findMany.mockResolvedValue([]);
+    prisma.attendedTransferCandidates.findMany.mockResolvedValue([]);
+
+    await service.listHistory('tenant-1', {
+      from: '2026-04-01T00:00:00.000Z',
+      to: '2026-04-16T23:59:59.999Z',
+      branchId: 'branch-5',
+      remoteNumber: '010-1234-5678',
+      callType: 'IT',
+      limit: 25,
+    });
+
+    expect(prisma.callSessions.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          direction: 'inbound',
+          transferFlag: true,
+          AND: [
+            {
+              OR: [
+                { primaryAgentId: { in: ['agent-5'] } },
+                { queueId: { in: ['queue-5'] } },
+              ],
+            },
+            {
+              OR: [
+                { ani: { contains: '010-1234-5678' } },
+                { dnis: { contains: '010-1234-5678' } },
+                { aniNormalized: { contains: '01012345678' } },
+                { dnis: { contains: '01012345678' } },
+              ],
+            },
+          ],
+        }),
+        take: 25,
+      }),
+    );
+  });
+
   it('listHistory 는 상담원 내선으로 기록된 데스크톱 발신 통화를 외부 발신으로 보정한다', async () => {
     prisma.callSessions.findMany.mockResolvedValue([
       {
@@ -735,6 +778,22 @@ describe('CallsService branch filter integration', () => {
       allowedCallerIds: ['07052346380', '07052346381'],
       defaultCallerId: '07052346381',
     });
+  });
+
+  it('getCallControlCapabilities 는 현재 제공 불가능한 제어 기능의 이유를 노출한다', () => {
+    const result = service.getCallControlCapabilities();
+
+    expect(result).toEqual(expect.objectContaining({
+      answerEnabled: true,
+      answerMode: 'pickup_redirect',
+      consultationTransferEnabled: true,
+      dndEnabled: true,
+      dndMode: 'queue_pause',
+      singleStepConferenceEnabled: false,
+      extensionForwardingEnabled: false,
+    }));
+    expect(result.singleStepConferenceUnavailableReason).toContain('3자 회의');
+    expect(result.extensionForwardingUnavailableReason).toContain('DID 인입 라우팅');
   });
 
   it('originate 는 허용되지 않은 발신번호를 거부한다', async () => {
@@ -1366,6 +1425,45 @@ describe('CallsService branch filter integration', () => {
     expect(result.data.accepted).toBe(true);
     expect(typeof result.data.correlationId).toBe('string');
     expect(result.data.correlationId.length).toBeGreaterThan(10);
+  });
+
+  it('answer 는 현재 구성의 pickup redirect 경로를 사용한다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-answer-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-answer-1',
+      sessionStatus: 'RINGING_AGENT',
+      queueName: 'sales',
+      primaryAgentId: 'agent-3',
+      ringingAt: new Date('2026-04-16T09:00:00.000Z'),
+      callLegs: [
+        {
+          legType: 'customer',
+          endedAt: null,
+          channelName: 'PJSIP/trunk-provider-00000030',
+        },
+      ],
+    });
+    prisma.callSessions.update.mockResolvedValue({ callId: 'call-answer-1' });
+
+    const result = await service.answer('tenant-1', 'call-answer-1', {
+      agentId: 'agent-3',
+      extension: '1003',
+    });
+
+    expect(asteriskManager.pickup).toHaveBeenCalledWith(
+      'PJSIP/trunk-provider-00000030',
+      '1003',
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        callId: 'call-answer-1',
+        accepted: true,
+        extension: '1003',
+      },
+      error: null,
+    });
   });
 
   it('pickup 은 같은 상담원 그룹 또는 같은 분배룰이 아니면 거부한다', async () => {

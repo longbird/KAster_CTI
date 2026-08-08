@@ -150,8 +150,17 @@ export async function getAgentSession(): Promise<ApiResponse<AgentSession>> {
     todayTalkSeconds: 0,
     callControlCapabilities: {
       muteEnabled: capabilities?.muteEnabled !== false,
+      answerEnabled: capabilities?.answerEnabled === true,
+      answerMode: capabilities?.answerMode === 'pickup_redirect' ? 'pickup_redirect' : undefined,
       holdEnabled: capabilities?.holdEnabled === true,
       holdMode: capabilities?.holdMode === 'feature_code' ? 'feature_code' : 'disabled',
+      consultationTransferEnabled: capabilities?.consultationTransferEnabled === true,
+      dndEnabled: capabilities?.dndEnabled === true,
+      dndMode: capabilities?.dndMode === 'queue_pause' ? 'queue_pause' : undefined,
+      singleStepConferenceEnabled: capabilities?.singleStepConferenceEnabled === true,
+      singleStepConferenceUnavailableReason: capabilities?.singleStepConferenceUnavailableReason,
+      extensionForwardingEnabled: capabilities?.extensionForwardingEnabled === true,
+      extensionForwardingUnavailableReason: capabilities?.extensionForwardingUnavailableReason,
     },
     outboundDialOptions: {
       allowedCallerIds: Array.isArray(outboundDialOptions?.allowedCallerIds)
@@ -299,6 +308,17 @@ export async function updateAgentStatus(
   }
   await apiClient.post(`/agents/${agentId}/status`, { statusCode });
   return { success: true, data: { statusCode }, error: null };
+}
+
+export async function setAgentDnd(
+  enabled: boolean,
+): Promise<ApiResponse<{ agentId: string; extension: string; dndEnabled: boolean }>> {
+  const agentId = useAuthStore.getState().agent?.agentId;
+  if (!agentId) {
+    return { success: false, data: { agentId: '', extension: '', dndEnabled: enabled }, error: 'No agent' as any };
+  }
+  const res = await apiClient.post(`/agents/${agentId}/dnd`, { enabled });
+  return { success: true, data: res.data?.data, error: null };
 }
 
 export async function saveCallMemo(

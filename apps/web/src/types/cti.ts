@@ -29,8 +29,17 @@ export interface AgentSession {
   todayTalkSeconds: number;
   callControlCapabilities?: {
     muteEnabled: boolean;
+    answerEnabled?: boolean;
+    answerMode?: 'pickup_redirect';
     holdEnabled: boolean;
     holdMode: 'feature_code' | 'disabled';
+    consultationTransferEnabled?: boolean;
+    dndEnabled?: boolean;
+    dndMode?: 'queue_pause';
+    singleStepConferenceEnabled?: boolean;
+    singleStepConferenceUnavailableReason?: string;
+    extensionForwardingEnabled?: boolean;
+    extensionForwardingUnavailableReason?: string;
   };
   outboundDialOptions?: {
     allowedCallerIds: string[];

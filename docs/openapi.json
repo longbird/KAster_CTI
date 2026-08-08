@@ -68,12 +68,21 @@
       "get": {
         "operationId": "CallsController_getActiveCalls",
         "summary": "활성 콜 목록",
-        "description": "sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션 (최근 100건). agentName·waitSeconds 포함.",
+        "description": "sessionStatus 가 ENDED 가 아닌 테넌트 통화 세션. 기본 최근 500건, 최대 1000건. agentName·waitSeconds 포함.",
         "parameters": [
           {
             "name": "branchId",
             "required": false,
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "반환 건수. 기본 500, 최대 1000",
             "schema": {
               "type": "string"
             }
@@ -165,6 +174,96 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "name": "resultCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "queueName",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "abandon",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "recording",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "inbound",
+                "outbound",
+                "internal"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "remoteNumber",
+            "required": false,
+            "in": "query",
+            "description": "발신자/수신자 번호 부분 검색",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "callType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "I",
+                "O",
+                "N",
+                "A",
+                "M",
+                "C",
+                "R",
+                "IT",
+                "OT"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "반환 건수. 기본 500, 최대 1000",
+            "schema": {
+              "type": "number"
+            }
           }
         ],
         "responses": {
@@ -230,6 +329,66 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/recordings/{recordingId}/stream": {
+      "get": {
+        "operationId": "CallsController_streamRecording",
+        "summary": "녹취 파일 스트리밍",
+        "description": "브라우저 재생용 인증 스트리밍. Range 요청을 지원한다.",
+        "parameters": [
+          {
+            "name": "recordingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/recordings/{recordingId}/download": {
+      "get": {
+        "operationId": "CallsController_downloadRecording",
+        "summary": "녹취 파일 다운로드",
+        "description": "인증된 사용자만 녹취 파일을 attachment 로 내려받는다.",
+        "parameters": [
+          {
+            "name": "recordingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
           }
         },
         "tags": [
@@ -505,6 +664,59 @@
         ]
       }
     },
+    "/api/v1/calls/{callId}/reconnect": {
+      "post": {
+        "operationId": "CallsController_reconnect",
+        "summary": "상담 전환 협의 통화 취소 후 원 통화 복귀",
+        "description": "문서의 ReconnectCall에 해당한다. 현재 구조에서는 열린 attended transfer candidate 를 닫고 CancelAtxfer 를 요청한다.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/calls/{callId}/transfer/attended/complete": {
       "post": {
         "operationId": "CallsController_completeAttendedTransfer",
@@ -558,11 +770,180 @@
         ]
       }
     },
+    "/api/v1/calls/{callId}/transfer-call": {
+      "post": {
+        "operationId": "CallsController_transferCall",
+        "summary": "상담 전환 완료",
+        "description": "문서의 TransferCall에 해당한다. 기존 attended transfer 완료 API와 같은 동작이며, 후속 AttendedTransfer 이벤트로 최종 성공을 판정한다.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/consultation": {
+      "post": {
+        "operationId": "CallsController_consultation",
+        "summary": "상담 전환 협의 통화 시작",
+        "description": "문서의 ConsultationCall에 해당한다. 현재 PBX 구조에서는 attended transfer 시작으로 처리한다.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsultationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/calls/{callId}/pickup": {
       "post": {
         "operationId": "CallsController_pickup",
         "summary": "대기 콜 당겨받기 요청",
         "description": "큐 대기 중 고객 leg 를 현재 로그인한 상담원 내선으로 Redirect 한다. 실제 연결 성공 판정은 후속 Dial/Bridge 이벤트로 SessionEngine 이 담당하며, 이 응답은 즉시 accepted:true 를 반환한다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/answer": {
+      "post": {
+        "operationId": "CallsController_answer",
+        "summary": "수신 콜 응답 요청",
+        "description": "문서의 AnswerCall에 해당한다. 현재 구성에서는 큐 대기/상담원 호출 중인 고객 leg 를 현재 상담원 내선으로 Redirect 하는 당겨받기 경로를 사용한다.",
         "parameters": [
           {
             "name": "callId",
@@ -871,6 +1252,85 @@
         },
         "tags": [
           "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/client/call-commands/originate": {
+      "post": {
+        "operationId": "ClientCallCommandsController_originate",
+        "summary": "상담원 클라이언트 전용 외부 발신 명령",
+        "description": "상담원 클라이언트가 별도 명령 프로토콜로 외부 발신을 요청한다. 상담원 내선은 요청 본문이 아니라 인증 세션과 DB 상담원 정보에서 파생한다. 응답은 요청 접수만 의미하며 실제 통화 성공은 후속 PBX 이벤트로 판정한다.",
+        "parameters": [
+          {
+            "name": "x-client-protocol",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-command-timestamp",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-command-nonce",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientOriginateCommandDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "client-call-commands"
         ],
         "security": [
           {
@@ -1211,6 +1671,116 @@
         ]
       }
     },
+    "/api/v1/asterisk-config/trunk-groups": {
+      "get": {
+        "operationId": "AsteriskConfigController_getTrunkGroups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createTrunkGroup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrunkGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/trunk-groups/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateTrunkGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTrunkGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteTrunkGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/asterisk-config/dids": {
       "get": {
         "operationId": "AsteriskConfigController_getDids",
@@ -1296,6 +1866,116 @@
       },
       "delete": {
         "operationId": "AsteriskConfigController_deleteDid",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/speed-dials": {
+      "get": {
+        "operationId": "AsteriskConfigController_getSpeedDials",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AsteriskConfigController_createSpeedDial",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpeedDialDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/speed-dials/{id}": {
+      "put": {
+        "operationId": "AsteriskConfigController_updateSpeedDial",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSpeedDialDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AsteriskConfigController_deleteSpeedDial",
         "parameters": [
           {
             "name": "id",
@@ -1682,6 +2362,63 @@
         ]
       }
     },
+    "/api/v1/asterisk-config/prompts/tts": {
+      "post": {
+        "operationId": "AsteriskConfigController_createPromptFromTts",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptTtsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/prompts/{id}/stream": {
+      "get": {
+        "operationId": "AsteriskConfigController_streamPromptAudio",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/asterisk-config/prompts/{id}": {
       "put": {
         "operationId": "AsteriskConfigController_updatePrompt",
@@ -1773,6 +2510,35 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateBlocklistEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/blocklist/import": {
+      "post": {
+        "operationId": "AsteriskConfigController_importBlocklistEntries",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportBlocklistEntriesDto"
               }
             }
           }
@@ -1886,6 +2652,462 @@
         },
         "tags": [
           "asterisk-config"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/internal/opt-out/register": {
+      "post": {
+        "operationId": "AsteriskConfigInternalController_register",
+        "parameters": [
+          {
+            "name": "x-kaster-internal-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteOptOutActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config-internal"
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/internal/opt-out/unregister": {
+      "post": {
+        "operationId": "AsteriskConfigInternalController_unregister",
+        "parameters": [
+          {
+            "name": "x-kaster-internal-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteOptOutActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config-internal"
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/internal/opt-out/smart/register": {
+      "post": {
+        "operationId": "AsteriskConfigInternalController_registerSmart",
+        "parameters": [
+          {
+            "name": "x-kaster-internal-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteSmartOptOutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config-internal"
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/internal/opt-out/smart/unregister": {
+      "post": {
+        "operationId": "AsteriskConfigInternalController_unregisterSmart",
+        "parameters": [
+          {
+            "name": "x-kaster-internal-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteSmartOptOutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config-internal"
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/internal/smart-ars/sms": {
+      "post": {
+        "operationId": "SmartArsInternalController_smartArsSms",
+        "parameters": [
+          {
+            "name": "x-kaster-internal-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteSmartArsActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config-internal"
+        ]
+      }
+    },
+    "/api/v1/asterisk-config/internal/smart-ars/opt-out": {
+      "post": {
+        "operationId": "SmartArsInternalController_smartArsOptOut",
+        "parameters": [
+          {
+            "name": "x-kaster-internal-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteSmartArsActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "asterisk-config-internal"
+        ]
+      }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "operationId": "CustomersController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CustomersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers/search": {
+      "get": {
+        "operationId": "CustomersController_search",
+        "parameters": [
+          {
+            "name": "phone",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers/import": {
+      "post": {
+        "operationId": "CustomersController_import",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCustomersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers/{customerId}": {
+      "get": {
+        "operationId": "CustomersController_getOne",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "CustomersController_update",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CustomersController_remove",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers/{customerId}/history": {
+      "get": {
+        "operationId": "CustomersController_history",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sip-security/blocks": {
+      "get": {
+        "operationId": "SipSecurityController_listBlocks",
+        "summary": "SIP 공격 임시 차단 목록 조회",
+        "parameters": [
+          {
+            "name": "includeExpired",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sip-security"
         ],
         "security": [
           {
@@ -2057,6 +3279,62 @@
         ]
       }
     },
+    "/api/v1/me/caller-id-permissions": {
+      "get": {
+        "operationId": "AuthController_myCallerIdPermissions",
+        "summary": "본인 발신 가능 callerId 목록 (지사 × 발신번호)",
+        "description": "발신 UI 가 상담원 본인의 발신 가능한 번호를 조회. 관리자 시점은 /admin/agents/:agentId/caller-id-permissions 사용.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/call-capabilities": {
+      "get": {
+        "operationId": "AuthController_callCapabilities",
+        "summary": "현재 상담원 발신 권한 조회",
+        "description": "로그인 이후 클라이언트가 발신 UI 활성화 여부를 판단하기 위한 권한, 발신번호, 직접 전화기 발신 금지 상태를 조회한다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/desktop/session": {
       "get": {
         "operationId": "AuthController_desktopSession",
@@ -2135,6 +3413,77 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ExchangeHandoffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/web-handoff": {
+      "post": {
+        "operationId": "AuthController_createWebHandoff",
+        "summary": "Web handoff token 생성",
+        "description": "현재 로그인한 데스크톱-호환 세션이 60초짜리 1회용 web handoff token 을 발급한다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWebHandoffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/web-handoff/exchange": {
+      "post": {
+        "operationId": "AuthController_exchangeWebHandoff",
+        "summary": "Web handoff token 교환",
+        "description": "1회용 web handoff token 을 access/refresh token 으로 교환한다. 성공하면 같은 token 은 재사용할 수 없다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeWebHandoffDto"
               }
             }
           }
@@ -2394,26 +3743,36 @@
         ]
       }
     },
-    "/api/v1/customers/search": {
-      "get": {
-        "operationId": "CustomersController_search",
+    "/api/v1/agents/{agentId}/dnd": {
+      "post": {
+        "operationId": "AgentsController_setDnd",
         "parameters": [
           {
-            "name": "phone",
+            "name": "agentId",
             "required": true,
-            "in": "query",
+            "in": "path",
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDndDto"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": ""
           }
         },
         "tags": [
-          "customers"
+          "agents"
         ],
         "security": [
           {
@@ -2422,12 +3781,12 @@
         ]
       }
     },
-    "/api/v1/customers/{customerId}": {
-      "get": {
-        "operationId": "CustomersController_getOne",
+    "/api/v1/agents/{targetAgentId}/copy-permissions": {
+      "post": {
+        "operationId": "AgentsController_copyPermissions",
         "parameters": [
           {
-            "name": "customerId",
+            "name": "targetAgentId",
             "required": true,
             "in": "path",
             "schema": {
@@ -2435,13 +3794,23 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyAgentPermissionsDto"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": ""
           }
         },
         "tags": [
-          "customers"
+          "agents"
         ],
         "security": [
           {
@@ -2481,6 +3850,269 @@
     "/api/v1/admin/reports/ami-logs": {
       "get": {
         "operationId": "AdminController_listAmiLogs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/reports/ivr-failures": {
+      "get": {
+        "operationId": "AdminController_listIvrFailures",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryDid",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "INPUT_TIMEOUT",
+                "INVALID_INPUT",
+                "FLOW_FAILURE",
+                "SMS_FAILURE",
+                "OPT_OUT_FAILURE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/reports/recording-download-audits": {
+      "get": {
+        "operationId": "AdminController_listRecordingDownloadAudits",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "linkedid",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/reports/agent-work-time": {
+      "get": {
+        "operationId": "AdminController_listAgentWorkTime",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentGroupId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "hour",
+              "enum": [
+                "hour",
+                "half_hour",
+                "day"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "agent",
+              "enum": [
+                "agent",
+                "group"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/monitoring/operations": {
+      "get": {
+        "operationId": "AdminController_getOperationalMonitoring",
         "parameters": [],
         "responses": {
           "200": {
@@ -2543,6 +4175,53 @@
         ]
       }
     },
+    "/api/v1/admin/announcements/login-updates": {
+      "get": {
+        "operationId": "AdminController_listLoginUpdateAnnouncements",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/announcements/{announcementId}/read": {
+      "post": {
+        "operationId": "AdminController_acknowledgeAnnouncement",
+        "parameters": [
+          {
+            "name": "announcementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/announcements/{announcementId}": {
       "post": {
         "operationId": "AdminController_updateAnnouncement",
@@ -2585,6 +4264,363 @@
         "parameters": [
           {
             "name": "announcementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/agent-groups": {
+      "get": {
+        "operationId": "AdminController_listAgentGroups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_createAgentGroup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/agent-groups/{agentGroupId}": {
+      "post": {
+        "operationId": "AdminController_updateAgentGroup",
+        "parameters": [
+          {
+            "name": "agentGroupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AdminController_deleteAgentGroup",
+        "parameters": [
+          {
+            "name": "agentGroupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/holiday-rules": {
+      "get": {
+        "operationId": "AdminController_listHolidayRules",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_createHolidayRule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHolidayRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/holiday-rules/{holidayRuleId}": {
+      "patch": {
+        "operationId": "AdminController_patchHolidayRule",
+        "parameters": [
+          {
+            "name": "holidayRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHolidayRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_updateHolidayRule",
+        "parameters": [
+          {
+            "name": "holidayRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHolidayRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AdminController_deleteHolidayRule",
+        "parameters": [
+          {
+            "name": "holidayRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/branches/{branchId}/agent-caller-ids": {
+      "get": {
+        "operationId": "AdminController_listBranchAgentCallerIds",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_updateBranchAgentCallerIds",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentBranchCallerIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/agents/{agentId}/caller-id-permissions": {
+      "get": {
+        "operationId": "AdminController_listAgentCallerIdPermissions",
+        "parameters": [
+          {
+            "name": "agentId",
             "required": true,
             "in": "path",
             "schema": {
@@ -2828,6 +4864,25 @@
         ]
       }
     },
+    "/api/v1/admin/settings/system/time-sync": {
+      "get": {
+        "operationId": "AdminController_getSystemTimeSyncStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/settings/branches/{branchId}": {
       "post": {
         "operationId": "AdminController_updateBranch",
@@ -2948,6 +5003,135 @@
         },
         "tags": [
           "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/announcements": {
+      "get": {
+        "operationId": "AnnouncementsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "announcements"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sms-templates": {
+      "get": {
+        "operationId": "SmsTemplatesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sms-templates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "SmsTemplatesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSmsTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sms-templates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sms-templates/{templateId}": {
+      "put": {
+        "operationId": "SmsTemplatesController_update",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSmsTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sms-templates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "SmsTemplatesController_remove",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sms-templates"
         ],
         "security": [
           {
@@ -3126,6 +5310,533 @@
         },
         "tags": [
           "agent-updates"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/outbound-rules": {
+      "get": {
+        "operationId": "OutboundRulesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "OutboundRulesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOutboundRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/outbound-rules/test": {
+      "post": {
+        "operationId": "OutboundRulesController_test",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestOutboundRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/outbound-rules/{ruleId}": {
+      "post": {
+        "operationId": "OutboundRulesController_update",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOutboundRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "OutboundRulesController_remove",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/share-rules": {
+      "get": {
+        "operationId": "ShareRulesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ShareRulesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShareRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/share-rules/{shareRuleId}": {
+      "get": {
+        "operationId": "ShareRulesController_get",
+        "parameters": [
+          {
+            "name": "shareRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ShareRulesController_update",
+        "parameters": [
+          {
+            "name": "shareRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShareRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "ShareRulesController_remove",
+        "parameters": [
+          {
+            "name": "shareRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/share-rules/{shareRuleId}/agents": {
+      "put": {
+        "operationId": "ShareRulesController_putAgents",
+        "parameters": [
+          {
+            "name": "shareRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutShareRuleAgentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/share-rules/{shareRuleId}/branches": {
+      "put": {
+        "operationId": "ShareRulesController_putBranches",
+        "parameters": [
+          {
+            "name": "shareRuleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutShareRuleBranchesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/integrations": {
+      "get": {
+        "operationId": "IntegrationsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "IntegrationsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIntegrationAutomationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/integrations/{integrationAutomationId}": {
+      "post": {
+        "operationId": "IntegrationsController_update",
+        "parameters": [
+          {
+            "name": "integrationAutomationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIntegrationAutomationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "IntegrationsController_remove",
+        "parameters": [
+          {
+            "name": "integrationAutomationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/integrations/{integrationAutomationId}/toggle": {
+      "post": {
+        "operationId": "IntegrationsController_toggle",
+        "parameters": [
+          {
+            "name": "integrationAutomationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/settings/integrations/{integrationAutomationId}/test": {
+      "post": {
+        "operationId": "IntegrationsController_test",
+        "parameters": [
+          {
+            "name": "integrationAutomationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestIntegrationAutomationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin/settings"
         ],
         "security": [
           {
@@ -3477,6 +6188,18 @@
           "fromExtension"
         ]
       },
+      "ConsultationDto": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "협의 통화 대상 내선 또는 전화번호"
+          }
+        },
+        "required": [
+          "target"
+        ]
+      },
       "MuteCallDto": {
         "type": "object",
         "properties": {
@@ -3528,6 +6251,30 @@
           "memoType"
         ]
       },
+      "ClientOriginateCommandDto": {
+        "type": "object",
+        "properties": {
+          "commandId": {
+            "type": "string",
+            "description": "클라이언트가 생성한 발신 명령 ID"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "외부 발신 대상 번호"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "callerId": {
+            "type": "string",
+            "description": "허용된 발신번호 목록에 포함된 번호만 사용 가능"
+          }
+        },
+        "required": [
+          "commandId",
+          "phoneNumber"
+        ]
+      },
       "CreateQueueDto": {
         "type": "object",
         "properties": {}
@@ -3552,11 +6299,27 @@
         "type": "object",
         "properties": {}
       },
+      "CreateTrunkGroupDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateTrunkGroupDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateDidDto": {
         "type": "object",
         "properties": {}
       },
       "UpdateDidDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateSpeedDialDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateSpeedDialDto": {
         "type": "object",
         "properties": {}
       },
@@ -3584,6 +6347,10 @@
         "type": "object",
         "properties": {}
       },
+      "CreatePromptTtsDto": {
+        "type": "object",
+        "properties": {}
+      },
       "UpdatePromptDto": {
         "type": "object",
         "properties": {}
@@ -3592,7 +6359,35 @@
         "type": "object",
         "properties": {}
       },
+      "ImportBlocklistEntriesDto": {
+        "type": "object",
+        "properties": {}
+      },
       "UpdateBlocklistEntryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ExecuteOptOutActionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ExecuteSmartOptOutDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ExecuteSmartArsActionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateCustomerDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ImportCustomersDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateCustomerDto": {
         "type": "object",
         "properties": {}
       },
@@ -3607,6 +6402,14 @@
           },
           "extension": {
             "type": "string"
+          },
+          "clientType": {
+            "type": "string",
+            "enum": [
+              "web",
+              "desktop"
+            ],
+            "description": "Desktop 런타임 로그인일 때만 SIP credential 포함 세션을 반환한다."
           }
         },
         "required": [
@@ -3645,6 +6448,26 @@
           "handoffToken"
         ]
       },
+      "CreateWebHandoffDto": {
+        "type": "object",
+        "properties": {
+          "redirectPath": {
+            "type": "string",
+            "example": "/desktop-handoff"
+          }
+        }
+      },
+      "ExchangeWebHandoffDto": {
+        "type": "object",
+        "properties": {
+          "handoffToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "handoffToken"
+        ]
+      },
       "CreateAgentDto": {
         "type": "object",
         "properties": {}
@@ -3667,6 +6490,45 @@
           "statusCode"
         ]
       },
+      "SetDndDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "true면 수신거부, false면 수신 허용"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "CopyAgentPermissionsDto": {
+        "type": "object",
+        "properties": {
+          "sourceAgentId": {
+            "type": "string",
+            "description": "권한을 복제해 올 소스 상담원"
+          },
+          "scopes": {
+            "type": "array",
+            "description": "복제할 권한 영역. 기본 4개 + 옵션 (outboundCallerIdOverride 는 향후 상담원 단위 예외용).",
+            "items": {
+              "type": "string",
+              "enum": [
+                "queueMembership",
+                "branchCidAuth",
+                "menuPermissions",
+                "agentSettingsProfile",
+                "outboundCallerIdOverride"
+              ]
+            }
+          }
+        },
+        "required": [
+          "sourceAgentId",
+          "scopes"
+        ]
+      },
       "CreateAnnouncementDto": {
         "type": "object",
         "properties": {
@@ -3685,6 +6547,48 @@
           "pinned": {
             "type": "boolean",
             "example": false
+          },
+          "category": {
+            "type": "string",
+            "example": "NOTICE",
+            "enum": [
+              "NOTICE",
+              "UPDATE"
+            ]
+          },
+          "targetApp": {
+            "type": "string",
+            "example": "ADMIN",
+            "enum": [
+              "ADMIN",
+              "AGENT",
+              "ALL"
+            ]
+          },
+          "showOnLogin": {
+            "type": "boolean",
+            "example": true
+          },
+          "severity": {
+            "type": "string",
+            "example": "INFO",
+            "enum": [
+              "INFO",
+              "IMPORTANT",
+              "CRITICAL"
+            ]
+          },
+          "releaseTag": {
+            "type": "string",
+            "example": "2026.08.03"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "example": "2026-08-03T00:00:00.000Z"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-08-10T00:00:00.000Z"
           }
         },
         "required": [
@@ -3695,6 +6599,106 @@
       "UpdateAnnouncementDto": {
         "type": "object",
         "properties": {}
+      },
+      "CreateAgentGroupDto": {
+        "type": "object",
+        "properties": {
+          "groupCode": {
+            "type": "string",
+            "example": "TEAM_A"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "영업 1팀"
+          },
+          "description": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "groupCode",
+          "groupName"
+        ]
+      },
+      "UpdateAgentGroupDto": {
+        "type": "object",
+        "properties": {
+          "groupCode": {
+            "type": "string",
+            "example": "TEAM_A"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "영업 1팀"
+          },
+          "description": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateHolidayRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateHolidayRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AgentBranchCallerIdEntryDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "callerIdNumber": {
+            "type": "string",
+            "example": "02-1234-5678"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "allowedInbound": {
+            "type": "boolean",
+            "default": true
+          },
+          "allowedOutbound": {
+            "type": "boolean",
+            "default": true
+          },
+          "allowedTransfer": {
+            "type": "boolean",
+            "default": true
+          },
+          "sortOrder": {
+            "type": "number",
+            "default": 0
+          }
+        },
+        "required": [
+          "agentId",
+          "callerIdNumber"
+        ]
+      },
+      "UpdateAgentBranchCallerIdsDto": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentBranchCallerIdEntryDto"
+            }
+          }
+        },
+        "required": [
+          "entries"
+        ]
       },
       "CreateBranchDto": {
         "type": "object",
@@ -3710,6 +6714,14 @@
           "description": {
             "type": "string",
             "example": "대표 운영 지사"
+          },
+          "vipPromptId": {
+            "type": "string",
+            "description": "VIP 고객 통화 시 사용할 멘트 (AsteriskPrompt FK). BlueSky Jisa.m_nMentVipCD 등가."
+          },
+          "defaultShareRuleId": {
+            "type": "string",
+            "description": "지사 기본 공유규칙 (shareRules FK). BlueSky ShareRule 매트릭스."
           },
           "isActive": {
             "type": "boolean",
@@ -3866,11 +6878,23 @@
             "type": "string",
             "example": "대표 운영 지사"
           },
+          "vipPromptId": {
+            "type": "string",
+            "description": "VIP 고객 통화 시 사용할 멘트 (AsteriskPrompt FK). BlueSky Jisa.m_nMentVipCD 등가."
+          },
+          "defaultShareRuleId": {
+            "type": "string",
+            "description": "지사 기본 공유규칙 (shareRules FK). BlueSky ShareRule 매트릭스."
+          },
           "isActive": {
             "type": "boolean",
             "example": true
           }
         }
+      },
+      "BranchSettingsProfileDto": {
+        "type": "object",
+        "properties": {}
       },
       "UpdateBranchMappingsDto": {
         "type": "object",
@@ -3894,9 +6918,17 @@
             }
           },
           "settingsProfile": {
-            "type": "object"
+            "$ref": "#/components/schemas/BranchSettingsProfileDto"
           }
         }
+      },
+      "CreateSmsTemplateDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateSmsTemplateDto": {
+        "type": "object",
+        "properties": {}
       },
       "CreateUpdateSessionDto": {
         "type": "object",
@@ -3929,6 +6961,128 @@
         ]
       },
       "ReportUpdateDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateOutboundRuleDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string"
+          },
+          "matchType": {
+            "type": "string",
+            "enum": [
+              "EXACT",
+              "PREFIX",
+              "REGEX",
+              "DIALPLAN_PATTERN"
+            ]
+          },
+          "sourceNumberPattern": {
+            "type": "string",
+            "example": "010"
+          },
+          "callerIdNumber": {
+            "type": "string",
+            "example": "02-1234-5678"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "memo": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number",
+            "default": 0
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "matchType",
+          "sourceNumberPattern",
+          "callerIdNumber"
+        ]
+      },
+      "TestOutboundRuleDto": {
+        "type": "object",
+        "properties": {
+          "inputNumber": {
+            "type": "string",
+            "example": "01012345678"
+          },
+          "branchId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "inputNumber"
+        ]
+      },
+      "UpdateOutboundRuleDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string"
+          },
+          "matchType": {
+            "type": "string",
+            "enum": [
+              "EXACT",
+              "PREFIX",
+              "REGEX",
+              "DIALPLAN_PATTERN"
+            ]
+          },
+          "sourceNumberPattern": {
+            "type": "string"
+          },
+          "callerIdNumber": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "memo": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateShareRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateShareRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PutShareRuleAgentsDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PutShareRuleBranchesDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateIntegrationAutomationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateIntegrationAutomationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TestIntegrationAutomationDto": {
         "type": "object",
         "properties": {}
       }

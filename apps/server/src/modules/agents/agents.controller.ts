@@ -21,6 +21,7 @@ import { AgentsService } from './agents.service';
 import { ChangeAgentStatusDto } from './dto/change-agent-status.dto';
 import { CopyAgentPermissionsDto } from './dto/copy-agent-permissions.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
+import { SetDndDto } from './dto/set-dnd.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 
 const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
@@ -137,6 +138,27 @@ export class AgentsController {
       dto.reasonCode,
     );
     return { success: true, data: row, error: null };
+  }
+
+  @Post(':agentId/dnd')
+  async setDnd(
+    @CurrentUser() user: any,
+    @Param('agentId') agentId: string,
+    @Body() dto: SetDndDto,
+  ) {
+    if (user.sub !== agentId && !SUPERVISORY_ROLES.has(user.role)) {
+      throw new ForbiddenException('본인 또는 supervisor/admin 만 허용');
+    }
+    if (user.sub !== agentId && SUPERVISORY_ROLES.has(user.role)) {
+      await this.menuPermissionService.assertMenuAction(
+        user.tenantId,
+        user.role,
+        'settings/agents',
+        'operate',
+        user.sub,
+      );
+    }
+    return this.agentsService.setDndMode(user.tenantId, agentId, dto.enabled);
   }
 
   /**

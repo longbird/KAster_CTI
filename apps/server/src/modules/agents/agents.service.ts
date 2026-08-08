@@ -10,6 +10,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
 import type { ParsedAmiFrame } from '../ami/ami.parser';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
+import { AgentStateService } from '../calls/agent-state.service';
 import {
   CopyAgentPermissionsDto,
   PERMISSION_COPY_CORE_SCOPES,
@@ -24,6 +25,7 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly asteriskReload: AsteriskReloadService,
     private readonly ami: AmiConnectionService,
+    private readonly agentStateService: AgentStateService,
   ) {}
 
   async listForTenant(tenantId: string) {
@@ -123,6 +125,52 @@ export class AgentsService {
     }));
 
     return { success: true, data: withStatus, error: null };
+  }
+
+  async setDndMode(tenantId: string, agentId: string, enabled: boolean) {
+    const agent = await this.prisma.agents.findFirst({
+      where: {
+        tenantId,
+        agentId,
+        isActive: true,
+      },
+      select: {
+        agentId: true,
+        tenantId: true,
+        extension: true,
+        isActive: true,
+      },
+    });
+    if (!agent) {
+      throw new NotFoundException('상담원을 찾을 수 없습니다.');
+    }
+    if (!agent.extension?.trim()) {
+      throw new BadRequestException('상담원 내선이 설정되어 있지 않습니다.');
+    }
+
+    this.ami.sendAction({
+      Action: 'QueuePause',
+      Interface: `PJSIP/${agent.extension}`,
+      Paused: enabled ? 'true' : 'false',
+      Reason: enabled ? 'DND' : 'DND_CLEAR',
+    });
+
+    const status = await this.agentStateService.changeStatus(
+      agentId,
+      enabled ? 'BREAK' : 'AVAILABLE',
+      enabled ? 'DND' : undefined,
+    );
+
+    return {
+      success: true,
+      data: {
+        agentId,
+        extension: agent.extension,
+        dndEnabled: enabled,
+        status,
+      },
+      error: null,
+    };
   }
 
   private async fetchPjsipContacts(): Promise<ParsedAmiFrame[]> {
