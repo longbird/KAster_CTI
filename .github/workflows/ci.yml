@@ -58,15 +58,22 @@ jobs:
       # schema.prisma 는 고쳤는데 마이그레이션을 빠뜨리는 실수를 잡는다.
       # 스키마가 기대하는 SQL 과 수기 마이그레이션의 테이블/컬럼 집합을 비교한다.
       - name: detect schema/migration drift
+        # --exit-code: 0 = 차이 없음, 2 = 차이 있음, 그 외 = 명령 자체 실패.
+        # 셋을 구분하지 않으면 도구 오류를 "드리프트" 라고 잘못 보고한다.
         run: |
-          npx prisma migrate diff \
+          set +e
+          out=$(npx prisma migrate diff \
             --from-migrations prisma/migrations \
             --to-schema-datamodel prisma/schema.prisma \
             --shadow-database-url "$SHADOW_DATABASE_URL" \
-            --exit-code && echo "no drift" || {
-              echo "::error::schema.prisma 와 prisma/migrations 가 어긋납니다. 마이그레이션을 추가하세요."
-              exit 1
-            }
+            --exit-code 2>&1)
+          rc=$?
+          echo "$out"
+          case "$rc" in
+            0) echo "드리프트 없음" ;;
+            2) echo "::error::schema.prisma 와 prisma/migrations 가 어긋납니다. 마이그레이션을 추가하세요."; exit 1 ;;
+            *) echo "::error::migrate diff 실행 실패 (exit $rc). 드리프트 여부를 판정하지 못했습니다."; exit 1 ;;
+          esac
         env:
           SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
     services:
