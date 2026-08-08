@@ -6,9 +6,9 @@
 
 ### 입력 자료
 
-- `docs/IPPBX_개발시 참조용_20260104/1_비씨앤 IP PBX 초안_20260104.xlsx`
-- `docs/IPPBX_개발시 참조용_20260104/2_매뉴얼 (삼성pbx).pdf`
-- `docs/IPPBX_개발시 참조용_20260104/3_DM_설정화면/*.png`
+- `docs/reference/IPPBX_개발시 참조용_20260104/1_비씨앤 IP PBX 초안_20260104.xlsx`
+- `docs/reference/IPPBX_개발시 참조용_20260104/2_매뉴얼 (삼성pbx).pdf`
+- `docs/reference/IPPBX_개발시 참조용_20260104/3_DM_설정화면/*.png`
 
 ### 판단 원칙
 

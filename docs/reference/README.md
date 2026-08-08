@@ -8,7 +8,7 @@ ChatGPT 세션에서 생성된 원본 PDF 산출물 중 `docs/` 의 3대 문서�
 
 | 파일 | 내용 | 원본 대화 / MD 버전 |
 |---|---|---|
-| `asterisk_cti_full.pdf` | 프로젝트 개요 + 상세 설계 + DB/API/Asterisk 스펙 3건을 한 번에 묶은 합본 (5KB) | `docs/01_project_overview.pdf`, `docs/02_practical_design.pdf`, `docs/03_db_api_asterisk_spec.pdf` 참조 |
+| `asterisk_cti_full.pdf` | 프로젝트 개요 + 상세 설계 + DB/API/Asterisk 스펙 3건을 한 번에 묶은 합본 (5KB) | `docs/reference/01_project_overview.pdf`, `docs/reference/02_practical_design.pdf`, `docs/reference/03_db_api_asterisk_spec.pdf` 참조 |
 | `callcenter_architecture_proposal.pdf` | 대리운전 콜센터의 "핫링크 vs Hybrid" 아키텍처 제안서 | conv 04 (`69ddf38c`) — 편집 가능 MD 버전은 `docs/design/hotlink-vs-hybrid-proposal.md` |
 
 ## 새 PDF 를 여기에 추가하는 기준

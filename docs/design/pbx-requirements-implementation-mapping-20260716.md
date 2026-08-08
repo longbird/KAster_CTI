@@ -11,10 +11,10 @@
 ### 기준 문서
 
 - `docs/design/samsung-pbx-requirements-analysis-20260513.md`
-- `docs/design/pbx-selected-features-development-plan-20260514.md`
-- `docs/design/pbx-deferred-feature-backlog-20260522.md`
-- `docs/design/pbx-ops-actions-runbook-plan-20260522.md`
-- `docs/design/pbx-operational-validation-runbook-20260716.md`
+- `docs/plans/pbx-selected-features-development-plan-20260514.md`
+- `docs/plans/pbx-deferred-feature-backlog-20260522.md`
+- `docs/plans/pbx-ops-actions-runbook-plan-20260522.md`
+- `docs/operations/pbx-operational-validation-runbook-20260716.md`
 
 ### 코드 확인 범위
 
@@ -255,5 +255,5 @@ npm test -- --run src/shared/help/FeatureHelpButton.test.tsx src/shared/help/hel
 1. 도움말 승인 워크플로가 필요하면 DB 테이블과 관리자 검토 화면 추가.
 2. 설정화면 이미지 OCR 자동 추출 추가.
 3. 검색 API 자동 수집이 필요하면 검색 출처 수집 작업을 별도 배치로 분리.
-4. 운영 PBX 환경에서 착신전환, 대리응답, 무조건 착신, 시간 동기화 동작 검증. 실행 절차는 `docs/design/pbx-operational-validation-runbook-20260716.md`를 기준으로 한다.
+4. 운영 PBX 환경에서 착신전환, 대리응답, 무조건 착신, 시간 동기화 동작 검증. 실행 절차는 `docs/operations/pbx-operational-validation-runbook-20260716.md`를 기준으로 한다.
 5. 국선 그룹 기본 발신 풀, DID 직접 착신, tenant 공용 단축 발신은 구현 완료 상태로 운영 검증한다. 오프훅 직통전화/지사 그룹과 국선 그룹 고급 라우팅은 현장 요구가 확정될 때까지 보류 유지.

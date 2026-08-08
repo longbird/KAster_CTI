@@ -7,7 +7,7 @@
   - 관리자 UI는 DID, 전환 방식/대상, 착신 조건, 시간표, 재착신 조건을 한 줄로 요약한다.
 - PBX 공통 도움말 자동 구축 스크립트를 추가했다.
   - `apps/admin/scripts/help-curated.json`을 승인 입력으로 사용한다.
-  - `docs/IPPBX_개발시 참조용_20260104/3_DM_설정화면` 파일명에서 `mmc.*` `AUTO_DRAFT` 항목 27건을 생성한다.
+  - `docs/reference/IPPBX_개발시 참조용_20260104/3_DM_설정화면` 파일명에서 `mmc.*` `AUTO_DRAFT` 항목 27건을 생성한다.
   - `npm run help:build` 실행 결과 `pbxFeatureHelp.generated.json`은 35개 항목으로 재생성됐다.
 - P0 설정 화면 6곳의 페이지 제목 옆에 도움말 버튼을 배치했다.
   - 시스템 설정, 지사 설정, 착신전환 설정, 호 분배룰 설정, 상담원 설정, PBX 연동 설정.

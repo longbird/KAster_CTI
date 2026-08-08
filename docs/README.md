@@ -1,43 +1,58 @@
-# PBX 문서 정리 규칙
+# 문서 인덱스
 
-작성일: 2026-08-02
+> 문서를 **어디에 어떤 이름으로** 쓰는지는 저장소 루트 [`DOCS_GUIDE.md`](../DOCS_GUIDE.md) 에 있다.
+> 이 파일은 인덱스 전용이다. 규칙을 여기에 다시 적지 않는다.
 
-## 기본 원칙
+정리 기준일: 2026-08-08 (타입 우선 체계로 일괄 재배치)
 
-- 새로 생성하는 운영/설계/계획/검증 문서는 기능별 디렉터리 아래에 둔다.
-- 파일명은 `YYYY-MM-DD-주제-문서유형.md` 형식을 사용한다.
-- 사용자에게 노출되는 제품명은 `PBX`로 적는다.
-- 내부 코드명, API path, 파일 path는 기존 계약명을 그대로 쓸 수 있다.
-- 같은 기능의 문서는 날짜순 정렬이 가능해야 한다.
+## 디렉터리
 
-## 디렉터리 기준
+| 경로 | 담는 것 | 문서 수 | 세부 목록 |
+|---|---|---:|---|
+| [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 33 | [`design/_index.md`](design/_index.md) |
+| [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 48 | [`plans/_index.md`](plans/_index.md) |
+| [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 12 | 아래 참조 |
+| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 50 | [`qa/_index.md`](qa/_index.md) |
+| [`reviews/`](reviews/) | 외부 문서·설계 검토 의견 | 1 | 아래 참조 |
+| [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 23 | [`work-log/_index.md`](work-log/_index.md) |
+| [`reference/`](reference/) | 원본 PDF·외부 원문 (수정 안 함) | 12 | [`reference/README.md`](reference/README.md) |
+| [`chatgpt-archive/`](chatgpt-archive/) | 대화 원문 아카이브 + 추출 스크립트 | — | — |
 
-| 위치 | 용도 |
-| --- | --- |
-| `docs/features/<feature>/` | 기능별 설계, 구현 계획, 운영 runbook, 검증 기록 |
-| `docs/qa/` | 과거 QA 산출물과 대량 smoke report 보관 |
-| `docs/reference/` | 원본 PDF, 외부 원문, 변경하지 않는 참고자료 |
-| `docs/chatgpt-archive/` | 수집된 대화 원문과 분석 아카이브 |
-| `docs/work-log/` | 날짜별 작업 로그 |
+`openapi.json` 은 `apps/server` 의 `npm run openapi:export` 가 생성하는 산출물이다. 손으로 고치지 않는다.
 
-## 문서 유형 suffix
+## 처음 읽을 문서
 
-| suffix | 의미 |
-| --- | --- |
-| `-design.md` | 설계 |
-| `-plan.md` | 구현 계획 |
-| `-runbook.md` | 운영 절차 |
-| `-verification.md` | 검증 결과 |
-| `-analysis.md` | 분석 리포트 |
-| `-index.md` | 기능별 문서 인덱스 |
+| 목적 | 문서 |
+|---|---|
+| 시스템 전체 설계 | [`design/system-design.md`](design/system-design.md) |
+| 멀티노드·장애복구 운영 아키텍처 | [`design/operations-architecture.md`](design/operations-architecture.md) |
+| CTI 이벤트 계약 | [`design/cti-event-contract.md`](design/cti-event-contract.md) |
+| 외부 CTI 연동 API | [`design/2026-08-07-external-cti-api-guide.md`](design/2026-08-07-external-cti-api-guide.md) |
+| 현재 진행 계획 | [`plans/project-integrated-plan.md`](plans/project-integrated-plan.md) · [`plans/project-next-tasks.md`](plans/project-next-tasks.md) |
+| 운영 배포 | [`operations/production-deployment-standard.md`](operations/production-deployment-standard.md) · [`operations/deployment-runbook.md`](operations/deployment-runbook.md) |
+| DB 마이그레이션 | [`operations/db-migration-runbook.md`](operations/db-migration-runbook.md) |
+| PBX 설정 반영 | [`operations/pbx-config-apply-runbook.md`](operations/pbx-config-apply-runbook.md) |
+| 기획 원본 (PDF) | [`reference/01_project_overview.pdf`](reference/01_project_overview.pdf) · [`02_practical_design.pdf`](reference/02_practical_design.pdf) · [`03_db_api_asterisk_spec.pdf`](reference/03_db_api_asterisk_spec.pdf) |
 
-## 예시
+## operations/
 
-```text
-docs/features/outbound-dialing/2026-08-02-client-originated-outbound-command-plan.md
-docs/features/pbx-security/2026-08-02-pbx-sip-security-hardening-runbook.md
-```
+| 문서 | 내용 |
+|---|---|
+| `production-deployment-standard.md` | 운영 배포 표준 |
+| `deployment-runbook.md` | 배포 절차 |
+| `db-migration-runbook.md` | DB 마이그레이션 절차 |
+| `pbx-config-apply-runbook.md` | PBX 설정 반영 절차 |
+| `pbx-operational-validation-runbook-20260716.md` | PBX 운영 검증 절차 |
+| `pbx-production-migration-runbook-20260522.md` | PBX 운영 이관 절차 |
+| `pbx-release-gate-20260522.md` | PBX 릴리스 게이트 |
+| `p0-readiness-checklist.md` | P0 준비 점검 |
+| `p3-release-preflight-20260506.md` | P3 릴리스 프리플라이트 |
+| `agent-desktop-live-test-runbook.md` | 데스크톱 실환경 테스트 절차 |
+| `local-test-infra.md` | 로컬 테스트 인프라 |
+| `2026-08-02-pbx-sip-security-hardening-runbook.md` | SIP 보안 강화 절차 |
 
-## 정리 방식
+## reviews/
 
-기존 문서는 한 번에 대량 이동하지 않는다. 기능 작업을 재개하거나 문서를 수정할 때 해당 기능 디렉터리로 이동하고, 문서명에 날짜가 없으면 최초 작성일 또는 확인 가능한 기준일을 붙인다.
+| 문서 | 대상 |
+|---|---|
+| `2026-08-08-db-ha-resilience-design-review.md` | `K-CTI_DB_백업_복구_이중화_장애대응_설계서_v1.0.docx` 검토 |

@@ -6,7 +6,7 @@
 
 | P0 항목 | 레포 산출물 | 최종 통과 기준 |
 | --- | --- | --- |
-| 실시간 이벤트 계약 | `docs/cti-event-contract.md`, 서버/웹/관리자/데스크톱 테스트 | 테스트 통과 및 실서버 WebSocket 이벤트 관찰 |
+| 실시간 이벤트 계약 | `docs/design/cti-event-contract.md`, 서버/웹/관리자/데스크톱 테스트 | 테스트 통과 및 실서버 WebSocket 이벤트 관찰 |
 | 통화 제어 상태 동기화 | 서버 `call.updated`, 웹/데스크톱 ack-only 제거 | 동일 통화가 여러 클라이언트에서 같은 상태로 표시 |
 | PBX 설정 반영 검증 | dry-run API/UI, `pbx-config-apply-runbook.md`, `pbx-config-preflight-smoke.ps1` | dry-run 통과, reload, 대표 DID smoke PASS |
 | 운영 배포/DB migration | `deploy-prod.sh`, `db-migration-runbook.md`, site template | 백업, migration, restart, health/smoke 증적 |

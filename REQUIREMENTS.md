@@ -8,11 +8,11 @@
 
 ## 요구사항 원천
 
-- `docs/project-integrated-plan.md`
-- `docs/system-design.md`
-- `docs/project-current-analysis-next-actions-20260506.md`
-- `docs/project-next-actions.md`
-- `docs/project-next-tasks.md`
+- `docs/plans/project-integrated-plan.md`
+- `docs/design/system-design.md`
+- `docs/plans/project-current-analysis-next-actions-20260506.md`
+- `docs/plans/project-next-actions.md`
+- `docs/plans/project-next-tasks.md`
 - `CODEBASE_MAP.md`
 - `AGENTS.md`
 - `CLAUDE.md`

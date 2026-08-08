@@ -131,7 +131,7 @@
 - `docker-compose.dev.yml`은 이름과 달리 운영형 원격 배포 요소가 많습니다. 운영/개발 명명 정리가 필요합니다.
 - `apps/server/prisma/migrations`는 37개 migration으로 누적되어 있습니다. 운영 전 `migrate deploy`, 백업, rollback 절차 검증 우선순위가 높습니다.
 - 실제 PBX AMI 필드 변형, Redis 리더 전환, 운영 DB 상태, 다중 WS 노드 fanout은 정적 분석만으로 확정할 수 없습니다.
-- 현재 작업트리는 `main...origin/main`이며 미추적 파일 `docs/business-30-concurrent-call-development-plan-20260509.md`가 있습니다.
+- 현재 작업트리는 `main...origin/main`이며 미추적 파일 `docs/plans/business-30-concurrent-call-development-plan-20260509.md`가 있습니다.
 
 ## 9. 이번 탐색의 실제 검증 결과
 

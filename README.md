@@ -88,14 +88,14 @@ npm run dev
 - 멀티노드 배포 시 AMI 이벤트 소비·Outbox 발행·세션 복구는 Redis 리더 락을 잡은 노드에서만 실행됩니다.
 - AMI 이벤트는 Redis dedupe key + DB unique index 이중 방어선으로 중복 처리가 차단됩니다.
 - WebSocket 이벤트는 Redis Pub/Sub 을 거쳐 모든 WS 노드로 fan-out 됩니다.
-- 자세한 아키텍처는 `docs/chatgpt-sessions-analysis.md` 와 `docs/design/operations-architecture.md` 참고.
+- 자세한 아키텍처는 `docs/reference/chatgpt-sessions-analysis.md` 와 `docs/design/operations-architecture.md` 참고.
 
 ## 핵심 설계 문서
 
-- `docs/01_project_overview.pdf` — 프로젝트 개요
-- `docs/02_practical_design.pdf` — 실전 개발용 상세 설계서
-- `docs/03_db_api_asterisk_spec.pdf` — DB / API / Asterisk 스펙
-- `docs/chatgpt-sessions-analysis.md` — 46개 ChatGPT 세션 통합 분석 리포트
+- `docs/reference/01_project_overview.pdf` — 프로젝트 개요
+- `docs/reference/02_practical_design.pdf` — 실전 개발용 상세 설계서
+- `docs/reference/03_db_api_asterisk_spec.pdf` — DB / API / Asterisk 스펙
+- `docs/reference/chatgpt-sessions-analysis.md` — 46개 ChatGPT 세션 통합 분석 리포트
 - `docs/design/sip-trunk-spec-template.md` — 통신사 SIP Trunk 스펙 요청 표준 포맷
 - `docs/design/hotlink-vs-hybrid-proposal.md` — 핫링크 vs Hybrid 구조 비교
 - `docs/design/operations-architecture.md` — 멀티노드 운영 아키텍처 원전
