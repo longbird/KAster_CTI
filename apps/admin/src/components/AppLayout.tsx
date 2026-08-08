@@ -1,4 +1,4 @@
-import { Button, Grid, Layout, List, Menu, Modal, Result, Space, Spin, Tag, Typography, message } from 'antd';
+import { Alert, Button, Grid, Layout, List, Menu, Modal, Result, Space, Spin, Tag, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +18,8 @@ import {
   pathToMenuKey,
 } from '../shared/permissions/menuConfig';
 
+import { useOperatingMode } from '../features/resilience/useOperatingMode';
+
 const { Header, Sider, Content } = Layout;
 
 interface LoginUpdateNotice {
@@ -30,6 +32,7 @@ interface LoginUpdateNotice {
 }
 
 export function AppLayout() {
+  const operating = useOperatingMode();
   const location = useLocation();
   const navigate = useNavigate();
   const agent = useAuthStore((s) => s.agent);
@@ -187,6 +190,16 @@ export function AppLayout() {
           </Space>
         </Header>
         <Content className="app-content">
+          {operating.showBanner ? (
+            <Alert
+              type={operating.bannerSeverity}
+              showIcon
+              banner
+              style={{ marginBottom: 12 }}
+              message={operating.bannerTitle}
+              description={operating.bannerDescription}
+            />
+          ) : null}
           {isAllowed ? (
             <Outlet />
           ) : (

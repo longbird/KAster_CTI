@@ -1,6 +1,11 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../../config';
 import { useAuthStore } from '../../store/useAuthStore';
+import { message } from 'antd';
+import {
+  extractOperatingModeRestriction,
+  operatingModeRestrictionMessage,
+} from './operatingModeError';
 
 export const apiClient = axios.create({ baseURL: API_BASE_URL });
 
@@ -45,6 +50,14 @@ async function tryRefresh(): Promise<string | null> {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // DB 장애 대응 모드의 쓰기 차단은 화면마다 따로 처리하지 않는다. 여기서 한 번
+    // 안내하면 기존 설정 화면은 물론 앞으로 추가되는 화면까지 자동으로 덮인다.
+    const restricted = extractOperatingModeRestriction(error);
+    if (restricted) {
+      message.warning(operatingModeRestrictionMessage(restricted));
+      return Promise.reject(error);
+    }
+
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
