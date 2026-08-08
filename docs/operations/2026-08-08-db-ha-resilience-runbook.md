@@ -108,10 +108,21 @@ psql -p 5439 -d kaster_cti -c "SELECT max(\"startedAt\") FROM \"callSessions\";"
 
 ## 6. 알려진 한계 (2026-08-08 기준)
 
-- **명령 스풀 미구현.** 장애 중 발생한 업무 명령(메모·상담결과)의 오프라인 큐는 없다.
-  `/health` 의 `offlineCommandQueueDepth` 가 `null` 인 이유다. 0 이 아니라 null 인 것은
-  "밀린 명령 없음" 으로 오독하지 않게 하기 위함이다.
-- **Recovery Coordinator 자동 기동 없음.** 현재는 `RecoveryCoordinatorService.startRecovery()`
-  를 호출해야 재처리가 돈다. 주기 실행 또는 모드 전환 훅 연결이 후속 작업이다.
-- **원격 DR 미포함.** P2.
-- **실 PostgreSQL 리허설 미실시.** 마이그레이션과 HA 구성은 실 DB 에 적용해 검증하지 않았다.
+아래는 **의도적으로 남긴 범위**다. 운영 판단에 필요하므로 숨기지 않는다.
+
+| # | 한계 | 영향 | 대응 |
+|---|---|---|---|
+| 1 | **명령 스풀 미구현** | 장애 중 발생한 업무 명령(메모·상담결과)은 오프라인 큐가 없어 그대로 실패한다 | `/health` 의 `offlineCommandQueueDepth` 가 `null`(Prometheus 는 -1). 0 이 아닌 이유는 "밀린 명령 없음" 으로 오독하지 않게 하기 위함 |
+| 2 | **LKG 는 복원용이 아니다** | 파일별 sha256 다이제스트만 저장하므로 LKG 로 설정을 되돌릴 수 없다. 드리프트 탐지와 버전/나이 보고까지만 가능 | `pjsip.conf` 에 SIP 비밀번호가 평문으로 들어가는데 본문을 저장하면 그대로 디스크에 남는다. 복원 기능이 필요하면 필드 단위 마스킹 설계가 선행돼야 한다 |
+| 3 | **`allowNewLogin` 은 보고만 하고 강제하지 않는다** | `DEGRADED` 에서 이 값이 `false` 로 나가지만 `AuthController` 에는 가드가 없다. 실제로는 DB 가 죽어 로그인이 자연히 실패한다 | 강제하면 장애 중 감독자가 관리자 앱에 재로그인할 수 없게 되는 위험이 있어 **운영 판단 사항으로 남겼다**. 적용하려면 `WriteKind` 에 `login` 을 추가해 `AuthController` 에 붙인다 |
+| 4 | **원격 DR 미포함** | 동일 센터 장애조치까지만 커버 | P2 |
+| 5 | **실 PostgreSQL 리허설 미실시** | 마이그레이션·Patroni·pgBackRest 를 실 DB 에 적용해 검증하지 않았다 | 5장 훈련 시나리오를 수행하고 인수 리포트에 기록한다. **이걸 하기 전에는 HA 준비 완료라고 말하지 않는다** |
+
+### 이미 해소된 항목 (참고)
+
+초기 구현에서 다음 두 가지가 "코드는 있으나 아무도 부르지 않는" 상태였고, 리뷰에서 발견해 수정했다.
+
+- `RecoveryCoordinator.startRecovery` 미호출 → `RecoverySweeperService`(15초 주기·리더 전용) 추가.
+  수정 전에는 DB 가 한 번만 끊겨도 `RECOVERING` 에 영구히 갇혀 설정 저장이 영원히 차단됐다.
+- `ConfigSnapshotService.save` 미호출 → PBX reload 성공 직후 `captureLkg` 로 고정.
+  수정 전에는 LKG 가 영영 비어 있어 설정 출처가 항상 `missing` 이었다.
