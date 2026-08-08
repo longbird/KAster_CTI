@@ -2,11 +2,12 @@
 
 > 배치 규칙은 루트 [`DOCS_GUIDE.md`](../../DOCS_GUIDE.md), 전체 인덱스는 [`docs/README.md`](../README.md).
 
-생성 기준일: 2026-08-08 · 총 51건
+생성 기준일: 2026-08-08 · 총 52건 (최종 갱신 2026-08-09)
 
 | 문서 |
 |---|
 | [`2026-08-08-db-ha-resilience-acceptance-report-template.md`](2026-08-08-db-ha-resilience-acceptance-report-template.md) |
+| [`2026-08-09-requirements-vs-implementation-verification.md`](2026-08-09-requirements-vs-implementation-verification.md) |
 | [`announcements-agent-web-20260505.md`](announcements-agent-web-20260505.md) |
 | [`deploy-20260501-rehearsal.md`](deploy-20260501-rehearsal.md) |
 | [`desktop-app-diagnostics-20260502.png`](desktop-app-diagnostics-20260502.png) |
