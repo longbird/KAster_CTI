@@ -71,6 +71,63 @@ class QueueHealthDto {
   longestWaitSeconds!: number;
 }
 
+class ResilienceMetricsDto {
+  @ApiProperty({ example: '12', nullable: true })
+  lkgVersion!: string | null;
+
+  @ApiProperty({ example: 42, nullable: true })
+  lkgAgeSeconds!: number | null;
+
+  @ApiProperty({ example: 0 })
+  offlineEventQueueDepth!: number;
+
+  @ApiProperty({ example: null, nullable: true, description: '명령 스풀 미구현. null = 미지원' })
+  offlineCommandQueueDepth!: number | null;
+
+  @ApiProperty({ example: 0 })
+  configVersionMismatch!: number;
+
+  @ApiProperty({ example: 'primary' })
+  dbRole!: 'primary' | 'standby' | 'unknown';
+
+  @ApiProperty({ example: null, nullable: true })
+  replicationLagSeconds!: number | null;
+
+  @ApiProperty({ example: 12, nullable: true })
+  walArchiveAgeSeconds!: number | null;
+
+  @ApiProperty({ example: null, nullable: true })
+  backupLastSuccessTimestamp!: string | null;
+}
+
+class DataFreshnessDto {
+  @ApiProperty({ example: 'fresh' })
+  db!: 'fresh' | 'stale' | 'unavailable';
+
+  @ApiProperty({ example: 'fresh' })
+  config!: 'fresh' | 'lkg' | 'missing';
+
+  @ApiProperty({ example: 'fresh' })
+  customer!: 'fresh' | 'cache-only' | 'unavailable';
+}
+
+class OperatingRestrictionsDto {
+  @ApiProperty({ example: true })
+  allowExistingCallControl!: boolean;
+
+  @ApiProperty({ example: true })
+  allowGeneralConfigWrites!: boolean;
+
+  @ApiProperty({ example: true })
+  allowEmergencyConfigWrites!: boolean;
+
+  @ApiProperty({ example: true })
+  allowNewLogin!: boolean;
+
+  @ApiProperty({ example: true })
+  allowCustomerCacheMissLookup!: boolean;
+}
+
 export class HealthResponseDto {
   @ApiProperty({ example: 'ok' })
   status!: 'ok' | 'degraded' | 'down';
@@ -95,4 +152,16 @@ export class HealthResponseDto {
 
   @ApiProperty({ type: QueueHealthDto })
   queue!: QueueHealthDto;
+
+  @ApiProperty({ example: 'NORMAL' })
+  operatingMode!: 'NORMAL' | 'DB_FAILOVER' | 'DEGRADED' | 'RECOVERING';
+
+  @ApiProperty({ type: DataFreshnessDto })
+  dataFreshness!: DataFreshnessDto;
+
+  @ApiProperty({ type: OperatingRestrictionsDto })
+  restrictions!: OperatingRestrictionsDto;
+
+  @ApiProperty({ type: ResilienceMetricsDto })
+  resilience!: ResilienceMetricsDto;
 }

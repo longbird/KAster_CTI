@@ -4,6 +4,7 @@ import { OperatingModeService } from './operating-mode.service';
 import { LocalSpoolStore } from './local-spool.store';
 import { DurableSpoolService } from './durable-spool.service';
 import { ConfigSnapshotService } from './config-snapshot.service';
+import { ResilienceHealthService } from './resilience-health.service';
 import { WriteAvailabilityGuard } from './write-availability.guard';
 
 /**
@@ -20,6 +21,7 @@ import { WriteAvailabilityGuard } from './write-availability.guard';
     LocalSpoolStore,
     DurableSpoolService,
     ConfigSnapshotService,
+    ResilienceHealthService,
     // 전역 등록. 가드 자체는 @RequiresWriteAvailability 가 붙은 곳에서만 동작하므로
     // 데코레이터 없는 엔드포인트는 영향받지 않는다.
     { provide: APP_GUARD, useClass: WriteAvailabilityGuard },
@@ -30,6 +32,7 @@ import { WriteAvailabilityGuard } from './write-availability.guard';
     LocalSpoolStore,
     DurableSpoolService,
     ConfigSnapshotService,
+    ResilienceHealthService,
   ],
 })
 export class ResilienceModule {}
