@@ -10,7 +10,7 @@
 | 경로 | 담는 것 | 문서 수 | 세부 목록 |
 |---|---|---:|---|
 | [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 33 | [`design/_index.md`](design/_index.md) |
-| [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 49 | [`plans/_index.md`](plans/_index.md) |
+| [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 50 | [`plans/_index.md`](plans/_index.md) |
 | [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 13 | 아래 참조 |
 | [`qa/`](qa/) | 검증 결과·smoke report·증적 | 52 | [`qa/_index.md`](qa/_index.md) |
 | [`reviews/`](reviews/) | 외부 문서·설계 검토 의견 | 1 | 아래 참조 |
