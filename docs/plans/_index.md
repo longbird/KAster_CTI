@@ -2,7 +2,7 @@
 
 > 배치 규칙은 루트 [`DOCS_GUIDE.md`](../../DOCS_GUIDE.md), 전체 인덱스는 [`docs/README.md`](../README.md).
 
-생성 기준일: 2026-08-08 · 총 48건
+생성 기준일: 2026-08-08 · 총 49건
 
 | 문서 |
 |---|
@@ -42,6 +42,7 @@
 | [`2026-05-20-pbx-m3-operations-automation.md`](2026-05-20-pbx-m3-operations-automation.md) |
 | [`2026-08-02-client-originated-outbound-command-plan.md`](2026-08-02-client-originated-outbound-command-plan.md) |
 | [`2026-08-08-db-ha-resilience-plan.md`](2026-08-08-db-ha-resilience-plan.md) |
+| [`2026-08-08-prisma-schema-drift-plan.md`](2026-08-08-prisma-schema-drift-plan.md) |
 | [`agent-desktop-runtime-kickoff.md`](agent-desktop-runtime-kickoff.md) |
 | [`agent-desktop-server-integration-checklist.md`](agent-desktop-server-integration-checklist.md) |
 | [`business-30-concurrent-call-development-plan-20260509.md`](business-30-concurrent-call-development-plan-20260509.md) |
