@@ -22,6 +22,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_ERROR';
     let message: string | undefined;
+    // 예외가 직접 붙인 구조화 필드(예: operatingMode)를 envelope 까지 살려 보낸다.
+    let extras: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -31,7 +33,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else if (payload && typeof payload === 'object') {
         const obj = payload as Record<string, unknown>;
         message = (obj.message as string) ?? exception.message;
-        code = (obj.error as string) ?? this.statusToCode(status);
+        // obj.code 를 먼저 본다. 이걸 놓치면 호출자가 붙인 도메인 코드가 사라지고
+        // 상태 코드에서 유도한 일반 코드로 덮여, 프론트가 원인을 구분하지 못한다.
+        code = (obj.code as string) ?? (obj.error as string) ?? this.statusToCode(status);
+        extras = Object.fromEntries(
+          Object.entries(obj).filter(
+            ([key]) => !['code', 'error', 'message', 'statusCode'].includes(key),
+          ),
+        );
       }
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       // 대표적인 Prisma 에러만 기본 매핑. 상세 매핑은 후속.
@@ -61,7 +70,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(status).json({
       success: false,
       data: null,
-      error: { code, message },
+      error: { code, message, ...extras },
     });
   }
 

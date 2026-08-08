@@ -140,28 +140,62 @@ describe('DurableSpoolService', () => {
     expect(await service.getPendingDepth(TENANT)).toBe(7);
   });
 
-  it('drainCursor 는 커서를 스트림의 마지막 ID 로 민다', async () => {
+});
+
+describe('DurableSpoolService 커서 안전성', () => {
+  it('앞선 실패가 있으면 뒤 이벤트 성공으로 커서를 밀지 않는다', async () => {
+    // 커서는 단일 포인터라 "A 는 건너뛰고 B 만 처리됨" 을 표현할 수 없다.
+    // 실패한 A 를 넘어 커서가 가면 A 는 재처리 대상에서 영구히 빠진다.
     const { service, client } = build();
-    client.xrevrange.mockResolvedValue([['99-0', ['payload', '{}']]]);
 
-    await service.drainCursor(TENANT);
-
-    expect(client.set).toHaveBeenCalledWith(`kcti:spool:${TENANT}:ami:cursor`, '99-0');
-  });
-
-  it('스트림이 비어 있으면 drainCursor 는 커서를 건드리지 않는다', async () => {
-    const { service, client } = build();
-    client.xrevrange.mockResolvedValue([]);
-
-    await service.drainCursor(TENANT);
+    await service.markFailed(TENANT, { source: 'REDIS', redisStreamId: '10-0' } as any);
+    await service.markProcessed(TENANT, { source: 'REDIS', redisStreamId: '11-0' } as any);
 
     expect(client.set).not.toHaveBeenCalled();
   });
 
-  it('Redis 가 죽어 있어도 drainCursor 는 예외를 던지지 않는다', async () => {
+  it('실패가 없으면 평소대로 커서를 전진시킨다', async () => {
     const { service, client } = build();
-    client.xrevrange.mockRejectedValue(new Error('redis down'));
 
-    await expect(service.drainCursor(TENANT)).resolves.toBeUndefined();
+    await service.markProcessed(TENANT, { source: 'REDIS', redisStreamId: '11-0' } as any);
+
+    expect(client.set).toHaveBeenCalledWith(`kcti:spool:${TENANT}:ami:cursor`, '11-0');
+  });
+
+  it('재처리가 전량 성공해 blocked 를 풀면 다시 전진한다', async () => {
+    const { service, client } = build();
+    await service.markFailed(TENANT, { source: 'REDIS', redisStreamId: '10-0' } as any);
+
+    service.clearBlocked(TENANT);
+    await service.markProcessed(TENANT, { source: 'REDIS', redisStreamId: '12-0' } as any);
+
+    expect(client.set).toHaveBeenCalledWith(`kcti:spool:${TENANT}:ami:cursor`, '12-0');
+  });
+
+  it('로컬 스풀 커서도 같은 규칙으로 막힌다', async () => {
+    const { service, local } = build();
+
+    await service.markFailed(TENANT, { source: 'LOCAL', localOffset: 100 } as any);
+    await service.markProcessed(TENANT, { source: 'LOCAL', localOffset: 200 } as any);
+
+    expect(local.commitCursor).not.toHaveBeenCalled();
+  });
+
+  it('테넌트별로 독립적으로 막힌다', async () => {
+    const other = '00000000-0000-0000-0000-000000000002';
+    const { service, client } = build();
+
+    await service.markFailed(TENANT, { source: 'REDIS', redisStreamId: '10-0' } as any);
+    await service.markProcessed(other, { source: 'REDIS', redisStreamId: '11-0' } as any);
+
+    expect(client.set).toHaveBeenCalledWith(`kcti:spool:${other}:ami:cursor`, '11-0');
+  });
+
+  it('isBlocked 로 막힌 상태를 조회할 수 있다', async () => {
+    const { service } = build();
+
+    expect(service.isBlocked(TENANT)).toBe(false);
+    await service.markFailed(TENANT, { source: 'REDIS', redisStreamId: '10-0' } as any);
+    expect(service.isBlocked(TENANT)).toBe(true);
   });
 });

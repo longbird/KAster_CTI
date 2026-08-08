@@ -59,11 +59,10 @@ export class RecoverySweeperService implements OnModuleInit {
           await this.localSpool.compact(tenantId).catch((err) => {
             this.logger.warn(`spool compact failed for tenant=${tenantId}: ${err.message}`);
           });
-          // Redis 쪽도 같이 배수한다. 리더 전환 경계에서 다른 노드의 append 가 커서 뒤에
-          // 남으면 offline depth 가 영원히 0 이 되지 않는다 (로컬 compact 와 대칭).
-          await this.durableSpool.drainCursor(tenantId).catch((err) => {
-            this.logger.warn(`spool cursor drain failed for tenant=${tenantId}: ${err.message}`);
-          });
+          // 실패로 얼려둔 커서를 푼다. 이후 라이브 이벤트가 정상적으로 커서를 전진시킨다.
+          // 커서를 여기서 직접 스트림 끝으로 밀지 않는 이유: readPending 이후에 도착해
+          // 아직 DB 반영 전인 이벤트까지 커서 뒤로 넘겨버려 유실이 된다.
+          this.durableSpool.clearBlocked(tenantId);
         } catch (err) {
           // 한 테넌트의 실패가 나머지를 막지 않는다.
           this.logger.error(`recovery sweep failed for tenant=${tenantId}: ${(err as Error).message}`);

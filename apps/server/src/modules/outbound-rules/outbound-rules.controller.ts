@@ -17,11 +17,15 @@ import { CreateOutboundRuleDto } from './dto/create-outbound-rule.dto';
 import { TestOutboundRuleDto } from './dto/test-outbound-rule.dto';
 import { UpdateOutboundRuleDto } from './dto/update-outbound-rule.dto';
 import { OutboundRulesService } from './outbound-rules.service';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 @ApiTags('admin/settings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/settings/outbound-rules')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. 가드가 조회 메서드는 통과시키므로
+// 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class OutboundRulesController {
   constructor(
     private readonly service: OutboundRulesService,

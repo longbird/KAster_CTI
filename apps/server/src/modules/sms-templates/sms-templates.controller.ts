@@ -9,12 +9,16 @@ import { CreateSmsTemplateDto } from './dto/create-sms-template.dto';
 import { ListSmsTemplatesQueryDto } from './dto/list-sms-templates.query.dto';
 import { UpdateSmsTemplateDto } from './dto/update-sms-template.dto';
 import { SmsTemplatesService } from './sms-templates.service';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 @ApiTags('sms-templates')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('supervisor', 'admin')
 @Controller('sms-templates')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. 가드가 조회 메서드는 통과시키므로
+// 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class SmsTemplatesController {
   constructor(
     private readonly smsTemplatesService: SmsTemplatesService,

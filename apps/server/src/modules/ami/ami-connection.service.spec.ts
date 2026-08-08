@@ -47,6 +47,7 @@ describe('AmiConnectionService durable spool integration', () => {
     const durableSpool = {
       appendAmiEvent: jest.fn().mockResolvedValue(appended),
       markProcessed: jest.fn().mockResolvedValue(undefined),
+      markFailed: jest.fn(),
     };
     const sessionEngine = {
       processNormalizedEvent: options.processThrows
@@ -135,6 +136,8 @@ describe('AmiConnectionService durable spool integration', () => {
 
     expect(durableSpool.markProcessed).not.toHaveBeenCalled();
     expect(operatingMode.recordDbFailure).toHaveBeenCalled();
+    // 커서를 얼려야 이 이벤트가 복구 재처리 대상으로 남는다
+    expect(durableSpool.markFailed).toHaveBeenCalled();
   });
 
   it('처리에 성공하면 DB 회복 신호를 보낸다', async () => {

@@ -31,6 +31,8 @@ export interface SpoolAppendResult {
 export class DurableSpoolService {
   private readonly logger = new Logger(DurableSpoolService.name);
   private readonly streamMaxLen: number;
+  /** 미처리 이벤트가 남아 커서를 얼려둔 테넌트 */
+  private readonly blocked = new Set<string>();
 
   constructor(
     private readonly redis: RedisService,
@@ -100,12 +102,44 @@ export class DurableSpoolService {
   }
 
   /**
+   * 처리에 실패한 이벤트를 표시한다. 이후 그 테넌트의 커서는 전진하지 않는다.
+   *
+   * 커서는 **단일 포인터**라 "A 는 건너뛰고 B 만 처리됨" 을 표현할 수 없다.
+   * A 가 실패한 뒤 B 가 성공했다고 커서를 B 로 밀면, A 는 커서 뒤로 밀려나 재처리
+   * 대상에서 영구히 빠진다. 즉 "DB 실패 시 스풀에서 재처리한다" 는 보장이 깨진다.
+   * 그래서 실패가 하나라도 남아 있는 동안에는 커서를 얼린다.
+   *
+   * 메모리 상태라 재시작하면 사라지지만, 그때 커서는 이미 실패 지점 뒤로 못 간
+   * 상태이므로 readPending 이 그 이후를 전부 다시 준다. 과잉 포함일 뿐 유실이 아니다.
+   */
+  markFailed(tenantId: string, _appended: SpoolAppendResult): void {
+    if (!this.blocked.has(tenantId)) {
+      this.blocked.add(tenantId);
+      this.logger.warn(`spool cursor frozen for tenant=${tenantId} (unprocessed event)`);
+    }
+  }
+
+  /** 재처리가 전량 성공했을 때만 부른다. 이후 커서가 다시 전진할 수 있다. */
+  clearBlocked(tenantId: string): void {
+    if (this.blocked.delete(tenantId)) {
+      this.logger.log(`spool cursor unfrozen for tenant=${tenantId}`);
+    }
+  }
+
+  isBlocked(tenantId: string): boolean {
+    return this.blocked.has(tenantId);
+  }
+
+  /**
    * 처리 완료 커서를 전진시킨다.
    *
    * DB row 를 갱신하지 않는 이유: 이 호출은 DB 가 죽어 있을 때도 일어날 수 있다.
    * 커서는 Redis 또는 로컬 파일에만 둔다.
    */
   async markProcessed(tenantId: string, appended: SpoolAppendResult): Promise<void> {
+    // 앞선 실패가 미해결이면 커서를 밀지 않는다. 밀면 그 실패 이벤트가 유실된다.
+    if (this.blocked.has(tenantId)) return;
+
     try {
       if (appended.source === 'REDIS' && appended.redisStreamId) {
         await this.redis.getClient().set(this.cursorKey(tenantId), appended.redisStreamId);
@@ -117,26 +151,6 @@ export class DurableSpoolService {
     } catch (err) {
       // 커서 갱신 실패는 재처리 범위가 넓어질 뿐 유실이 아니다. replay 가 멱등하므로 안전하다.
       this.logger.warn(`spool cursor commit failed for tenant=${tenantId}: ${(err as Error).message}`);
-    }
-  }
-
-  /**
-   * 커서를 스트림 끝으로 밀어 남은 미처리분을 없앤다. 재처리가 **전부 성공한 뒤에만** 부른다.
-   *
-   * 정상 경로에서는 리더만 스트림에 쓰므로 커서가 자연히 끝까지 간다. 이 메서드는
-   * 리더 전환 순간처럼 경계에서 다른 노드의 append 가 커서 뒤에 남는 경우를 위한 안전장치다.
-   * 그런 항목을 그대로 두면 offline depth 가 영원히 0 이 되지 않아 지표가 죽는다.
-   */
-  async drainCursor(tenantId: string): Promise<void> {
-    try {
-      const client = this.redis.getClient();
-      const last = await client.xrevrange(this.streamKey(tenantId), '+', '-', 'COUNT', 1);
-      const lastId = last?.[0]?.[0];
-      if (lastId) {
-        await client.set(this.cursorKey(tenantId), String(lastId));
-      }
-    } catch (err) {
-      this.logger.warn(`spool cursor drain failed for tenant=${tenantId}: ${(err as Error).message}`);
     }
   }
 

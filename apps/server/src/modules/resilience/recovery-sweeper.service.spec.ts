@@ -29,7 +29,7 @@ function build(options: { mode?: 'NORMAL' | 'RECOVERING'; tenants?: string[]; sp
     listTenants: jest.fn().mockResolvedValue(options.spoolTenants ?? []),
     compact: jest.fn().mockResolvedValue(undefined),
   };
-  const durableSpool = { drainCursor: jest.fn().mockResolvedValue(undefined) };
+  const durableSpool = { clearBlocked: jest.fn(), markFailed: jest.fn() };
   const leader = { isLeader: () => true };
 
   const service = new RecoverySweeperService(
@@ -136,7 +136,7 @@ describe('RecoverySweeperService 스풀 정리', () => {
       listTenants: jest.fn().mockResolvedValue([]),
       compact: jest.fn().mockResolvedValue(undefined),
     };
-    const durableSpool = { drainCursor: jest.fn().mockResolvedValue(undefined) };
+    const durableSpool = { clearBlocked: jest.fn(), markFailed: jest.fn() };
     const prisma = { tenants: { findMany: jest.fn().mockResolvedValue([{ tenantId: TENANT_A }]) } };
     const service = new RecoverySweeperService(
       prisma as any, localSpool as any, durableSpool as any, operatingMode,
@@ -145,13 +145,13 @@ describe('RecoverySweeperService 스풀 정리', () => {
     return { service, localSpool, durableSpool };
   }
 
-  it('전부 성공하면 로컬 스풀과 Redis 커서를 모두 정리한다', async () => {
+  it('전부 성공하면 로컬 스풀을 비우고 얼린 커서를 푼다', async () => {
     const { service, localSpool, durableSpool } = buildWithCompact(0);
 
     await service.sweep();
 
     expect(localSpool.compact).toHaveBeenCalledWith(TENANT_A);
-    expect(durableSpool.drainCursor).toHaveBeenCalledWith(TENANT_A);
+    expect(durableSpool.clearBlocked).toHaveBeenCalledWith(TENANT_A);
   });
 
   it('실패가 남으면 스풀을 정리하지 않는다', async () => {
@@ -161,6 +161,6 @@ describe('RecoverySweeperService 스풀 정리', () => {
     await service.sweep();
 
     expect(localSpool.compact).not.toHaveBeenCalled();
-    expect(durableSpool.drainCursor).not.toHaveBeenCalled();
+    expect(durableSpool.clearBlocked).not.toHaveBeenCalled();
   });
 });

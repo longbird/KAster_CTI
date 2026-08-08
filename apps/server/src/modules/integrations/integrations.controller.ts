@@ -17,6 +17,7 @@ import { CreateIntegrationAutomationDto } from './dto/create-integration-automat
 import { TestIntegrationAutomationDto } from './dto/test-integration-automation.dto';
 import { UpdateIntegrationAutomationDto } from './dto/update-integration-automation.dto';
 import { IntegrationsService } from './integrations.service';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 const MENU_KEY = 'integrations';
 
@@ -24,6 +25,9 @@ const MENU_KEY = 'integrations';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/settings/integrations')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. 가드가 조회 메서드는 통과시키므로
+// 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class IntegrationsController {
   constructor(
     private readonly service: IntegrationsService,

@@ -100,6 +100,10 @@ export class AmiConnectionService implements OnModuleInit {
       // 여기서 throw 하면 socket 'data' 핸들러의 unhandled rejection 이 된다.
       // 스풀 커서를 전진시키지 않았으므로 이 이벤트는 복구 후 재처리 대상으로 남는다.
       this.operatingMode.recordDbFailure();
+      // 커서를 얼린다. 이 이벤트를 넘어 커서가 전진하면 재처리 대상에서 빠진다.
+      if (appended) {
+        this.durableSpool.markFailed(normalized.tenantId, appended);
+      }
       this.logger.error(
         `event processing failed (${normalized.eventName}): ${(err as Error).message}`,
       );

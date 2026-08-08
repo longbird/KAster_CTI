@@ -19,11 +19,15 @@ import { CreateQueueDto } from './dto/create-queue.dto';
 import { SetQueueMembersDto } from './dto/set-queue-members.dto';
 import { UpdateQueueDto } from './dto/update-queue.dto';
 import { QueuesService } from './queues.service';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 @ApiTags('queues')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('queues')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. 가드가 조회 메서드는 통과시키므로
+// 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class QueuesController {
   constructor(
     private readonly queuesService: QueuesService,
