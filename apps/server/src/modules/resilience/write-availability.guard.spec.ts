@@ -12,11 +12,11 @@ function buildMode(degradedAfterMs = 0) {
   return new OperatingModeService(config as any);
 }
 
-function buildContext() {
+function buildContext(method = 'POST') {
   return {
     getHandler: () => () => undefined,
     getClass: () => class {},
-    switchToHttp: () => ({ getRequest: () => ({}) }),
+    switchToHttp: () => ({ getRequest: () => ({ method }) }),
   } as any;
 }
 
@@ -83,5 +83,25 @@ describe('WriteAvailabilityGuard', () => {
     const guard = buildGuard('general', mode);
 
     expect(() => guard.canActivate(buildContext())).toThrow(ServiceUnavailableException);
+  });
+});
+
+describe('WriteAvailabilityGuard HTTP 메서드', () => {
+  // 컨트롤러 클래스 전체에 데코레이터를 붙여도 조회는 막히면 안 된다.
+  // 장애 중에도 관리자 화면은 읽을 수 있어야 상황을 파악한다.
+  it.each(['GET', 'HEAD', 'OPTIONS'])('%s 는 제한 모드에서도 통과시킨다', (method) => {
+    const mode = buildMode();
+    mode.recordDbFailure(T0);
+    const guard = buildGuard('general', mode);
+
+    expect(guard.canActivate(buildContext(method))).toBe(true);
+  });
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('%s 는 제한 모드에서 막는다', (method) => {
+    const mode = buildMode();
+    mode.recordDbFailure(T0);
+    const guard = buildGuard('general', mode);
+
+    expect(() => guard.canActivate(buildContext(method))).toThrow(ServiceUnavailableException);
   });
 });

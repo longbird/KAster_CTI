@@ -1,7 +1,9 @@
 import { Global, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { OperatingModeService } from './operating-mode.service';
 import { LocalSpoolStore } from './local-spool.store';
 import { DurableSpoolService } from './durable-spool.service';
+import { ConfigSnapshotService } from './config-snapshot.service';
 import { WriteAvailabilityGuard } from './write-availability.guard';
 
 /**
@@ -12,7 +14,22 @@ import { WriteAvailabilityGuard } from './write-availability.guard';
  */
 @Global()
 @Module({
-  providers: [OperatingModeService, WriteAvailabilityGuard, LocalSpoolStore, DurableSpoolService],
-  exports: [OperatingModeService, WriteAvailabilityGuard, LocalSpoolStore, DurableSpoolService],
+  providers: [
+    OperatingModeService,
+    WriteAvailabilityGuard,
+    LocalSpoolStore,
+    DurableSpoolService,
+    ConfigSnapshotService,
+    // 전역 등록. 가드 자체는 @RequiresWriteAvailability 가 붙은 곳에서만 동작하므로
+    // 데코레이터 없는 엔드포인트는 영향받지 않는다.
+    { provide: APP_GUARD, useClass: WriteAvailabilityGuard },
+  ],
+  exports: [
+    OperatingModeService,
+    WriteAvailabilityGuard,
+    LocalSpoolStore,
+    DurableSpoolService,
+    ConfigSnapshotService,
+  ],
 })
 export class ResilienceModule {}

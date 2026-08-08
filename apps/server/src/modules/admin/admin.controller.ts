@@ -22,11 +22,15 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 import { UpdateBranchMappingsDto } from './dto/update-branch-mappings.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 @ApiTags('admin')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. WriteAvailabilityGuard 는 조회 메서드를
+// 통과시키므로 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,

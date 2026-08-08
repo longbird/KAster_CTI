@@ -8,6 +8,8 @@ import { Reflector } from '@nestjs/core';
 import { OperatingModeService } from './operating-mode.service';
 import { WRITE_AVAILABILITY_KEY, WriteKind } from './write-availability.decorator';
 
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 /**
  * DB 장애 대응 모드에서 안전하지 않은 쓰기를 막는다.
  *
@@ -29,6 +31,13 @@ export class WriteAvailabilityGuard implements CanActivate {
 
     // 데코레이터가 없으면 이 가드의 관심사가 아니다.
     if (!kind) return true;
+
+    // 컨트롤러 클래스 전체에 데코레이터를 붙일 수 있게 조회 메서드는 통과시킨다.
+    // 장애 중에도 관리자 화면은 읽혀야 운영자가 상황을 파악한다.
+    const request = context.switchToHttp().getRequest();
+    if (SAFE_METHODS.has(String(request?.method ?? '').toUpperCase())) {
+      return true;
+    }
 
     const snapshot = this.operatingMode.snapshot();
     const allowed =
