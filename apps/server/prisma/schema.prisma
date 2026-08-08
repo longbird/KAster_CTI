@@ -35,6 +35,10 @@ model tenants {
   agents               agents[]
   queues               queues[]
   queueOverflowRules   queueOverflowRules[]
+  configVersions       configVersions[]
+  configApplyStatus    configApplyStatus[]
+  offlineSpoolEntries  offlineSpoolEntries[]
+  replayBatches        replayBatches[]
   recordingFinalizeJobs recordingFinalizeJobs[]
   recordingRetentionPolicies recordingRetentionPolicies[]
   customers            customers[]
@@ -1233,4 +1237,132 @@ model shareRuleBranches {
 
   @@unique([tenantId, shareRuleId, branchId])
   @@index([shareRuleId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DB 장애 대응 (HA resilience)
+// migration: prisma/migrations/20260808_db_resilience
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 테넌트별 설정 스냅샷의 버전 원장. LKG(Last Known Good) 의 원천.
+model configVersions {
+  configVersionId  String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  configType       String   @db.VarChar(64)
+  version          Int
+  schemaVersion    Int      @default(1)
+  payload          Json
+  checksum         String   @db.VarChar(64)
+  generatedAt      DateTime @default(now()) @db.Timestamptz(6)
+  createdByAgentId String?  @db.Uuid
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant           tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, configType, version])
+  @@index([tenantId, configType, version(sort: Desc)])
+}
+
+// 노드별 desired/applied 버전 추적. 불일치가 곧 설정 미반영 경보다.
+model configApplyStatus {
+  applyStatusId   String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  nodeId          String    @db.VarChar(128)
+  configType      String    @db.VarChar(64)
+  desiredVersion  Int
+  appliedVersion  Int?
+  appliedChecksum String?   @db.VarChar(64)
+  status          String    @default("PENDING") @db.VarChar(32)
+  lastError       String?
+  appliedAt       DateTime? @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant          tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, nodeId, configType])
+  @@index([nodeId, status])
+}
+
+// 장애 중 승인받아 적용한 긴급 설정 변경. 복구 후 수동 병합 대상.
+// 감사 기록이므로 상담원 FK 를 걸지 않는다 (참조 대상보다 오래 살아야 한다).
+model configEmergencyChanges {
+  emergencyChangeId  String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  configType         String    @db.VarChar(64)
+  requestedByAgentId String    @db.Uuid
+  approvedByAgentId  String    @db.Uuid
+  reason             String
+  beforePayload      Json
+  afterPayload       Json
+  appliedVersion     Int
+  mergeStatus        String    @default("PENDING_REVIEW") @db.VarChar(32)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  reviewedAt         DateTime? @db.Timestamptz(6)
+
+  @@index([tenantId, mergeStatus, createdAt(sort: Desc)])
+}
+
+// spool 투영. 내구 저장소는 Redis Streams + 로컬 JSONL 이고 이 테이블은 DB 가
+// 살아 있을 때만 기록하는 감사/추적용이다. insert 실패를 spool 실패로 보지 않는다.
+model offlineSpoolEntries {
+  spoolEntryId   String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  entryType      String    @db.VarChar(32)
+  idempotencyKey String    @db.VarChar(128)
+  linkedid       String?   @db.VarChar(32)
+  uniqueid       String?   @db.VarChar(32)
+  payload        Json
+  source         String    @db.VarChar(32)
+  redisStreamId  String?   @db.VarChar(64)
+  localSpoolPath String?
+  status         String    @default("PENDING") @db.VarChar(32)
+  receivedAt     DateTime  @default(now()) @db.Timestamptz(6)
+  processedAt    DateTime? @db.Timestamptz(6)
+  lastError      String?
+
+  tenant         tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, entryType, idempotencyKey])
+  @@index([status, receivedAt])
+}
+
+// 복구 재처리 배치. cursor 로 중단 후 이어서 실행한다.
+model replayBatches {
+  replayBatchId    String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  replayType       String    @db.VarChar(32)
+  status           String    @default("PENDING") @db.VarChar(32)
+  rangeStart       DateTime? @db.Timestamptz(6)
+  rangeEnd         DateTime? @db.Timestamptz(6)
+  linkedid         String?   @db.VarChar(32)
+  cursor           Json      @default("{}")
+  totalCount       Int       @default(0)
+  successCount     Int       @default(0)
+  failureCount     Int       @default(0)
+  startedAt        DateTime? @db.Timestamptz(6)
+  finishedAt       DateTime? @db.Timestamptz(6)
+  createdByAgentId String?   @db.Uuid
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @db.Timestamptz(6)
+
+  tenant           tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+// 복구 각 단계의 감사 로그. 감사 기록이므로 FK 를 걸지 않는다.
+model recoveryAuditLog {
+  recoveryAuditId String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  eventType       String   @db.VarChar(64)
+  operatingMode   String   @db.VarChar(32)
+  message         String
+  details         Json     @default("{}")
+  actorAgentId    String?  @db.Uuid
+  replayBatchId   String?  @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([replayBatchId, createdAt])
 }
