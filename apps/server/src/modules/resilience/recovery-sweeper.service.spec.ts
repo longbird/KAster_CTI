@@ -119,3 +119,42 @@ describe('RecoverySweeperService', () => {
     expect(coordinator.startRecovery).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('RecoverySweeperService 스풀 정리', () => {
+  function buildWithCompact(failure: number) {
+    const operatingMode = new OperatingModeService({ get: (_k: string, d: any) => d } as any);
+    operatingMode.recordDbFailure(T0);
+    operatingMode.recordDbRecovered(new Date(T0.getTime() + 1000));
+
+    const coordinator = {
+      startRecovery: jest.fn().mockResolvedValue({ completed: failure === 0, failure }),
+    };
+    const localSpool = {
+      listTenants: jest.fn().mockResolvedValue([]),
+      compact: jest.fn().mockResolvedValue(undefined),
+    };
+    const prisma = { tenants: { findMany: jest.fn().mockResolvedValue([{ tenantId: TENANT_A }]) } };
+    const service = new RecoverySweeperService(
+      prisma as any, localSpool as any, operatingMode, coordinator as any,
+      { isLeader: () => true } as any,
+    );
+    return { service, localSpool };
+  }
+
+  it('전부 성공하면 스풀을 정리한다', async () => {
+    const { service, localSpool } = buildWithCompact(0);
+
+    await service.sweep();
+
+    expect(localSpool.compact).toHaveBeenCalledWith(TENANT_A);
+  });
+
+  it('실패가 남으면 스풀을 정리하지 않는다', async () => {
+    // 아직 재처리할 게 남았는데 자르면 그대로 유실이다.
+    const { service, localSpool } = buildWithCompact(2);
+
+    await service.sweep();
+
+    expect(localSpool.compact).not.toHaveBeenCalled();
+  });
+});

@@ -84,24 +84,30 @@ export class LocalSpoolStore {
     return { path, offset: size };
   }
 
+  /**
+   * 커서 이후 구간만 읽는다.
+   *
+   * 파일 전체를 읽지 않는 이유는 성능이 아니라 타이밍이다. /health 가 10~30초마다
+   * 이걸 호출하는데, 스풀이 커지는 시점은 정확히 장애 중이다. 그때 수십 MB 를 매번
+   * 다시 읽고 파싱하면 이미 힘든 시스템에 부하를 얹는다.
+   */
   async readPending(tenantId: string): Promise<LocalPendingResult> {
     const cursor = await this.readCursor(tenantId);
-    let buffer: Buffer;
-    try {
-      buffer = await fs.readFile(this.filePath(tenantId));
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        return { records: [], nextOffset: 0 };
-      }
-      throw err;
-    }
+    const size = await this.fileSize(tenantId);
+    if (size === null) return { records: [], nextOffset: 0 };
+    if (cursor >= size) return { records: [], nextOffset: size };
 
-    if (cursor >= buffer.length) {
-      return { records: [], nextOffset: buffer.length };
+    const length = size - cursor;
+    const buffer = Buffer.allocUnsafe(length);
+    const handle = await fs.open(this.filePath(tenantId), 'r');
+    try {
+      await handle.read(buffer, 0, length, cursor);
+    } finally {
+      await handle.close();
     }
 
     const records: SpoolRecord[] = [];
-    for (const line of buffer.subarray(cursor).toString('utf8').split('\n')) {
+    for (const line of buffer.toString('utf8').split('\n')) {
       if (!line.trim()) continue;
       try {
         records.push(JSON.parse(line) as SpoolRecord);
@@ -111,12 +117,56 @@ export class LocalSpoolStore {
       }
     }
 
-    return { records, nextOffset: buffer.length };
+    return { records, nextOffset: size };
   }
 
+  /** 개수만 필요하면 JSON.parse 까지 갈 이유가 없다. 줄 수만 센다. */
   async pendingCount(tenantId: string): Promise<number> {
-    const { records } = await this.readPending(tenantId);
-    return records.length;
+    const cursor = await this.readCursor(tenantId);
+    const size = await this.fileSize(tenantId);
+    if (size === null || cursor >= size) return 0;
+
+    const length = size - cursor;
+    const buffer = Buffer.allocUnsafe(length);
+    const handle = await fs.open(this.filePath(tenantId), 'r');
+    try {
+      await handle.read(buffer, 0, length, cursor);
+    } finally {
+      await handle.close();
+    }
+
+    let count = 0;
+    for (let i = 0; i < buffer.length; i += 1) {
+      if (buffer[i] === 0x0a) count += 1;
+    }
+    return count;
+  }
+
+  private async fileSize(tenantId: string): Promise<number | null> {
+    try {
+      return (await fs.stat(this.filePath(tenantId))).size;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  }
+
+  /**
+   * 전부 처리된 스풀 파일을 비우고 커서를 0 으로 되돌린다.
+   *
+   * 처리가 끝나도 append-only 파일은 계속 자란다. 장애가 반복되면 결국 디스크가 찬다.
+   * 미처리 레코드가 하나라도 남아 있으면 건드리지 않는다 — 자르는 순간 유실이다.
+   */
+  async compact(tenantId: string): Promise<void> {
+    const cursor = await this.readCursor(tenantId);
+    const size = await this.fileSize(tenantId);
+    if (size === null || size === 0) return;
+    if (cursor < size) return;
+
+    // truncate 먼저, 커서 리셋 나중. 순서가 반대면 그 사이에 죽었을 때
+    // 커서 0 + 옛 데이터가 남아 이미 처리한 이벤트를 통째로 재처리한다.
+    await fs.truncate(this.filePath(tenantId), 0);
+    await this.commitCursor(tenantId, 0);
   }
 
   async readCursor(tenantId: string): Promise<number> {

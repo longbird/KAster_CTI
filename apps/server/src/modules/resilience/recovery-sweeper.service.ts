@@ -50,7 +50,13 @@ export class RecoverySweeperService implements OnModuleInit {
             this.logger.warn(
               `recovery for tenant=${tenantId} left ${outcome.failure} failed events; will retry`,
             );
+            continue;
           }
+          // 전부 처리된 스풀만 비운다. append-only 파일을 그대로 두면 장애가 반복될수록
+          // 디스크가 찬다. compact 는 미처리분이 남아 있으면 스스로 아무것도 하지 않는다.
+          await this.localSpool.compact(tenantId).catch((err) => {
+            this.logger.warn(`spool compact failed for tenant=${tenantId}: ${err.message}`);
+          });
         } catch (err) {
           // 한 테넌트의 실패가 나머지를 막지 않는다.
           this.logger.error(`recovery sweep failed for tenant=${tenantId}: ${(err as Error).message}`);
