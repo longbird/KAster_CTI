@@ -247,3 +247,24 @@ export interface ConfPreview {
   extensionsAgent?: string;
   queues?: string;
 }
+
+/** 기능코드는 고정 카탈로그다. 서버가 카탈로그 메타와 저장값을 합쳐 내려준다. */
+export interface FeatureCode {
+  featureKey: string;
+  label: string;
+  description: string;
+  /** HANDSET_DIAL 만 단말에서 눌러 쓸 수 있다. SERVER_DTMF 는 서버가 PBX 로 보낸다. */
+  invocation: 'HANDSET_DIAL' | 'SERVER_DTMF';
+  optional: boolean;
+  defaultCode: string | null;
+  code: string | null;
+  enabled: boolean;
+  /** 아직 저장된 적 없이 기본값으로 보이는 중인가 */
+  configured: boolean;
+}
+
+export interface FeatureCodeInput {
+  featureKey: string;
+  code?: string | null;
+  enabled?: boolean;
+}

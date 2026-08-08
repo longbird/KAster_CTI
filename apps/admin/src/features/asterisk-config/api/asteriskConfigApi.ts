@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../../../config';
-import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskSpeedDial, AsteriskSpeedDialInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput, ConfPreview, ImportBlocklistEntryRow, PromptGenerationJob, PromptTtsInput } from '../types/asterisk-config';
+import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskSpeedDial, AsteriskSpeedDialInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput, ConfPreview, FeatureCode, FeatureCodeInput, ImportBlocklistEntryRow, PromptGenerationJob, PromptTtsInput } from '../types/asterisk-config';
 
 function headers(): Record<string, string> {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -46,6 +46,11 @@ export const updateSpeedDial = (id: string, dto: AsteriskSpeedDialInput) =>
   axios.put<{ data: AsteriskSpeedDial }>(`${base}/speed-dials/${id}`, dto, { headers: headers() }).then(r => r.data.data);
 export const deleteSpeedDial = (id: string) =>
   axios.delete(`${base}/speed-dials/${id}`, { headers: headers() });
+
+export const getFeatureCodes = () =>
+  axios.get<{ data: FeatureCode[] }>(`${base}/feature-codes`, { headers: headers() }).then(r => r.data.data);
+export const upsertFeatureCode = (dto: FeatureCodeInput) =>
+  axios.put<{ data: FeatureCode }>(`${base}/feature-codes`, dto, { headers: headers() }).then(r => r.data.data);
 
 export const getIvrMenus = () =>
   axios.get<{ data: AsteriskIvrMenu[] }>(`${base}/ivr-menus`, { headers: headers() }).then(r => r.data.data);

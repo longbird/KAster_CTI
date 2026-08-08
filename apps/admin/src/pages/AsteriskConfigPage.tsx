@@ -6,6 +6,7 @@ import { ConfigPreviewDrawer } from '../features/asterisk-config/components/Conf
 import { DidsTab } from '../features/asterisk-config/components/DidsTab';
 import { IvrMenusTab } from '../features/asterisk-config/components/IvrMenusTab';
 import { SpeedDialsTab } from '../features/asterisk-config/components/SpeedDialsTab';
+import { FeatureCodesTab } from '../features/asterisk-config/components/FeatureCodesTab';
 import { TrunksTab } from '../features/asterisk-config/components/TrunksTab';
 import { FeatureHelpButton } from '../shared/help';
 import { usePermissionStore } from '../store/usePermissionStore';
@@ -75,6 +76,7 @@ export function AsteriskConfigPage() {
             { key: 'ivr', label: 'IVR 메뉴', children: <IvrMenusTab /> },
             { key: 'agents', label: '에이전트 내선', children: <AgentSipTab /> },
             { key: 'speed-dials', label: '단축 발신', children: <SpeedDialsTab /> },
+            { key: 'feature-codes', label: '기능코드', children: <FeatureCodesTab /> },
           ]}
         />
       </Card>

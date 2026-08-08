@@ -1,6 +1,7 @@
 # 기능코드 registry 구현 계획
 
 작성일: 2026-08-09
+개정일: 2026-08-09 — B안 채택 후 구현 완료. 실제 결과는 아래 9장 참조.
 요구 원천: `docs/reference/IPPBX_개발시 참조용_20260104/1_비씨앤 IP PBX 초안_20260104.xlsx` `주요연동` 시트
 — "각종 기능코드 생성 | **협의후 진행**"
 선행 평가: [`docs/qa/2026-08-09-requirements-vs-implementation-verification.md`](../qa/2026-08-09-requirements-vs-implementation-verification.md) 축 C-11
@@ -128,3 +129,52 @@ CTI 상태를 알아야 하는 기능(대리응답 대상 선택 등)은 이 경
 
 - 단말 키버튼 매핑 (MMC 722/723) — PBX 계층에서 불가능. 별도 판단은 평가표 4.5 참조
 - 개인별 단축 다이얼 (MMC 105) — 기능코드가 아니라 단축 발신 확장 영역
+
+---
+
+## 9. 구현 결과 (2026-08-09)
+
+**B안 채택.** 7장의 결정 3건은 다음으로 확정했다.
+
+| 결정 항목 | 결정 |
+|---|---|
+| 카탈로그 범위 | 이미 동작하는 기능 4개로 시작 |
+| 대리응답 단말 다이얼 | **연다** |
+| `*8`/`*2` 허위 표시 | 표기 정정 |
+
+### 계획과 달라진 것
+
+**카탈로그에서 수신거부를 뺐다.** 착수 후 확인해 보니 수신거부 훅은
+`[080-optout-action]` context 에 있는 **고객용 080 IVR 흐름**이지 상담원 기능코드가 아니다
+(`dialplan.renderer.ts:1266`). 상담원 registry 에 넣으면 성격이 다른 것을 섞게 된다.
+확정 카탈로그는 **대리응답 / 상담 전환 완료 / 보류 / 보류 해제** 4개다.
+
+**서버 훅(6장 5단계)이 필요 없어졌다.** 계획에서는 대리응답 대상 채널을 CTI 가 골라
+`System()` 훅으로 넘길 생각이었으나, `pjsip.renderer` 가 이미 상담원 endpoint 에
+`named_pickup_group` 을 내보내고 있어 **네이티브 `Pickup()` 한 줄로 끝난다.**
+대상 선택과 같은-그룹 제한을 PBX 가 처리하고, 당겨받은 뒤 생기는 `BridgeEnter` 를
+SessionEngine 이 받아 세션에 반영하므로 CTI 상태 추적도 그대로 유지된다.
+
+### 산출물
+
+| 구분 | 구현 |
+|---|---|
+| DB | `featureCodes` (`@@unique([tenantId, featureKey])`, `@@unique([tenantId, code])`) + `20260809_feature_codes` |
+| 카탈로그/검증 | `apps/server/src/common/feature-code-catalog.ts` |
+| API | `GET`/`PUT /asterisk-config/feature-codes` |
+| 렌더러 | `agent-dialplan.renderer.ts` — HANDSET_DIAL 만 렌더링 |
+| 소비 | `calls.service.ts` — registry 우선, 행 없을 때만 env 폴백 |
+| UI | `FeatureCodesTab.tsx` (`PBX 설정 > 기능코드`) |
+| 번호 자원 | `numberResources.ts` 를 registry 기반으로 교체 |
+
+### 검증
+
+- 서버 71 suite / 507 test, 관리자 39 file / 143 test, lint·build 통과
+- **실 PBX 에서 `*8` 을 눌러 당겨받는 동작은 검증하지 못했다.** 로컬에 PBX 가 없다.
+  `docs/operations/pbx-operational-validation-runbook-20260716.md` 기준으로 현장 검증이 필요하다.
+
+### 남은 것
+
+- `docs/openapi.json` 갱신 — export 스크립트가 Postgres/Redis 를 요구하는데 로컬 Docker 미기동
+- 마이그레이션 적용(`prisma migrate deploy`) — 같은 이유
+- `asterisk.featureCodes` 도움말 본문 작성

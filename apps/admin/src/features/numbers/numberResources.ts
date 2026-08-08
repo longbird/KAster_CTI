@@ -40,26 +40,33 @@ export interface NumberResourceRow {
   hasConflict: boolean;
 }
 
-const FEATURE_CODE_ROWS: Array<Omit<NumberResourceRow, 'hasConflict'>> = [
-  {
-    id: 'feature-pickup',
-    number: '*8',
-    resourceType: 'FEATURE_CODE',
-    label: '대리응답',
-    routeSummary: '대리응답',
-    status: 'ACTIVE',
-    targetRoute: '/live-calls?feature=pickup',
-  },
-  {
-    id: 'feature-attended-transfer-complete',
-    number: '*2',
-    resourceType: 'FEATURE_CODE',
-    label: '상담 전환 완료',
-    routeSummary: '상담 전환 완료',
-    status: 'ACTIVE',
-    targetRoute: '/live-calls?feature=attended-transfer',
-  },
-];
+export interface NumberFeatureCodeRow {
+  featureKey: string;
+  label: string;
+  code: string | null;
+  enabled: boolean;
+  invocation: 'HANDSET_DIAL' | 'SERVER_DTMF';
+}
+
+// 하드코딩하지 않는다. 예전 구현은 *8 / *2 를 항상 ACTIVE 로 보여줬지만
+// 어느 dialplan 에도 렌더링되지 않아 화면이 사실과 달랐다.
+function buildFeatureCodeRows(
+  featureCodes: NumberFeatureCodeRow[],
+): Array<Omit<NumberResourceRow, 'hasConflict'>> {
+  return featureCodes
+    .filter((item) => Boolean(item.code))
+    .map((item) => ({
+      id: `feature-${item.featureKey}`,
+      number: item.code as string,
+      resourceType: 'FEATURE_CODE' as const,
+      label: item.label,
+      routeSummary: item.invocation === 'HANDSET_DIAL'
+        ? `${item.label} · 단말 다이얼`
+        : `${item.label} · 서버 전송 (단말 다이얼 불가)`,
+      status: item.enabled ? 'ACTIVE' as const : 'INACTIVE' as const,
+      targetRoute: '/asterisk?tab=feature-codes',
+    }));
+}
 
 function didRouteSummary(did: NumberDidRow): string {
   if (did.ivrMenuName || did.ivrMenuId) return 'ARS 사용';
@@ -73,6 +80,7 @@ export function buildNumberResourceRows(input: {
   dids: NumberDidRow[];
   agents: NumberAgentRow[];
   queues?: NumberQueueRow[];
+  featureCodes?: NumberFeatureCodeRow[];
 }): NumberResourceRow[] {
   const rows: Array<Omit<NumberResourceRow, 'hasConflict'>> = [
     ...input.dids.map((did) => ({
@@ -104,7 +112,7 @@ export function buildNumberResourceRows(input: {
         status: queue.isActive === false ? 'INACTIVE' as const : 'ACTIVE' as const,
         targetRoute: `/settings/queues?resourceId=${queue.queueId}`,
       })),
-    ...FEATURE_CODE_ROWS,
+    ...buildFeatureCodeRows(input.featureCodes ?? []),
   ];
 
   const countByNumber = rows.reduce<Record<string, number>>((acc, row) => {

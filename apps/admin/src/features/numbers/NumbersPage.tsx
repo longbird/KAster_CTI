@@ -7,6 +7,7 @@ import {
   buildNumberResourceRows,
   type NumberResourceRow,
   type NumberResourceType,
+  type NumberFeatureCodeRow,
 } from './numberResources';
 
 interface DidRow {
@@ -51,25 +52,29 @@ export function NumbersPage() {
   const [dids, setDids] = useState<DidRow[] | null>(null);
   const [agents, setAgents] = useState<AgentExtRow[] | null>(null);
   const [queues, setQueues] = useState<QueueNumberRow[] | null>(null);
+  const [featureCodes, setFeatureCodes] = useState<NumberFeatureCodeRow[] | null>(null);
 
   useEffect(() => {
     let active = true;
     const run = async () => {
       try {
-        const [didsRes, agentsRes, queuesRes] = await Promise.all([
+        const [didsRes, agentsRes, queuesRes, featureCodesRes] = await Promise.all([
           apiClient.get('/asterisk-config/dids').catch(() => ({ data: { data: [] } })),
           apiClient.get('/agents').catch(() => ({ data: { data: [] } })),
           apiClient.get('/queues').catch(() => ({ data: { data: [] } })),
+          apiClient.get('/asterisk-config/feature-codes').catch(() => ({ data: { data: [] } })),
         ]);
         if (!active) return;
         setDids(didsRes.data?.data ?? []);
         setAgents(agentsRes.data?.data ?? []);
         setQueues(queuesRes.data?.data ?? []);
+        setFeatureCodes(featureCodesRes.data?.data ?? []);
       } catch {
         if (!active) return;
         setDids([]);
         setAgents([]);
         setQueues([]);
+        setFeatureCodes([]);
       }
     };
     void run();
@@ -86,8 +91,13 @@ export function NumbersPage() {
   }, [agents]);
 
   const numberResources = useMemo(
-    () => buildNumberResourceRows({ dids: dids ?? [], agents: agents ?? [], queues: queues ?? [] }),
-    [dids, agents, queues],
+    () => buildNumberResourceRows({
+      dids: dids ?? [],
+      agents: agents ?? [],
+      queues: queues ?? [],
+      featureCodes: featureCodes ?? [],
+    }),
+    [dids, agents, queues, featureCodes],
   );
 
   if (!dids || !agents || !queues) return <Skeleton active paragraph={{ rows: 10 }} />;
