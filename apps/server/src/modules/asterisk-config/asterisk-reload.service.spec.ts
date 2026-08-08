@@ -64,7 +64,12 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     const config = {
       get: jest.fn((key: string, fallback?: string) => fallback),
     } as any;
-    const service = new AsteriskReloadService(prisma, config, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
+    const service = new AsteriskReloadService(
+      prisma,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn() } as any,
+      { save: jest.fn().mockResolvedValue(undefined) } as any,
+    );
 
     const preview = await service.previewConfFiles('tenant-1');
 
@@ -141,7 +146,12 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     const config = {
       get: jest.fn((key: string, fallback?: string) => fallback),
     } as any;
-    const service = new AsteriskReloadService(prisma, config, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
+    const service = new AsteriskReloadService(
+      prisma,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn() } as any,
+      { save: jest.fn().mockResolvedValue(undefined) } as any,
+    );
 
     const preview = await service.previewConfFiles('tenant-1');
 
@@ -202,7 +212,12 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     const config = {
       get: jest.fn((key: string, fallback?: string) => fallback),
     } as any;
-    const service = new AsteriskReloadService(prisma, config, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
+    const service = new AsteriskReloadService(
+      prisma,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn() } as any,
+      { save: jest.fn().mockResolvedValue(undefined) } as any,
+    );
 
     const preview = await service.previewConfFiles('tenant-1');
 
@@ -257,7 +272,12 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     const config = {
       get: jest.fn((key: string, fallback?: string) => fallback),
     } as any;
-    const service = new AsteriskReloadService(prisma, config, { sendAction: jest.fn(), isConnected: jest.fn() } as any);
+    const service = new AsteriskReloadService(
+      prisma,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn() } as any,
+      { save: jest.fn().mockResolvedValue(undefined) } as any,
+    );
 
     const preview = await service.previewConfFiles('tenant-1');
 
@@ -267,5 +287,86 @@ describe('AsteriskReloadService Smart ARS preview', () => {
     });
     expect(preview.extensionsQueue).toContain('${UNIQUEID}.raw)');
     expect(preview.extensionsAgent).toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},bD)');
+  });
+});
+
+describe('AsteriskReloadService LKG 캡처', () => {
+  const { mkdtempSync, rmSync, writeFileSync } = require('fs');
+  const { tmpdir } = require('os');
+  const { join } = require('path');
+
+  function buildService(confDir: string) {
+    const configSnapshot = { save: jest.fn().mockResolvedValue(undefined) };
+    const config = {
+      get: jest.fn((key: string, fallback?: string) =>
+        key === 'ASTERISK_CONF_DIR' ? confDir : fallback,
+      ),
+    } as any;
+    const service = new AsteriskReloadService(
+      {} as any,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn().mockReturnValue(true) } as any,
+      configSnapshot as any,
+    ) as any;
+    return { service, configSnapshot };
+  }
+
+  it('적용된 conf 파일의 다이제스트를 LKG 로 저장한다', async () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-conf-'));
+    writeFileSync(join(confDir, 'pjsip.conf'), '[trunk]\npassword=super-secret\n');
+    const { service, configSnapshot } = buildService(confDir);
+
+    try {
+      await service.captureLkg('tenant-1');
+
+      expect(configSnapshot.save).toHaveBeenCalledWith(
+        'tenant-1',
+        'pbx',
+        expect.objectContaining({ confDir }),
+      );
+      const payload = configSnapshot.save.mock.calls[0][2];
+      const entry = Object.values(payload.files)[0] as any;
+      expect(entry.sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(entry.bytes).toBeGreaterThan(0);
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+
+  it('conf 본문(비밀번호 포함)을 LKG 에 담지 않는다', async () => {
+    // pjsip.conf 에는 SIP 비밀번호가 평문으로 들어간다. 객체 키 기준 마스킹으로는
+    // 파일 본문 안의 값을 걸러낼 수 없으므로 애초에 본문을 저장하지 않는다.
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-conf-'));
+    writeFileSync(join(confDir, 'pjsip.conf'), '[trunk]\npassword=super-secret\n');
+    const { service, configSnapshot } = buildService(confDir);
+
+    try {
+      await service.captureLkg('tenant-1');
+
+      expect(JSON.stringify(configSnapshot.save.mock.calls[0][2])).not.toContain('super-secret');
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+
+  it('conf 디렉터리가 없으면 조용히 넘어간다', async () => {
+    const { service, configSnapshot } = buildService('/nonexistent/kcti-conf');
+
+    await expect(service.captureLkg('tenant-1')).resolves.toBeUndefined();
+
+    expect(configSnapshot.save).not.toHaveBeenCalled();
+  });
+
+  it('LKG 저장 실패가 reload 를 되돌리지 않는다', async () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-conf-'));
+    writeFileSync(join(confDir, 'pjsip.conf'), 'x');
+    const { service, configSnapshot } = buildService(confDir);
+    configSnapshot.save.mockRejectedValue(new Error('disk full'));
+
+    try {
+      await expect(service.captureLkg('tenant-1')).resolves.toBeUndefined();
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
   });
 });

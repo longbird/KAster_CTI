@@ -4,6 +4,7 @@ import { AmiModule } from '../ami/ami.module';
 import { CallsModule } from '../calls/calls.module';
 import { RecoveryCoordinatorService } from './recovery-coordinator.service';
 import { ReplayBatchRepository } from './replay-batch.repository';
+import { RecoverySweeperService } from './recovery-sweeper.service';
 
 /**
  * ResilienceModule 과 분리한 이유는 의존 방향이다.
@@ -15,7 +16,7 @@ import { ReplayBatchRepository } from './replay-batch.repository';
  */
 @Module({
   imports: [AmiModule, CallsModule],
-  providers: [RecoveryCoordinatorService, ReplayBatchRepository, PrismaService],
+  providers: [RecoveryCoordinatorService, ReplayBatchRepository, RecoverySweeperService, PrismaService],
   exports: [RecoveryCoordinatorService, ReplayBatchRepository],
 })
 export class RecoveryModule {}

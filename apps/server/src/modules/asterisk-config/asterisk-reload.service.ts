@@ -1,10 +1,12 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
+import { ConfigSnapshotService } from '../resilience/config-snapshot.service';
 import { buildPickupGroupName, normalizeAgentRuntimeProfile } from './renderers/agent-settings';
 import { renderAgentDialplan } from './renderers/agent-dialplan.renderer';
 import { renderDialplan } from './renderers/dialplan.renderer';
@@ -753,6 +755,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly ami: AmiConnectionService,
+    private readonly configSnapshot: ConfigSnapshotService,
   ) {}
 
   private getPjsipNatConfig() {
@@ -820,6 +823,40 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       this.ami.sendAction({ Action: 'Command', Command: command });
     }
     this.logger.log(`Asterisk reload triggered for tenant ${tenantId}`);
+    await this.captureLkg(tenantId);
+  }
+
+  /**
+   * 방금 렌더링·검증해 디스크에 쓰고 reload 까지 보낸 설정을 LKG 로 고정한다.
+   *
+   * 디스크의 실제 파일에서 읽는 이유: 다시 렌더링하면 그 사이 DB 가 바뀌었을 때
+   * "적용된 것" 과 "LKG" 가 어긋난다. 실제로 적용된 바이트가 곧 Last Known Good 이다.
+   *
+   * 내용이 아니라 파일별 다이제스트만 저장한다. pjsip.conf 에는 SIP 비밀번호가 평문으로
+   * 들어가는데, ConfigSnapshotService 의 마스킹은 객체 키 기준이라 파일 본문 안의 비밀값을
+   * 걸러내지 못한다. 드리프트 탐지에는 다이제스트로 충분하고, 비밀값 유출 위험은 0 이 된다.
+   */
+  private async captureLkg(tenantId: string): Promise<void> {
+    try {
+      const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
+      if (!path.isAbsolute(confDir) || !fs.existsSync(confDir)) return;
+
+      const files: Record<string, { sha256: string; bytes: number }> = {};
+      for (const item of RENDERED_CONF_FILE_NAMES) {
+        const filePath = path.join(confDir, item.fileName);
+        if (!fs.existsSync(filePath)) continue;
+        const content = fs.readFileSync(filePath);
+        files[item.fileName] = {
+          sha256: createHash('sha256').update(content).digest('hex'),
+          bytes: content.length,
+        };
+      }
+
+      await this.configSnapshot.save(tenantId, 'pbx', { confDir, files });
+    } catch (err) {
+      // LKG 기록 실패가 reload 를 되돌리지는 않는다. 이미 적용은 끝났다.
+      this.logger.warn(`LKG capture failed for tenant ${tenantId}: ${(err as Error).message}`);
+    }
   }
 
   async dryRunConfFiles(tenantId: string) {
