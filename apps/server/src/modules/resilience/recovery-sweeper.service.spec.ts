@@ -27,13 +27,16 @@ function build(options: { mode?: 'NORMAL' | 'RECOVERING'; tenants?: string[]; sp
   };
   const localSpool = {
     listTenants: jest.fn().mockResolvedValue(options.spoolTenants ?? []),
+    compact: jest.fn().mockResolvedValue(undefined),
   };
+  const durableSpool = { drainCursor: jest.fn().mockResolvedValue(undefined) };
   const leader = { isLeader: () => true };
 
   const service = new RecoverySweeperService(
-    prisma as any, localSpool as any, operatingMode, coordinator as any, leader as any,
+    prisma as any, localSpool as any, durableSpool as any, operatingMode,
+    coordinator as any, leader as any,
   );
-  return { service, coordinator, operatingMode, prisma, localSpool };
+  return { service, coordinator, operatingMode, prisma, localSpool, durableSpool };
 }
 
 describe('RecoverySweeperService', () => {
@@ -133,28 +136,31 @@ describe('RecoverySweeperService 스풀 정리', () => {
       listTenants: jest.fn().mockResolvedValue([]),
       compact: jest.fn().mockResolvedValue(undefined),
     };
+    const durableSpool = { drainCursor: jest.fn().mockResolvedValue(undefined) };
     const prisma = { tenants: { findMany: jest.fn().mockResolvedValue([{ tenantId: TENANT_A }]) } };
     const service = new RecoverySweeperService(
-      prisma as any, localSpool as any, operatingMode, coordinator as any,
-      { isLeader: () => true } as any,
+      prisma as any, localSpool as any, durableSpool as any, operatingMode,
+      coordinator as any, { isLeader: () => true } as any,
     );
-    return { service, localSpool };
+    return { service, localSpool, durableSpool };
   }
 
-  it('전부 성공하면 스풀을 정리한다', async () => {
-    const { service, localSpool } = buildWithCompact(0);
+  it('전부 성공하면 로컬 스풀과 Redis 커서를 모두 정리한다', async () => {
+    const { service, localSpool, durableSpool } = buildWithCompact(0);
 
     await service.sweep();
 
     expect(localSpool.compact).toHaveBeenCalledWith(TENANT_A);
+    expect(durableSpool.drainCursor).toHaveBeenCalledWith(TENANT_A);
   });
 
   it('실패가 남으면 스풀을 정리하지 않는다', async () => {
     // 아직 재처리할 게 남았는데 자르면 그대로 유실이다.
-    const { service, localSpool } = buildWithCompact(2);
+    const { service, localSpool, durableSpool } = buildWithCompact(2);
 
     await service.sweep();
 
     expect(localSpool.compact).not.toHaveBeenCalled();
+    expect(durableSpool.drainCursor).not.toHaveBeenCalled();
   });
 });

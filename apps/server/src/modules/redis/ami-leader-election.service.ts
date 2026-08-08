@@ -8,6 +8,9 @@ export class AmiLeaderElectionService implements OnModuleInit {
   private readonly nodeId = randomUUID();
   private readonly lockKey = 'kaster:ami:leader';
   private isLeaderNode = false;
+  // "리더가 아님" 과 "리더인지 알 수 없음" 은 다르다. Redis 를 못 쓰면 후자이고,
+  // 그때는 어떤 노드도 리더가 아니므로 이벤트 보존 책임이 모든 노드에 생긴다.
+  private leadershipKnown = false;
 
   constructor(private readonly redis: RedisService) {}
 
@@ -28,6 +31,7 @@ export class AmiLeaderElectionService implements OnModuleInit {
           this.logger.log(`Leadership acquired by ${this.nodeId}`);
         }
         this.isLeaderNode = true;
+        this.leadershipKnown = true;
         return;
       }
 
@@ -35,10 +39,12 @@ export class AmiLeaderElectionService implements OnModuleInit {
       if (current === this.nodeId) {
         await client.pexpire(this.lockKey, 10000);
         this.isLeaderNode = true;
+        this.leadershipKnown = true;
         return;
       }
 
       this.isLeaderNode = false;
+      this.leadershipKnown = true;
     } catch (err) {
       // Redis 를 못 쓰면 리더십을 증명할 수 없다. 붙잡고 있으면 Redis 복구 후
       // 다른 노드와 동시에 리더가 되는 split-brain 이 되므로 fail-safe 로 내려놓는다.
@@ -49,11 +55,22 @@ export class AmiLeaderElectionService implements OnModuleInit {
         );
       }
       this.isLeaderNode = false;
+      this.leadershipKnown = false;
     }
   }
 
   isLeader() {
     return this.isLeaderNode;
+  }
+
+  /**
+   * Redis 와 접촉해 리더십을 판정할 수 있었는지.
+   *
+   * false 면 "이 노드가 리더가 아니다" 가 아니라 "누가 리더인지 알 수 없다" 는 뜻이다.
+   * 그 구간에는 아무도 리더가 아니므로 이벤트를 보존할 노드도 없다.
+   */
+  isLeadershipKnown() {
+    return this.leadershipKnown;
   }
 
   getNodeId() {

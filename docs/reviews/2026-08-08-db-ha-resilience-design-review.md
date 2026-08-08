@@ -1,8 +1,8 @@
 # K-CTI DB 장애 대응 설계 검토 및 개선 계획
 
-작성일: 2026-08-08  
-검토 대상: `K-CTI_DB_백업_복구_이중화_장애대응_설계서_v1.0.docx`  
-대상 저장소: `D:\Work\AI_Projects\KAster_CTI`
+- 작성일: 2026-08-08
+- 검토 대상: `K-CTI_DB_백업_복구_이중화_장애대응_설계서_v1.0.docx`
+- 대상 저장소: `D:\Work\AI_Projects\KAster_CTI`
 
 ## 1. 검토 결론
 
@@ -43,9 +43,13 @@
 - `offline_spool_entries` 는 PostgreSQL 테이블이므로 **durable store 가 아니다.** 실제 내구 저장소는
   Redis Streams + 로컬 JSONL 이고, 이 테이블은 DB 가용 시에만 기록하는 감사·추적용 투영이다.
   DB 장애 중 이 테이블 insert 실패를 spool 실패로 취급하면 안 된다.
-- spool append 는 리더 게이트 **앞**에서 수행한다. Task 0A 이후 Redis 장애 구간에는 어떤 노드도 리더가
-  아니므로, 게이트 뒤에 두면 해당 구간 이벤트가 전부 사라진다. 모든 노드가 같은 `eventFingerprint` 로
-  append 하므로 중복은 replay 단계에서 제거된다.
+- spool append 는 리더 게이트 **앞**에서 수행하되, **아무 노드나 쓰지는 않는다.**
+  리더이거나 리더십을 확인할 수 없을 때(Redis 장애)만 쓴다. Task 0A 이후 Redis 장애 구간에는 어떤
+  노드도 리더가 아니므로 게이트 뒤에 두면 그 구간 이벤트가 전부 사라지지만, 반대로 모든 노드가 항상
+  쓰면 공유 Redis Stream 이 오염된다 — 리더는 자기 append 의 stream ID 로 커서를 올리므로 비리더
+  append 가 커서 뒤에 영구히 남아 offline depth 가 0 이 되지 않는다.
+  Redis 장애 구간에는 Redis append 가 어차피 실패해 로컬 스풀로 떨어지므로 공유 스트림을 오염시키지
+  않는다. 즉 "모두 쓰기" 가 필요한 유일한 구간에서만 모두 쓴다.
 - `configVersions` 등의 `BigInt` 컬럼은 `ResponseTransformInterceptor` 의 JSON 직렬화에서 `TypeError` 를
   던진다. 이 레포는 이미 경계마다 명시 변환한다 (`calls.service.ts:1758` 의 `.toString()`,
   `agent-updates.service.ts:112` 의 `Number(...)`). 신규 컨트롤러도 같은 규칙을 따른다.
@@ -160,4 +164,3 @@ pgBackRest 기준으로 전체/차등/증분 백업과 WAL archive를 구성한�
 6. P1-1: 관리자 UI 배너와 설정 저장 차단
 7. P1-2: Prometheus 지표와 운영 Runbook
 8. P1-3: Patroni, HAProxy, pgBackRest 배포 초안 및 복구훈련
-

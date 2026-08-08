@@ -42,7 +42,7 @@ describe('AmiConnectionService durable spool integration', () => {
     eventTime: '2026-08-08T00:00:00.000Z',
   };
 
-  function build(options: { isLeader?: boolean; processThrows?: Error } = {}) {
+  function build(options: { isLeader?: boolean; leadershipKnown?: boolean; processThrows?: Error } = {}) {
     const appended = { source: 'REDIS', idempotencyKey: 'fp', redisStreamId: '1-0' };
     const durableSpool = {
       appendAmiEvent: jest.fn().mockResolvedValue(appended),
@@ -54,7 +54,10 @@ describe('AmiConnectionService durable spool integration', () => {
         : jest.fn().mockResolvedValue(undefined),
     };
     const sipSecurity = { processAmiEvent: jest.fn().mockResolvedValue(undefined) };
-    const leader = { isLeader: () => options.isLeader ?? true };
+    const leader = {
+      isLeader: () => options.isLeader ?? true,
+      isLeadershipKnown: () => options.leadershipKnown ?? true,
+    };
     const operatingMode = {
       recordDbFailure: jest.fn(),
       recordDbRecovered: jest.fn(),
@@ -71,8 +74,27 @@ describe('AmiConnectionService durable spool integration', () => {
     return { service, durableSpool, sessionEngine, sipSecurity, operatingMode, appended };
   }
 
-  it('리더가 아니어도 스풀에는 먼저 기록한다', async () => {
-    const { service, durableSpool, sessionEngine } = build({ isLeader: false });
+  it('리더십이 확인된 상태에서 비리더는 스풀하지 않는다', async () => {
+    // 모든 노드가 공유 Redis Stream 에 쓰면, 리더가 자기 append ID 로 커서를 올려도
+    // 비리더 append 가 커서 뒤에 영구히 남아 offline depth 가 절대 0 이 되지 않는다.
+    // Redis 가 살아 있으면 리더 선출이 정상이므로 비리더가 쓸 이유가 없다.
+    const { service, durableSpool, sessionEngine } = build({
+      isLeader: false, leadershipKnown: true,
+    });
+
+    await service.handleNormalizedEvent(NORMALIZED);
+
+    expect(durableSpool.appendAmiEvent).not.toHaveBeenCalled();
+    expect(sessionEngine.processNormalizedEvent).not.toHaveBeenCalled();
+  });
+
+  it('리더십을 확인할 수 없으면 비리더도 스풀한다', async () => {
+    // Redis 장애 구간. 어떤 노드도 리더가 아니므로 아무도 안 쓰면 통째로 유실된다.
+    // 이때 Redis append 는 어차피 실패하고 로컬 스풀로 떨어지므로 공유 스트림이
+    // 오염되지 않는다.
+    const { service, durableSpool, sessionEngine } = build({
+      isLeader: false, leadershipKnown: false,
+    });
 
     await service.handleNormalizedEvent(NORMALIZED);
 

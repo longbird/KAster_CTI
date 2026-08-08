@@ -120,6 +120,26 @@ export class DurableSpoolService {
     }
   }
 
+  /**
+   * 커서를 스트림 끝으로 밀어 남은 미처리분을 없앤다. 재처리가 **전부 성공한 뒤에만** 부른다.
+   *
+   * 정상 경로에서는 리더만 스트림에 쓰므로 커서가 자연히 끝까지 간다. 이 메서드는
+   * 리더 전환 순간처럼 경계에서 다른 노드의 append 가 커서 뒤에 남는 경우를 위한 안전장치다.
+   * 그런 항목을 그대로 두면 offline depth 가 영원히 0 이 되지 않아 지표가 죽는다.
+   */
+  async drainCursor(tenantId: string): Promise<void> {
+    try {
+      const client = this.redis.getClient();
+      const last = await client.xrevrange(this.streamKey(tenantId), '+', '-', 'COUNT', 1);
+      const lastId = last?.[0]?.[0];
+      if (lastId) {
+        await client.set(this.cursorKey(tenantId), String(lastId));
+      }
+    } catch (err) {
+      this.logger.warn(`spool cursor drain failed for tenant=${tenantId}: ${(err as Error).message}`);
+    }
+  }
+
   /** 미처리 이벤트 수. health/metric 에 노출한다. */
   async getPendingDepth(tenantId: string): Promise<number> {
     const localDepth = await this.local.pendingCount(tenantId).catch(() => 0);

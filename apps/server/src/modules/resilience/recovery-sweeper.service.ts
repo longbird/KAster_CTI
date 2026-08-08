@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
 import { LocalSpoolStore } from './local-spool.store';
+import { DurableSpoolService } from './durable-spool.service';
 import { OperatingModeService } from './operating-mode.service';
 import { RecoveryCoordinatorService } from './recovery-coordinator.service';
 
@@ -25,6 +26,7 @@ export class RecoverySweeperService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly localSpool: LocalSpoolStore,
+    private readonly durableSpool: DurableSpoolService,
     private readonly operatingMode: OperatingModeService,
     private readonly coordinator: RecoveryCoordinatorService,
     private readonly leader: AmiLeaderElectionService,
@@ -56,6 +58,11 @@ export class RecoverySweeperService implements OnModuleInit {
           // 디스크가 찬다. compact 는 미처리분이 남아 있으면 스스로 아무것도 하지 않는다.
           await this.localSpool.compact(tenantId).catch((err) => {
             this.logger.warn(`spool compact failed for tenant=${tenantId}: ${err.message}`);
+          });
+          // Redis 쪽도 같이 배수한다. 리더 전환 경계에서 다른 노드의 append 가 커서 뒤에
+          // 남으면 offline depth 가 영원히 0 이 되지 않는다 (로컬 compact 와 대칭).
+          await this.durableSpool.drainCursor(tenantId).catch((err) => {
+            this.logger.warn(`spool cursor drain failed for tenant=${tenantId}: ${err.message}`);
           });
         } catch (err) {
           // 한 테넌트의 실패가 나머지를 막지 않는다.

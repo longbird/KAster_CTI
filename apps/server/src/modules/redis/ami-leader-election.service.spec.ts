@@ -82,3 +82,47 @@ describe('AmiLeaderElectionService', () => {
     expect(service.isLeader()).toBe(false);
   });
 });
+
+describe('AmiLeaderElectionService 리더십 확인 가능 여부', () => {
+  it('초기에는 아직 확인된 바가 없으므로 unknown 이다', () => {
+    const service = new AmiLeaderElectionService(redisOf(buildClient()));
+
+    expect(service.isLeadershipKnown()).toBe(false);
+  });
+
+  it('tick 이 정상 완료하면 known 이다', async () => {
+    const service = new AmiLeaderElectionService(redisOf(buildClient()));
+
+    await service.tick();
+
+    expect(service.isLeadershipKnown()).toBe(true);
+  });
+
+  it('Redis 장애로 tick 이 실패하면 unknown 으로 돌아간다', async () => {
+    // 이 값이 "리더가 아님" 과 "리더인지 알 수 없음" 을 구분한다.
+    // 스풀 대상 판단이 여기에 걸려 있다.
+    const client = buildClient({
+      set: jest.fn().mockResolvedValueOnce('OK').mockRejectedValue(new Error('redis down')),
+    });
+    const service = new AmiLeaderElectionService(redisOf(client));
+
+    await service.tick();
+    expect(service.isLeadershipKnown()).toBe(true);
+
+    await service.tick();
+    expect(service.isLeadershipKnown()).toBe(false);
+  });
+
+  it('다른 노드가 리더여도 확인은 된 상태다', async () => {
+    const client = buildClient({
+      set: jest.fn().mockResolvedValue(null),
+      get: jest.fn().mockResolvedValue('other-node'),
+    });
+    const service = new AmiLeaderElectionService(redisOf(client));
+
+    await service.tick();
+
+    expect(service.isLeader()).toBe(false);
+    expect(service.isLeadershipKnown()).toBe(true);
+  });
+});

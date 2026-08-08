@@ -18,6 +18,7 @@ function build(overrides: { xadd?: jest.Mock; local?: any; config?: any } = {}) 
     set: jest.fn().mockResolvedValue('OK'),
     get: jest.fn().mockResolvedValue(null),
     xrange: jest.fn().mockResolvedValue([]),
+    xrevrange: jest.fn().mockResolvedValue([]),
   };
   const local = overrides.local ?? {
     append: jest.fn().mockResolvedValue({ path: '/tmp/spool.jsonl', offset: 120 }),
@@ -137,5 +138,30 @@ describe('DurableSpoolService', () => {
     local.pendingCount.mockResolvedValue(7);
 
     expect(await service.getPendingDepth(TENANT)).toBe(7);
+  });
+
+  it('drainCursor 는 커서를 스트림의 마지막 ID 로 민다', async () => {
+    const { service, client } = build();
+    client.xrevrange.mockResolvedValue([['99-0', ['payload', '{}']]]);
+
+    await service.drainCursor(TENANT);
+
+    expect(client.set).toHaveBeenCalledWith(`kcti:spool:${TENANT}:ami:cursor`, '99-0');
+  });
+
+  it('스트림이 비어 있으면 drainCursor 는 커서를 건드리지 않는다', async () => {
+    const { service, client } = build();
+    client.xrevrange.mockResolvedValue([]);
+
+    await service.drainCursor(TENANT);
+
+    expect(client.set).not.toHaveBeenCalled();
+  });
+
+  it('Redis 가 죽어 있어도 drainCursor 는 예외를 던지지 않는다', async () => {
+    const { service, client } = build();
+    client.xrevrange.mockRejectedValue(new Error('redis down'));
+
+    await expect(service.drainCursor(TENANT)).resolves.toBeUndefined();
   });
 });
