@@ -14,7 +14,7 @@
 | [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 13 | 아래 참조 |
 | [`qa/`](qa/) | 검증 결과·smoke report·증적 | 51 | [`qa/_index.md`](qa/_index.md) |
 | [`reviews/`](reviews/) | 외부 문서·설계 검토 의견 | 1 | 아래 참조 |
-| [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 23 | [`work-log/_index.md`](work-log/_index.md) |
+| [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 24 | [`work-log/_index.md`](work-log/_index.md) |
 | [`reference/`](reference/) | 원본 PDF·외부 원문 (수정 안 함) | 12 | [`reference/README.md`](reference/README.md) |
 | [`chatgpt-archive/`](chatgpt-archive/) | 대화 원문 아카이브 + 추출 스크립트 | — | — |
 
