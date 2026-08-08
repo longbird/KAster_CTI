@@ -26,6 +26,7 @@ import { RecordingPipelineModule } from './modules/recording-pipeline/recording-
 import { SmdrModule } from './modules/smdr/smdr.module';
 import { SipSecurityModule } from './modules/sip-security/sip-security.module';
 import { ResilienceModule } from './modules/resilience/resilience.module';
+import { RecoveryModule } from './modules/resilience/recovery.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { ResilienceModule } from './modules/resilience/resilience.module';
     ShareRulesModule,
     IntegrationsModule,
     SmdrModule,
+    RecoveryModule,
     HealthModule,
   ],
   providers: [PrismaService],
