@@ -32,6 +32,8 @@
 | 15 | `adc72de` | 작업 로그 (이 문서) | — |
 | 16 | `e72d864` | **외부 검증 P2** — 비리더 노드의 공유 스풀 스트림 오염 | 8 |
 | 17 | `b959bf8` | **외부 검증 P3** — 재배치 후 남은 문서 경로 2곳 | — |
+| 18 | `4d62ad9` | 외부 검증 라운드 기록 | — |
+| 19 | `67ab7c7` | **PR 리뷰 P1/P2** — 커서 유실·가드 범위·에러 코드 | 25 |
 
 ## 2. 착수 전에 고친 기존 결함 2건
 
@@ -135,6 +137,46 @@ trailing whitespace 없이 같은 렌더 결과를 얻었다.
 - **추가로 발견**: `tools/generate_ipcc_diagram.py` 가 폐지된 `docs/proposals/` 로 PNG 를
   출력하고 있었다. 마크다운 링크 검사로는 잡히지 않는 `.py` 경로다 → `docs/design/assets/` 로 정정
 
+## 4-2. PR 리뷰에서 지적받아 고친 것
+
+### P1 — 복구 시 미처리 이벤트를 건너뜀 (가장 심각)
+
+지적은 `drainCursor()` 가 커서를 스트림 끝으로 무조건 미는 문제였는데, 파고들어 보니
+**더 근본적인 결함**이 있었다. 커서는 단일 포인터라 "A 는 건너뛰고 B 만 처리됨" 을
+표현할 수 없다. A(실패) → B(성공) 순서면 `markProcessed(B)` 가 커서를 B 로 밀어 A 가
+영구히 유실된다. DB 가 완전히 죽은 구간에서는 둘 다 실패해 드러나지 않지만, 부분 실패나
+DB 가 살아나는 RECOVERING 구간에서 정확히 발생한다.
+
+→ `drainCursor` 제거(도입 근거였던 비리더 잔여물은 P2 수정으로 이미 사라졌다) +
+`markFailed`/`clearBlocked` 로 **실패가 미해결이면 커서를 얼린다.**
+재처리 전량 성공 시에만 푼다. 커서를 직접 밀지 않으므로 그 사이 도착한 이벤트를 넘길 수 없다.
+
+### P1/P2 — 설정 쓰기 차단이 일부 컨트롤러에만 적용됨
+
+쓰기 엔드포인트를 가진 컨트롤러 13개를 전수 조사했다. UI 에서 버튼을 막아도 API 직접
+호출로 우회되는 상태였다.
+
+| 분류 | 컨트롤러 |
+|---|---|
+| 클래스 레벨 차단 추가 | queues, integrations, outbound-rules, share-rules, sms-templates |
+| 메서드 단위 (혼재) | agents — 계정/권한 4개만. `status`·`dnd` 는 설정이 아니라 통화 운영이라 열어둠 |
+| 의도적으로 열어둠 | calls·client-call-commands(제1원칙), auth(별도 축·운영 판단), customers(업무 데이터), agent-updates(런타임) |
+
+이 판정이 조용히 무너지지 않도록 `test/write-availability-coverage.spec.ts` 로 고정했다.
+새 컨트롤러가 세 목록 중 어디에도 없으면 테스트가 실패한다.
+
+### P2 — 관리자 앱이 장애 모드 차단을 인식하지 못함
+
+`AllExceptionsFilter` 가 예외 본문의 `code` 를 무시하고 `obj.error` 만 봤다. 가드가 던진
+`OPERATING_MODE_RESTRICTED` 가 일반 `SERVICE_UNAVAILABLE` 로 덮이고 `operatingMode` 도
+사라져, **관리자 앱의 공통 안내 로직이 절대 매칭되지 않았다.** Task 7 의 인터셉터가 죽어 있던 셈이다.
+
+→ `obj.code` 를 우선 사용하고, 나머지 필드를 `error` 에 보존.
+
+### P3 — 문서 공백
+
+직전 라운드(`b959bf8`)에서 이미 해결돼 있었다. `git diff --check` exit 0 으로 재확인.
+
 ## 5. 베이스라인 복구
 
 착수 시점에 서버 테스트가 **4 suites / 5 tests 실패** 상태였다. 전부 제품 변경을 테스트가
@@ -157,7 +199,7 @@ cd apps/web    && npx vitest run
 
 | 대상 | 결과 |
 |---|---|
-| server | 66 suites / **451 tests** 통과, `nest build` 성공, `npm run lint` 통과 |
+| server | 68 suites / **473 tests** 통과, `nest build` 성공, `npm run lint` 통과 |
 | admin | 38 files / **137 tests** 통과, `vite build` 성공 |
 | web | 11 tests 통과 |
 
