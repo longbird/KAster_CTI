@@ -29,6 +29,9 @@
 | 12 | `db9e5bb` | **리뷰 수정** — 호출되지 않던 Recovery / LKG 연결 | 11 |
 | 13 | `c356ac7` | **리뷰 수정** — 스풀 전체 재읽기 제거 + compact | 7 |
 | 14 | `18fbecb` | 리뷰 결과 runbook 반영 | — |
+| 15 | `adc72de` | 작업 로그 (이 문서) | — |
+| 16 | `e72d864` | **외부 검증 P2** — 비리더 노드의 공유 스풀 스트림 오염 | 8 |
+| 17 | `b959bf8` | **외부 검증 P3** — 재배치 후 남은 문서 경로 2곳 | — |
 
 ## 2. 착수 전에 고친 기존 결함 2건
 
@@ -100,6 +103,38 @@ LKG 가 영영 비어 있어 `load()` 는 항상 `null`, 설정 출처는 항상
 커서가 끝까지 올라가 있으면 본문을 아예 읽지 않음(평시 비용 0),
 전부 처리된 파일은 `compact()` 로 비움(미처리분이 남으면 아무것도 하지 않음).
 
+## 4-1. 외부 검증에서 지적받아 고친 것
+
+구현 완료 후 외부 검증을 받았고, 유효한 지적 3건을 반영했다.
+
+### P2 — 멀티노드에서 offline depth 가 영원히 0 이 되지 않음
+
+모든 노드가 리더 게이트 앞에서 공유 Redis Stream 에 append 하는데, 리더는 처리 후
+**자기 append 의 stream ID** 로 커서를 올린다. 비리더 append 가 그보다 뒤 ID 를 받으면
+커서 뒤에 영구히 남는다. 유실은 아니지만 지표가 죽고 복구 중 불필요한 replay 가 반복된다.
+
+근본 원인은 **"모든 노드가 쓴다" 의 근거가 틀렸다**는 점이었다. 그 근거는 "Redis 장애 시
+리더가 없으니 아무도 안 쓴다" 였는데, Redis 가 죽으면 Redis append 자체가 실패해 로컬
+스풀로 떨어진다. 즉 공유 스트림 오염은 Redis 가 **살아 있을 때만** 생기고, 그때는 리더
+선출이 정상이므로 비리더가 쓸 이유가 없다.
+
+→ `isLeadershipKnown()` 을 추가해 "리더가 아님" 과 "리더인지 알 수 없음" 을 구분하고,
+스풀 조건을 `리더 || 리더십 확인 불가` 로 좁혔다. 안전장치로 `drainCursor()` 를 추가해
+리더 전환 경계에서 남을 수 있는 항목을 재처리 전량 성공 시 배수한다(로컬 `compact` 와 대칭).
+
+### P3 — `git diff --check` 실패
+
+검토서 헤더의 markdown hard-break(trailing 2-space)와 EOF 빈 줄. 헤더를 목록으로 바꿔
+trailing whitespace 없이 같은 렌더 결과를 얻었다.
+
+### P3 — 재배치 후 남은 폐지 경로 참조
+
+- `docs/plans/2026-04-21-customer-management-phase1.md` 의 `docs/superpowers/verification/…` 2곳.
+  이 경로는 git 이력상 한 번도 존재한 적이 없어(계획서가 "만들라" 고 지시한 파일)
+  일괄 치환 맵에 걸리지 않았다 → `docs/qa/…-verification.md` 로 정정
+- **추가로 발견**: `tools/generate_ipcc_diagram.py` 가 폐지된 `docs/proposals/` 로 PNG 를
+  출력하고 있었다. 마크다운 링크 검사로는 잡히지 않는 `.py` 경로다 → `docs/design/assets/` 로 정정
+
 ## 5. 베이스라인 복구
 
 착수 시점에 서버 테스트가 **4 suites / 5 tests 실패** 상태였다. 전부 제품 변경을 테스트가
@@ -122,7 +157,7 @@ cd apps/web    && npx vitest run
 
 | 대상 | 결과 |
 |---|---|
-| server | 66 suites / **443 tests** 통과, `nest build` 성공, eslint 0 |
+| server | 66 suites / **451 tests** 통과, `nest build` 성공, `npm run lint` 통과 |
 | admin | 38 files / **137 tests** 통과, `vite build` 성공 |
 | web | 11 tests 통과 |
 
@@ -150,6 +185,8 @@ Red-Green 검증을 수행한 항목:
 - **NestJS 부팅(`onModuleInit`) 검증.** DI 그래프는 `nest build` 와 의존 방향 검토로만 확인했다.
 - `apps/desktop` 의 기존 실패 4건은 이 브랜치가 건드리지 않은 영역이다
   (`git diff 0f6ad19..HEAD -- apps/desktop` 이 비어 있음).
+- **CI 체크 없음.** `gh pr checks 5` 결과 `no checks reported` — 이 저장소에는 CI 워크플로가
+  설정돼 있지 않다. 위 검증은 전부 로컬 실행 결과다.
 
 ## 8. 남은 범위 / 판단 필요
 
