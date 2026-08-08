@@ -11,8 +11,8 @@
 |---|---|---:|---|
 | [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 33 | [`design/_index.md`](design/_index.md) |
 | [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 48 | [`plans/_index.md`](plans/_index.md) |
-| [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 12 | 아래 참조 |
-| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 50 | [`qa/_index.md`](qa/_index.md) |
+| [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 13 | 아래 참조 |
+| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 51 | [`qa/_index.md`](qa/_index.md) |
 | [`reviews/`](reviews/) | 외부 문서·설계 검토 의견 | 1 | 아래 참조 |
 | [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 23 | [`work-log/_index.md`](work-log/_index.md) |
 | [`reference/`](reference/) | 원본 PDF·외부 원문 (수정 안 함) | 12 | [`reference/README.md`](reference/README.md) |
@@ -50,6 +50,7 @@
 | `agent-desktop-live-test-runbook.md` | 데스크톱 실환경 테스트 절차 |
 | `local-test-infra.md` | 로컬 테스트 인프라 |
 | `2026-08-02-pbx-sip-security-hardening-runbook.md` | SIP 보안 강화 절차 |
+| `2026-08-08-db-ha-resilience-runbook.md` | DB 장애 대응 운영 절차 (운영 모드·재처리·PITR·훈련) |
 
 ## reviews/
 

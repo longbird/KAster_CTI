@@ -1,0 +1,47 @@
+# Patroni 샘플. 노드별 값은 환경변수로 주입한다.
+# 그대로 배포하지 말 것 — scope/DCS 주소/자격증명은 사이트마다 다르다.
+scope: kcti-postgres
+name: ${PATRONI_NODE_NAME}
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_REST_ADDRESS}
+
+etcd3:
+  hosts: ${DCS_HOSTS}
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    # 동기 복제. 한 건이라도 유실되면 통화 이력이 어긋나므로 성능보다 내구성을 택한다.
+    synchronous_mode: true
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      parameters:
+        synchronous_commit: 'on'
+        wal_level: replica
+        hot_standby: 'on'
+        max_wal_senders: 10
+        max_replication_slots: 10
+        archive_mode: 'on'
+        archive_command: 'pgbackrest --stanza=kcti archive-push %p'
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${POSTGRES_CONNECT_ADDRESS}
+  data_dir: /var/lib/postgresql/16/main
+  authentication:
+    replication:
+      username: ${REPLICATION_USER}
+      password: ${REPLICATION_PASSWORD}
+    superuser:
+      username: ${POSTGRES_SUPERUSER}
+      password: ${POSTGRES_SUPERUSER_PASSWORD}
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
