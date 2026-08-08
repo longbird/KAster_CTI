@@ -1,5 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { OperatingModeService } from './operating-mode.service';
+import { LocalSpoolStore } from './local-spool.store';
+import { DurableSpoolService } from './durable-spool.service';
 import { WriteAvailabilityGuard } from './write-availability.guard';
 
 /**
@@ -10,7 +12,7 @@ import { WriteAvailabilityGuard } from './write-availability.guard';
  */
 @Global()
 @Module({
-  providers: [OperatingModeService, WriteAvailabilityGuard],
-  exports: [OperatingModeService, WriteAvailabilityGuard],
+  providers: [OperatingModeService, WriteAvailabilityGuard, LocalSpoolStore, DurableSpoolService],
+  exports: [OperatingModeService, WriteAvailabilityGuard, LocalSpoolStore, DurableSpoolService],
 })
 export class ResilienceModule {}

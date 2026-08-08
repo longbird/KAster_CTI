@@ -6,6 +6,9 @@ import { isAsteriskBanner, parseAmiFrame, ParsedAmiFrame, splitAmiFrames } from 
 import { SessionEngineService } from '../calls/session-engine.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
 import { SipSecurityService } from '../sip-security/sip-security.service';
+import { DurableSpoolService } from '../resilience/durable-spool.service';
+import { OperatingModeService } from '../resilience/operating-mode.service';
+import { computeFingerprint } from '../calls/session-engine.service';
 
 export interface AmiHealthSnapshot {
   connected: boolean;
@@ -41,10 +44,49 @@ export class AmiConnectionService implements OnModuleInit {
     private readonly sessionEngine: SessionEngineService,
     private readonly leader: AmiLeaderElectionService,
     private readonly sipSecurity: SipSecurityService,
+    private readonly durableSpool: DurableSpoolService,
+    private readonly operatingMode: OperatingModeService,
   ) {}
 
   onModuleInit(): void {
     this.connect();
+  }
+
+  /**
+   * 정규화된 AMI 이벤트 한 건을 처리한다.
+   *
+   * 순서가 핵심이다. 스풀 기록은 **리더 게이트보다 앞**이다. AmiLeaderElectionService 가
+   * Redis 장애 시 fail-safe 로 리더십을 내려놓으므로, 그 구간에는 어떤 노드도 리더가
+   * 아니다. 게이트 뒤에 스풀을 두면 정확히 그 구간의 이벤트가 통째로 사라진다.
+   *
+   * 모든 노드가 같은 eventFingerprint 로 스풀하므로 노드 수만큼 중복이 생기지만,
+   * 복구 재처리 단계에서 idempotencyKey 로 제거된다. 유실보다 중복이 낫다.
+   */
+  private async handleNormalizedEvent(normalized: Record<string, any>): Promise<void> {
+    const fingerprint = computeFingerprint(normalized);
+    const appended = await this.durableSpool.appendAmiEvent(normalized, fingerprint);
+
+    if (!this.leader.isLeader()) {
+      // 리더가 아닌 노드는 TCP 연결은 유지해 장애 시 빠르게 takeover 할 수
+      // 있도록 해두지만, DB/WS 반영은 건너뛴다. conv 44 멀티노드 원칙.
+      return;
+    }
+
+    try {
+      await this.sipSecurity.processAmiEvent(normalized);
+      await this.sessionEngine.processNormalizedEvent(normalized);
+
+      // DB 쓰기가 성공했다는 가장 신뢰할 만한 신호. NORMAL 이면 no-op 이다.
+      this.operatingMode.recordDbRecovered();
+      await this.durableSpool.markProcessed(normalized.tenantId, appended);
+    } catch (err) {
+      // 여기서 throw 하면 socket 'data' 핸들러의 unhandled rejection 이 된다.
+      // 스풀 커서를 전진시키지 않았으므로 이 이벤트는 복구 후 재처리 대상으로 남는다.
+      this.operatingMode.recordDbFailure();
+      this.logger.error(
+        `event processing failed (${normalized.eventName}): ${(err as Error).message}`,
+      );
+    }
   }
 
   connect() {
@@ -85,13 +127,7 @@ export class AmiConnectionService implements OnModuleInit {
 
         this.lastEventAt = new Date();
 
-        if (!this.leader.isLeader()) {
-          // 리더가 아닌 노드는 TCP 연결은 유지해 장애 시 빠르게 takeover 할 수
-          // 있도록 해두지만, DB/WS 정규화는 건너뛴다. conv 44 멀티노드 원칙.
-          continue;
-        }
-        await this.sipSecurity.processAmiEvent(normalized);
-        await this.sessionEngine.processNormalizedEvent(normalized);
+        await this.handleNormalizedEvent(normalized);
       }
     });
 
