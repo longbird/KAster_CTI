@@ -19,6 +19,7 @@ import { PutShareRuleAgentsDto } from './dto/put-share-rule-agents.dto';
 import { PutShareRuleBranchesDto } from './dto/put-share-rule-branches.dto';
 import { UpdateShareRuleDto } from './dto/update-share-rule.dto';
 import { ShareRulesService } from './share-rules.service';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 const MENU_KEY = 'settings/share-rules';
 
@@ -26,6 +27,9 @@ const MENU_KEY = 'settings/share-rules';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/settings/share-rules')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. 가드가 조회 메서드는 통과시키므로
+// 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class ShareRulesController {
   constructor(
     private readonly service: ShareRulesService,

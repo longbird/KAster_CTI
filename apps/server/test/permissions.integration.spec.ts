@@ -4,6 +4,7 @@ import { MenuPermissionService } from '../src/common/menu-permission.service';
 import { AsteriskConfigController } from '../src/modules/asterisk-config/asterisk-config.controller';
 import { AsteriskConfigService } from '../src/modules/asterisk-config/asterisk-config.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
+import { PromptTtsService } from '../src/modules/asterisk-config/prompt-tts.service';
 import { AgentsController } from '../src/modules/agents/agents.controller';
 import { AgentsService } from '../src/modules/agents/agents.service';
 import { CallsController } from '../src/modules/calls/calls.controller';
@@ -319,6 +320,9 @@ describe('Server permission integration', () => {
     const reloadService = {
       executeReload: jest.fn(),
     };
+    const promptTtsService = {
+      createPromptFromText: jest.fn(),
+    };
     const menuPermissionService = {
       assertAnyMenuAccess: jest.fn(),
       assertMenuAccess: jest.fn(),
@@ -334,6 +338,7 @@ describe('Server permission integration', () => {
         providers: [
           { provide: AsteriskConfigService, useValue: asteriskConfigService },
           { provide: AsteriskReloadService, useValue: reloadService },
+          { provide: PromptTtsService, useValue: promptTtsService },
           { provide: MenuPermissionService, useValue: menuPermissionService },
         ],
       }).compile();

@@ -23,6 +23,7 @@ import { CopyAgentPermissionsDto } from './dto/copy-agent-permissions.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { SetDndDto } from './dto/set-dnd.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 const SUPERVISORY_ROLES = new Set(['supervisor', 'admin']);
 
@@ -95,6 +96,7 @@ export class AgentsController {
     return this.agentsService.create(user.tenantId, dto);
   }
 
+  @RequiresWriteAvailability('general')
   @Delete(':agentId')
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
@@ -103,6 +105,7 @@ export class AgentsController {
     return this.agentsService.deactivate(user.tenantId, agentId);
   }
 
+  @RequiresWriteAvailability('general')
   @Post(':agentId/reset-password')
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
@@ -111,6 +114,7 @@ export class AgentsController {
     return this.agentsService.resetPassword(user.tenantId, agentId);
   }
 
+  @RequiresWriteAvailability('general')
   @Patch(':agentId')
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')
@@ -166,6 +170,7 @@ export class AgentsController {
    * 핵심 scope (queueMembership / branchCidAuth / menuPermissions / agentSettingsProfile)
    * 가 destructive 이므로 settings/agents update 권한 필요.
    */
+  @RequiresWriteAvailability('general')
   @Post(':targetAgentId/copy-permissions')
   @UseGuards(RolesGuard)
   @Roles('supervisor', 'admin')

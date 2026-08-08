@@ -25,12 +25,15 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { RecordingPipelineModule } from './modules/recording-pipeline/recording-pipeline.module';
 import { SmdrModule } from './modules/smdr/smdr.module';
 import { SipSecurityModule } from './modules/sip-security/sip-security.module';
+import { ResilienceModule } from './modules/resilience/resilience.module';
+import { RecoveryModule } from './modules/resilience/recovery.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MonitoringModule,
     RedisModule,
+    ResilienceModule,
     EventsModule,
     OutboxModule,
     SessionRecoveryModule,
@@ -52,6 +55,7 @@ import { SipSecurityModule } from './modules/sip-security/sip-security.module';
     ShareRulesModule,
     IntegrationsModule,
     SmdrModule,
+    RecoveryModule,
     HealthModule,
   ],
   providers: [PrismaService],

@@ -25,6 +25,7 @@ import { ExecuteSmartOptOutDto } from '../opt-out/dto/execute-smart-opt-out.dto'
 import { OptOutService } from '../opt-out/opt-out.service';
 import { ExecuteSmartArsActionDto } from '../smart-ars/dto/execute-smart-ars-action.dto';
 import { SmartArsRuntimeService } from '../smart-ars/smart-ars-runtime.service';
+import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 
 interface UploadedPromptAudioFile {
   originalname: string;
@@ -37,6 +38,9 @@ interface UploadedPromptAudioFile {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('supervisor', 'admin')
 @Controller('asterisk-config')
+// DB 장애 대응 모드에서 설정 쓰기를 차단한다. WriteAvailabilityGuard 는 조회 메서드를
+// 통과시키므로 클래스 전체에 붙여도 읽기 경로는 영향받지 않는다.
+@RequiresWriteAvailability('general')
 export class AsteriskConfigController {
   constructor(
     private readonly svc: AsteriskConfigService,

@@ -3,7 +3,8 @@ import math
 
 
 W, H = 1900, 1220
-OUT = "docs/proposals/ipcc-system-configuration-diagram.png"
+# docs/proposals/ 는 폐지됐다 (DOCS_GUIDE.md). 첨부 자산은 문서와 같은 타입 디렉터리의 assets/ 로.
+OUT = "docs/design/assets/ipcc-system-configuration-diagram.png"
 
 
 def font(size: int, bold: bool = False):

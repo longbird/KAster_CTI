@@ -7,6 +7,8 @@ import { CallsHealthService } from '../calls/calls-health.service';
 import { AgentMonitoringService } from '../agents/agent-monitoring.service';
 import { QueueMonitoringService } from '../queues/queue-monitoring.service';
 import { HealthResponseDto } from './dto/health-response.dto';
+import { ResilienceHealthService } from '../resilience/resilience-health.service';
+import { OperatingModeService } from '../resilience/operating-mode.service';
 
 @Injectable()
 export class HealthSummaryService {
@@ -18,6 +20,8 @@ export class HealthSummaryService {
     private readonly callsHealth: CallsHealthService,
     private readonly agentMonitoring: AgentMonitoringService,
     private readonly queueMonitoring: QueueMonitoringService,
+    private readonly resilienceHealth: ResilienceHealthService,
+    private readonly operatingMode: OperatingModeService,
   ) {}
 
   async getHealth(tenantId?: string): Promise<HealthResponseDto> {
@@ -27,8 +31,12 @@ export class HealthSummaryService {
     let db: 'up' | 'down' = 'up';
     try {
       await this.prisma.$queryRaw`SELECT 1`;
+      // 헬스 체크는 DB 가용성의 독립적인 관측점이다. AMI 이벤트가 잠잠한 시간대에도
+      // 운영 모드가 실제 상태를 따라가려면 이 신호가 필요하다.
+      this.operatingMode.recordDbRecovered();
     } catch {
       db = 'down';
+      this.operatingMode.recordDbFailure();
     }
 
     let redis: 'up' | 'down' | 'degraded' = 'up';
@@ -43,16 +51,22 @@ export class HealthSummaryService {
       ? 'connected'
       : 'disconnected';
 
-    const [call, agent, queue] = await Promise.all([
+    const [call, agent, queue, resilienceSummary] = await Promise.all([
       this.callsHealth.getSummary(tenantId),
       this.agentMonitoring.getSummary(tenantId),
       this.queueMonitoring.getSummary(tenantId),
+      this.resilienceHealth.getSummary(tenantId),
     ]);
 
+    // 운영 모드가 NORMAL 이 아니면 ok 를 내지 않는다. RECOVERING 중에 ok 를 내면
+    // 재처리가 안 끝났는데 모니터링이 복구 완료로 오독한다.
     const status: 'ok' | 'degraded' | 'down' =
       db === 'down'
         ? 'down'
-        : redis === 'down' || ami === 'disconnected' || call.stuck > 0
+        : redis === 'down'
+          || ami === 'disconnected'
+          || call.stuck > 0
+          || resilienceSummary.operatingMode !== 'NORMAL'
         ? 'degraded'
         : 'ok';
 
@@ -65,6 +79,10 @@ export class HealthSummaryService {
       call,
       agent,
       queue,
+      operatingMode: resilienceSummary.operatingMode,
+      dataFreshness: resilienceSummary.dataFreshness,
+      restrictions: resilienceSummary.restrictions,
+      resilience: resilienceSummary.resilience,
     };
   }
 }

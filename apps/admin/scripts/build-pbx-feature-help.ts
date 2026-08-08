@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const REPO_ROOT = resolve(__dirname, '../../..');
-const REF_DIR = resolve(REPO_ROOT, 'docs/IPPBX_개발시 참조용_20260104');
+const REF_DIR = resolve(REPO_ROOT, 'docs/reference/IPPBX_개발시 참조용_20260104');
 const SCREEN_DIR = resolve(REF_DIR, '3_DM_설정화면');
 const MANUAL_PDF_PATH = resolve(REF_DIR, '2_매뉴얼 (삼성pbx).pdf');
 const WORKBOOK_PATH = resolve(REF_DIR, '1_비씨앤 IP PBX 초안_20260104.xlsx');

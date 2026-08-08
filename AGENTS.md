@@ -2,6 +2,12 @@
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
+## 문서를 만들거나 옮길 때
+
+**`DOCS_GUIDE.md` 를 따른다.** 문서의 디렉터리·파일명·인덱스 규칙은 전부 그 파일에 있다.
+`docs/` 최상위에 새 `.md` 를 만들지 않는다. 타입 디렉터리(design / plans / operations / qa / reviews / work-log / reference) 중 하나에 `YYYY-MM-DD-주제-유형.md` 로 만든다.
+`docs/ops/`, `docs/features/`, `docs/superpowers/` 는 폐지됐다.
+
 ## 용어 규칙
 
 - 사용자에게 노출되는 관리자/상담원 화면, 메뉴, 버튼, 안내 문구, 운영 문서의 제품 명칭은 `PBX`로 통일합니다.
@@ -186,9 +192,9 @@ NestJS 미들웨어가 PBX AMI의 원시 이벤트를 받아 `linkedid`를 키�
 ## 참고 문서
 
 ### 기획·설계 원본 PDF
-- `docs/01_project_overview.pdf` — 프로젝트 개요
-- `docs/02_practical_design.pdf` — 실전 개발용 상세 설계서
-- `docs/03_db_api_asterisk_spec.pdf` — DB / API / PBX 스펙
+- `docs/reference/01_project_overview.pdf` — 프로젝트 개요
+- `docs/reference/02_practical_design.pdf` — 실전 개발용 상세 설계서
+- `docs/reference/03_db_api_asterisk_spec.pdf` — DB / API / PBX 스펙
 
 ### 보조 설계 문서 (ChatGPT 세션 추출)
 - `docs/design/sip-trunk-spec-template.md` — 통신사에 보낼 SIP Trunk 요청 표준 포맷 + PBX 매핑 가이드
@@ -196,7 +202,7 @@ NestJS 미들웨어가 PBX AMI의 원시 이벤트를 받아 `linkedid`를 키�
 - `docs/design/operations-architecture.md` — 멀티노드·Redis·장애복구 운영 아키텍처 (현재 `modules/redis`, `modules/outbox`, `modules/session-recovery` 의 설계 원전)
 
 ### 소스 아카이브
-- `docs/chatgpt-sessions-analysis.md` — 45개 ChatGPT 대화 통합 분석 리포트. 현재 레포의 어느 부분이 어느 대화에서 나왔는지 역추적할 때 사용
+- `docs/reference/chatgpt-sessions-analysis.md` — 45개 ChatGPT 대화 통합 분석 리포트. 현재 레포의 어느 부분이 어느 대화에서 나왔는지 역추적할 때 사용
 - `docs/chatgpt-archive/conversations.json` — 대화 전체 본문 (1.1MB)
 - `docs/chatgpt-archive/preview.md` — 대화 압축 프리뷰
 - `docs/chatgpt-archive/extract.py` — ChatGPT share 페이지 디코더 (재수집용)

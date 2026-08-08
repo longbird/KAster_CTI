@@ -31,6 +31,15 @@ export class MetricsService {
   private readonly queueAvailableAgents: Gauge<string>;
   private readonly queueLongestWait: Gauge<string>;
 
+  private readonly operatingModeGauge: Gauge<string>;
+  private readonly configSnapshotAge: Gauge<string>;
+  private readonly configVersionMismatch: Gauge<string>;
+  private readonly offlineEventQueueDepth: Gauge<string>;
+  private readonly offlineCommandQueueDepth: Gauge<string>;
+  private readonly dbReplicationLag: Gauge<string>;
+  private readonly walArchiveAge: Gauge<string>;
+  private readonly backupLastSuccess: Gauge<string>;
+
   private readonly refreshDuration: Histogram<string>;
   private readonly refreshFailures: Counter<string>;
 
@@ -72,6 +81,56 @@ export class MetricsService {
     this.queueAvailableAgents = new Gauge({ name: 'cti_queue_available_agents_total', help: 'Available agents for queue', registers: [registry], labelNames: ['instance_id'] });
     this.queueLongestWait = new Gauge({ name: 'cti_queue_longest_wait_seconds', help: 'Longest queue wait in seconds', registers: [registry], labelNames: ['instance_id'] });
 
+    // 문서의 kcti_* 명칭은 이 레포의 cti_ prefix 정책에 맞춰 cti_* 로 노출한다.
+    this.operatingModeGauge = new Gauge({
+      name: 'cti_operating_mode',
+      help: 'Operating mode. NORMAL=0, DB_FAILOVER=1, RECOVERING=2, DEGRADED=3',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.configSnapshotAge = new Gauge({
+      name: 'cti_config_snapshot_age_seconds',
+      help: 'Age of the last known good config snapshot',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.configVersionMismatch = new Gauge({
+      name: 'cti_config_version_mismatch',
+      help: 'Nodes whose applied config version differs from desired',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.offlineEventQueueDepth = new Gauge({
+      name: 'cti_offline_event_queue_depth',
+      help: 'Unprocessed AMI events held in the durable spool',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.offlineCommandQueueDepth = new Gauge({
+      name: 'cti_offline_command_queue_depth',
+      help: 'Unprocessed offline commands. -1 = not implemented',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.dbReplicationLag = new Gauge({
+      name: 'cti_db_replication_lag_seconds',
+      help: 'Standby replication lag. -1 when not a standby or unknown',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.walArchiveAge = new Gauge({
+      name: 'cti_wal_archive_age_seconds',
+      help: 'Seconds since the last successful WAL archive. -1 when unknown',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+    this.backupLastSuccess = new Gauge({
+      name: 'cti_backup_last_success_timestamp',
+      help: 'Unix timestamp of the last successful backup. -1 when unknown',
+      registers: [registry],
+      labelNames: ['instance_id'],
+    });
+
     this.refreshDuration = new Histogram({
       name: 'cti_health_refresh_duration_seconds',
       help: 'Health summary calculation duration',
@@ -112,6 +171,24 @@ export class MetricsService {
       this.infraStatus.labels('redis', instanceId).set(this.mapInfra(h.checks.redis));
       this.infraStatus.labels('ami', instanceId).set(this.mapInfra(h.checks.ami));
 
+      this.operatingModeGauge.labels(instanceId).set(mapOperatingMode(h.operatingMode));
+      this.configSnapshotAge.labels(instanceId).set(orMinusOne(h.resilience.lkgAgeSeconds));
+      this.configVersionMismatch.labels(instanceId).set(h.resilience.configVersionMismatch);
+      this.offlineEventQueueDepth.labels(instanceId).set(h.resilience.offlineEventQueueDepth);
+      // null(미구현)은 0 이 아니라 -1 로 낸다. 0 은 "밀린 것 없음" 으로 읽힌다.
+      this.offlineCommandQueueDepth
+        .labels(instanceId)
+        .set(orMinusOne(h.resilience.offlineCommandQueueDepth));
+      this.dbReplicationLag.labels(instanceId).set(orMinusOne(h.resilience.replicationLagSeconds));
+      this.walArchiveAge.labels(instanceId).set(orMinusOne(h.resilience.walArchiveAgeSeconds));
+      this.backupLastSuccess
+        .labels(instanceId)
+        .set(
+          h.resilience.backupLastSuccessTimestamp
+            ? Math.floor(new Date(h.resilience.backupLastSuccessTimestamp).getTime() / 1000)
+            : -1,
+        );
+
       this.callActive.labels(instanceId).set(h.call.active);
       this.callQueued.labels(instanceId).set(h.call.queued);
       this.callRinging.labels(instanceId).set(h.call.ringing);
@@ -148,4 +225,20 @@ export class MetricsService {
   getContentType(): string {
     return this.registry.contentType;
   }
+}
+
+const OPERATING_MODE_VALUES: Record<string, number> = {
+  NORMAL: 0,
+  DB_FAILOVER: 1,
+  RECOVERING: 2,
+  DEGRADED: 3,
+};
+
+function mapOperatingMode(mode: string): number {
+  return OPERATING_MODE_VALUES[mode] ?? -1;
+}
+
+/** null 을 0 으로 내면 "정상 0" 과 "모름" 이 구분되지 않는다. */
+function orMinusOne(value: number | null | undefined): number {
+  return value === null || value === undefined ? -1 : value;
 }

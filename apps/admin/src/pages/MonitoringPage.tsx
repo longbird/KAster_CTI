@@ -1,5 +1,6 @@
 // apps/admin/src/pages/MonitoringPage.tsx
-import { Alert, Button, Card, Space, Statistic, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Descriptions, Space, Statistic, Tag, Typography } from 'antd';
+import { formatAgeSeconds, formatNullableCount } from '../features/resilience/operatingMode';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
@@ -175,6 +176,67 @@ function MetricGrid({ title, items }: { title: string; items: MetricItem[] }) {
   );
 }
 
+
+// ----- DB 장애 대응 지표 -----
+const MODE_TAG_COLOR: Record<string, string> = {
+  NORMAL: 'green',
+  DB_FAILOVER: 'orange',
+  RECOVERING: 'orange',
+  DEGRADED: 'red',
+};
+
+function ResiliencePanel({ data }: { data: ReturnType<typeof useHealthData>['data'] }) {
+  // 구버전 서버는 이 블록을 보내지 않는다. 그때는 패널 자체를 감춘다.
+  if (!data?.resilience) return null;
+
+  const r = data.resilience;
+  const mode = data.operatingMode ?? 'NORMAL';
+
+  return (
+    <Card
+      title={
+        <Space>
+          <span>DB 장애 대응</span>
+          <Tag color={MODE_TAG_COLOR[mode] ?? 'default'}>{mode}</Tag>
+        </Space>
+      }
+    >
+      <Descriptions column={{ xs: 1, sm: 2, lg: 3 }} size="small" bordered>
+        <Descriptions.Item label="DB 역할">{r.dbRole}</Descriptions.Item>
+        <Descriptions.Item label="복제 지연">
+          {r.replicationLagSeconds === null ? '—' : `${Math.round(r.replicationLagSeconds)}초`}
+        </Descriptions.Item>
+        <Descriptions.Item label="데이터 신선도">
+          {data.dataFreshness ? `DB ${data.dataFreshness.db} / 설정 ${data.dataFreshness.config}` : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="LKG 버전">{r.lkgVersion ?? '없음'}</Descriptions.Item>
+        <Descriptions.Item label="LKG 생성 경과">{formatAgeSeconds(r.lkgAgeSeconds)}</Descriptions.Item>
+        <Descriptions.Item label="설정 버전 불일치">
+          <span style={r.configVersionMismatch > 0 ? { color: '#ff4d4f' } : undefined}>
+            {r.configVersionMismatch}
+          </span>
+        </Descriptions.Item>
+        <Descriptions.Item label="미처리 이벤트">
+          <span style={r.offlineEventQueueDepth > 0 ? { color: '#ff4d4f' } : undefined}>
+            {r.offlineEventQueueDepth}
+          </span>
+        </Descriptions.Item>
+        <Descriptions.Item label="미처리 명령">
+          {formatNullableCount(r.offlineCommandQueueDepth)}
+        </Descriptions.Item>
+        <Descriptions.Item label="WAL 아카이브 경과">
+          {formatAgeSeconds(r.walArchiveAgeSeconds)}
+        </Descriptions.Item>
+        <Descriptions.Item label="마지막 백업 성공" span={3}>
+          {r.backupLastSuccessTimestamp
+            ? new Date(r.backupLastSuccessTimestamp).toLocaleString()
+            : '기록 없음'}
+        </Descriptions.Item>
+      </Descriptions>
+    </Card>
+  );
+}
+
 function statusColor(status: 'ok' | 'warning' | 'critical') {
   if (status === 'ok') return 'success';
   if (status === 'warning') return 'warning';
@@ -301,6 +363,7 @@ export function MonitoringPage() {
       ))}
       {opsError ? <Alert type="warning" message={`운영 지표 조회 실패: ${opsError}`} showIcon /> : null}
       {data && <InfraCards data={data} />}
+      <ResiliencePanel data={data} />
       <OperationalStatus data={opsData} />
       {data && (
         <MetricGrid

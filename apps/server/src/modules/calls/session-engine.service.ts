@@ -217,25 +217,51 @@ export class SessionEngineService {
     return next;
   }
 
-  async processNormalizedEvent(event: Record<string, any>) {
+  /**
+   * dedupe 선점을 되돌린다. 해제 자체가 실패해도 원래 예외를 덮지 않도록 삼킨다
+   * (Redis 가 죽어서 DB 도 못 쓰는 상황이면 어차피 선점 자체가 안 됐다).
+   */
+  private async releaseDedupeKey(dedupeKey: string) {
+    try {
+      await this.redis.getClient().del(dedupeKey);
+    } catch (err) {
+      this.logger.warn(
+        `dedupe key release failed ${dedupeKey}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  async processNormalizedEvent(
+    event: Record<string, any>,
+    options: { replay?: boolean } = {},
+  ) {
     const linkedid = event.linkedid || event.Linkedid;
     if (!linkedid) return;
 
+    const fingerprint = computeFingerprint(event);
+    const dedupeKey = `dedupe:ami:${fingerprint}`;
+    let dedupeKeyOwned = false;
+
     // 1단계: Redis fast dedupe. SET NX EX 로 키를 선점하지 못하면 다른 경로에서
     //        이미 처리한 이벤트이므로 즉시 skip.
-    const fingerprint = computeFingerprint(event);
-    try {
-      const dedupeKey = `dedupe:ami:${fingerprint}`;
-      const ok = await this.redis
-        .getClient()
-        .set(dedupeKey, '1', 'EX', DEDUPE_TTL_SECONDS, 'NX');
-      if (ok !== 'OK') {
-        this.logger.debug(`dedupe skip ${event.eventName} fp=${fingerprint.slice(0, 12)}`);
-        return;
+    //
+    //        replay 는 이 단계를 통째로 건너뛴다. DB 장애 중에는 Redis 만 살아 있어
+    //        키 선점은 성공하고 DB insert 만 실패하므로, 선점된 키가 최대 6시간 남아
+    //        복구 후 재처리를 전량 차단한다. replay 의 중복 방어는 아래 DB unique 다.
+    if (!options.replay) {
+      try {
+        const ok = await this.redis
+          .getClient()
+          .set(dedupeKey, '1', 'EX', DEDUPE_TTL_SECONDS, 'NX');
+        if (ok !== 'OK') {
+          this.logger.debug(`dedupe skip ${event.eventName} fp=${fingerprint.slice(0, 12)}`);
+          return;
+        }
+        dedupeKeyOwned = true;
+      } catch (err) {
+        // Redis 장애 시에도 DB unique 가 최종 방어선이 되도록 계속 진행.
+        this.logger.warn(`redis dedupe failed: ${(err as Error).message}`);
       }
-    } catch (err) {
-      // Redis 장애 시에도 DB unique 가 최종 방어선이 되도록 계속 진행.
-      this.logger.warn(`redis dedupe failed: ${(err as Error).message}`);
     }
 
     // 2단계: DB insert. unique(tenantId, eventFingerprint) 로 최종 방어.
@@ -257,9 +283,19 @@ export class SessionEngineService {
         err.code === 'P2002'
       ) {
         this.logger.debug(`db dedupe skip ${event.eventName} fp=${fingerprint.slice(0, 12)}`);
-        return;
+        // raw 저장과 세션 상태 전이는 서로 다른 두 번의 쓰기다. 장애 중 raw insert 만
+        // 성공하고 상태 전이가 실패한 이벤트가 있을 수 있으므로, replay 는 여기서
+        // 멈추지 않고 아래 switch 를 다시 수행한다. 멱등성은 callSessions upsert 와
+        // SESSION_PRECEDENCE 역행 가드가 보장한다.
+        if (!options.replay) return;
+      } else {
+        // 이 이벤트를 저장하지 못했으므로 dedupe 선점을 반드시 풀어준다. 풀지 않으면
+        // 복구 후 replay 뿐 아니라 정상 경로의 재수신까지 TTL 동안 막힌다.
+        if (dedupeKeyOwned) {
+          await this.releaseDedupeKey(dedupeKey);
+        }
+        throw err;
       }
-      throw err;
     }
 
     switch (event.eventName) {
