@@ -1427,6 +1427,79 @@ describe('CallsService branch filter integration', () => {
     expect(result.data.correlationId.length).toBeGreaterThan(10);
   });
 
+  // 요구사항: "당겨받기 기능> 키버튼 누름> 2초이내 1회만 인정"
+  // (docs/reference/IPPBX_개발시 참조용_20260104/1_비씨앤 IP PBX 초안_20260104.xlsx `주요연동` 시트)
+  describe('pickup 중복 억제', () => {
+    const queuedCall = (callId: string) => ({
+      callId,
+      tenantId: 'tenant-1',
+      linkedid: `L-${callId}`,
+      sessionStatus: 'QUEUED',
+      queueName: 'sales',
+      ringingAt: null,
+      callLegs: [
+        { legType: 'inbound', endedAt: null, channelName: 'PJSIP/trunk-provider-00000030' },
+      ],
+    });
+
+    it('같은 상담원이 억제 창 안에서 다시 눌러도 1회만 인정한다', async () => {
+      prisma.callSessions.findFirst.mockResolvedValue(queuedCall('call-debounce-1'));
+      prisma.callSessions.update.mockResolvedValue({ callId: 'call-debounce-1' });
+
+      redisClient.set.mockResolvedValue('OK');
+      const first = await service.pickup('tenant-1', 'call-debounce-1', {
+        agentId: 'agent-1',
+        extension: '1001',
+      });
+      expect(first.data.accepted).toBe(true);
+      expect(asteriskManager.pickup).toHaveBeenCalledTimes(1);
+
+      // 두 번째 키 입력: Redis 선점 실패 = 억제 창이 아직 열려 있다
+      redisClient.set.mockResolvedValue(null);
+      await expect(
+        service.pickup('tenant-1', 'call-debounce-1', { agentId: 'agent-1', extension: '1001' }),
+      ).rejects.toThrow('당겨받기');
+
+      // AMI 로 두 번 나가지 않는다
+      expect(asteriskManager.pickup).toHaveBeenCalledTimes(1);
+      expect(prisma.callSessions.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('억제 키는 상담원 단위이고 2초 TTL 로 선점한다', async () => {
+      prisma.callSessions.findFirst.mockResolvedValue(queuedCall('call-debounce-2'));
+      prisma.callSessions.update.mockResolvedValue({ callId: 'call-debounce-2' });
+      redisClient.set.mockResolvedValue('OK');
+
+      await service.pickup('tenant-1', 'call-debounce-2', {
+        agentId: 'agent-1',
+        extension: '1001',
+      });
+
+      expect(redisClient.set).toHaveBeenCalledWith(
+        'kaster:cti:pickup:debounce:tenant-1:agent-1',
+        '1',
+        'PX',
+        2000,
+        'NX',
+      );
+    });
+
+    it('검증을 통과하지 못한 요청은 억제 창을 소모하지 않는다', async () => {
+      // 통화 상태가 당겨받기 대상이 아니면 Redis 선점 자체를 하지 않는다.
+      // 그래야 실패한 시도 때문에 다음 정상 시도가 막히지 않는다.
+      prisma.callSessions.findFirst.mockResolvedValue({
+        ...queuedCall('call-debounce-3'),
+        sessionStatus: 'TALKING',
+      });
+
+      await expect(
+        service.pickup('tenant-1', 'call-debounce-3', { agentId: 'agent-1', extension: '1001' }),
+      ).rejects.toThrow('현재 상태에서는 당겨받기를 요청할 수 없습니다.');
+
+      expect(redisClient.set).not.toHaveBeenCalled();
+    });
+  });
+
   it('answer 는 현재 구성의 pickup redirect 경로를 사용한다', async () => {
     prisma.callSessions.findFirst.mockResolvedValue({
       callId: 'call-answer-1',

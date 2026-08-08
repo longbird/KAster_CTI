@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { createReadStream, promises as fs } from 'node:fs';
 import { basename, extname } from 'node:path';
 import { Prisma } from '@prisma/client';
@@ -46,6 +46,10 @@ export interface ClientCommandProtocolInput {
 const CLIENT_CALL_COMMAND_PROTOCOL = 'kaster-desktop-v1';
 const CLIENT_COMMAND_TIMESTAMP_SKEW_MS = 60_000;
 const CLIENT_COMMAND_NONCE_TTL_SECONDS = 120;
+
+// 당겨받기 키를 연달아 눌러도 2초 안에서는 1회만 인정한다.
+// 근거: 비씨앤 IP PBX 초안 `주요연동` 시트 — "당겨받기 기능> 키버튼 누름> 2초이내 1회만 인정".
+const PICKUP_DEBOUNCE_MS = 2_000;
 
 @Injectable()
 export class CallsService {
@@ -1223,6 +1227,9 @@ export class CallsService {
       throw new BadRequestException('당겨받기 대상 고객 채널을 찾을 수 없습니다.');
     }
     await this.assertPickupAllowed(tenantId, call, params.agentId);
+    // 검증을 모두 통과한 뒤에 선점한다. 거부된 시도가 억제 창을 소모하면
+    // 뒤따르는 정상 시도까지 막힌다.
+    await this.assertPickupNotDebounced(tenantId, params.agentId);
 
     await this.prisma.callSessions.update({
       where: { callId },
@@ -1251,6 +1258,16 @@ export class CallsService {
       }, meta),
       error: null,
     };
+  }
+
+  private async assertPickupNotDebounced(tenantId: string, agentId: string) {
+    const key = `kaster:cti:pickup:debounce:${tenantId}:${agentId}`;
+    const result = await this.redis
+      .getClient()
+      .set(key, '1', 'PX', PICKUP_DEBOUNCE_MS, 'NX');
+    if (result !== 'OK') {
+      throw new ConflictException('직전 당겨받기 요청과 겹쳐 중복 요청으로 처리했습니다.');
+    }
   }
 
   private async assertPickupAllowed(
