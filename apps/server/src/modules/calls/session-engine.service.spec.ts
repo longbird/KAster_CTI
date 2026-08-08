@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { computeFingerprint } from './session-engine.service';
 import { SessionEngineService } from './session-engine.service';
 
@@ -118,5 +119,89 @@ describe('SessionEngineService outbound originate tracking', () => {
         customerId: 'customer-1',
       }),
     }));
+  });
+});
+
+describe('SessionEngineService dedupe / replay', () => {
+  const EVENT = {
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    eventName: 'QueueCallerJoin',
+    linkedid: '1700000000.1',
+    uniqueid: '1700000000.1',
+    eventTime: '2026-08-08T00:00:00.000Z',
+    queueName: 'q1',
+  };
+
+  function build(overrides: { create?: jest.Mock; redisSet?: jest.Mock } = {}) {
+    const set = overrides.redisSet ?? jest.fn(async () => 'OK');
+    const del = jest.fn(async () => 1);
+    const client = { set, del };
+    const sessionCreate = jest.fn(async ({ data }: any) => ({ callId: 'call-1', ...data }));
+    const prisma = {
+      rawAmiEvents: { create: overrides.create ?? jest.fn(async () => ({})) },
+      agents: { findFirst: jest.fn() },
+      $transaction: jest.fn(async (handler: any) => handler({
+        callSessions: { findFirst: jest.fn(async () => null), create: sessionCreate },
+        customerPhones: { findFirst: jest.fn(async () => null) },
+        eventOutbox: { create: jest.fn(async () => ({})) },
+      })),
+    };
+    const redis = { getClient: () => client };
+    const service = new SessionEngineService(prisma as any, redis as any, { handle: jest.fn() } as any);
+    return { service, set, del, prisma, sessionCreate };
+  }
+
+  it('DB insert 가 실패하면 선점한 dedupe 키를 해제한다', async () => {
+    const { service, del } = build({ create: jest.fn(async () => { throw new Error('db down'); }) });
+
+    await expect(service.processNormalizedEvent({ ...EVENT })).rejects.toThrow('db down');
+
+    expect(del).toHaveBeenCalledWith(expect.stringMatching(/^dedupe:ami:/));
+  });
+
+  it('정상 경로는 dedupe 에 걸리면 상태 전이를 하지 않는다', async () => {
+    const { service, prisma } = build({ redisSet: jest.fn(async () => null) });
+
+    await service.processNormalizedEvent({ ...EVENT });
+
+    expect(prisma.rawAmiEvents.create).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('replay 모드는 Redis dedupe 를 건너뛴다', async () => {
+    // 장애 중 선점된 키가 아직 남아 있는 상황을 재현한다
+    const { service, set, prisma } = build({ redisSet: jest.fn(async () => null) });
+
+    await service.processNormalizedEvent({ ...EVENT }, { replay: true });
+
+    expect(set).not.toHaveBeenCalled();
+    expect(prisma.rawAmiEvents.create).toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('replay 모드는 raw 행이 이미 있어도 상태 전이를 계속한다', async () => {
+    const p2002 = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: '5.22.0',
+    });
+    const { service, prisma } = build({ create: jest.fn(async () => { throw p2002; }) });
+
+    await service.processNormalizedEvent({ ...EVENT }, { replay: true });
+
+    expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('정상 경로는 raw 행이 이미 있으면 상태 전이 전에 멈춘다', async () => {
+    const p2002 = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: '5.22.0',
+    });
+    const { service, prisma, del } = build({ create: jest.fn(async () => { throw p2002; }) });
+
+    await service.processNormalizedEvent({ ...EVENT });
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    // P2002 는 정상적인 중복이므로 dedupe 선점을 풀면 안 된다
+    expect(del).not.toHaveBeenCalled();
   });
 });
