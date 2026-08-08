@@ -21,6 +21,7 @@ import {
   RenderedConfFiles,
   validateRenderedConfFiles,
 } from './asterisk-config-validation';
+import { DEFAULT_SIP_REGISTER_PORT } from '../../common/call-routing.constants';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const DEFAULT_MOH_DIR = '/var/lib/asterisk/moh';
@@ -1380,7 +1381,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       trunks,
       trunkGroups,
       speedDials,
-      sipRegisterPort: typedSettings?.sipRegisterPort ?? 36070,
+      sipRegisterPort: typedSettings?.sipRegisterPort ?? DEFAULT_SIP_REGISTER_PORT,
       recordingChannelMode: normalizeRecordingChannelMode(typedSettings?.recordingChannelMode),
       allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),

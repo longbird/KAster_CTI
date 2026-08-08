@@ -7,11 +7,13 @@ describe('renderPjsip', () => {
     expect(result).toContain('endpoint_identifier_order=auth_username,username,ip,anonymous');
     expect(result).toContain('[transport-udp]');
     expect(result).toContain('[transport-ws]');
-    expect(result).toContain('bind=0.0.0.0:36070');
+    expect(result).toContain('bind=0.0.0.0:48950');
     expect(result).toContain('bind=0.0.0.0:8088');
   });
 
   it('renders custom SIP register port from system settings', () => {
+    // 기본값(48950)과 다른 값을 써야 override 가 실제로 동작하는지 검증된다.
+    // 예전에는 이 값이 기본값과 같아 사실상 아무것도 검증하지 못했다.
     const result = renderPjsip({ trunks: [], agents: [], sipRegisterPort: 36070 });
     expect(result).toContain('bind=0.0.0.0:36070');
   });
