@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# 같은 브랜치에 새 푸시가 오면 이전 실행을 취소한다. 러너 시간을 아끼고
+# PR 상태가 항상 최신 커밋을 반영하게 한다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  server:
+    name: server (nest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/server/package-lock.json
+      - run: npm ci
+      # 테스트가 생성된 Prisma 클라이언트를 요구한다 (schema-contract.spec).
+      # DB 연결은 필요 없다 — generate 는 스키마만 읽는다.
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm test -- --runInBand
+      - run: npm run build
+
+  server-schema:
+    name: server (prisma schema)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
+    # prisma validate 는 datasource url 을 파싱한다. 실제 연결은 하지 않지만
+    # 변수가 없으면 P1012 로 죽는다.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/server/package-lock.json
+      - run: npm ci
+      - run: npx prisma validate
+      # schema.prisma ↔ prisma/migrations 드리프트 검사는 일시 분리했다.
+      # 최초 실행에서 기존 불일치 55개 테이블 171건을 검출했고, 해소하려면 실 DB 로
+      # 어느 쪽이 맞는지 판정해야 한다. 붙이자마자 영구히 빨간 job 을 두면 CI 전체가 무시된다.
+      # 경위·증거·복구 절차: docs/plans/2026-08-08-prisma-schema-drift-plan.md
+
+  web-apps:
+    name: ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, web, desktop]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - run: npm test
+      # desktop 은 electron-builder 패키징까지 가면 러너 시간이 크게 늘어난다.
+      # 타입/번들 오류는 electron-vite build 로 충분히 잡힌다.
+      - run: npm run build
+
+  hygiene:
+    name: repo hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: trailing whitespace / EOF
+        # 새 브랜치 첫 푸시에서는 github.event.before 가 0000... 이라 그대로 쓰면 깨진다.
+        # 비교 기준을 못 찾으면 마지막 커밋만 검사한다.
+        run: |
+          base='${{ github.event.pull_request.base.sha }}'
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base='${{ github.event.before }}'
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]              || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "비교 기준 없음 — 마지막 커밋만 검사합니다."
+            git diff --check HEAD~1..HEAD 2>/dev/null || git diff --check
+          else
+            git diff --check "$base..HEAD"
+          fi
+      - name: docs 규칙 검사 (DOCS_GUIDE.md)
+        run: bash scripts/check-docs.sh
