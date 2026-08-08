@@ -4,6 +4,7 @@ import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { getTimeSyncStatusMeta } from './timeSyncStatus';
+import { formatUptime, type SystemVersionView } from './systemVersion';
 
 interface SystemSettingsFormValue {
   recordingEnabled: boolean;
@@ -66,6 +67,7 @@ export function SystemSettingsPage() {
   const [callerIds, setCallerIds] = useState<string[]>([]);
   const [newCallerId, setNewCallerId] = useState('');
   const [timeSync, setTimeSync] = useState<TimeSyncStatusView | null>(null);
+  const [version, setVersion] = useState<SystemVersionView | null>(null);
   const permission = usePermissionStore((s) => s.permissionsByMenu['system']);
   const canUpdate = permission?.canUpdate ?? true;
 
@@ -103,8 +105,19 @@ export function SystemSettingsPage() {
     }
   };
 
+  const loadVersion = async () => {
+    try {
+      const res = await apiClient.get('/admin/settings/system/version');
+      setVersion(res.data?.data ?? null);
+    } catch {
+      // 버전 조회 실패는 설정 화면 전체를 막지 않는다. 패널만 비워 둔다.
+      setVersion(null);
+    }
+  };
+
   useEffect(() => {
     void load();
+    void loadVersion();
   }, []);
 
   const syncCallerIdsToForm = (nextCallerIds: string[]) => {
@@ -212,6 +225,42 @@ export function SystemSettingsPage() {
               {timeSync?.status === 'UNKNOWN' && timeSync?.error ? (
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   확인 실패: {timeSync.error}
+                </Typography.Text>
+              ) : null}
+            </Space>
+          </div>
+
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              border: '1px solid rgba(195, 197, 215, 0.55)',
+              borderRadius: 8,
+              background: '#fff',
+            }}
+          >
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+                <Space align="center">
+                  <Typography.Text strong>서버 버전</Typography.Text>
+                  <Tag color={version ? 'blue' : 'default'}>{version?.version ?? '확인 중'}</Tag>
+                </Space>
+                <Button size="small" onClick={() => void loadVersion()}>
+                  버전 새로고침
+                </Button>
+              </Space>
+              <Typography.Text type="secondary">
+                가동 시간 {formatUptime(version?.uptimeSeconds)}
+                {version?.nodeId ? ` / 노드 ${version.nodeId}` : ''}
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                빌드 {version?.commit ?? '미주입'}
+                {version?.buildTime ? ` (${version.buildTime})` : ''}
+                {version?.nodeVersion ? ` / Node ${version.nodeVersion}` : ''}
+              </Typography.Text>
+              {version && !version.commit ? (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  배포 시 GIT_COMMIT / BUILD_TIME 환경변수를 주입하면 정확한 빌드를 식별할 수 있습니다.
                 </Typography.Text>
               ) : null}
             </Space>

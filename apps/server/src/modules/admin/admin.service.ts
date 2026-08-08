@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { Prisma } from '@prisma/client';
 import {
   MENU_KEYS,
@@ -34,7 +36,30 @@ import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import { classifyDidInboundRoute } from './branch-did-route';
 import { computeTimeSyncStatus, extractPbxTimeFromAmiFrames, unknownTimeSyncStatus } from './time-sync-status';
+import { buildSystemVersion } from './system-version';
 import { DEFAULT_SIP_REGISTER_PORT } from '../../common/call-routing.constants';
+
+// package.json 을 import 하면 tsc rootDir 이 저장소 루트로 올라가 dist 구조가 바뀐다
+// (`dist/src/main.js` 가 깨진다). 실행 시점에 위로 훑어 읽는다.
+// 소스(`src/modules/admin`)와 빌드 산출물(`dist/src/modules/admin`)의 깊이가 다르므로
+// 고정 상대경로를 쓰지 않는다.
+function resolvePackageVersion(): string | null {
+  let dir = __dirname;
+  for (let depth = 0; depth < 6; depth += 1) {
+    try {
+      const raw = readFileSync(join(dir, 'package.json'), 'utf8');
+      return JSON.parse(raw)?.version ?? null;
+    } catch {
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return null;
+}
+
+const SERVER_PACKAGE_VERSION = resolvePackageVersion();
+const PROCESS_STARTED_AT = new Date();
 
 interface PersistedPermissionRow {
   menuKey: string;
@@ -2870,6 +2895,20 @@ export class AdminService {
 
   async getSystemTimeSyncStatus() {
     return { success: true, data: await this.getTimeSyncStatusData(), error: null };
+  }
+
+  getSystemVersion() {
+    // commit / buildTime 은 배포 파이프라인이 주입한다. 없으면 null 로 남긴다.
+    const data = buildSystemVersion({
+      packageVersion: SERVER_PACKAGE_VERSION,
+      commit: process.env.GIT_COMMIT,
+      buildTime: process.env.BUILD_TIME,
+      nodeVersion: process.version,
+      nodeId: process.env.ASTERISK_NODE_ID,
+      startedAt: PROCESS_STARTED_AT,
+      now: new Date(),
+    });
+    return { success: true, data, error: null };
   }
 
   async updateSystemSettings(tenantId: string, dto: UpdateSystemSettingsDto) {

@@ -380,6 +380,13 @@ export class AdminController {
     return this.adminService.getSystemTimeSyncStatus();
   }
 
+  @Get('settings/system/version')
+  @Roles('supervisor', 'admin')
+  async getSystemVersion(@CurrentUser() user: any) {
+    await this.menuPermissionService.assertMenuAction(user.tenantId, user.role, 'system', 'view', user.sub);
+    return this.adminService.getSystemVersion();
+  }
+
   @Post('settings/system')
   @Roles('supervisor', 'admin')
   async updateSystemSettings(@CurrentUser() user: any, @Body() dto: UpdateSystemSettingsDto) {
