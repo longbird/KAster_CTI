@@ -111,9 +111,9 @@ environment:
 scenario:
   target:
     host: 49.247.46.86
-    port: 36070
+    port: 48950
     transport: udp
-    requestUriTemplate: "sip:{did}@49.247.46.86:36070"
+    requestUriTemplate: "sip:{did}@49.247.46.86:48950"
   callFlow:
     callerIdPool: ["01011112222"]
     didPool: ["07052346380"]

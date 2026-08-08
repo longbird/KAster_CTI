@@ -12,10 +12,10 @@ describe('renderPjsip', () => {
   });
 
   it('renders custom SIP register port from system settings', () => {
-    // 기본값(48950)과 다른 값을 써야 override 가 실제로 동작하는지 검증된다.
-    // 예전에는 이 값이 기본값과 같아 사실상 아무것도 검증하지 못했다.
-    const result = renderPjsip({ trunks: [], agents: [], sipRegisterPort: 36070 });
-    expect(result).toContain('bind=0.0.0.0:36070');
+    // 기본값(48950)과 다른 임의의 값을 쓴다. 같은 값이면 override 가 동작하는지
+    // 검증되지 않는다 (예전에 실제로 그런 상태였다).
+    const result = renderPjsip({ trunks: [], agents: [], sipRegisterPort: 15060 });
+    expect(result).toContain('bind=0.0.0.0:15060');
   });
 
   it('renders external media and signaling addresses for NAT traversal', () => {

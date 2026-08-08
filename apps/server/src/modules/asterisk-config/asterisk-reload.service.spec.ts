@@ -194,7 +194,7 @@ describe('AsteriskReloadService Smart ARS preview', () => {
           defaultSipPassword: null,
           allowedOutboundCallerIds: '0299999999\n0211111111',
           defaultOutboundCallerId: '0299999999',
-          sipRegisterPort: 36070,
+          sipRegisterPort: 48950,
         }),
       },
       outboundCallerIdRules: {
@@ -263,7 +263,7 @@ describe('AsteriskReloadService Smart ARS preview', () => {
           defaultSipPassword: null,
           allowedOutboundCallerIds: '',
           defaultOutboundCallerId: null,
-          sipRegisterPort: 36070,
+          sipRegisterPort: 48950,
           recordingChannelMode: 'STEREO_RAW',
         }),
       },

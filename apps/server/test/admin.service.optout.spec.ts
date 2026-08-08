@@ -1215,7 +1215,7 @@ describe('AdminService opt-out settings', () => {
       defaultSipPassword: 'secret',
       allowedOutboundCallerIds: '01012341234',
       defaultOutboundCallerId: '01012341234',
-      sipRegisterPort: 36070,
+      sipRegisterPort: 48950,
       timezone: 'Asia/Seoul',
       dateFormat: 'YYYY-MM-DD HH:mm:ss',
     } as any);
