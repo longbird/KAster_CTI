@@ -1,6 +1,6 @@
 param(
   [string]$HostAddress = "49.247.46.86",
-  [int]$Port = 36070,
+  [int]$Port = 48950,
   [string]$Extension = "3999",
   [Parameter(Mandatory = $true)]
   [string]$Password,

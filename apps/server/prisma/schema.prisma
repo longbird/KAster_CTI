@@ -877,7 +877,7 @@ model tenantSystemSettings {
   defaultSipPassword     String?  @db.Text
   allowedOutboundCallerIds String? @db.Text
   defaultOutboundCallerId String? @db.VarChar(32)
-  sipRegisterPort        Int      @default(36070)
+  sipRegisterPort        Int      @default(48950)
   timezone               String   @default("Asia/Seoul") @db.VarChar(64)
   dateFormat             String   @default("YYYY-MM-DD HH:mm:ss") @db.VarChar(32)
   createdAt              DateTime @default(now()) @db.Timestamptz(6)

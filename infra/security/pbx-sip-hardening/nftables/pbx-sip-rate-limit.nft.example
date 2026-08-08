@@ -13,10 +13,10 @@ table inet kaster_pbx_sip {
   chain input {
     type filter hook input priority -50; policy accept;
 
-    udp dport 36070 ip saddr @sip_trusted_ipv4 accept
-    udp dport 36070 ct state established,related accept
+    udp dport 48950 ip saddr @sip_trusted_ipv4 accept
+    udp dport 48950 ct state established,related accept
 
     # Drop repeated unauthenticated SIP scans before PBX parsing work grows.
-    udp dport 36070 limit rate over 20/minute burst 20 packets drop
+    udp dport 48950 limit rate over 20/minute burst 20 packets drop
   }
 }

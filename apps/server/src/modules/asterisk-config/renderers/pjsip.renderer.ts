@@ -31,6 +31,7 @@ export interface PjsipInput {
 }
 
 import { assertNoNewlines, toSlug } from './renderer-utils';
+import { DEFAULT_SIP_REGISTER_PORT } from '../../../common/call-routing.constants';
 
 const SIP_WS_PORT = 8088;
 const ASTERISK_AUTH_REALM = 'asterisk';
@@ -171,7 +172,9 @@ function renderAgent(agent: AgentInput): string {
 }
 
 export function renderPjsip(input: PjsipInput): string {
-  const sipRegisterPort = input.sipRegisterPort && input.sipRegisterPort > 0 ? input.sipRegisterPort : 36070;
+  const sipRegisterPort = input.sipRegisterPort && input.sipRegisterPort > 0
+    ? input.sipRegisterPort
+    : DEFAULT_SIP_REGISTER_PORT;
   if (input.externalMediaAddress) assertNoNewlines(input.externalMediaAddress, 'externalMediaAddress');
   if (input.externalSignalingAddress) assertNoNewlines(input.externalSignalingAddress, 'externalSignalingAddress');
   const localNets = [...new Set((input.localNets || []).map((item) => item.trim()).filter(Boolean))];

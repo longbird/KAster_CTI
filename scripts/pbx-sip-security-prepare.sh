@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SIP_PORT="${SIP_PORT:-36070}"
+SIP_PORT="${SIP_PORT:-48950}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="dry-run"
 
@@ -13,7 +13,7 @@ Prepares PBX SIP security logging and automatic scan blocking files.
 Default mode is dry-run. Use --apply on the PBX host as root.
 
 Environment:
-  SIP_PORT          UDP SIP port to protect. Default: 36070
+  SIP_PORT          UDP SIP port to protect. Default: 48950
 USAGE
 }
 
@@ -99,7 +99,7 @@ install_fail2ban() {
   local jail_src="$REPO_DIR/infra/security/pbx-sip-hardening/fail2ban/kaster-pbx-sip.conf.example"
   local jail_tmp="/tmp/kaster-pbx-sip.conf"
 
-  sed "s/port = 36070/port = ${SIP_PORT}/; s/port=\"36070\"/port=\"${SIP_PORT}\"/" "$jail_src" > "$jail_tmp"
+  sed "s/port = 48950/port = ${SIP_PORT}/; s/port=\"48950\"/port=\"${SIP_PORT}\"/" "$jail_src" > "$jail_tmp"
   run install -m 0644 "$filter_src" /etc/fail2ban/filter.d/asterisk-pjsip-scan.conf
   run install -m 0644 "$jail_tmp" /etc/fail2ban/jail.d/kaster-pbx-sip.conf
 

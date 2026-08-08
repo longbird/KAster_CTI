@@ -2,7 +2,7 @@
 
 - 작성일: 2026-08-08
 - 발견 경위: CI 신설 시 추가한 `server (prisma schema drift)` job 이 최초 실행에서 검출
-- 상태: **미해소.** CI 에서는 분리했고 이 문서가 후속 과제다
+- 상태: **부분 해소.** `sipRegisterPort` 1건은 처리했고, 나머지 무해 항목 170건이 남았다. CI 에서는 분리했고 이 문서가 후속 과제다
 
 ## 1. 무엇이 어긋났나
 
@@ -28,7 +28,7 @@ npx prisma migrate diff \
 | `gen_random_uuid()` DB 기본값 vs `@default(uuid())` | 49 | Prisma 가 앱에서 UUID 를 채우므로 평상시 무해. **raw SQL insert 경로에서만 차이** | 낮음 |
 | `updatedAt` 의 `NOW()` 기본값 유무 | 16 | 위와 동일 | 낮음 |
 | 인덱스명 snake_case vs camelCase (`tenants_tenant_code_key` ↔ `tenants_tenantCode_key`) | 39 | 동작 영향 없음. 다만 마이그레이션 도구가 매번 차이로 본다 | 낮음 |
-| **`tenantSystemSettings.sipRegisterPort` 기본값 5060 vs 36070** | 1 | **의미 있는 차이.** raw SQL 로 행을 만들면 5060, Prisma 로 만들면 36070 이 들어간다 | **확인 필요** |
+| ~~`tenantSystemSettings.sipRegisterPort` 기본값 5060 vs 36070~~ | 1 | ~~의미 있는 차이~~ | **해소됨 (2026-08-08)** — 48950 으로 확정. `20260808_sip_register_port_default` 참조 |
 
 증거 일부:
 
@@ -56,8 +56,11 @@ npx prisma migrate diff \
    npx prisma db pull --schema=/tmp/actual.prisma
    ```
 2. `schema.prisma` 와 비교해 **어느 쪽이 실제와 맞는지** 판정한다.
-3. `sipRegisterPort` 기본값부터 확정한다. 5060(SIP 표준) 과 36070(현재 스키마) 중
-   운영에서 쓰는 값이 무엇인지 확인이 필요하다.
+3. ~~`sipRegisterPort` 기본값 확정~~ → **완료.** 48950 으로 확정하고
+   `prisma/migrations/20260808_sip_register_port_default` 에서 DEFAULT 를 맞췄다.
+   기존 행은 건드리지 않았다 (관리자가 직접 설정할 수 있는 값이라 "기본값 그대로"인지
+   "일부러 그 값"인지 SQL 로 구분할 수 없다). 마이그레이션 주석에 확인용 조회와 갱신
+   절차를 남겼고, 방화벽 전환 순서는 SIP 보안 runbook 에 있다.
 4. 무해한 항목(uuid/now 기본값, 인덱스명)은 정합 마이그레이션 1건으로 한 번에 맞춘다.
 5. 맞춘 뒤 CI 에 드리프트 job 을 되살린다 (아래 5장).
 

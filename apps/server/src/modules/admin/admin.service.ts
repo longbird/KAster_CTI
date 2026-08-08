@@ -34,6 +34,7 @@ import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import { classifyDidInboundRoute } from './branch-did-route';
 import { computeTimeSyncStatus, extractPbxTimeFromAmiFrames, unknownTimeSyncStatus } from './time-sync-status';
+import { DEFAULT_SIP_REGISTER_PORT } from '../../common/call-routing.constants';
 
 interface PersistedPermissionRow {
   menuKey: string;
@@ -2794,7 +2795,7 @@ export class AdminService {
       defaultSipPassword: '',
       allowedOutboundCallerIds: '',
       defaultOutboundCallerId: '',
-      sipRegisterPort: 36070,
+      sipRegisterPort: DEFAULT_SIP_REGISTER_PORT,
       timezone: tenant?.timezone ?? 'Asia/Seoul',
       dateFormat: 'YYYY-MM-DD HH:mm:ss',
     };

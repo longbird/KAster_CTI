@@ -15,7 +15,7 @@ param(
   [string]$SipUasMode = "local",
   [string]$SipUasContainer = "kaster-rehearsal-20260501-server",
   [string]$SipHostAddress = "49.247.46.86",
-  [int]$SipPort = 36070,
+  [int]$SipPort = 48950,
   [string]$SipExtension = "3999",
   [string]$SipPassword,
   [string]$SipContactHost,
