@@ -65,6 +65,14 @@ describe('AuthService desktop session', () => {
               data: { trunks: [] },
               error: null,
             }),
+            getOutboundCallCapabilities: jest.fn().mockResolvedValue({
+              canOriginateExternal: true,
+              canOriginateInternal: true,
+              canUsePhoneDirect: false,
+              outboundDialPermissions: {},
+              outboundDialOptions: { allowedCallerIds: [], defaultCallerId: null },
+              disabledReasons: [],
+            }),
             getCallControlCapabilities: jest.fn().mockReturnValue({ hold: true, transfer: true }),
           },
         },
@@ -99,6 +107,14 @@ describe('AuthService desktop session', () => {
         authorizationPassword: 'sip-secret-1001',
         displayName: '상담원1',
         iceServers: [],
+      },
+      callCapabilities: {
+        canOriginateExternal: true,
+        canOriginateInternal: true,
+        canUsePhoneDirect: false,
+        outboundDialPermissions: {},
+        outboundDialOptions: { allowedCallerIds: [], defaultCallerId: null },
+        disabledReasons: [],
       },
     });
   });

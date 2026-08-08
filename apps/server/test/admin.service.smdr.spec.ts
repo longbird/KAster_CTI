@@ -54,19 +54,23 @@ function createService() {
   return { prisma, service };
 }
 
-describe('AdminService SMDR settings', () => {
-  it('persists normalized SMDR external alert details in branch settings', async () => {
+describe('AdminService CID(SMDR) settings', () => {
+  it('선택하지 않은 프로그램사도 기본값으로 채워 3개를 모두 보존한다', async () => {
     const { prisma, service } = createService();
 
     await service.updateBranchMappings('tenant-1', 'branch-1', {
       settingsProfile: {
         smdr: {
           enabled: true,
-          endpointUrl: ' https://ops.example.com/smdr ',
-          authToken: ' token-123 ',
-          secret: ' secret-456 ',
-          timeoutSeconds: 20.8,
-          eventTypes: ['CALL_END', 'CALL_START', 'CALL_END', ' '],
+          programs: [
+            {
+              programKey: 'LOGI',
+              enabled: true,
+              inboundEnabled: true,
+              outboundEnabled: false,
+              includeOriginalCallerId: false,
+            },
+          ],
         },
       },
     });
@@ -77,11 +81,29 @@ describe('AdminService SMDR settings', () => {
           settingsProfile: expect.objectContaining({
             smdr: {
               enabled: true,
-              endpointUrl: 'https://ops.example.com/smdr',
-              authToken: 'token-123',
-              secret: 'secret-456',
-              timeoutSeconds: 20,
-              eventTypes: ['CALL_END', 'CALL_START'],
+              programs: [
+                {
+                  programKey: 'LOGI',
+                  inboundEnabled: true,
+                  outboundEnabled: false,
+                  includeOriginalCallerId: false,
+                  enabled: true,
+                },
+                {
+                  programKey: 'CALLMANOR',
+                  inboundEnabled: true,
+                  outboundEnabled: true,
+                  includeOriginalCallerId: true,
+                  enabled: false,
+                },
+                {
+                  programKey: 'ICON',
+                  inboundEnabled: true,
+                  outboundEnabled: true,
+                  includeOriginalCallerId: true,
+                  enabled: false,
+                },
+              ],
             },
           }),
         }),
@@ -89,7 +111,39 @@ describe('AdminService SMDR settings', () => {
     );
   });
 
-  it('rejects enabled SMDR external alerts without an endpoint URL', async () => {
+  it('알 수 없는 programKey 는 버리고 정규 3개 순서를 유지한다', async () => {
+    const { prisma, service } = createService();
+
+    await service.updateBranchMappings('tenant-1', 'branch-1', {
+      settingsProfile: {
+        smdr: {
+          enabled: true,
+          programs: [
+            { programKey: 'UNKNOWN', enabled: true },
+            { programKey: 'ICON', enabled: true },
+          ],
+        },
+      },
+    });
+
+    const saved = prisma.branches.updateMany.mock.calls[0][0].data.settingsProfile.smdr;
+    expect(saved.programs.map((p: any) => p.programKey)).toEqual(['LOGI', 'CALLMANOR', 'ICON']);
+    expect(saved.programs.find((p: any) => p.programKey === 'ICON').enabled).toBe(true);
+  });
+
+  it('CID 연동을 켰는데 선택한 프로그램사가 없으면 거부한다', async () => {
+    const { service } = createService();
+
+    await expect(
+      service.updateBranchMappings('tenant-1', 'branch-1', {
+        settingsProfile: {
+          smdr: { enabled: true, programs: [] },
+        },
+      }),
+    ).rejects.toThrow('CID 연동을 사용하려면 로지/콜마너/아이콘 중 1개 이상 선택해야 합니다.');
+  });
+
+  it('선택한 프로그램사가 수신·발신을 모두 끄면 거부한다', async () => {
     const { service } = createService();
 
     await expect(
@@ -97,10 +151,29 @@ describe('AdminService SMDR settings', () => {
         settingsProfile: {
           smdr: {
             enabled: true,
-            eventTypes: ['CALL_END'],
+            programs: [
+              {
+                programKey: 'LOGI',
+                enabled: true,
+                inboundEnabled: false,
+                outboundEnabled: false,
+              },
+            ],
           },
         },
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('CID 연동이 꺼져 있으면 프로그램사 선택이 없어도 통과한다', async () => {
+    const { prisma, service } = createService();
+
+    await service.updateBranchMappings('tenant-1', 'branch-1', {
+      settingsProfile: {
+        smdr: { enabled: false, programs: [] },
+      },
+    });
+
+    expect(prisma.branches.updateMany).toHaveBeenCalled();
   });
 });
