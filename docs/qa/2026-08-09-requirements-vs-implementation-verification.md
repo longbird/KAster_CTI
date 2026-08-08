@@ -2,7 +2,9 @@
 
 작성일: 2026-08-09
 기준 커밋: `c8e2f62` (PR #8 병합 시점)
-검증 실행: `apps/server` — 68 suite / 474 test 통과 (2026-08-09)
+검증 실행: `apps/server` — 68 suite / 474 test 통과 (2026-08-09 최초 작성 시점)
+개정일: 2026-08-09 — 미구현 3건(당겨받기 2초 규칙 · 서버 버전 · 기능코드 registry) 반영 후 갱신.
+갱신 시점 검증: 서버 71 suite / 507 test, 관리자 39 file / 143 test 통과.
 
 ## 1. 결론
 
@@ -27,10 +29,10 @@
 |---|---:|---:|---:|---:|---:|---:|
 | A. MMC 적용필요 (엑셀 노랑) | 42 | 13 | 8 | 12 | 7 | 2 |
 | B. 주요확인 및 적용사항 | 4 | 2 | 1 | 1 | 0 | 0 |
-| C. 주요연동 시트 | 11 | 4 | 4 | 3 | 0 | 0 |
+| C. 주요연동 시트 | 11 | 5 | 4 | 2 | 0 | 0 |
 | D. IPCC 구성도 우선순위 | 4 | 2 | 0 | 1 | 1 | 0 |
 | E. 내부 설계문서 계약 | 5 | 4 | 0 | 1 | 0 | 0 |
-| **합계** | **66** | **25** | **13** | **18** | **8** | **2** |
+| **합계** | **66** | **26** | **13** | **17** | **8** | **2** |
 
 ## 2. 평가 등급 정의
 
@@ -129,7 +131,7 @@ cd apps/server && npm test
 | 407 | 국선 강제로 끊기 | `POST /calls/:callId/hangup` — **통화 단위** 강제 종료 | **국선(트렁크) 단위** 일괄 강제 끊기 |
 | 714 | 내선 직접다이얼 변환표 | DID→내선 직결 매핑 | **자릿수 변환 규칙표**(수신번호 일부를 잘라 내선으로 변환) |
 | 724 | 다이얼번호 변경 | `/numbers` 화면 — DID·내선·큐·기능코드 인덱스, 충돌 표시, 설정 화면 바로가기 | **전체 번호체계 일괄 변경 UI**(의도적 미채택 — 위험) |
-| 805 | 프로그램 버전 표시 | 데스크톱 앱 버전 관리(`agentDesktopReleases`, 자동 업데이트 매니페스트) | **서버 버전 조회 엔드포인트 없음** |
+| 805 | 프로그램 버전 표시 | **2026-08-09 반영.** `GET /admin/settings/system/version` (버전·커밋·빌드시각·가동시간) + 시스템 설정 화면 표시. 데스크톱은 `agentDesktopReleases` | `GIT_COMMIT`/`BUILD_TIME` 을 배포 파이프라인이 주입해야 커밋 식별이 된다 |
 | 831 | MGI 파라미터 지정 | RTP 포트 대역·STUN 렌더링(`ASTERISK_RTP_START/END`, `ASTERISK_RTP_STUN_ADDRESS`) | **env 전용. 관리자 화면에서 못 바꾼다** |
 | 840 | IP 전화기 정보 | `GET /asterisk-config/agents-sip` — 내선·SIP 비밀번호·**PJSIP 실시간 등록(contact) 상태** | 단말 모델/펌웨어/MAC 등 장비 인벤토리 |
 | 841 | 시스템 IP 연동 정보 | `ASTERISK_EXTERNAL_MEDIA_ADDRESS`, `ASTERISK_LOCAL_NETS`, `external_signaling_address` 렌더링 | **env 전용. 관리자 화면 없음** |
@@ -176,17 +178,17 @@ cd apps/server && npm test
 
 | # | 요구 | 판정 | 근거 / 경계 |
 |---:|---|---|---|
-| 1 | 소프트폰 (SIP STN) | 구현 | `apps/desktop`. **단, "당겨받기 키 2초 이내 1회만 인정" 규칙은 미구현** — `CallsService.pickup` 에 시간 기반 중복 억제 없음 |
+| 1 | 소프트폰 (SIP STN) | 구현 | `apps/desktop`. "당겨받기 키 2초 이내 1회만 인정" 규칙은 **2026-08-09 반영** — Redis `SET PX 2000 NX` 로 상담원 단위 선점 |
 | 2 | CTI 서버연동 | 구현 | AMI 정규화 → `linkedid` 세션 조립 → outbox → Redis Pub/Sub → `/ws`. **"실시간 감청 연동"은 정책상 미지원** |
 | 3 | 국선 (SIP TRK) — KCT망 070 | 부분구현 | 트렁크 CRUD·PJSIP 렌더링·트렁크 그룹 구현. **실제 통신사 회선 연동 검증은 미실시** |
-| 4 | 내선 (SIP STN) — 모임스톤 등 | 구현 | PJSIP endpoint/auth/aor 렌더링, 등록 상태 조회. 1번과 같은 2초 규칙 제약 |
+| 4 | 내선 (SIP STN) — 모임스톤 등 | 구현 | PJSIP endpoint/auth/aor 렌더링, 등록 상태 조회. 2초 규칙은 1번과 함께 반영됨 |
 | 5 | 가상버퍼 생성 (3501~3799) | 변경구현 | **번호를 할당하지 않고** 큐 대기 상태(`QUEUED`)로 표시. 다이얼 가능한 번호 자원이 아니라는 판단 |
 | 6 | 내선번호 생성 (3001~3499) | 부분구현 | `agents.extension` 자유 입력 + `/numbers` 충돌 검사. **대역 강제 없음** |
 | 7 | ARS번호 생성 (6901~6999) | 변경구현 | 별도 번호 미채택. DID + `AsteriskIvrMenu` 로 처리 (고객이 누르는 건 DID, ARS 는 처리 흐름) |
 | 8 | 국선번호 생성 (7001~7999) | 변경구현 | `AsteriskTrunk.displayNumber` 로 표시. 별도 번호 자원 아님 |
 | 9 | 국선그룹 생성 (8001~8999) | 구현 | `AsteriskTrunkGroup`. 대역 강제는 없음 |
 | 10 | 내선그룹 생성 (5000~5099) — SEQU/DIST/UNCON + OVERFLOW | 구현 | `queues.distributionMode`(SEQUENTIAL/DISTRIBUTE/UNCONDITIONAL) + `unconditionalTargetType/Value` + **`queueOverflowRules`** + `[queue-overflow]` dialplan |
-| 11 | 각종 기능코드 생성 | 부분구현 | `*8`(대리응답), `*2`(상담전환 완료) **2개 하드코딩**. 기능코드 registry·CRUD 없음 |
+| 11 | 각종 기능코드 생성 | 구현 | **2026-08-09 반영.** `featureCodes` registry(고정 카탈로그 4개) + `GET`/`PUT /asterisk-config/feature-codes` + `PBX 설정 > 기능코드` 화면 + agent-dialplan 렌더링. 대리응답은 네이티브 `Pickup()` 으로 단말 다이얼 지원. 실 PBX 검증은 미실시 |
 
 ### 6.1 원본 요구사항 내부 모순 — 결정 필요
 
@@ -260,10 +262,9 @@ cd apps/server && npm test
 ### 구현이 필요한 것 (우선순위 순)
 
 1. **콜마너/올플릿 배차 API 연동** (IPCC 우선순위 2) — 유일한 미착수 우선순위. 설계는 이미 있다.
-2. **기능코드 registry** — 현재 `*8`/`*2` 하드코딩. 요구서 "각종 기능코드 생성"을 충족하려면 CRUD 필요.
-3. **당겨받기 2초 중복 억제** — 요구서에 두 번 명시된 규칙인데 구현에 없다. 작은 작업이다.
-4. **서버 버전 조회 엔드포인트** (MMC 805) — 운영 지원 시 필수. 작은 작업이다.
-5. **보안 4종** (MFA / 관리자 IP allowlist / 통합 감사로그 / 민감필드 암호화) — 인증 심사 예정이면 선행.
+2. ~~기능코드 registry~~ · ~~당겨받기 2초 중복 억제~~ · ~~서버 버전 조회 엔드포인트~~ — **2026-08-09 완료.**
+   기능코드는 [`docs/plans/2026-08-09-feature-code-registry-plan.md`](../plans/2026-08-09-feature-code-registry-plan.md) 참조.
+3. **보안 4종** (MFA / 관리자 IP allowlist / 통합 감사로그 / 민감필드 암호화) — 인증 심사 예정이면 선행.
 
 ### 문서 조치
 
