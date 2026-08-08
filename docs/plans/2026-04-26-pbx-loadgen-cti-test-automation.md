@@ -82,9 +82,9 @@ environment:
 scenario:
   target:
     host: 49.247.46.86
-    port: 36070
+    port: 48950
     transport: udp
-    requestUriTemplate: "sip:{did}@49.247.46.86:36070"
+    requestUriTemplate: "sip:{did}@49.247.46.86:48950"
   callFlow:
     callerIdPool: ["01011112222"]
     didPool: ["07052346380"]
@@ -127,7 +127,7 @@ title: Broken plan
 source: { generatedFrom: ["docs/openapi.json"], generatorVersion: 1 }
 environment: { apiBaseUrl: "${CTI_API_BASE_URL}", wsUrl: "${CTI_WS_URL}", accessToken: "${CTI_ACCESS_TOKEN}" }
 scenario:
-  target: { host: 49.247.46.86, port: 36070, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:36070" }
+  target: { host: 49.247.46.86, port: 48950, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:48950" }
   callFlow: { callerIdPool: ["01011112222"], didPool: ["07052346380"] }
 steps: []
 )"),
@@ -141,7 +141,7 @@ title: Queue summary reflects inbound call
 source: { generatedFrom: ["docs/openapi.json"], generatorVersion: 1 }
 environment: { apiBaseUrl: "${CTI_API_BASE_URL}", wsUrl: "${CTI_WS_URL}", accessToken: "${CTI_ACCESS_TOKEN}" }
 scenario:
-  target: { host: 49.247.46.86, port: 36070, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:36070" }
+  target: { host: 49.247.46.86, port: 48950, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:48950" }
   callFlow: { callerIdPool: ["01011112222"], didPool: ["07052346380"] }
 steps:
   - { type: inbound_call, id: call-1, answerTimeoutMs: 12000, holdSeconds: 5 }
@@ -821,9 +821,9 @@ std::string renderGeneratedTestPlan(const FeatureDescriptor& feature) {
   stream << "scenario:\n";
   stream << "  target:\n";
   stream << "    host: 49.247.46.86\n";
-  stream << "    port: 36070\n";
+  stream << "    port: 48950\n";
   stream << "    transport: udp\n";
-  stream << "    requestUriTemplate: \"sip:{did}@49.247.46.86:36070\"\n";
+  stream << "    requestUriTemplate: \"sip:{did}@49.247.46.86:48950\"\n";
   stream << "  callFlow:\n";
   stream << "    callerIdPool: [\"01011112222\"]\n";
   stream << "    didPool: [\"07052346380\"]\n";
@@ -1261,7 +1261,7 @@ title: Basic inbound call reaches CTI active call state
 source: { generatedFrom: ["docs/openapi.json"], generatorVersion: 1 }
 environment: { apiBaseUrl: "${CTI_API_BASE_URL}", wsUrl: "${CTI_WS_URL}", accessToken: "${CTI_ACCESS_TOKEN}" }
 scenario:
-  target: { host: 49.247.46.86, port: 36070, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:36070" }
+  target: { host: 49.247.46.86, port: 48950, transport: udp, requestUriTemplate: "sip:{did}@49.247.46.86:48950" }
   callFlow: { callerIdPool: ["01011112222"], didPool: ["07052346380"] }
 steps:
   - { type: inbound_call, id: call-1, answerTimeoutMs: 12000, holdSeconds: 5 }

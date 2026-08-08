@@ -37,7 +37,7 @@ describe('SipSecurityService', () => {
         SecurityEvent: 'InvalidAccountID',
         RemoteAddress: 'IPV4/UDP/217.160.58.58/49373',
         AccountID: '88002',
-        RequestURI: 'sip:00390237902850@112.216.252.59:36070',
+        RequestURI: 'sip:00390237902850@112.216.252.59:48950',
       },
     });
 
