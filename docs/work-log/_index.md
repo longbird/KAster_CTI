@@ -2,12 +2,13 @@
 
 > 배치 규칙은 루트 [`DOCS_GUIDE.md`](../../DOCS_GUIDE.md), 전체 인덱스는 [`docs/README.md`](../README.md).
 
-생성 기준일: 2026-08-08 · 총 24건
+생성 기준일: 2026-08-08 · 총 25건 (최종 갱신 2026-08-09)
 
 | 문서 |
 |---|
 | [`2026-05-20-pbx-m1-followup-progress.md`](2026-05-20-pbx-m1-followup-progress.md) |
 | [`2026-08-08-db-ha-resilience-worklog.md`](2026-08-08-db-ha-resilience-worklog.md) |
+| [`2026-08-09-requirements-assessment-and-gap-fixes-worklog.md`](2026-08-09-requirements-assessment-and-gap-fixes-worklog.md) |
 | [`20260507-pr1-1-agent-groups.md`](20260507-pr1-1-agent-groups.md) |
 | [`20260507-pr1-2-agent-branch-cid-auth.md`](20260507-pr1-2-agent-branch-cid-auth.md) |
 | [`20260507-pr1-3a-outbound-rules.md`](20260507-pr1-3a-outbound-rules.md) |
