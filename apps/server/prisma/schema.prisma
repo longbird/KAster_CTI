@@ -24,68 +24,68 @@ enum OutboundCallerIdMatchType {
 }
 
 model tenants {
-  tenantId   String   @id @default(uuid()) @db.Uuid
-  tenantCode String   @unique @db.VarChar(32)
-  tenantName String   @db.VarChar(128)
-  timezone   String   @default("Asia/Seoul") @db.VarChar(64)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime @default(now()) @db.Timestamptz(6)
+  tenantId     String    @id @default(uuid()) @db.Uuid
+  tenantCode   String    @unique @db.VarChar(32)
+  tenantName   String    @db.VarChar(128)
+  timezone     String    @default("Asia/Seoul") @db.VarChar(64)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @db.Timestamptz(6)
 
-  agents                      agents[]
-  queues                      queues[]
-  queueOverflowRules          queueOverflowRules[]
-  configVersions              configVersions[]
-  configApplyStatus           configApplyStatus[]
-  offlineSpoolEntries         offlineSpoolEntries[]
-  replayBatches               replayBatches[]
-  recordingFinalizeJobs       recordingFinalizeJobs[]
-  recordingRetentionPolicies  recordingRetentionPolicies[]
-  customers                   customers[]
-  callSessions                callSessions[]
-  callLegs                    callLegs[]
-  queueEvents                 queueEvents[]
-  callMemos                   callMemos[]
-  callTransfers               callTransfers[]
-  callRecordings              callRecordings[]
-  agentStatusHistory          agentStatusHistory[]
-  rawAmiEvents                rawAmiEvents[]
-  eventOutbox                 eventOutbox[]
-  attendedTransferCandidates  attendedTransferCandidates[]
-  refreshTokens               refreshTokens[]
-  agentDesktopReleases        agentDesktopReleases[]
+  agents               agents[]
+  queues               queues[]
+  queueOverflowRules   queueOverflowRules[]
+  configVersions       configVersions[]
+  configApplyStatus    configApplyStatus[]
+  offlineSpoolEntries  offlineSpoolEntries[]
+  replayBatches        replayBatches[]
+  recordingFinalizeJobs recordingFinalizeJobs[]
+  recordingRetentionPolicies recordingRetentionPolicies[]
+  customers            customers[]
+  callSessions         callSessions[]
+  callLegs             callLegs[]
+  queueEvents          queueEvents[]
+  callMemos            callMemos[]
+  callTransfers        callTransfers[]
+  callRecordings       callRecordings[]
+  agentStatusHistory   agentStatusHistory[]
+  rawAmiEvents         rawAmiEvents[]
+  eventOutbox          eventOutbox[]
+  attendedTransferCandidates attendedTransferCandidates[]
+  refreshTokens        refreshTokens[]
+  agentDesktopReleases agentDesktopReleases[]
   agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
-  announcements               announcements[]
-  announcementReads           announcementReads[]
-  branches                    branches[]
-  branchAgents                branchAgents[]
-  branchQueues                branchQueues[]
-  branchDids                  branchDids[]
-  rolePermissions             rolePermissions[]
-  agentMenuPermissions        agentMenuPermissions[]
-  tenantSystemSettings        tenantSystemSettings[]
-  forwardingRules             asteriskForwardingRules[]
-  asteriskPrompts             AsteriskPrompt[]
-  promptGenerationJobs        promptGenerationJobs[]
-  asteriskBlocklistEntries    AsteriskBlocklistEntry[]
-  sipSecurityBlocks           sipSecurityBlocks[]
-  asteriskTrunks              AsteriskTrunk[]
-  asteriskTrunkGroups         AsteriskTrunkGroup[]
-  asteriskTrunkGroupMembers   AsteriskTrunkGroupMember[]
-  asteriskDids                AsteriskDid[]
-  asteriskIvrMenus            AsteriskIvrMenu[]
-  asteriskSpeedDials          AsteriskSpeedDial[]
-  smsTemplates                tenantSmsTemplate[]
-  agentGroups                 agentGroups[]
-  agentBranchCallerIds        agentBranchCallerIds[]
-  outboundCallerIdRules       outboundCallerIdRules[]
-  shareRules                  shareRules[]
-  shareRuleAgents             shareRuleAgents[]
-  shareRuleAgentGroups        shareRuleAgentGroups[]
-  shareRuleBranches           shareRuleBranches[]
-  integrationAutomations      integrationAutomations[]
-  holidayRules                tenantHolidayRules[]
-  featureCodes                featureCodes[]
+  announcements       announcements[]
+  announcementReads   announcementReads[]
+  branches            branches[]
+  branchAgents        branchAgents[]
+  branchQueues        branchQueues[]
+  branchDids          branchDids[]
+  rolePermissions     rolePermissions[]
+  agentMenuPermissions agentMenuPermissions[]
+  tenantSystemSettings tenantSystemSettings[]
+  forwardingRules     asteriskForwardingRules[]
+  asteriskPrompts     AsteriskPrompt[]
+  promptGenerationJobs promptGenerationJobs[]
+  asteriskBlocklistEntries AsteriskBlocklistEntry[]
+  sipSecurityBlocks   sipSecurityBlocks[]
+  asteriskTrunks       AsteriskTrunk[]
+  asteriskTrunkGroups  AsteriskTrunkGroup[]
+  asteriskTrunkGroupMembers AsteriskTrunkGroupMember[]
+  asteriskDids         AsteriskDid[]
+  asteriskIvrMenus     AsteriskIvrMenu[]
+  asteriskSpeedDials   AsteriskSpeedDial[]
+  smsTemplates         tenantSmsTemplate[]
+  agentGroups          agentGroups[]
+  agentBranchCallerIds agentBranchCallerIds[]
+  outboundCallerIdRules outboundCallerIdRules[]
+  shareRules           shareRules[]
+  shareRuleAgents      shareRuleAgents[]
+  shareRuleAgentGroups shareRuleAgentGroups[]
+  shareRuleBranches    shareRuleBranches[]
+  integrationAutomations integrationAutomations[]
+  holidayRules         tenantHolidayRules[]
+  featureCodes         featureCodes[]
 }
 
 model agentGroups {
@@ -99,8 +99,8 @@ model agentGroups {
   updatedAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedById  String?  @db.Uuid
 
-  tenant               tenants                @relation(fields: [tenantId], references: [tenantId])
-  agents               agents[]               @relation("agent_group")
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId])
+  agents       agents[] @relation("agent_group")
   shareRuleAgentGroups shareRuleAgentGroups[]
 
   @@unique([tenantId, groupCode])
@@ -108,45 +108,45 @@ model agentGroups {
 }
 
 model agents {
-  agentId              String    @id @default(uuid()) @db.Uuid
-  tenantId             String    @db.Uuid
-  loginId              String    @db.VarChar(64)
-  loginPasswordHash    String    @db.VarChar(255)
-  agentCode            String    @db.VarChar(32)
-  agentName            String    @db.VarChar(128)
-  extension            String    @db.VarChar(16)
-  extensionDisplayName String?   @db.VarChar(128)
-  extensionLockMode    String    @default("UNLOCKED") @db.VarChar(32)
-  sipPassword          String?   @db.Text
-  sipEndpoint          String?   @db.VarChar(64)
-  settingsProfile      Json?
-  role                 String    @default("agent") @db.VarChar(32)
-  employmentStatus     String    @default("active") @db.VarChar(16)
-  defaultQueueId       String?   @db.Uuid
-  agentGroupId         String?   @db.Uuid
-  lastLoginAt          DateTime? @db.Timestamptz(6)
-  isActive             Boolean   @default(true)
-  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime  @default(now()) @db.Timestamptz(6)
+  agentId            String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  loginId            String    @db.VarChar(64)
+  loginPasswordHash  String    @db.VarChar(255)
+  agentCode          String    @db.VarChar(32)
+  agentName          String    @db.VarChar(128)
+  extension          String    @db.VarChar(16)
+  extensionDisplayName String? @db.VarChar(128)
+  extensionLockMode  String    @default("UNLOCKED") @db.VarChar(32)
+  sipPassword        String?   @db.Text
+  sipEndpoint        String?   @db.VarChar(64)
+  settingsProfile    Json?
+  role               String    @default("agent") @db.VarChar(32)
+  employmentStatus   String    @default("active") @db.VarChar(16)
+  defaultQueueId     String?   @db.Uuid
+  agentGroupId       String?   @db.Uuid
+  lastLoginAt        DateTime? @db.Timestamptz(6)
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant                      tenants                       @relation(fields: [tenantId], references: [tenantId])
-  defaultQueue                queues?                       @relation("agent_default_queue", fields: [defaultQueueId], references: [queueId])
-  agentGroup                  agentGroups?                  @relation("agent_group", fields: [agentGroupId], references: [agentGroupId])
-  statusHistory               agentStatusHistory[]
-  callSessions                callSessions[]                @relation("primary_agent")
-  callLegs                    callLegs[]
-  callMemos                   callMemos[]
-  queueAgentMembers           queueAgentMembers[]
-  branchMappings              branchAgents[]
-  queueEvents                 queueEvents[]
-  transfersFrom               callTransfers[]               @relation("transfer_from")
-  transfersTo                 callTransfers[]               @relation("transfer_to")
-  refreshTokens               refreshTokens[]
+  tenant             tenants   @relation(fields: [tenantId], references: [tenantId])
+  defaultQueue       queues?   @relation("agent_default_queue", fields: [defaultQueueId], references: [queueId])
+  agentGroup         agentGroups? @relation("agent_group", fields: [agentGroupId], references: [agentGroupId])
+  statusHistory      agentStatusHistory[]
+  callSessions       callSessions[] @relation("primary_agent")
+  callLegs           callLegs[]
+  callMemos          callMemos[]
+  queueAgentMembers  queueAgentMembers[]
+  branchMappings     branchAgents[]
+  queueEvents        queueEvents[]
+  transfersFrom      callTransfers[] @relation("transfer_from")
+  transfersTo        callTransfers[] @relation("transfer_to")
+  refreshTokens      refreshTokens[]
   agentDesktopUpdateAuditLogs agentDesktopUpdateAuditLogs[]
-  menuPermissions             agentMenuPermissions[]
-  branchCallerIds             agentBranchCallerIds[]
-  shareRuleAgents             shareRuleAgents[]
-  announcementReads           announcementReads[]
+  menuPermissions    agentMenuPermissions[]
+  branchCallerIds    agentBranchCallerIds[]
+  shareRuleAgents    shareRuleAgents[]
+  announcementReads  announcementReads[]
 
   @@unique([tenantId, loginId])
   @@unique([tenantId, agentCode])
@@ -154,31 +154,31 @@ model agents {
 }
 
 model queues {
-  queueId                  String   @id @default(uuid()) @db.Uuid
-  tenantId                 String   @db.Uuid
-  queueName                String   @db.VarChar(64)
-  queueExten               String   @db.VarChar(16)
-  queueDisplayName         String   @db.VarChar(128)
-  distributionMode         String   @default("DISTRIBUTE") @db.VarChar(16)
-  unconditionalTargetType  String?  @db.VarChar(16)
-  unconditionalTargetValue String?  @db.VarChar(64)
-  strategy                 String   @default("leastrecent") @db.VarChar(32)
-  ringTimeoutSeconds       Int      @default(15)
-  retrySeconds             Int      @default(3)
-  wrapupSeconds            Int      @default(30)
-  maxWaitSeconds           Int      @default(45)
-  autopause                Boolean  @default(true)
-  isActive                 Boolean  @default(true)
-  createdAt                DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime @default(now()) @db.Timestamptz(6)
+  queueId             String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @db.Uuid
+  queueName           String    @db.VarChar(64)
+  queueExten          String    @db.VarChar(16)
+  queueDisplayName    String    @db.VarChar(128)
+  distributionMode    String    @default("DISTRIBUTE") @db.VarChar(16)
+  unconditionalTargetType  String?   @db.VarChar(16)
+  unconditionalTargetValue String?   @db.VarChar(64)
+  strategy            String    @default("leastrecent") @db.VarChar(32)
+  ringTimeoutSeconds  Int       @default(15)
+  retrySeconds        Int       @default(3)
+  wrapupSeconds       Int       @default(30)
+  maxWaitSeconds      Int       @default(45)
+  autopause           Boolean   @default(true)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant         tenants              @relation(fields: [tenantId], references: [tenantId])
-  defaultAgents  agents[]             @relation("agent_default_queue")
-  members        queueAgentMembers[]
-  overflowRules  queueOverflowRules[]
-  branchMappings branchQueues[]
-  sessions       callSessions[]
-  queueEvents    queueEvents[]
+  tenant              tenants   @relation(fields: [tenantId], references: [tenantId])
+  defaultAgents       agents[]  @relation("agent_default_queue")
+  members             queueAgentMembers[]
+  overflowRules       queueOverflowRules[]
+  branchMappings      branchQueues[]
+  sessions            callSessions[]
+  queueEvents         queueEvents[]
 
   @@unique([tenantId, queueName])
   @@unique([tenantId, queueExten])
@@ -198,8 +198,8 @@ model queueOverflowRules {
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  queue  queues  @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+  tenant              tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  queue               queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
 
   @@index([tenantId, enabled])
   @@index([tenantId, queueId])
@@ -207,127 +207,127 @@ model queueOverflowRules {
 }
 
 model queueAgentMembers {
-  queueMemberId String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @db.Uuid
-  queueId       String   @db.Uuid
-  agentId       String   @db.Uuid
-  penalty       Int      @default(0)
-  memberOrder   Int      @default(0)
-  isActive      Boolean  @default(true)
-  joinedAt      DateTime @default(now()) @db.Timestamptz(6)
+  queueMemberId  String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  queueId        String   @db.Uuid
+  agentId        String   @db.Uuid
+  penalty        Int      @default(0)
+  memberOrder    Int      @default(0)
+  isActive       Boolean  @default(true)
+  joinedAt       DateTime @default(now()) @db.Timestamptz(6)
 
-  queue queues @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
-  agent agents @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  queue          queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+  agent          agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
 
   @@unique([queueId, agentId])
 }
 
 model customers {
-  customerId   String    @id @default(uuid()) @db.Uuid
-  tenantId     String    @db.Uuid
-  customerCode String?   @db.VarChar(32)
-  customerName String?   @db.VarChar(128)
-  companyName  String?   @db.VarChar(128)
-  grade        String?   @default("NORMAL") @db.VarChar(32)
-  status       String?   @default("active") @db.VarChar(32)
-  memo         String?
-  shareRuleId  String?   @db.Uuid
-  lastCalledAt DateTime? @db.Timestamptz(6)
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime  @default(now()) @db.Timestamptz(6)
+  customerId     String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @db.Uuid
+  customerCode   String?   @db.VarChar(32)
+  customerName   String?   @db.VarChar(128)
+  companyName    String?   @db.VarChar(128)
+  grade          String?   @default("NORMAL") @db.VarChar(32)
+  status         String?   @default("active") @db.VarChar(32)
+  memo           String?
+  shareRuleId    String?   @db.Uuid
+  lastCalledAt   DateTime? @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant       tenants          @relation(fields: [tenantId], references: [tenantId])
-  phones       customerPhones[]
-  callSessions callSessions[]
-  callMemos    callMemos[]
-  shareRule    shareRules?      @relation("customer_share_rule", fields: [shareRuleId], references: [shareRuleId], onDelete: SetNull)
+  tenant         tenants   @relation(fields: [tenantId], references: [tenantId])
+  phones         customerPhones[]
+  callSessions   callSessions[]
+  callMemos      callMemos[]
+  shareRule      shareRules? @relation("customer_share_rule", fields: [shareRuleId], references: [shareRuleId], onDelete: SetNull)
 
   @@index([tenantId, shareRuleId])
 }
 
 model customerPhones {
-  customerPhoneId String    @id @default(uuid()) @db.Uuid
-  customerId      String    @db.Uuid
-  phoneNumber     String    @db.VarChar(32)
-  normalizedPhone String    @db.VarChar(32)
-  phoneType       String    @default("mobile") @db.VarChar(16)
-  isPrimary       Boolean   @default(false)
-  isActive        Boolean   @default(true)
+  customerPhoneId String   @id @default(uuid()) @db.Uuid
+  customerId      String   @db.Uuid
+  phoneNumber     String   @db.VarChar(32)
+  normalizedPhone String   @db.VarChar(32)
+  phoneType       String   @default("mobile") @db.VarChar(16)
+  isPrimary       Boolean  @default(false)
+  isActive        Boolean  @default(true)
   verifiedAt      DateTime? @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
 
-  customer customers @relation(fields: [customerId], references: [customerId], onDelete: Cascade)
+  customer        customers @relation(fields: [customerId], references: [customerId], onDelete: Cascade)
 
   @@unique([customerId, normalizedPhone])
   @@index([normalizedPhone])
 }
 
 model agentStatusHistory {
-  statusHistoryId String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @db.Uuid
-  agentId         String    @db.Uuid
-  statusCode      String    @db.VarChar(32)
-  reasonCode      String?   @db.VarChar(32)
-  reasonText      String?   @db.VarChar(255)
-  sourceType      String    @default("system") @db.VarChar(16)
-  startedAt       DateTime  @db.Timestamptz(6)
+  statusHistoryId String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  agentId         String   @db.Uuid
+  statusCode      String   @db.VarChar(32)
+  reasonCode      String?  @db.VarChar(32)
+  reasonText      String?  @db.VarChar(255)
+  sourceType      String   @default("system") @db.VarChar(16)
+  startedAt       DateTime @db.Timestamptz(6)
   endedAt         DateTime? @db.Timestamptz(6)
-  durationSeconds Int       @default(0)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  durationSeconds Int      @default(0)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId])
-  agent  agents  @relation(fields: [agentId], references: [agentId])
+  tenant          tenants  @relation(fields: [tenantId], references: [tenantId])
+  agent           agents   @relation(fields: [agentId], references: [agentId])
 
   @@index([tenantId, agentId, endedAt, startedAt(sort: Desc)])
 }
 
 model callSessions {
-  callId                      String    @id @default(uuid()) @db.Uuid
-  tenantId                    String    @db.Uuid
-  linkedid                    String    @db.VarChar(32)
-  direction                   String    @db.VarChar(16)
-  ani                         String?   @db.VarChar(32)
-  aniNormalized               String?   @db.VarChar(32)
-  dnis                        String?   @db.VarChar(32)
-  didNumber                   String?   @db.VarChar(32)
-  trunkName                   String?   @db.VarChar(64)
-  queueId                     String?   @db.Uuid
-  queueName                   String?   @db.VarChar(64)
-  customerId                  String?   @db.Uuid
-  primaryAgentId              String?   @db.Uuid
-  sessionStatus               String    @db.VarChar(32)
-  campaignCode                String?   @db.VarChar(64)
-  resultCode                  String?   @db.VarChar(32)
-  resultDetail                String?   @db.VarChar(255)
-  abandonFlag                 Boolean   @default(false)
-  transferFlag                Boolean   @default(false)
-  callbackFlag                Boolean   @default(false)
-  recordingFlag               Boolean   @default(false)
-  recordingFinalizationStatus String    @default("NOT_REQUESTED") @db.VarChar(32)
-  recordingFinalizedAt        DateTime? @db.Timestamptz(6)
-  startedAt                   DateTime  @db.Timestamptz(6)
-  queuedAt                    DateTime? @db.Timestamptz(6)
-  ringingAt                   DateTime? @db.Timestamptz(6)
-  answeredAt                  DateTime? @db.Timestamptz(6)
-  endedAt                     DateTime? @db.Timestamptz(6)
-  waitSeconds                 Int       @default(0)
-  ringSeconds                 Int       @default(0)
-  talkSeconds                 Int       @default(0)
-  holdSeconds                 Int       @default(0)
-  acwSeconds                  Int       @default(0)
-  createdAt                   DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt                   DateTime  @default(now()) @db.Timestamptz(6)
+  callId          String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  linkedid        String    @db.VarChar(32)
+  direction       String    @db.VarChar(16)
+  ani             String?   @db.VarChar(32)
+  aniNormalized   String?   @db.VarChar(32)
+  dnis            String?   @db.VarChar(32)
+  didNumber       String?   @db.VarChar(32)
+  trunkName       String?   @db.VarChar(64)
+  queueId         String?   @db.Uuid
+  queueName       String?   @db.VarChar(64)
+  customerId      String?   @db.Uuid
+  primaryAgentId  String?   @db.Uuid
+  sessionStatus   String    @db.VarChar(32)
+  campaignCode    String?   @db.VarChar(64)
+  resultCode      String?   @db.VarChar(32)
+  resultDetail    String?   @db.VarChar(255)
+  abandonFlag     Boolean   @default(false)
+  transferFlag    Boolean   @default(false)
+  callbackFlag    Boolean   @default(false)
+  recordingFlag   Boolean   @default(false)
+  recordingFinalizationStatus String @default("NOT_REQUESTED") @db.VarChar(32)
+  recordingFinalizedAt DateTime? @db.Timestamptz(6)
+  startedAt       DateTime  @db.Timestamptz(6)
+  queuedAt        DateTime? @db.Timestamptz(6)
+  ringingAt       DateTime? @db.Timestamptz(6)
+  answeredAt      DateTime? @db.Timestamptz(6)
+  endedAt         DateTime? @db.Timestamptz(6)
+  waitSeconds     Int       @default(0)
+  ringSeconds     Int       @default(0)
+  talkSeconds     Int       @default(0)
+  holdSeconds     Int       @default(0)
+  acwSeconds      Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant                tenants                 @relation(fields: [tenantId], references: [tenantId])
-  queue                 queues?                 @relation(fields: [queueId], references: [queueId])
-  customer              customers?              @relation(fields: [customerId], references: [customerId])
-  primaryAgent          agents?                 @relation("primary_agent", fields: [primaryAgentId], references: [agentId])
-  callLegs              callLegs[]
-  queueEvents           queueEvents[]
-  callRecordings        callRecordings[]
+  tenant          tenants   @relation(fields: [tenantId], references: [tenantId])
+  queue           queues?   @relation(fields: [queueId], references: [queueId])
+  customer        customers? @relation(fields: [customerId], references: [customerId])
+  primaryAgent    agents?   @relation("primary_agent", fields: [primaryAgentId], references: [agentId])
+  callLegs        callLegs[]
+  queueEvents     queueEvents[]
+  callRecordings  callRecordings[]
   recordingFinalizeJobs recordingFinalizeJobs[]
-  callMemos             callMemos[]
-  callTransfers         callTransfers[]
+  callMemos       callMemos[]
+  callTransfers   callTransfers[]
 
   @@unique([tenantId, linkedid])
   @@index([startedAt(sort: Desc)])
@@ -335,29 +335,29 @@ model callSessions {
 }
 
 model callLegs {
-  legId              String    @id @default(uuid()) @db.Uuid
-  callId             String    @db.Uuid
-  tenantId           String    @db.Uuid
-  linkedid           String    @db.VarChar(32)
-  uniqueid           String    @db.VarChar(32)
-  parentUniqueid     String?   @db.VarChar(32)
-  legType            String    @db.VarChar(16)
-  channelName        String?   @db.VarChar(128)
-  bridgedChannelName String?   @db.VarChar(128)
-  endpoint           String?   @db.VarChar(64)
-  agentId            String?   @db.Uuid
-  stateCode          String?   @db.VarChar(32)
-  dialStatus         String?   @db.VarChar(32)
-  startedAt          DateTime  @db.Timestamptz(6)
-  bridgedAt          DateTime? @db.Timestamptz(6)
-  endedAt            DateTime? @db.Timestamptz(6)
-  durationSeconds    Int       @default(0)
-  disposition        String?   @db.VarChar(32)
-  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  legId                String    @id @default(uuid()) @db.Uuid
+  callId               String    @db.Uuid
+  tenantId             String    @db.Uuid
+  linkedid             String    @db.VarChar(32)
+  uniqueid             String    @db.VarChar(32)
+  parentUniqueid       String?   @db.VarChar(32)
+  legType              String    @db.VarChar(16)
+  channelName          String?   @db.VarChar(128)
+  bridgedChannelName   String?   @db.VarChar(128)
+  endpoint             String?   @db.VarChar(64)
+  agentId              String?   @db.Uuid
+  stateCode            String?   @db.VarChar(32)
+  dialStatus           String?   @db.VarChar(32)
+  startedAt            DateTime  @db.Timestamptz(6)
+  bridgedAt            DateTime? @db.Timestamptz(6)
+  endedAt              DateTime? @db.Timestamptz(6)
+  durationSeconds      Int       @default(0)
+  disposition          String?   @db.VarChar(32)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
 
-  session callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
-  tenant  tenants      @relation(fields: [tenantId], references: [tenantId])
-  agent   agents?      @relation(fields: [agentId], references: [agentId])
+  session              callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant               tenants  @relation(fields: [tenantId], references: [tenantId])
+  agent                agents?  @relation(fields: [agentId], references: [agentId])
 
   @@unique([tenantId, uniqueid])
   @@index([linkedid])
@@ -365,63 +365,63 @@ model callLegs {
 }
 
 model queueEvents {
-  queueEventId String   @id @default(uuid()) @db.Uuid
-  callId       String?  @db.Uuid
-  tenantId     String   @db.Uuid
-  linkedid     String   @db.VarChar(32)
-  queueId      String?  @db.Uuid
-  queueName    String   @db.VarChar(64)
-  agentId      String?  @db.Uuid
-  eventType    String   @db.VarChar(32)
-  eventTime    DateTime @db.Timestamptz(6)
-  waitSeconds  Int      @default(0)
-  ringSeconds  Int      @default(0)
-  positionNo   Int?
-  rawPayload   Json?
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  queueEventId   String    @id @default(uuid()) @db.Uuid
+  callId         String?   @db.Uuid
+  tenantId       String    @db.Uuid
+  linkedid       String    @db.VarChar(32)
+  queueId        String?   @db.Uuid
+  queueName      String    @db.VarChar(64)
+  agentId        String?   @db.Uuid
+  eventType      String    @db.VarChar(32)
+  eventTime      DateTime  @db.Timestamptz(6)
+  waitSeconds    Int       @default(0)
+  ringSeconds    Int       @default(0)
+  positionNo     Int?
+  rawPayload     Json?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
 
-  session callSessions? @relation(fields: [callId], references: [callId], onDelete: Cascade)
-  tenant  tenants       @relation(fields: [tenantId], references: [tenantId])
-  queue   queues?       @relation(fields: [queueId], references: [queueId])
-  agent   agents?       @relation(fields: [agentId], references: [agentId])
+  session        callSessions? @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant         tenants   @relation(fields: [tenantId], references: [tenantId])
+  queue          queues?   @relation(fields: [queueId], references: [queueId])
+  agent          agents?   @relation(fields: [agentId], references: [agentId])
 
   @@index([queueName, eventTime(sort: Desc)])
   @@index([linkedid])
 }
 
 model callRecordings {
-  recordingId               String    @id @default(uuid()) @db.Uuid
-  callId                    String    @db.Uuid
-  tenantId                  String    @db.Uuid
-  linkedid                  String    @db.VarChar(32)
-  recordingType             String    @default("mixmonitor") @db.VarChar(16)
-  filePath                  String
-  fileName                  String    @db.VarChar(255)
-  fileFormat                String    @default("wav") @db.VarChar(16)
-  fileSizeBytes             BigInt?
-  storageProvider           String?   @default("local") @db.VarChar(32)
-  recordingStartedAt        DateTime? @db.Timestamptz(6)
-  recordingEndedAt          DateTime? @db.Timestamptz(6)
-  durationSeconds           Int       @default(0)
-  checksumSha256            String?   @db.VarChar(64)
-  recordingStatus           String    @default("PENDING") @db.VarChar(32)
-  encryptionStatus          String    @default("NONE") @db.VarChar(32)
-  encryptedFilePath         String?
-  playbackFilePath          String?
-  playbackFileFormat        String?   @db.VarChar(16)
-  playbackFileSizeBytes     BigInt?
+  recordingId         String    @id @default(uuid()) @db.Uuid
+  callId              String    @db.Uuid
+  tenantId            String    @db.Uuid
+  linkedid            String    @db.VarChar(32)
+  recordingType       String    @default("mixmonitor") @db.VarChar(16)
+  filePath            String
+  fileName            String    @db.VarChar(255)
+  fileFormat          String    @default("wav") @db.VarChar(16)
+  fileSizeBytes       BigInt?
+  storageProvider     String?   @default("local") @db.VarChar(32)
+  recordingStartedAt  DateTime? @db.Timestamptz(6)
+  recordingEndedAt    DateTime? @db.Timestamptz(6)
+  durationSeconds     Int       @default(0)
+  checksumSha256      String?   @db.VarChar(64)
+  recordingStatus     String    @default("PENDING") @db.VarChar(32)
+  encryptionStatus    String    @default("NONE") @db.VarChar(32)
+  encryptedFilePath   String?
+  playbackFilePath    String?
+  playbackFileFormat  String?   @db.VarChar(16)
+  playbackFileSizeBytes BigInt?
   encryptedPlaybackFilePath String?
-  keyRef                    String?   @db.VarChar(128)
-  retentionUntil            DateTime? @db.Timestamptz(6)
-  finalizedAt               DateTime? @db.Timestamptz(6)
-  failureReason             String?
-  speakerSeparationStatus   String    @default("NOT_REQUESTED") @db.VarChar(32)
-  isAccessRestricted        Boolean   @default(true)
-  createdAt                 DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt                 DateTime  @updatedAt @db.Timestamptz(6)
+  keyRef              String?   @db.VarChar(128)
+  retentionUntil      DateTime? @db.Timestamptz(6)
+  finalizedAt         DateTime? @db.Timestamptz(6)
+  failureReason       String?
+  speakerSeparationStatus String @default("NOT_REQUESTED") @db.VarChar(32)
+  isAccessRestricted  Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
 
-  session callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
-  tenant  tenants      @relation(fields: [tenantId], references: [tenantId])
+  session             callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant              tenants @relation(fields: [tenantId], references: [tenantId])
 }
 
 model recordingFinalizeJobs {
@@ -437,8 +437,8 @@ model recordingFinalizeJobs {
   createdAt              DateTime @default(now()) @db.Timestamptz(6)
   updatedAt              DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant  tenants      @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  session callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant                 tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  session                callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
 
   @@unique([tenantId, linkedid, recFile])
   @@index([tenantId, status, nextAttemptAt])
@@ -454,24 +454,24 @@ model recordingRetentionPolicies {
   createdAt                  DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                  DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant                     tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId])
 }
 
 model callRecordingAccessAuditLogs {
-  auditLogId  String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @db.Uuid
-  recordingId String   @db.Uuid
-  callId      String?  @db.Uuid
-  linkedid    String?  @db.VarChar(32)
-  agentId     String?  @db.Uuid
-  userRole    String?  @db.VarChar(32)
-  action      String   @db.VarChar(32)
-  clientIp    String?  @db.VarChar(64)
-  userAgent   String?  @db.VarChar(255)
-  success     Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  auditLogId   String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  recordingId  String   @db.Uuid
+  callId       String?  @db.Uuid
+  linkedid     String?  @db.VarChar(32)
+  agentId      String?  @db.Uuid
+  userRole     String?  @db.VarChar(32)
+  action       String   @db.VarChar(32)
+  clientIp     String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(255)
+  success      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, recordingId, createdAt(sort: Desc)])
@@ -479,59 +479,59 @@ model callRecordingAccessAuditLogs {
 }
 
 model callMemos {
-  memoId        String   @id @default(uuid()) @db.Uuid
-  callId        String   @db.Uuid
-  tenantId      String   @db.Uuid
-  agentId       String   @db.Uuid
-  customerId    String?  @db.Uuid
-  memoType      String   @default("acw") @db.VarChar(16)
-  resultCode    String?  @db.VarChar(32)
-  subResultCode String?  @db.VarChar(32)
-  memoText      String?
-  isFinal       Boolean  @default(true)
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @default(now()) @db.Timestamptz(6)
+  memoId          String    @id @default(uuid()) @db.Uuid
+  callId          String    @db.Uuid
+  tenantId        String    @db.Uuid
+  agentId         String    @db.Uuid
+  customerId      String?   @db.Uuid
+  memoType        String    @default("acw") @db.VarChar(16)
+  resultCode      String?   @db.VarChar(32)
+  subResultCode   String?   @db.VarChar(32)
+  memoText        String?
+  isFinal         Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
 
-  session  callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
-  tenant   tenants      @relation(fields: [tenantId], references: [tenantId])
-  agent    agents       @relation(fields: [agentId], references: [agentId])
-  customer customers?   @relation(fields: [customerId], references: [customerId])
+  session         callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant          tenants @relation(fields: [tenantId], references: [tenantId])
+  agent           agents @relation(fields: [agentId], references: [agentId])
+  customer        customers? @relation(fields: [customerId], references: [customerId])
 }
 
 model callTransfers {
-  transferId     String    @id @default(uuid()) @db.Uuid
-  callId         String    @db.Uuid
-  tenantId       String    @db.Uuid
-  linkedid       String    @db.VarChar(32)
-  transferType   String    @db.VarChar(16)
-  fromAgentId    String?   @db.Uuid
-  toAgentId      String?   @db.Uuid
-  fromExtension  String?   @db.VarChar(16)
-  toExtension    String?   @db.VarChar(32)
-  transferResult String?   @db.VarChar(32)
-  requestedAt    DateTime  @db.Timestamptz(6)
-  completedAt    DateTime? @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  transferId      String    @id @default(uuid()) @db.Uuid
+  callId          String    @db.Uuid
+  tenantId        String    @db.Uuid
+  linkedid        String    @db.VarChar(32)
+  transferType    String    @db.VarChar(16)
+  fromAgentId     String?   @db.Uuid
+  toAgentId       String?   @db.Uuid
+  fromExtension   String?   @db.VarChar(16)
+  toExtension     String?   @db.VarChar(32)
+  transferResult  String?   @db.VarChar(32)
+  requestedAt     DateTime  @db.Timestamptz(6)
+  completedAt     DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
 
-  session   callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
-  tenant    tenants      @relation(fields: [tenantId], references: [tenantId])
-  fromAgent agents?      @relation("transfer_from", fields: [fromAgentId], references: [agentId])
-  toAgent   agents?      @relation("transfer_to", fields: [toAgentId], references: [agentId])
+  session         callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant          tenants @relation(fields: [tenantId], references: [tenantId])
+  fromAgent       agents? @relation("transfer_from", fields: [fromAgentId], references: [agentId])
+  toAgent         agents? @relation("transfer_to", fields: [toAgentId], references: [agentId])
 }
 
 model rawAmiEvents {
-  eventId          String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @db.Uuid
-  linkedid         String?  @db.VarChar(32)
-  uniqueid         String?  @db.VarChar(32)
-  eventName        String   @db.VarChar(64)
-  eventTime        DateTime @db.Timestamptz(6)
-  eventFingerprint String   @db.VarChar(64)
-  sequenceNo       BigInt   @default(autoincrement())
+  eventId          String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  linkedid         String?   @db.VarChar(32)
+  uniqueid         String?   @db.VarChar(32)
+  eventName        String    @db.VarChar(64)
+  eventTime        DateTime  @db.Timestamptz(6)
+  eventFingerprint String    @db.VarChar(64)
+  sequenceNo       BigInt    @default(autoincrement())
   payload          Json
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId])
+  tenant           tenants @relation(fields: [tenantId], references: [tenantId])
 
   // conv 44: Redis dedupe 가 뚫려도 DB unique 가 최종 방어선.
   @@unique([tenantId, eventFingerprint], map: "uq_raw_ami_fingerprint")
@@ -539,16 +539,16 @@ model rawAmiEvents {
 }
 
 model eventOutbox {
-  outboxId      String    @id @default(uuid()) @db.Uuid
-  tenantId      String    @db.Uuid
-  eventType     String    @db.VarChar(128)
-  aggregateType String?   @db.VarChar(64)
-  aggregateId   String?   @db.VarChar(64)
-  payload       Json
-  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
-  publishedAt   DateTime? @db.Timestamptz(6)
+  outboxId        String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  eventType       String    @db.VarChar(128)
+  aggregateType   String?   @db.VarChar(64)
+  aggregateId     String?   @db.VarChar(64)
+  payload         Json
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  publishedAt     DateTime? @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId])
+  tenant          tenants @relation(fields: [tenantId], references: [tenantId])
 
   @@index([publishedAt, createdAt])
 }
@@ -557,22 +557,22 @@ model eventOutbox {
 // consult leg 생성 → consult ringing/talking → rebridging → completed/failed 를
 // TransferDetectorService 가 여기에 기록·갱신하며 최종 확정 시 callTransfers 에 반영.
 model attendedTransferCandidates {
-  candidateId     String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @db.Uuid
-  linkedid        String    @db.VarChar(32)
-  fromAgentId     String?   @db.Uuid
-  fromExtension   String?   @db.VarChar(16)
-  toExtension     String?   @db.VarChar(32)
-  consultUniqueid String?   @db.VarChar(32)
-  targetUniqueid  String?   @db.VarChar(32)
-  phase           String    @default("REQUESTED") @db.VarChar(32)
-  requestedAt     DateTime  @db.Timestamptz(6)
-  completedAt     DateTime? @db.Timestamptz(6)
-  expiredAt       DateTime? @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
+  candidateId      String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  linkedid         String    @db.VarChar(32)
+  fromAgentId      String?   @db.Uuid
+  fromExtension    String?   @db.VarChar(16)
+  toExtension      String?   @db.VarChar(32)
+  consultUniqueid  String?   @db.VarChar(32)
+  targetUniqueid   String?   @db.VarChar(32)
+  phase            String    @default("REQUESTED") @db.VarChar(32)
+  requestedAt      DateTime  @db.Timestamptz(6)
+  completedAt      DateTime? @db.Timestamptz(6)
+  expiredAt        DateTime? @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId])
+  tenant           tenants @relation(fields: [tenantId], references: [tenantId])
 
   @@index([tenantId, linkedid])
   @@index([phase, requestedAt])
@@ -591,8 +591,8 @@ model refreshTokens {
   userAgent      String?   @db.VarChar(255)
   ipAddress      String?   @db.VarChar(64)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId])
-  agent  agents  @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  tenant         tenants @relation(fields: [tenantId], references: [tenantId])
+  agent          agents  @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
 
   @@index([agentId, revokedAt])
   @@index([expiresAt])
@@ -618,7 +618,7 @@ model agentDesktopReleases {
   createdAt              DateTime @default(now()) @db.Timestamptz(6)
   updatedAt              DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant                 tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, artifactId])
   @@index([tenantId, channel, isActive, publishedAt(sort: Desc)])
@@ -637,43 +637,43 @@ model agentDesktopUpdateAuditLogs {
   metadata          Json?
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  agent  agents? @relation(fields: [agentId], references: [agentId], onDelete: SetNull)
+  tenant            tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  agent             agents?  @relation(fields: [agentId], references: [agentId], onDelete: SetNull)
 
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, agentId, createdAt(sort: Desc)])
 }
 
 model announcements {
-  announcementId String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @db.Uuid
-  title          String    @db.VarChar(200)
+  announcementId String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  title          String   @db.VarChar(200)
   body           String
-  authorName     String    @db.VarChar(50)
-  pinned         Boolean   @default(false)
-  category       String    @default("NOTICE") @db.VarChar(32)
-  targetApp      String    @default("ALL") @db.VarChar(16)
-  showOnLogin    Boolean   @default(false)
-  severity       String    @default("INFO") @db.VarChar(16)
-  releaseTag     String?   @db.VarChar(64)
+  authorName     String   @db.VarChar(50)
+  pinned         Boolean  @default(false)
+  category       String   @default("NOTICE") @db.VarChar(32)
+  targetApp      String   @default("ALL") @db.VarChar(16)
+  showOnLogin    Boolean  @default(false)
+  severity       String   @default("INFO") @db.VarChar(16)
+  releaseTag     String?  @db.VarChar(64)
   effectiveFrom  DateTime? @db.Timestamptz(6)
   expiresAt      DateTime? @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants             @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  reads  announcementReads[]
+  tenant         tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  reads          announcementReads[]
 
   @@index([tenantId, pinned, createdAt(sort: Desc)])
   @@index([tenantId, category, targetApp, showOnLogin, createdAt(sort: Desc)])
 }
 
 model announcementReads {
-  announcementReadId String    @id @default(uuid()) @db.Uuid
-  tenantId           String    @db.Uuid
-  announcementId     String    @db.Uuid
-  agentId            String    @db.Uuid
-  readAt             DateTime  @default(now()) @db.Timestamptz(6)
+  announcementReadId String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.Uuid
+  announcementId     String   @db.Uuid
+  agentId            String   @db.Uuid
+  readAt             DateTime @default(now()) @db.Timestamptz(6)
   acknowledgedAt     DateTime? @db.Timestamptz(6)
 
   tenant       tenants       @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
@@ -685,28 +685,28 @@ model announcementReads {
 }
 
 model branches {
-  branchId           String   @id @default(uuid()) @db.Uuid
-  tenantId           String   @db.Uuid
-  branchCode         String   @db.VarChar(32)
-  branchName         String   @db.VarChar(128)
-  description        String?
-  settingsProfile    Json?
-  vipPromptId        String?  @db.Uuid
-  defaultShareRuleId String?  @db.Uuid
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime @default(now()) @db.Timestamptz(6)
+  branchId      String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  branchCode    String   @db.VarChar(32)
+  branchName    String   @db.VarChar(128)
+  description   String?
+  settingsProfile Json?
+  vipPromptId   String?  @db.Uuid
+  defaultShareRuleId String? @db.Uuid
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant                tenants                 @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  agentMappings         branchAgents[]
-  queueMappings         branchQueues[]
-  didMappings           branchDids[]
-  agentCallerIds        agentBranchCallerIds[]
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  agentMappings branchAgents[]
+  queueMappings branchQueues[]
+  didMappings   branchDids[]
+  agentCallerIds agentBranchCallerIds[]
   outboundCallerIdRules outboundCallerIdRules[]
-  vipPrompt             AsteriskPrompt?         @relation("branch_vip_prompt", fields: [vipPromptId], references: [id], onDelete: SetNull)
-  defaultShareRule      shareRules?             @relation("branch_default_share_rule", fields: [defaultShareRuleId], references: [shareRuleId], onDelete: SetNull)
-  shareRuleBranches     shareRuleBranches[]
-  holidayRules          tenantHolidayRules[]
+  vipPrompt     AsteriskPrompt? @relation("branch_vip_prompt", fields: [vipPromptId], references: [id], onDelete: SetNull)
+  defaultShareRule shareRules? @relation("branch_default_share_rule", fields: [defaultShareRuleId], references: [shareRuleId], onDelete: SetNull)
+  shareRuleBranches shareRuleBranches[]
+  holidayRules tenantHolidayRules[]
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
@@ -725,8 +725,8 @@ model tenantHolidayRules {
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  branch branches? @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch        branches? @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
 
   @@index([tenantId, branchId, isActive])
   @@index([tenantId, holidayDate])
@@ -740,9 +740,9 @@ model branchAgents {
   agentId       String   @db.Uuid
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  branch branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
-  agent  agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch        branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  agent         agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
 
   @@unique([branchId, agentId])
   @@index([tenantId, branchId])
@@ -755,9 +755,9 @@ model branchQueues {
   queueId       String   @db.Uuid
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  branch branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
-  queue  queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch        branches @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  queue         queues   @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
 
   @@unique([branchId, queueId])
   @@index([tenantId, branchId])
@@ -770,9 +770,9 @@ model branchDids {
   didId       String   @db.Uuid
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants     @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  branch branches    @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
-  did    AsteriskDid @relation(fields: [didId], references: [id], onDelete: Cascade)
+  tenant      tenants      @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch      branches     @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  did         AsteriskDid  @relation(fields: [didId], references: [id], onDelete: Cascade)
 
   @@unique([branchId, didId])
   @@unique([tenantId, didId])
@@ -840,7 +840,7 @@ model rolePermissions {
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant           tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, roleCode, menuKey])
   @@index([tenantId, roleCode])
@@ -861,50 +861,50 @@ model agentMenuPermissions {
   createdAt             DateTime @default(now()) @db.Timestamptz(6)
   updatedAt             DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  agent  agents  @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  tenant                tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  agent                 agents   @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
 
   @@unique([tenantId, agentId, menuKey])
   @@index([tenantId, agentId])
 }
 
 model tenantSystemSettings {
-  tenantSystemSettingId    String   @id @default(uuid()) @db.Uuid
-  tenantId                 String   @db.Uuid
-  recordingEnabled         Boolean  @default(true)
-  recordingChannelMode     String   @default("MONO") @db.VarChar(16)
-  defaultMaxWaitSeconds    Int      @default(45)
-  allowDirectSipDial       Boolean  @default(false)
-  defaultSipPassword       String?  @db.Text
-  allowedOutboundCallerIds String?  @db.Text
-  defaultOutboundCallerId  String?  @db.VarChar(32)
-  sipRegisterPort          Int      @default(48950)
-  timezone                 String   @default("Asia/Seoul") @db.VarChar(64)
-  dateFormat               String   @default("YYYY-MM-DD HH:mm:ss") @db.VarChar(32)
-  createdAt                DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime @updatedAt @db.Timestamptz(6)
+  tenantSystemSettingId  String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @db.Uuid
+  recordingEnabled       Boolean  @default(true)
+  recordingChannelMode   String   @default("MONO") @db.VarChar(16)
+  defaultMaxWaitSeconds  Int      @default(45)
+  allowDirectSipDial     Boolean  @default(false)
+  defaultSipPassword     String?  @db.Text
+  allowedOutboundCallerIds String? @db.Text
+  defaultOutboundCallerId String? @db.VarChar(32)
+  sipRegisterPort        Int      @default(48950)
+  timezone               String   @default("Asia/Seoul") @db.VarChar(64)
+  dateFormat             String   @default("YYYY-MM-DD HH:mm:ss") @db.VarChar(32)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant                 tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId])
 }
 
 model AsteriskTrunk {
-  id            String                     @id @default(uuid()) @db.Uuid
-  tenantId      String                     @db.Uuid
-  name          String                     @db.VarChar(128)
-  host          String                     @db.VarChar(255)
-  port          Int                        @default(5060)
-  username      String                     @db.VarChar(128)
-  password      String                     @db.Text
-  fromDomain    String                     @db.VarChar(255)
-  displayNumber String?                    @db.VarChar(32)
-  codecs        String                     @default("alaw,ulaw") @db.VarChar(64)
-  enabled       Boolean                    @default(true)
-  createdAt     DateTime                   @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime                   @updatedAt @db.Timestamptz(6)
-  tenant        tenants                    @relation(fields: [tenantId], references: [tenantId])
-  groupMembers  AsteriskTrunkGroupMember[]
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  name       String   @db.VarChar(128)
+  host       String   @db.VarChar(255)
+  port       Int      @default(5060)
+  username   String   @db.VarChar(128)
+  password   String   @db.Text
+  fromDomain String   @db.VarChar(255)
+  displayNumber String? @db.VarChar(32)
+  codecs     String   @default("alaw,ulaw") @db.VarChar(64)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+  tenant     tenants  @relation(fields: [tenantId], references: [tenantId])
+  groupMembers AsteriskTrunkGroupMember[]
 
   @@unique([tenantId, name])
 }
@@ -920,8 +920,8 @@ model AsteriskTrunkGroup {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant  tenants                    @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  members AsteriskTrunkGroupMember[]
+  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  members     AsteriskTrunkGroupMember[]
 
   @@unique([tenantId, name])
   @@index([tenantId, enabled])
@@ -938,9 +938,9 @@ model AsteriskTrunkGroupMember {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants            @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  group  AsteriskTrunkGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  trunk  AsteriskTrunk      @relation(fields: [trunkId], references: [id], onDelete: Cascade)
+  tenant    tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  group     AsteriskTrunkGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  trunk     AsteriskTrunk @relation(fields: [trunkId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, trunkId])
   @@index([tenantId, groupId])
@@ -948,21 +948,21 @@ model AsteriskTrunkGroupMember {
 }
 
 model AsteriskDid {
-  id                   String                   @id @default(uuid()) @db.Uuid
-  tenantId             String                   @db.Uuid
-  did                  String                   @db.VarChar(32)
-  representativeNumber String?                  @db.VarChar(32)
-  description          String?                  @db.VarChar(255)
-  ivrMenuId            String?                  @db.Uuid
-  directQueue          String?                  @db.VarChar(64)
-  directExtension      String?                  @db.VarChar(16)
-  enabled              Boolean                  @default(true)
-  createdAt            DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime                 @updatedAt @db.Timestamptz(6)
-  tenant               tenants                  @relation(fields: [tenantId], references: [tenantId])
-  ivrMenu              AsteriskIvrMenu?         @relation(fields: [ivrMenuId], references: [id])
-  branchMappings       branchDids[]
-  forwardingRule       asteriskForwardingRules?
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @db.Uuid
+  did         String           @db.VarChar(32)
+  representativeNumber String? @db.VarChar(32)
+  description String?          @db.VarChar(255)
+  ivrMenuId   String?          @db.Uuid
+  directQueue String?          @db.VarChar(64)
+  directExtension String?      @db.VarChar(16)
+  enabled     Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
+  tenant      tenants          @relation(fields: [tenantId], references: [tenantId])
+  ivrMenu     AsteriskIvrMenu? @relation(fields: [ivrMenuId], references: [id])
+  branchMappings branchDids[]
+  forwardingRule asteriskForwardingRules?
 
   @@unique([tenantId, did])
 }
@@ -978,33 +978,33 @@ model AsteriskSpeedDial {
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, code])
   @@index([tenantId, enabled])
 }
 
 model asteriskForwardingRules {
-  id                          String   @id @default(uuid()) @db.Uuid
-  tenantId                    String   @db.Uuid
-  didId                       String   @unique @db.Uuid
-  forwardType                 String   @db.VarChar(16)
-  targetValue                 String   @db.VarChar(64)
-  forwardTriggerMode          String   @default("IMMEDIATE") @db.VarChar(32)
-  queueWaitSeconds            Int?
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @db.Uuid
+  didId          String      @unique @db.Uuid
+  forwardType    String      @db.VarChar(16)
+  targetValue    String      @db.VarChar(64)
+  forwardTriggerMode String  @default("IMMEDIATE") @db.VarChar(32)
+  queueWaitSeconds Int?
   stickyCallbackWindowMinutes Int?
-  conditionType               String   @default("ALWAYS") @db.VarChar(16)
-  timeStart                   String?  @db.VarChar(5)
-  timeEnd                     String?  @db.VarChar(5)
-  daysOfWeek                  String?  @db.VarChar(32)
-  scheduleJson                String?  @db.Text
-  description                 String?  @db.VarChar(255)
-  enabled                     Boolean  @default(true)
-  createdAt                   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                   DateTime @updatedAt @db.Timestamptz(6)
+  conditionType  String      @default("ALWAYS") @db.VarChar(16)
+  timeStart      String?     @db.VarChar(5)
+  timeEnd        String?     @db.VarChar(5)
+  daysOfWeek     String?     @db.VarChar(32)
+  scheduleJson   String?     @db.Text
+  description    String?     @db.VarChar(255)
+  enabled        Boolean     @default(true)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(6)
 
-  tenant tenants     @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  did    AsteriskDid @relation(fields: [didId], references: [id], onDelete: Cascade)
+  tenant         tenants     @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  did            AsteriskDid @relation(fields: [didId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, didId])
   @@index([tenantId, enabled])
@@ -1050,8 +1050,8 @@ model AsteriskPrompt {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant         tenants                @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  vipBranches    branches[]             @relation("branch_vip_prompt")
+  tenant       tenants    @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  vipBranches  branches[] @relation("branch_vip_prompt")
   generationJobs promptGenerationJobs[]
 
   @@unique([tenantId, promptKey])
@@ -1059,48 +1059,48 @@ model AsteriskPrompt {
 }
 
 model promptGenerationJobs {
-  promptGenerationJobId String    @id @default(uuid()) @db.Uuid
-  tenantId              String    @db.Uuid
-  promptId              String?   @db.Uuid
-  promptKey             String    @db.VarChar(128)
-  displayName           String    @db.VarChar(128)
-  fileName              String    @db.VarChar(255)
-  sourceText            String    @db.Text
-  provider              String    @default("local-wav") @db.VarChar(32)
-  voice                 String?   @db.VarChar(64)
-  language              String    @default("ko-KR") @db.VarChar(16)
-  format                String    @default("wav") @db.VarChar(16)
-  status                String    @default("PENDING") @db.VarChar(32)
+  promptGenerationJobId String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.Uuid
+  promptId              String?  @db.Uuid
+  promptKey             String   @db.VarChar(128)
+  displayName           String   @db.VarChar(128)
+  fileName              String   @db.VarChar(255)
+  sourceText            String   @db.Text
+  provider              String   @default("local-wav") @db.VarChar(32)
+  voice                 String?  @db.VarChar(64)
+  language              String   @default("ko-KR") @db.VarChar(16)
+  format                String   @default("wav") @db.VarChar(16)
+  status                String   @default("PENDING") @db.VarChar(32)
   errorMessage          String?
   generatedBytes        Int?
-  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(6)
   completedAt           DateTime? @db.Timestamptz(6)
 
-  tenant tenants         @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
-  prompt AsteriskPrompt? @relation(fields: [promptId], references: [id], onDelete: SetNull)
+  tenant                tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  prompt                AsteriskPrompt? @relation(fields: [promptId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt(sort: Desc)])
   @@index([tenantId, promptKey])
 }
 
 model AsteriskBlocklistEntry {
-  id                       String   @id @default(uuid()) @db.Uuid
-  tenantId                 String   @db.Uuid
-  matchType                String   @default("EXACT") @db.VarChar(16)
-  phoneNumber              String   @db.VarChar(32)
-  normalizedPhoneNumber    String?  @db.VarChar(32)
-  requesterPhoneNumber     String?  @db.VarChar(32)
-  normalizedRequesterPhone String?  @db.VarChar(32)
-  sourceType               String?  @db.VarChar(32)
-  branchId                 String?  @db.Uuid
-  entryDid                 String?  @db.VarChar(32)
-  description              String?  @db.VarChar(255)
-  isActive                 Boolean  @default(true)
-  createdAt                DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime @updatedAt @db.Timestamptz(6)
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @db.Uuid
+  matchType              String   @default("EXACT") @db.VarChar(16)
+  phoneNumber            String   @db.VarChar(32)
+  normalizedPhoneNumber  String?  @db.VarChar(32)
+  requesterPhoneNumber   String?  @db.VarChar(32)
+  normalizedRequesterPhone String? @db.VarChar(32)
+  sourceType             String?  @db.VarChar(32)
+  branchId               String?  @db.Uuid
+  entryDid               String?  @db.VarChar(32)
+  description            String?  @db.VarChar(255)
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant      tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, matchType, phoneNumber])
   @@index([tenantId, isActive])
@@ -1122,7 +1122,7 @@ model sipSecurityBlocks {
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, blockKey])
   @@index([tenantId, blockType, blockedUntil])
@@ -1130,16 +1130,16 @@ model sipSecurityBlocks {
 }
 
 model tenantSmsTemplate {
-  templateId   String              @id @default(uuid()) @db.Uuid
-  tenantId     String              @db.Uuid
-  templateName String              @db.VarChar(120)
+  templateId   String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  templateName String   @db.VarChar(120)
   category     SmsTemplateCategory
-  content      String              @db.Text
-  isActive     Boolean             @default(true)
-  createdAt    DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime            @updatedAt @db.Timestamptz(6)
+  content      String   @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant       tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, templateName], map: "tenantSmsTemplate_tenantId_templateName_key")
   @@index([tenantId, category], map: "tenantSmsTemplate_tenantId_category_idx")
@@ -1147,22 +1147,22 @@ model tenantSmsTemplate {
 
 // 공유규칙 마스터 (BlueSky ShareRule)
 model shareRules {
-  shareRuleId String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @db.Uuid
-  ruleCode    String   @db.VarChar(32)
-  ruleName    String   @db.VarChar(128)
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedById String?  @db.Uuid
+  shareRuleId  String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  ruleCode     String   @db.VarChar(32)
+  ruleName     String   @db.VarChar(128)
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedById  String?  @db.Uuid
 
-  tenant             tenants                @relation(fields: [tenantId], references: [tenantId])
-  agents             shareRuleAgents[]
-  agentGroups        shareRuleAgentGroups[]
-  branches           shareRuleBranches[]
-  customers          customers[]            @relation("customer_share_rule")
-  defaultForBranches branches[]             @relation("branch_default_share_rule")
+  tenant            tenants               @relation(fields: [tenantId], references: [tenantId])
+  agents            shareRuleAgents[]
+  agentGroups       shareRuleAgentGroups[]
+  branches          shareRuleBranches[]
+  customers         customers[]           @relation("customer_share_rule")
+  defaultForBranches branches[]           @relation("branch_default_share_rule")
 
   @@unique([tenantId, ruleCode])
   @@index([tenantId, isActive])
@@ -1177,9 +1177,9 @@ model shareRuleAgents {
   priority         Int      @default(0)
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant    tenants    @relation(fields: [tenantId], references: [tenantId])
-  shareRule shareRules @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
-  agent     agents     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  tenant           tenants    @relation(fields: [tenantId], references: [tenantId])
+  shareRule        shareRules @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
+  agent            agents     @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
 
   @@unique([tenantId, shareRuleId, agentId])
   @@index([shareRuleId, priority])
@@ -1194,9 +1194,9 @@ model shareRuleAgentGroups {
   priority              Int      @default(0)
   createdAt             DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant     tenants     @relation(fields: [tenantId], references: [tenantId])
-  shareRule  shareRules  @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
-  agentGroup agentGroups @relation(fields: [agentGroupId], references: [agentGroupId], onDelete: Cascade)
+  tenant                tenants     @relation(fields: [tenantId], references: [tenantId])
+  shareRule             shareRules  @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
+  agentGroup            agentGroups @relation(fields: [agentGroupId], references: [agentGroupId], onDelete: Cascade)
 
   @@unique([tenantId, shareRuleId, agentGroupId])
   @@index([shareRuleId, priority])
@@ -1204,19 +1204,19 @@ model shareRuleAgentGroups {
 
 // 외부 연동 자동화 (BlueSky DlgVixActionPhone / DlgVixActionSms 등가)
 model integrationAutomations {
-  integrationAutomationId String    @id @default(uuid()) @db.Uuid
-  tenantId                String    @db.Uuid
-  type                    String    @db.VarChar(32)
-  name                    String    @db.VarChar(128)
+  integrationAutomationId String   @id @default(uuid()) @db.Uuid
+  tenantId                String   @db.Uuid
+  type                    String   @db.VarChar(32)
+  name                    String   @db.VarChar(128)
   description             String?
-  config                  Json      @default("{}")
-  enabled                 Boolean   @default(true)
+  config                  Json     @default("{}")
+  enabled                 Boolean  @default(true)
   lastTriggeredAt         DateTime? @db.Timestamptz(6)
-  createdAt               DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt               DateTime  @default(now()) @db.Timestamptz(6)
-  updatedById             String?   @db.Uuid
+  createdAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedById             String?  @db.Uuid
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId])
+  tenant                  tenants  @relation(fields: [tenantId], references: [tenantId])
 
   @@index([tenantId, type, enabled])
   @@index([tenantId, name])
@@ -1232,9 +1232,9 @@ model shareRuleBranches {
   transferPhone     String?  @db.VarChar(32)
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant    tenants    @relation(fields: [tenantId], references: [tenantId])
-  shareRule shareRules @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
-  branch    branches   @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
+  tenant            tenants    @relation(fields: [tenantId], references: [tenantId])
+  shareRule         shareRules @relation(fields: [shareRuleId], references: [shareRuleId], onDelete: Cascade)
+  branch            branches   @relation(fields: [branchId], references: [branchId], onDelete: Cascade)
 
   @@unique([tenantId, shareRuleId, branchId])
   @@index([shareRuleId])
@@ -1258,7 +1258,7 @@ model configVersions {
   createdByAgentId String?  @db.Uuid
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant           tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, configType, version])
   @@index([tenantId, configType, version(sort: Desc)])
@@ -1278,7 +1278,7 @@ model configApplyStatus {
   appliedAt       DateTime? @db.Timestamptz(6)
   updatedAt       DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant          tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, nodeId, configType])
   @@index([nodeId, status])
@@ -1321,7 +1321,7 @@ model offlineSpoolEntries {
   processedAt    DateTime? @db.Timestamptz(6)
   lastError      String?
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant         tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, entryType, idempotencyKey])
   @@index([status, receivedAt])
@@ -1346,7 +1346,7 @@ model replayBatches {
   createdAt        DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant           tenants   @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@index([status, createdAt])
   @@index([tenantId, createdAt(sort: Desc)])
@@ -1382,7 +1382,7 @@ model featureCodes {
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  tenant        tenants  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
 
   @@unique([tenantId, featureKey])
   @@unique([tenantId, code])
