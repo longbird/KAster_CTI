@@ -1,0 +1,62 @@
+<UserControl x:Class="KAster.Desktop.App.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BrushBackground}">
+
+    <!--
+        창에 스크롤을 만들지 않는다. 행 높이를 고정하고 남는 세로 공간은 마지막 여백 한 곳만 흡수한다.
+    -->
+    <Border Margin="24" Padding="{StaticResource PadPanel}"
+            Background="{StaticResource BrushSurface}"
+            BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusPanel}"
+            VerticalAlignment="Center">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="PBX 상담원" Style="{StaticResource TextTitle}" />
+            <TextBlock Grid.Row="1" Margin="0,4,0,20"
+                       Text="상담원 계정으로 로그인한다"
+                       Style="{StaticResource TextCaption}" />
+
+            <TextBlock Grid.Row="2" Text="아이디" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+            <TextBox Grid.Row="3" Margin="{StaticResource GapStack}"
+                     Style="{StaticResource FieldInput}"
+                     Text="{Binding LoginId, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Grid.Row="4" Text="비밀번호" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+            <PasswordBox x:Name="PasswordField" Grid.Row="5" Margin="{StaticResource GapStack}"
+                         Style="{StaticResource FieldPassword}"
+                         PasswordChanged="OnPasswordChanged" />
+
+            <TextBlock Grid.Row="6" Text="내선" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+            <TextBox Grid.Row="7" Margin="0,0,0,16"
+                     Style="{StaticResource FieldInput}"
+                     Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" />
+
+            <StackPanel Grid.Row="8">
+                <!-- 오류 자리를 항상 잡아 두면 메시지가 떴다 사라질 때 아래 버튼이 흔들리지 않는다. -->
+                <TextBlock Height="34"
+                           Text="{Binding ErrorMessage}"
+                           Foreground="{StaticResource BrushDanger}"
+                           Style="{StaticResource TextCaption}"
+                           TextTrimming="CharacterEllipsis" />
+                <Button Content="로그인"
+                        Style="{StaticResource ButtonPrimary}"
+                        Command="{Binding SignInCommand}"
+                        IsDefault="True" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
