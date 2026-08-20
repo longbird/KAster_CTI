@@ -12,7 +12,7 @@ public sealed record TokenPair(string AccessToken, string RefreshToken);
 /// 토큰을 DPAPI(현재 사용자 범위)로 암호화해 보관한다. 다른 계정이 파일을 가져가도 풀 수 없다.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class TokenVault
+public sealed class TokenVault : ITokenStore
 {
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("KAster.Desktop.TokenVault.v1");
     private readonly string _path;
