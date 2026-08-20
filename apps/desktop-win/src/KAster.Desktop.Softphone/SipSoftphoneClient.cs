@@ -1,4 +1,7 @@
 using System.Net;
+using System.Runtime.Versioning;
+using KAster.Desktop.Softphone.Audio;
+using SIPSorcery.Media;
 using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
 
@@ -9,21 +12,49 @@ namespace KAster.Desktop.Softphone;
 ///
 /// 등록 실패는 예외로 던지지 않고 <see cref="RegistrationStatusChanged"/> 로만 알린다.
 /// 소프트폰이 안 붙었다고 앱 전체가 못 뜨면 상담원이 화면조차 볼 수 없다.
+///
+/// 통화의 정체(callId·고객·상태)는 서버가 진실원이다. 이 클래스는 소리와 회선만 다룬다.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public sealed class SipSoftphoneClient : IDisposable
 {
     private readonly object _gate = new();
+    private readonly Func<WasapiAudioEndPoint> _audioFactory;
+
     private SIPTransport? _transport;
     private SIPRegistrationUserAgent? _registrar;
     private SoftphoneOptions? _options;
 
+    private SIPUserAgent? _userAgent;
+    private SIPServerUserAgent? _pendingCall;
+    private WasapiAudioEndPoint? _audio;
+
+    /// <param name="audioFactory">
+    /// 통화마다 새 오디오 엔드포인트를 만든다. 장치 선택이 통화 사이에 바뀔 수 있어 재사용하지 않는다.
+    /// </param>
+    public SipSoftphoneClient(Func<WasapiAudioEndPoint> audioFactory) => _audioFactory = audioFactory;
+
     public event EventHandler<RegistrationStatus>? RegistrationStatusChanged;
+
+    public event EventHandler<SoftphoneCallStatus>? CallStatusChanged;
 
     public RegistrationStatus Status { get; private set; } = new(RegistrationState.Stopped);
 
     public SoftphoneOptions? Options => _options;
 
     public SIPTransport? Transport => _transport;
+
+    public SoftphoneCallStatus CallStatus { get; private set; } = new(SoftphoneCallState.Idle);
+
+    /// <summary>마이크 끄기. 회선은 그대로 두고 무음을 보낸다.</summary>
+    public bool IsMuted
+    {
+        get => _audio?.IsMuted ?? false;
+        set
+        {
+            if (_audio is not null) _audio.IsMuted = value;
+        }
+    }
 
     public void Start(SoftphoneOptions options)
     {
@@ -73,8 +104,13 @@ public sealed class SipSoftphoneClient : IDisposable
                 Raise(new RegistrationStatus(RegistrationState.Registering, reason));
             registrar.RegistrationRemoved += (_, _) => Raise(new RegistrationStatus(RegistrationState.Stopped));
 
+            var userAgent = new SIPUserAgent(transport, null);
+            userAgent.OnIncomingCall += HandleIncomingCall;
+            userAgent.OnCallHungup += _ => EndCall("상대가 끊었다");
+
             _transport = transport;
             _registrar = registrar;
+            _userAgent = userAgent;
 
             Raise(new RegistrationStatus(RegistrationState.Registering));
             registrar.Start();
@@ -90,8 +126,113 @@ public sealed class SipSoftphoneClient : IDisposable
         }
     }
 
+    /// <summary>수신 INVITE. 180 Ringing 까지만 보내고 받을지 말지는 사용자가 정한다.</summary>
+    private void HandleIncomingCall(SIPUserAgent userAgent, SIPRequest request)
+    {
+        var uas = userAgent.AcceptCall(request);
+        uas.Progress(SIPResponseStatusCodesEnum.Ringing, null, null, null, null);
+
+        var from = request.Header.From;
+        var info = new IncomingCallInfo(
+            request.Header.CallId,
+            from?.FromURI?.User ?? string.Empty,
+            from?.FromName ?? string.Empty);
+
+        lock (_gate)
+        {
+            _pendingCall = uas;
+        }
+
+        RaiseCall(new SoftphoneCallStatus(SoftphoneCallState.Ringing, info));
+    }
+
+    /// <summary>사용자가 받기를 눌렀을 때. 오디오를 열고 200 OK 를 보낸다.</summary>
+    public async Task<bool> AnswerAsync()
+    {
+        SIPServerUserAgent? uas;
+        SIPUserAgent? userAgent;
+        lock (_gate)
+        {
+            uas = _pendingCall;
+            userAgent = _userAgent;
+        }
+
+        if (uas is null || userAgent is null) return false;
+
+        var audio = _audioFactory();
+        // 오디오 엔드포인트가 alaw/ulaw 만 내놓으므로 SDP 제안도 그 둘로 한정된다.
+        var session = new VoIPMediaSession(audio.ToMediaEndPoints());
+
+        // PBX 가 시그널링과 다른 포트에서 RTP 를 보내는 구성이 흔하다. 막으면 한쪽 소리가 안 들린다.
+        session.AcceptRtpFromAny = true;
+
+        var answered = await userAgent.Answer(uas, session);
+        if (!answered)
+        {
+            audio.Dispose();
+            EndCall("응답에 실패했다");
+            return false;
+        }
+
+        lock (_gate)
+        {
+            _audio = audio;
+            _pendingCall = null;
+        }
+
+        RaiseCall(new SoftphoneCallStatus(SoftphoneCallState.Answered, CallStatus.Call));
+        return true;
+    }
+
+    /// <summary>사용자가 끊기를 눌렀을 때. 아직 안 받은 통화면 거절한다.</summary>
+    public void Hangup()
+    {
+        lock (_gate)
+        {
+            if (_pendingCall is not null)
+            {
+                _pendingCall.Reject(SIPResponseStatusCodesEnum.BusyHere, null);
+                _pendingCall = null;
+            }
+            else
+            {
+                _userAgent?.Hangup();
+            }
+        }
+
+        EndCall("이 단말에서 끊었다");
+    }
+
+    private void EndCall(string reason)
+    {
+        lock (_gate)
+        {
+            _audio?.Dispose();
+            _audio = null;
+            _pendingCall = null;
+        }
+
+        RaiseCall(new SoftphoneCallStatus(SoftphoneCallState.Ended, null, reason));
+        RaiseCall(new SoftphoneCallStatus(SoftphoneCallState.Idle));
+    }
+
+    private void RaiseCall(SoftphoneCallStatus status)
+    {
+        if (CallStatus == status) return;
+        CallStatus = status;
+        CallStatusChanged?.Invoke(this, status);
+    }
+
     private void StopCore()
     {
+        _audio?.Dispose();
+        _audio = null;
+        _pendingCall = null;
+
+        _userAgent?.Close();
+        _userAgent?.Dispose();
+        _userAgent = null;
+
         _registrar?.Stop(true);
         _registrar = null;
 
