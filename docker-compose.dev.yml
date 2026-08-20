@@ -118,6 +118,8 @@ services:
       SOFTPHONE_ENABLED: ${SOFTPHONE_ENABLED:-false}
       SOFTPHONE_SIP_DOMAIN: ${SOFTPHONE_SIP_DOMAIN:-}
       SOFTPHONE_WS_SERVER: ${SOFTPHONE_WS_SERVER:-}
+      SOFTPHONE_SIP_SERVER: ${SOFTPHONE_SIP_SERVER:-}
+      SOFTPHONE_SIP_TRANSPORT: ${SOFTPHONE_SIP_TRANSPORT:-udp}
       SOFTPHONE_ICE_SERVERS_JSON: '${SOFTPHONE_ICE_SERVERS_JSON:-[{"urls":"stun:stun.l.google.com:19302"},{"urls":["turn:49.247.46.86:3478?transport=udp","turn:49.247.46.86:3478?transport=tcp"],"username":"kaster","credential":"kaster_turn_dev_secret"}]}'
     extra_hosts:
       - "host.docker.internal:host-gateway"
