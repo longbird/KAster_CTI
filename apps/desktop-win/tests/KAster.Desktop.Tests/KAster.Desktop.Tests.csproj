@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\KAster.Desktop.Core\KAster.Desktop.Core.csproj" />
     <ProjectReference Include="..\..\src\KAster.Desktop.Softphone\KAster.Desktop.Softphone.csproj" />
+    <ProjectReference Include="..\..\src\KAster.Desktop.App\KAster.Desktop.App.csproj" />
   </ItemGroup>
 
 </Project>
