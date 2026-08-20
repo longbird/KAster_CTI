@@ -1,0 +1,78 @@
+<UserControl x:Class="KAster.Desktop.App.Views.IdleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BrushBackground}">
+
+    <!--
+        창에 스크롤을 만들지 않는다. 세로 공간은 가운데 안내 영역 한 곳만 흡수한다(Height="*").
+    -->
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 머리말: 상담원과 연결 상태 -->
+        <Border Grid.Row="0" Padding="{StaticResource PadPanel}"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource RadiusPanel}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="{Binding AgentName}" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource TextCaption}" Margin="0,2,0,0">
+                        <Run Text="내선 " /><Run Text="{Binding Extension, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <Border Grid.Column="1" VerticalAlignment="Center"
+                        Padding="10,4"
+                        CornerRadius="{StaticResource RadiusChip}"
+                        Background="{StaticResource BrushSurfaceMuted}">
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                <Setter Property="Text" Value="연결 끊김" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Text" Value="연결됨" />
+                                        <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 본문: 대기 안내 -->
+        <Border Grid.Row="1" Margin="0,12"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource RadiusPanel}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="대기 중" Style="{StaticResource TextTitle}" HorizontalAlignment="Center" />
+                <TextBlock Text="전화가 오면 이 창이 바뀐다"
+                           Style="{StaticResource TextCaption}"
+                           Margin="0,6,0,0"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <!-- 꼬리말: 알림 자리를 고정해 두면 메시지가 떠도 위 영역이 흔들리지 않는다 -->
+        <TextBlock Grid.Row="2" Height="20"
+                   Text="{Binding NoticeMessage}"
+                   Foreground="{StaticResource BrushWarning}"
+                   Style="{StaticResource TextCaption}" />
+    </Grid>
+</UserControl>

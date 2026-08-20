@@ -37,6 +37,12 @@ public sealed class CtiEventClient : IAsyncDisposable
     /// <summary>파싱하지 못한 이벤트. 서버가 새 이벤트를 추가했을 때 로그로 남기기 위한 것이다.</summary>
     public event EventHandler<string>? UnparsedEvent;
 
+    /// <summary>
+    /// 구독자가 던진 예외. 이걸 소켓 라이브러리로 흘려보내면 조용히 삼켜져서
+    /// "이벤트는 왔는데 화면이 안 바뀐다" 가 된다.
+    /// </summary>
+    public event EventHandler<Exception>? HandlerFailed;
+
     public bool IsConnected => _socket?.Connected == true;
 
     public async Task ConnectAsync(CancellationToken ct)
@@ -114,7 +120,14 @@ public sealed class CtiEventClient : IAsyncDisposable
             return;
         }
 
-        EventReceived?.Invoke(this, parsed);
+        try
+        {
+            EventReceived?.Invoke(this, parsed);
+        }
+        catch (Exception ex)
+        {
+            HandlerFailed?.Invoke(this, ex);
+        }
     }
 
     private void Raise(CtiConnectionState state)

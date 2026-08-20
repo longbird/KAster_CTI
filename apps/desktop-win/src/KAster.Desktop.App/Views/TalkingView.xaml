@@ -1,0 +1,87 @@
+<UserControl x:Class="KAster.Desktop.App.Views.TalkingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BrushBackground}">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <!-- 남는 세로 공간은 이 한 곳만 흡수한다. 여러 곳이 늘어나면 합계가 창을 넘긴다. -->
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 상대 -->
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="{Binding CustomerName}" Style="{StaticResource TextTitle}" />
+            <TextBlock Text="{Binding PhoneNumber}" Style="{StaticResource TextCaption}" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <!-- 통화 시간 -->
+        <TextBlock Grid.Row="1"
+                   Text="{Binding CallDurationText}"
+                   Style="{StaticResource TextBody}"
+                   FontSize="{StaticResource FontSizeNumber}"
+                   FontWeight="SemiBold"
+                   Margin="0,12,0,0" />
+
+        <!-- 메모: 고정 줄 수까지만 보인다. 길어져도 창이 스크롤되지 않는다. -->
+        <Border Grid.Row="2" Margin="0,12"
+                Padding="{StaticResource PadPanel}"
+                Background="{StaticResource BrushSurface}"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource RadiusPanel}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="메모" Style="{StaticResource TextCaption}" />
+                <TextBox Grid.Row="1" Margin="0,6,0,0"
+                         Style="{StaticResource FieldInput}"
+                         Height="Auto"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Disabled"
+                         MaxLines="5" />
+            </Grid>
+        </Border>
+
+        <!-- 조작 -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Command="{Binding ToggleMuteCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                        <Setter Property="Content" Value="마이크 끄기" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                <Setter Property="Content" Value="마이크 켜기" />
+                                <Setter Property="Background" Value="{StaticResource BrushWarning}" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button Grid.Column="2" Content="끊기"
+                    Style="{StaticResource ButtonDanger}"
+                    Command="{Binding HangupCommand}" />
+        </Grid>
+
+        <TextBlock Grid.Row="4" Height="20" Margin="0,8,0,0"
+                   Text="{Binding NoticeMessage}"
+                   Foreground="{StaticResource BrushWarning}"
+                   Style="{StaticResource TextCaption}" />
+    </Grid>
+</UserControl>

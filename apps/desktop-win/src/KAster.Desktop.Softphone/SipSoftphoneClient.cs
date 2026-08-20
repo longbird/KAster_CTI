@@ -16,7 +16,7 @@ namespace KAster.Desktop.Softphone;
 /// 통화의 정체(callId·고객·상태)는 서버가 진실원이다. 이 클래스는 소리와 회선만 다룬다.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class SipSoftphoneClient : IDisposable
+public sealed class SipSoftphoneClient : ISoftphoneControl, IDisposable
 {
     private readonly object _gate = new();
     private readonly Func<WasapiAudioEndPoint> _audioFactory;
