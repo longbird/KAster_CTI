@@ -32,7 +32,7 @@ describe('AuthService softphone config', () => {
       findUnique: jest.fn(),
     },
   };
-  const configValues: Record<string, string> = {
+  const baseConfigValues: Record<string, string> = {
     JWT_SECRET: 'change_me',
     SOFTPHONE_ENABLED: 'true',
     SOFTPHONE_SIP_DOMAIN: 'pbx.example.com',
@@ -40,8 +40,11 @@ describe('AuthService softphone config', () => {
     SOFTPHONE_ICE_SERVERS_JSON:
       '[{"urls":["stun:stun.example.com:3478"]},{"urls":["turn:turn.example.com:3478"],"username":"turn-user","credential":"turn-pass"}]',
   };
+  // 테스트마다 env 조합이 달라지므로 매번 기본값 사본으로 되돌린다.
+  let configValues: Record<string, string> = { ...baseConfigValues };
 
   beforeEach(async () => {
+    configValues = { ...baseConfigValues };
     redisStore.clear();
     jest.clearAllMocks();
     agentRecord = {
@@ -123,6 +126,8 @@ describe('AuthService softphone config', () => {
       enabled: true,
       sipUri: 'sip:1001@pbx.example.com',
       wsServer: 'wss://pbx.example.com:8089/ws',
+      sipServer: null,
+      transport: 'udp',
       authorizationUsername: '1001',
       displayName: '상담원1',
       iceServers: [
@@ -161,5 +166,61 @@ describe('AuthService softphone config', () => {
     expect(exchanged.data.agent.agentId).toBe('agent-1');
     expect(exchanged.data.accessToken).toBeTruthy();
     expect('softphoneConfig' in exchanged.data).toBe(false);
+  });
+
+  it('SOFTPHONE_SIP_SERVER 가 있으면 sipServer 와 transport 를 함께 내려준다', async () => {
+    configValues.SOFTPHONE_SIP_SERVER = 'pbx.example.com:48950';
+    configValues.SOFTPHONE_SIP_TRANSPORT = 'udp';
+
+    const session = await service.getSession({
+      sub: 'agent-1',
+      tenantId: 'tenant-1',
+      role: 'agent',
+      extension: '1001',
+    });
+
+    expect(session.data.softphoneConfig).toMatchObject({
+      enabled: true,
+      wsServer: 'wss://pbx.example.com:8089/ws',
+      sipServer: 'pbx.example.com:48950',
+      transport: 'udp',
+    });
+  });
+
+  it('SOFTPHONE_SIP_SERVER 만 있고 WS 가 비어도 enabled 다', async () => {
+    configValues.SOFTPHONE_WS_SERVER = '';
+    configValues.SOFTPHONE_SIP_SERVER = 'pbx.example.com:48950';
+
+    const session = await service.getSession({
+      sub: 'agent-1',
+      tenantId: 'tenant-1',
+      role: 'agent',
+      extension: '1001',
+    });
+
+    expect(session.data.softphoneConfig).toMatchObject({
+      enabled: true,
+      sipUri: 'sip:1001@pbx.example.com',
+      wsServer: null,
+      sipServer: 'pbx.example.com:48950',
+      transport: 'udp',
+    });
+  });
+
+  it('둘 다 비어 있으면 여전히 disabled 다', async () => {
+    configValues.SOFTPHONE_WS_SERVER = '';
+
+    const session = await service.getSession({
+      sub: 'agent-1',
+      tenantId: 'tenant-1',
+      role: 'agent',
+      extension: '1001',
+    });
+
+    expect(session.data.softphoneConfig).toMatchObject({
+      enabled: false,
+      sipServer: null,
+      transport: 'udp',
+    });
   });
 });

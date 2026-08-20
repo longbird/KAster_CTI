@@ -103,6 +103,8 @@ describe('AuthService desktop session', () => {
         enabled: true,
         sipUri: 'sip:1001@pbx.example.com',
         wsServer: 'wss://pbx.example.com:8089/ws',
+        sipServer: null,
+        transport: 'udp',
         authorizationUsername: '1001',
         authorizationPassword: 'sip-secret-1001',
         displayName: '상담원1',

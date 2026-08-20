@@ -30,6 +30,9 @@ export interface SoftphoneConfigPayload {
   enabled: boolean;
   sipUri: string | null;
   wsServer: string | null;
+  // 네이티브 SIP 클라이언트(C# 데스크톱)가 붙을 host:port. WS 경로와 공존한다.
+  sipServer: string | null;
+  transport: 'udp' | 'tls';
   authorizationUsername: string | null;
   authorizationPassword?: string | null;
   displayName: string;
@@ -525,14 +528,20 @@ export class AuthService {
     const enabled = this.config.get<string>('SOFTPHONE_ENABLED', 'false') === 'true';
     const sipDomain = this.config.get<string>('SOFTPHONE_SIP_DOMAIN', '').trim();
     const wsServer = this.config.get<string>('SOFTPHONE_WS_SERVER', '').trim();
+    const sipServer = this.config.get<string>('SOFTPHONE_SIP_SERVER', '').trim();
+    const transport: 'udp' | 'tls' =
+      this.config.get<string>('SOFTPHONE_SIP_TRANSPORT', 'udp').trim() === 'tls' ? 'tls' : 'udp';
     const extension = agent?.extension?.trim() ?? null;
     const displayName = agent?.agentName?.trim() || 'Unknown Agent';
 
-    if (!enabled || !sipDomain || !wsServer || !extension) {
+    // WS(브라우저/Electron) 든 SIP(네이티브) 든 붙을 주소가 하나라도 있으면 활성이다.
+    if (!enabled || !sipDomain || (!wsServer && !sipServer) || !extension) {
       return {
         enabled: false,
         sipUri: null,
         wsServer: null,
+        sipServer: null,
+        transport: 'udp',
         authorizationUsername: null,
         authorizationPassword: options?.includeCredential ? null : undefined,
         displayName,
@@ -543,7 +552,9 @@ export class AuthService {
     return {
       enabled: true,
       sipUri: `sip:${extension}@${sipDomain}`,
-      wsServer,
+      wsServer: wsServer || null,
+      sipServer: sipServer || null,
+      transport,
       authorizationUsername: extension,
       authorizationPassword: options?.includeCredential ? agent?.sipPassword?.trim() ?? null : undefined,
       displayName,
