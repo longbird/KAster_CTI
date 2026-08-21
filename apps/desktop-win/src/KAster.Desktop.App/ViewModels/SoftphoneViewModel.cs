@@ -323,24 +323,30 @@ public sealed class SoftphoneViewModel : ObservableObject
         var internalCall = IsExtension(number);
         Note($"발신 요청 {number} ({(internalCall ? "내선" : "외부")})");
 
+        // PBX 는 서버의 HTTP 응답보다 <b>먼저</b> 우리를 부를 수 있다
+        // (실측 2026-08-21: 외부 발신에서 INVITE 가 ack 보다 1ms 빨랐다).
+        // 그래서 요청을 보내기 전에 창을 연다. 응답을 기다렸다 열면 그 한 통을 놓친다.
+        _dialedNumber = number;
+        _selfAnswerUntil = _now().AddSeconds(SelfAnswerWindowSeconds);
+        DialingNumber = PhoneNumberFormat.ForDisplay(number);
+        IsDialing = true;
+
         var ack = internalCall
             ? await Send(() => _server.OriginateInternalAsync(number, ct))
             : await Send(() => _server.OriginateAsync(number, SelectedCallerId, ct));
 
-        // 거절당한 번호는 지우지 않는다. 고쳐서 다시 걸 수 있어야 한다.
+        // 거절당했으면 창을 즉시 닫는다. 열어 둔 채로 두면 남의 전화를 말없이 받는다.
+        // 번호는 지우지 않는다 — 고쳐서 다시 걸 수 있어야 한다.
         if (ack is null)
         {
             Note($"발신 거부 {number}: {NoticeMessage}");
+            _selfAnswerUntil = null;
+            _dialedNumber = null;
+            StopDialing("서버가 거부했다");
             return;
         }
 
         Note($"발신 접수 {number}");
-
-        _dialedNumber = number;
-        _selfAnswerUntil = _now().AddSeconds(SelfAnswerWindowSeconds);
-        DialingNumber = number;
-        IsDialing = true;
-        NoticeMessage = null;
         DialNumber = string.Empty;
     }
 
@@ -460,7 +466,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 우리가 건 번호를 알고 있으면 그쪽이 맞다.
         PhoneNumber = server is null
             ? string.Empty
-            : _dialedNumber ?? server.Ani;
+            : PhoneNumberFormat.ForDisplay(_dialedNumber ?? server.Ani);
 
         // 서버가 실제 음소거 상태를 알려주면 그 값을 따른다.
         if (server?.IsMuted is { } muted) IsMuted = muted;

@@ -109,15 +109,29 @@ public class SoftphoneViewModelTests
         Assert.Equal(WindowMode.Ringing, vm.WindowMode);
     }
 
+    /// <summary>상담원은 통화 중에 번호를 눈으로 읽고 받아 적는다. 붙어 있으면 자리를 세어야 한다.</summary>
     [Fact]
-    public void Shows_the_customer_name_and_the_number()
+    public void Shows_the_customer_name_and_the_number_in_a_readable_shape()
     {
         var (vm, store, _, _) = Build();
 
         store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
 
         Assert.Equal("홍길동", vm.CustomerName);
-        Assert.Equal("01011112222", vm.PhoneNumber);
+        Assert.Equal("010-1111-2222", vm.PhoneNumber);
+    }
+
+    [Fact]
+    public async Task The_number_being_dialled_is_shown_in_the_same_shape()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        vm.DialNumber = "01034623453";
+
+        await vm.DialAsync();
+
+        Assert.Equal("010-3462-3453", vm.DialingNumber);
     }
 
     [Fact]
@@ -129,7 +143,7 @@ public class SoftphoneViewModelTests
         store.Apply(new CallCreatedEvent(unknown));
 
         Assert.Equal("알 수 없음", vm.CustomerName);
-        Assert.Equal("01011112222", vm.PhoneNumber);
+        Assert.Equal("010-1111-2222", vm.PhoneNumber);
     }
 
     [Fact]
@@ -205,6 +219,46 @@ public class SoftphoneViewModelTests
         Assert.Equal(1, phone.AnswerCalls);
     }
 
+    /// <summary>
+    /// PBX 가 서버의 HTTP 응답보다 <b>먼저</b> 우리를 부를 수 있다 (실측: INVITE 가 ack 보다 1ms 빨랐다).
+    /// 자동 응답 창을 응답 뒤에 열면 그 한 통을 놓치고, 상담원은 자기가 건 전화를 다시 받아야 한다.
+    /// </summary>
+    [Fact]
+    public async Task A_call_that_arrives_before_the_server_answers_is_still_ours()
+    {
+        var (vm, _, phone, stub) = Build();
+        await Ready(vm, stub);
+
+        // 요청을 받는 순간 INVITE 부터 도착시킨다.
+        stub.RespondWith(request =>
+        {
+            vm.OnSoftphoneCallStatusChanged(new SoftphoneCallStatus(SoftphoneCallState.Ringing));
+            return StubHttpHandler.Json(HttpStatusCode.OK, AckJson);
+        });
+        vm.DialNumber = "01011112222";
+
+        await vm.DialAsync();
+
+        Assert.Equal(1, phone.AnswerCalls);
+    }
+
+    /// <summary>거부당하면 그 창은 즉시 닫혀야 한다. 열어 둔 채로 두면 남의 전화를 받는다.</summary>
+    [Fact]
+    public async Task A_refused_call_does_not_leave_the_door_open()
+    {
+        var (vm, _, phone, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(
+            HttpStatusCode.BadRequest,
+            """{"success":false,"data":null,"error":{"code":"BLOCKED","message":"발신이 차단된 번호"}}""");
+        vm.DialNumber = "060123456";
+
+        await vm.DialAsync();
+        vm.OnSoftphoneCallStatusChanged(new SoftphoneCallStatus(SoftphoneCallState.Ringing));
+
+        Assert.Equal(0, phone.AnswerCalls);
+    }
+
     /// <summary>걸기를 눌렀는데 화면이 그대로면 눌린 건지 알 수 없다. 바로 발신 중으로 바뀌어야 한다.</summary>
     [Fact]
     public async Task Pressing_dial_shows_that_a_call_is_going_out()
@@ -217,7 +271,7 @@ public class SoftphoneViewModelTests
         await vm.DialAsync();
 
         Assert.True(vm.IsDialing);
-        Assert.Equal("1002", vm.DialingNumber);
+        Assert.Equal("1002", vm.DialingNumber);   // 내선은 나누지 않는다
     }
 
     [Fact]
