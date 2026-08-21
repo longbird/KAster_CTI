@@ -77,15 +77,15 @@ PBX 는 공유 개발 서버에 있고 접근 가능하다(1장의 초기 기술
 
 | # | 시나리오 | 상태 |
 |---|---|---|
-| 1 | 로그인 → SIP 등록 | **통과 (2026-08-21)** — 아래 6장 |
-| 2 | 외부 → 큐 → 이 상담원 수신, 화면이 ringing 으로 전환 | 미실행 |
-| 3 | 받기 → talking, 양방향 음성 | 미실행 |
-| 4 | 마이크 끄기 → 상대가 못 들음, 다시 켜기 | 미실행 |
-| 5 | 끊기 → 양쪽 종료, 화면이 idle 로 복귀 | 미실행 |
-| 6 | 발신 → 상대 단말이 울리고 통화됨 | 미실행 |
-| 7 | 상태 변경(대기 ↔ 휴식) 이 관리자 화면에 반영 | 미실행 |
-| 8 | 서버를 내렸다 올렸을 때 재연결 | 미실행 (백오프 코드와 끊김 감지는 붙어 있음) |
-| 9 | 액세스 토큰 만료(15분) 후 자동 회전 | 미실행 (단일 회전 로직은 단위 테스트로 검증됨) |
+| 1 | 로그인 → SIP 등록 | **통과 (08-21)** — 6-3 |
+| 2 | 수신 INVITE → ringing | **통과 (08-21)** — 7장. 단 큐 경유가 아니라 내선 발신 경로 |
+| 3 | 받기 → talking | **통과 (08-21)** — 세션이 `New → Talking`. **음성은 미확인** (재생 장치 없음) |
+| 4 | 마이크 끄기 | **부분** — 로컬 토글 동작 확인. 상대가 못 듣는지는 미확인 |
+| 5 | 끊기 → 양쪽 종료 | **통과 (08-21)** — 양쪽 `Ended`, `call.ended`, 활성 목록 0건 |
+| 6 | 발신 | **통과 (08-21)** — `originate/internal` 로 1001→1002 통화 성립 |
+| 7 | 상태 변경 | **통과 (08-21)** — `BREAK`/`AVAILABLE` 반영, `agent.status.changed` 수신. 관리자 화면 확인은 미실행 |
+| 8 | 서버 재기동 후 재연결 | 미실행 |
+| 9 | 액세스 토큰 만료 후 자동 회전 | 미실행 (단일 회전 로직은 단위 테스트로 검증됨) |
 
 부분 확인된 것: REGISTER 요청의 형태는 로컬 UDP 소켓을 PBX 자리에 두고 확인했다
 (AOR `sip:1001@pbx.local`, Contact 는 실제 채널 종단으로 재작성). 인증 응답(401 → 다이제스트)과
@@ -211,3 +211,55 @@ C# 클라이언트(`AuthClient` → `SoftphoneOptions` → `SipSoftphoneClient`)
 | 양방향 음성·에코 | 이 PC 에 활성 재생 장치가 없다 |
 | 상태 변경 반영 | 관리자 화면 확인이 필요하다 |
 | 재연결·토큰 만료 | 15분 이상 관찰이 필요하다 |
+
+
+## 7. 실통화 검증 (2026-08-21)
+
+C# 클라이언트 두 개(1001·1002)를 동시에 등록시키고 `POST calls/originate/internal` 로
+내선 통화를 성립시켰다. 오디오 장치가 없어 **음성 품질은 확인 대상이 아니다** — 시그널링과
+세션 상태 전이를 본다.
+
+관측된 흐름:
+
+```
+[A1001] SIP Registered / [B1002] SIP Registered
+originate HTTP 201
+[A1001] 통화 Ringing → Answered
+[B1002] 통화 Ringing → Answered
+[WS] call.created   → 상태 New
+[WS] call.updated   → 상태 Talking
+활성: ... Talking ani=1001 dnis=s
+[A1001] Hangup → 양쪽 Ended → [WS] call.ended → 활성 0건
+관측된 상태 전이: New -> Talking
+```
+
+### 7-1. 통화가 안 붙던 원인 — PBX STUN 설정
+
+처음에는 통화가 `New` 에서 멈추고 `BridgeEnter` 가 아예 발생하지 않았다. AMI 타임라인을 보니
+`Newchannel` 에서 `DialBegin` 까지 **19초**가 걸렸고, 9~10초 간격이 두 번 반복되는 전형적인
+타임아웃 패턴이었다.
+
+원인은 `rtp.conf` 의 `stunaddr=stun.l.google.com:19302` 였다. 이 서버는 egress 화이트리스트
+뒤에 있어 **STUN 이 무응답**이고, Asterisk 가 통화마다 그 타임아웃을 기다렸다.
+
+| | 제거 전 | 제거 후 |
+|---|---|---|
+| `Newchannel` → `DialBegin` | 19초 | **1초** |
+| `BridgeEnter` | 발생 안 함 | **발생** |
+| 세션 상태 | `New` 에서 정지 | **`New → Talking`** |
+
+PJSIP 는 `ASTERISK_EXTERNAL_MEDIA_ADDRESS` 로 외부 주소를 이미 알고 있어 PBX 쪽 STUN 은
+필요 없다. `docker-compose.dev.yml` 의 기본값을 없앴다(커밋 `997865e`).
+`SOFTPHONE_ICE_SERVERS_JSON` 의 STUN 은 브라우저가 상담원 네트워크에서 직접 쓰는 값이라 그대로 뒀다.
+
+**이 문제는 소프트폰만의 것이 아니다.** 같은 PBX 를 쓰는 모든 통화가 설정 지연을 겪고 있었다.
+
+### 7-2. 남은 관찰
+
+- `primaryAgentId` 가 비어 있다. 큐를 거치지 않는 `originate/internal` 경로에는 `AgentCalled`·
+  `AgentConnect` 이벤트가 없어 세션 엔진이 상담원을 붙이지 못한다. 큐 경유 인바운드에서는 다를 것이나
+  이번에 확인하지 못했다.
+- `CallStateStore` 의 SIP↔서버 짝짓기가 이 경로에서 `paired=False` 였다. SIP From 이 발신자 자신의
+  내선(1001)이라 서버 `ani`(1001) 와는 맞지만 도착 시각 창을 벗어났다. 큐 인바운드에서 재확인이 필요하다.
+- 종료 이벤트가 중복으로 오른다(`Ended → Idle` 이 두 번). `OnCallHungup` 과 명시적 `Hangup()` 이
+  모두 `EndCall` 을 부른다. 화면에는 영향이 없지만 정리 대상이다.
