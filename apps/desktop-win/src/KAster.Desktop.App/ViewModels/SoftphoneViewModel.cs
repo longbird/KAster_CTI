@@ -281,7 +281,18 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         // 로컬을 먼저 바꾼다. 서버 왕복을 기다리는 사이에 목소리가 나가면 안 된다.
         _phone.IsMuted = next;
+
+        // 소리 경로가 안 열려 있으면 소프트폰은 이 요청을 조용히 삼킨다.
+        // 그때 화면만 "마이크 켜기" 로 바꾸면 상담원은 꺼진 줄 알고 말하고, 상대에게 다 들린다.
+        if (_phone.IsMuted != next)
+        {
+            Note($"음소거 {next} 적용 실패 — 소프트폰이 받아들이지 않았다");
+            NoticeMessage = "마이크를 끄지 못했다. 통화 오디오가 열려 있지 않다.";
+            return;
+        }
+
         IsMuted = next;
+        Note($"음소거 {next}");
 
         if (callId is not null) await Send(() => _server.MuteAsync(callId, next, ct));
     }

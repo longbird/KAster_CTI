@@ -12,7 +12,16 @@ namespace KAster.Desktop.Tests.App;
 
 internal sealed class FakeSoftphone : ISoftphoneControl
 {
-    public bool IsMuted { get; set; }
+    /// <summary>소리 경로가 안 열려 있으면 소프트폰은 음소거 요청을 삼킨다. 그 상황을 흉내 낸다.</summary>
+    public bool IgnoresMute { get; set; }
+
+    private bool _muted;
+
+    public bool IsMuted
+    {
+        get => _muted;
+        set { if (!IgnoresMute) _muted = value; }
+    }
     public int AnswerCalls { get; private set; }
     public int HangupCalls { get; private set; }
 
@@ -401,6 +410,24 @@ public class SoftphoneViewModelTests
         Assert.True(phone.IsMuted);
         Assert.True(vm.IsMuted);
         Assert.Contains("\"state\":\"on\"", stub.Bodies[0]);
+    }
+
+    /// <summary>
+    /// 소프트폰이 음소거를 못 걸었는데 화면만 "마이크 켜기" 로 바뀌면, 상담원은 꺼진 줄 알고 말한다.
+    /// 상대에게 다 들린다. 화면은 <b>실제로 걸린 것</b>만 보여야 한다.
+    /// </summary>
+    [Fact]
+    public async Task A_mute_the_softphone_could_not_apply_is_not_shown_as_applied()
+    {
+        var (vm, store, phone, stub) = Build();
+        phone.IgnoresMute = true;
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        await vm.ToggleMuteAsync();
+
+        Assert.False(vm.IsMuted);
+        Assert.Contains("마이크", vm.NoticeMessage);
+        Assert.Empty(stub.Requests);
     }
 
     [Fact]
