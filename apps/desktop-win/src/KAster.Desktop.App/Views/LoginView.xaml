@@ -25,10 +25,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="PBX 상담원" Style="{StaticResource TextTitle}" />
-            <TextBlock Grid.Row="1" Margin="0,4,0,20"
-                       Text="상담원 계정으로 로그인한다"
-                       Style="{StaticResource TextCaption}" />
+            <TextBlock Grid.Row="0" Text="PBX 상담원" Style="{StaticResource TextTitle}" Margin="0,0,0,20" />
 
             <TextBlock Grid.Row="2" Text="아이디" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
             <TextBox Grid.Row="3" Margin="{StaticResource GapStack}"

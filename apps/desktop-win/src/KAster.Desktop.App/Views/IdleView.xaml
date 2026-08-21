@@ -153,10 +153,6 @@
                     </StackPanel.Style>
 
                     <TextBlock Text="대기 중" Style="{StaticResource TextTitle}" HorizontalAlignment="Center" />
-                    <TextBlock Text="전화가 오면 이 창이 바뀐다"
-                               Style="{StaticResource TextCaption}"
-                               Margin="0,6,0,0"
-                               HorizontalAlignment="Center" />
 
                     <!--
                         당겨받기. 옆자리에 울리는 전화를 여기서 끌어온다.
@@ -329,11 +325,6 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="0"
-                                   Text="등록되면 이 안내는 사라집니다"
-                                   VerticalAlignment="Center"
-                                   Style="{StaticResource TextCaption}" />
-
                         <!-- 스스로도 몇 초마다 확인하지만, 기다리지 않고 바로 보고 싶을 때가 있다. -->
                         <Button Grid.Column="1"
                                 Content="다시 확인"
@@ -432,7 +423,7 @@
                                Foreground="{StaticResource BrushText}"
                                Margin="0,4,0,0"
                                HorizontalAlignment="Center" />
-                    <TextBlock Text="전화기가 먼저 울린다. 그대로 두면 자동으로 연결된다"
+                    <TextBlock Text="전화기를 받으면 연결됩니다"
                                Style="{StaticResource TextCaption}"
                                Margin="0,8,0,0"
                                HorizontalAlignment="Center" />
