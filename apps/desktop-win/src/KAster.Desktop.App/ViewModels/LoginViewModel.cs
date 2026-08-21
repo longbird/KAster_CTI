@@ -28,6 +28,7 @@ public sealed class LoginViewModel : ObservableObject
         _tokens = tokens;
         _savedLogin = savedLogin;
         SignInCommand = new RelayCommand(() => _ = SignInAsync(), () => CanSignIn);
+        OpenSettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke(this, EventArgs.Empty));
 
         var saved = savedLogin.Load();
 
@@ -44,6 +45,11 @@ public sealed class LoginViewModel : ObservableObject
     public event EventHandler<LoginResult>? SignedIn;
 
     public RelayCommand SignInCommand { get; }
+
+    public RelayCommand OpenSettingsCommand { get; }
+
+    /// <summary>서버 주소는 로그인 전에 고칠 수 있어야 한다. 못 붙는 주소면 로그인 자체가 안 된다.</summary>
+    public event EventHandler? SettingsRequested;
 
     public string LoginId
     {

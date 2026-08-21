@@ -110,6 +110,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         SignOutCommand = new RelayCommand(() => SignOutRequested?.Invoke(this, EventArgs.Empty), () => IsFree);
         ToggleSipPasswordCommand = new RelayCommand(() => IsSipPasswordVisible = !IsSipPasswordVisible);
         RecheckDeskPhoneCommand = new RelayCommand(() => _pendingWork = RecheckDeskPhoneAsync());
+        OpenSettingsCommand = new RelayCommand(
+            () => SettingsRequested?.Invoke(this, EventArgs.Empty),
+            () => IsFree);
     }
 
     public event EventHandler<WindowMode>? WindowModeRequested;
@@ -129,6 +132,11 @@ public sealed class SoftphoneViewModel : ObservableObject
     public RelayCommand ToggleSipPasswordCommand { get; }
 
     public RelayCommand RecheckDeskPhoneCommand { get; }
+
+    public RelayCommand OpenSettingsCommand { get; }
+
+    /// <summary>설정 화면을 여는 것은 조립 지점이 한다. 화면은 요청만 한다.</summary>
+    public event EventHandler? SettingsRequested;
 
     /// <summary>화면 뒤에서 도는 작업. 테스트에서만 쓴다.</summary>
     public Task PendingWork => _pendingWork;
@@ -198,6 +206,7 @@ public sealed class SoftphoneViewModel : ObservableObject
             DialCommand.RaiseCanExecuteChanged();
             ToggleAvailabilityCommand.RaiseCanExecuteChanged();
             SignOutCommand.RaiseCanExecuteChanged();
+            OpenSettingsCommand.RaiseCanExecuteChanged();
             WindowModeRequested?.Invoke(this, value);
         }
     }

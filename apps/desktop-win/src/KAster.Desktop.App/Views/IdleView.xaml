@@ -348,6 +348,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Height="20"
@@ -358,6 +359,17 @@
 
             <!-- 교대 근무에서 앞사람 계정으로 앉지 않으려면 나가는 길이 있어야 한다. -->
             <Button Grid.Column="1"
+                    Content="설정"
+                    Padding="8,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Foreground="{StaticResource BrushTextMuted}"
+                    FontFamily="{StaticResource FontUi}"
+                    FontSize="{StaticResource FontSizeCaption}"
+                    Command="{Binding OpenSettingsCommand}" />
+
+            <Button Grid.Column="2"
                     Content="로그아웃"
                     Padding="8,2"
                     Background="Transparent"

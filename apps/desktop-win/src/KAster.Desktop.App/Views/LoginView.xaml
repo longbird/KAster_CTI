@@ -75,6 +75,19 @@
                         Style="{StaticResource ButtonPrimary}"
                         Command="{Binding SignInCommand}"
                         IsDefault="True" />
+
+                <!-- 못 붙는 주소면 로그인 자체가 안 된다. 여기서 고칠 수 있어야 한다. -->
+                <Button Content="서버 설정"
+                        Margin="0,8,0,0"
+                        Padding="6,2"
+                        HorizontalAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Foreground="{StaticResource BrushTextMuted}"
+                        FontFamily="{StaticResource FontUi}"
+                        FontSize="{StaticResource FontSizeCaption}"
+                        Command="{Binding OpenSettingsCommand}" />
             </StackPanel>
         </Grid>
     </Border>

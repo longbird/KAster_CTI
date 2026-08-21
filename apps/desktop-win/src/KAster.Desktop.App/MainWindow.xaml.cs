@@ -7,6 +7,7 @@ using KAster.Desktop.App.ViewModels;
 using KAster.Desktop.App.Views;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.Storage;
+using KAster.Desktop.Softphone.Audio;
 
 namespace KAster.Desktop.App;
 
@@ -17,7 +18,10 @@ namespace KAster.Desktop.App;
 [SupportedOSPlatform("windows")]
 public partial class MainWindow : Window
 {
-    private readonly AppSettings _settings;
+    private AppSettings _settings;
+
+    /// <summary>설정 화면에서 돌아왔을 때 되돌아갈 화면.</summary>
+    private Action? _leaveSettings;
     private readonly TokenVault _tokens;
     private readonly WindowModeService _windowMode;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -44,6 +48,7 @@ public partial class MainWindow : Window
         var auth = new AuthClient(new HttpClient { BaseAddress = _settings.BaseUri });
         var vm = new LoginViewModel(auth, _tokens, new SavedLoginStore(AppPaths.SavedLogin));
         vm.SignedIn += async (_, result) => await StartRuntimeAsync(result, vm.UseSoftphone);
+        vm.SettingsRequested += (_, _) => ShowSettings(vm.UseSoftphone, ShowLogin);
 
         _windowMode.Request(WindowMode.Idle);
         Host.Content = new LoginView { DataContext = vm };
@@ -87,6 +92,8 @@ public partial class MainWindow : Window
         softphone.Diagnostic += (_, message) => App.Log(message);
         runtime.NonCallEvent += (_, evt) => softphone.Apply(evt);
         softphone.SignOutRequested += async (_, _) => await SignOutAsync();
+        softphone.SettingsRequested += (_, _) =>
+            ShowSettings(useSoftphone, () => ApplyMode(softphone.WindowMode, softphone));
         runtime.RefreshHandler.SignedOut += (_, _) => Dispatcher.Invoke(SignOut);
 
         _runtime = runtime;
@@ -113,6 +120,35 @@ public partial class MainWindow : Window
         };
 
         _windowMode.Request(mode);
+    }
+
+    /// <summary>
+    /// 설정 화면. 로그인 전과 대기 중 양쪽에서 열린다.
+    ///
+    /// 서버 주소는 로그인 전에 고쳐야 뜻이 있고(못 붙는 주소면 로그인 자체가 안 된다),
+    /// 오디오 장치는 통화 중에 바꾸면 소리가 끊기므로 대기 중에만 연다.
+    /// </summary>
+    private void ShowSettings(bool useSoftphone, Action leave)
+    {
+        _leaveSettings = leave;
+
+        var vm = new SettingsViewModel(
+            new JsonSettingsStore<AppSettings>(AppPaths.Settings, new AppSettings()),
+            new JsonSettingsStore<AudioDeviceSelection>(AppPaths.AudioDevices, new AudioDeviceSelection()),
+            new WasapiDeviceEnumerator(),
+            useSoftphone);
+
+        vm.Closed += (_, _) =>
+        {
+            // 저장된 주소를 곧바로 다시 읽는다. 다음 로그인이 새 주소로 나가야 한다.
+            _settings = new JsonSettingsStore<AppSettings>(AppPaths.Settings).Load(new AppSettings());
+            var back = _leaveSettings;
+            _leaveSettings = null;
+            back?.Invoke();
+        };
+
+        _windowMode.Request(WindowMode.Settings);
+        Host.Content = new SettingsView { DataContext = vm };
     }
 
     private async void SignOut() => await SignOutAsync();
