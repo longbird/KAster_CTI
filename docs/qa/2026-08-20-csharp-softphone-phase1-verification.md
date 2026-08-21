@@ -69,12 +69,15 @@ PBX 없이도 확인 가능한 구간은 스텁 서버(`POST /api/v1/auth/login`
 
 ## 3. 남은 실 PBX 시나리오 (미실행)
 
-이 환경에는 PBX 접근이 없다. 아래는 상담원 PC + 실 PBX 에서 그대로 돌린다.
+PBX 는 공유 개발 서버에 있고 접근 가능하다(1장의 초기 기술은 틀렸다 — 6장 참고).
+아래 중 음성이 필요한 항목은 이 PC 에 재생 장치가 없어 상담원 PC 에서 돌려야 한다.
 **실행하지 않은 항목을 통과로 적지 않는다.**
+
+> **2026-08-21 갱신**: 공유 개발 서버 `49.247.46.86` 로 1·9의 일부를 실제로 확인했다. 아래 표에 반영했다.
 
 | # | 시나리오 | 상태 |
 |---|---|---|
-| 1 | 로그인 → SIP 등록 (`pjsip show endpoint 1001` 의 Contact 가 `Avail`) | 미실행 |
+| 1 | 로그인 → SIP 등록 | **통과 (2026-08-21)** — 아래 6장 |
 | 2 | 외부 → 큐 → 이 상담원 수신, 화면이 ringing 으로 전환 | 미실행 |
 | 3 | 받기 → talking, 양방향 음성 | 미실행 |
 | 4 | 마이크 끄기 → 상대가 못 들음, 다시 켜기 | 미실행 |
@@ -103,3 +106,82 @@ PBX 없이도 확인 가능한 구간은 스텁 서버(`POST /api/v1/auth/login`
 `SOFTPHONE_SIP_SERVER` / `SOFTPHONE_SIP_TRANSPORT` 를 추가했다. **추가만 했다** — `wsServer` 는 그대로라
 상담원 웹앱과 기존 Electron 앱은 영향이 없다. 활성 판정만 "WS 또는 SIP 주소 중 하나라도 있으면 활성"으로 넓혔다.
 회귀는 `auth-softphone-config.integration.spec.ts` 와 `auth-desktop-session.integration.spec.ts` 가 덮는다.
+
+
+## 6. 실 PBX 확인 (2026-08-21)
+
+대상: 공유 개발 서버 `49.247.46.86`.
+
+### 6-1. SIP 포트가 문서와 다르다 — 조치 필요
+
+| | 값 |
+|---|---|
+| 저장소 `infra/asterisk/pjsip.conf` | `bind=0.0.0.0:48950` |
+| **운영 중인 PBX** | **UDP `36070`** |
+
+커밋 `8e5776f`(SIP register 포트 기본값 48950) 와 `c8e2f62`(잔여 36070 일괄 정리) 가 저장소만 바꿨고
+**실 PBX 에는 적용되지 않았다.** 48950 은 열려 있지 않고 36070 이 응답한다.
+
+```
+REGISTER sip:49.247.46.86:36070  ->  SIP/2.0 401 Unauthorized
+WWW-Authenticate: Digest realm="asterisk", ...
+Server: KAster_CTI
+```
+
+**위험**: 관리자 화면에서 PBX 설정을 재적용하면 포트가 48950 으로 바뀌면서 36070 에 맞춰 둔 단말이 전부 끊긴다.
+이 불일치는 소프트폰 작업과 별개로 정리해야 한다.
+
+### 6-2. 서버 변경 반영 결과
+
+`SOFTPHONE_SIP_SERVER` / `SOFTPHONE_SIP_TRANSPORT` 를 넣고 로그인한 실제 응답:
+
+| 필드 | 값 |
+|---|---|
+| `enabled` | `true` |
+| `sipUri` | `sip:1001@49.247.46.86` |
+| `wsServer` | `ws://49.247.46.86:8088/ws` (기존 경로 그대로) |
+| `sipServer` | `49.247.46.86:36070` |
+| `transport` | `udp` |
+| `authorizationPassword` | 내려옴 |
+
+`wsServer` 가 그대로 나오므로 **상담원 웹앱과 기존 Electron 앱에 회귀가 없다.**
+
+### 6-3. SIP 등록 — 통과
+
+C# 클라이언트(`AuthClient` → `SoftphoneOptions` → `SipSoftphoneClient`)로 실행한 결과:
+
+```
+>>> 로그인
+    agent=홍길동 ext=1001
+    sipServer=49.247.46.86:36070 transport=udp enabled=True
+>>> SIP 등록 시도 49.247.46.86:36070 as 1001@49.247.46.86
+    STATUS Registering
+    STATUS Registered
+```
+
+`Registered` 는 PBX 가 digest 인증을 통과시키고 200 OK 를 반환했다는 뜻이다.
+(`asterisk -rx "pjsip show endpoint 1001"` 은 `sudo` 가 필요해 확인하지 못했다.)
+
+### 6-4. 개발 서버 반영 방식이 임시다
+
+개발 서버는 egress 화이트리스트 뒤에 있어 **Docker Hub 와 npm 레지스트리가 차단**돼 있다
+(`github.com`, `ghcr.io`, `deb.debian.org` 만 통과). `Dockerfile.prod` 의 `npm ci` 가 실패하므로
+**이미지 빌드가 불가능**하다.
+
+그래서 서버 변경을 컴파일된 `dist/src/modules/auth/auth.service.js` 교체로 반영했다
+(컨테이너에 `dist.prev.*` 백업이 5개 있는 걸 보면 이 팀이 써 온 방식이다).
+
+- **원본 복구**: `docker compose -f docker-compose.dev.yml up -d --force-recreate --no-build server`
+- **주의**: 컨테이너를 재생성하면 교체본이 사라진다. 실제로 이번 작업 중 한 번 덮어썼다.
+- **근본 조치**: egress 에 `registry-1.docker.io`, `auth.docker.io`,
+  `production.cloudflare.docker.com`, `registry.npmjs.org`, `security.debian.org` 를 허용해야
+  서버에서 정상 빌드가 가능하다.
+
+### 6-5. 남은 항목
+
+| 항목 | 왜 못 했나 |
+|---|---|
+| 수신·응답·끊기·발신 | 통화를 걸어 줄 상대가 필요하다 |
+| 양방향 음성·에코 | 이 PC 에 활성 재생 장치가 없다 |
+| 상태 변경 반영 | 관리자 화면 확인이 필요하다 |
+| 재연결·토큰 만료 | 15분 이상 관찰이 필요하다 |
