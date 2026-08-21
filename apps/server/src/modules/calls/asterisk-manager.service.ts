@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { AmiConnectionService } from '../ami/ami-connection.service';
+import { queueMemberInterface } from '../../common/queue-member.util';
 
 // conv 26 의 AsteriskManagerService 추상화 + 현재 레포의 실제 sendAction 구현.
 // CallsService 는 AMI 프로토콜 디테일을 몰라야 하고, 여기서 Action 이름/필드
@@ -21,13 +22,17 @@ export class AsteriskManagerService {
     const trimmed = extension?.trim();
     if (!trimmed) return;
 
+    // queues.conf 에 렌더된 멤버 문자열과 같아야 한다. 다르면 AMI 가 멤버를 못 찾고
+    // pause 가 조용히 실패하는데, 화면에는 이석으로 보여 전화가 계속 온다.
+    const memberInterface = queueMemberInterface(trimmed);
+
     this.ami.sendAction({
       Action: 'QueuePause',
-      Interface: `PJSIP/${trimmed}`,
+      Interface: memberInterface,
       Paused: paused ? 'true' : 'false',
       ...(reason ? { Reason: reason } : {}),
     });
-    this.logger.log(`Queue pause ${paused} for PJSIP/${trimmed}`);
+    this.logger.log(`Queue pause ${paused} for ${memberInterface}`);
   }
 
   originate(params: {

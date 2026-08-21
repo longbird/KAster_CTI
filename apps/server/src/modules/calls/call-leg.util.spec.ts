@@ -1,4 +1,4 @@
-import { classifyLeg, getChannelEndpointName } from './call-leg.util';
+import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName } from './call-leg.util';
 
 describe('getChannelEndpointName', () => {
   it('strips the channel suffix Asterisk appends', () => {
@@ -23,6 +23,28 @@ describe('getChannelEndpointName', () => {
   );
 });
 
+describe('getAgentExtensionFromChannel', () => {
+  it('reads the extension from a device channel', () => {
+    expect(getAgentExtensionFromChannel('PJSIP/1001-0000001b')).toBe('1001');
+  });
+
+  // Local 채널은 내선 뒤에 @context 가 붙는다. 이걸 못 벗기면 상담원 매칭이 실패해
+  // callSessions.primaryAgentId 가 비고, 통화 이력과 통계가 통째로 빈다.
+  it('reads the extension from a queue routing channel', () => {
+    expect(getAgentExtensionFromChannel('Local/1001@agent-offer-00000007;1')).toBe('1001');
+    expect(getAgentExtensionFromChannel('Local/1001@agent-offer')).toBe('1001');
+  });
+
+  it('reads the extension from a bare queue member interface', () => {
+    expect(getAgentExtensionFromChannel('PJSIP/1001')).toBe('1001');
+    expect(getAgentExtensionFromChannel('Local/1001@agent-offer')).toBe('1001');
+  });
+
+  it('has nothing to give for a carrier channel', () => {
+    expect(getAgentExtensionFromChannel('PJSIP/trunk-070-5234-6380-00000021')).toBeNull();
+  });
+});
+
 describe('classifyLeg', () => {
   it('reads an agent extension as the agent leg', () => {
     expect(classifyLeg('PJSIP/1001-0000001b')).toBe('agent');
@@ -34,6 +56,17 @@ describe('classifyLeg', () => {
   });
 
   // 판단이 안 되면 상담원으로 보지 않는다. 잘못 잡으면 통화 중인 다리를 끊는다.
+  /**
+   * 큐 멤버를 Local/{ext}@agent-offer 로 바꾸면 통화마다 Local 채널 두 가닥(;1 ;2)이
+   * 더 생긴다. 이름이 내선으로 시작하니 그대로 두면 상담원 leg 로 잡히고,
+   * 마이크 끄기·끊기가 실제 전화기가 아니라 그 중간 다리를 건드리게 된다.
+   * 겉으로는 "됐다" 고 나오고 전화기는 그대로인, 찾기 어려운 고장이 된다.
+   */
+  it('does not mistake the queue routing channel for the agent device', () => {
+    expect(classifyLeg('Local/1001@agent-offer-00000007;1')).toBe('local');
+    expect(classifyLeg('Local/1001@agent-offer-00000007;2')).toBe('local');
+  });
+
   it('refuses to guess when the channel makes no sense', () => {
     expect(classifyLeg('nonsense')).toBeNull();
     expect(classifyLeg(null)).toBeNull();

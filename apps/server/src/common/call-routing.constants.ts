@@ -10,4 +10,5 @@ export const DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME = '기본 호 분배룰';
 //   - 새 마이그레이션의 ALTER ... SET DEFAULT
 //   - infra/security/pbx-sip-hardening/* 방화벽 템플릿 (엉뚱한 포트를 지키게 된다)
 //   - scripts/pbx-sip-security-prepare.sh 의 SIP_PORT 기본값
+//   - infra/asterisk/pjsip.conf 초안의 [transport-udp] bind (렌더러가 덮어쓰지만 초안을 보고 따라 하면 갈린다)
 export const DEFAULT_SIP_REGISTER_PORT = 48950;

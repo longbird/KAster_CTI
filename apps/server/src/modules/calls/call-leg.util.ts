@@ -10,6 +10,12 @@
  */
 export const TRUNK_ENDPOINT_PREFIX = 'trunk-';
 
+/**
+ * 큐가 상담원에게 호를 넘기기 전에 거치는 중간 채널. `Local/1001@agent-offer-00000007;1` 꼴이다.
+ * 이름이 내선으로 시작하기 때문에 그냥 두면 상담원 단말 leg 로 오인된다.
+ */
+const LOCAL_CHANNEL_PREFIX = 'Local/';
+
 /** `PJSIP/1001-0000001b` → `1001`. 모양이 다르면 null. */
 export function getChannelEndpointName(channelName?: string | null): string | null {
   const channel = channelName?.trim();
@@ -18,7 +24,8 @@ export function getChannelEndpointName(channelName?: string | null): string | nu
   const slash = channel.indexOf('/');
   if (slash < 0 || slash === channel.length - 1) return null;
 
-  const afterSlash = channel.slice(slash + 1);
+  // Local 채널은 두 가닥(;1 ;2)으로 갈라진다. 가닥 번호는 엔드포인트 이름이 아니다.
+  const afterSlash = channel.slice(slash + 1).split(';')[0];
 
   // 채널 접미사(-0000001b)를 떼어 낸다. 엔드포인트 이름 자체에 하이픈이 있을 수 있으므로
   // 마지막 하이픈만 본다.
@@ -32,7 +39,7 @@ export function getChannelEndpointName(channelName?: string | null): string | nu
  * 나머지 통화 제어는 상담원 leg 를 `'agent'` 로 찾는다. 시드 스크립트도 같은 값을 쓴다.
  * 바꾸면 `calls.service.ts` 의 leg 조회를 전부 함께 고쳐야 한다.
  */
-export type CallLegType = 'agent' | 'inbound';
+export type CallLegType = 'agent' | 'inbound' | 'local';
 
 /**
  * 이 채널이 상담원 쪽인지 고객(통신사) 쪽인지.
@@ -43,5 +50,25 @@ export function classifyLeg(channelName?: string | null): CallLegType | null {
   const endpoint = getChannelEndpointName(channelName);
   if (!endpoint) return null;
 
+  // 중간 다리를 상담원 단말로 보면 마이크 끄기·끊기가 엉뚱한 채널에 걸린다.
+  // 요청은 성공했다고 나오는데 전화기는 그대로인, 원인을 찾기 어려운 고장이 된다.
+  if (channelName!.trim().startsWith(LOCAL_CHANNEL_PREFIX)) return 'local';
+
   return endpoint.startsWith(TRUNK_ENDPOINT_PREFIX) ? 'inbound' : 'agent';
+}
+
+/**
+ * 채널 이름이나 큐 멤버 인터페이스에서 상담원 내선을 읽어 낸다.
+ *
+ * `PJSIP/1001-0000001b`, `PJSIP/1001`, `Local/1001@agent-offer-00000007;1` 이 모두 `1001` 이다.
+ * 통신사 채널에는 내선이 없으므로 null 이다.
+ */
+export function getAgentExtensionFromChannel(channelName?: string | null): string | null {
+  const endpoint = getChannelEndpointName(channelName);
+  if (!endpoint) return null;
+  if (endpoint.startsWith(TRUNK_ENDPOINT_PREFIX)) return null;
+
+  // Local 채널은 내선 뒤에 @context 가 붙는다.
+  const extension = endpoint.split('@')[0].trim();
+  return extension || null;
 }

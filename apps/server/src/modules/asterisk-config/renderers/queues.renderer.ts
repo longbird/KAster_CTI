@@ -1,3 +1,4 @@
+import { queueMemberInterface } from '../../../common/queue-member.util';
 export interface QueueMemberInput {
   extension: string;
   agentName: string;
@@ -43,7 +44,7 @@ export function renderQueuesConf(queues: QueueInput[]): string {
     );
 
     for (const m of sorted) {
-      lines.push(`member => PJSIP/${m.extension},${m.penalty},${m.agentName}`);
+      lines.push(`member => ${queueMemberInterface(m.extension)},${m.penalty},${m.agentName}`);
     }
 
     lines.push('');

@@ -6,7 +6,7 @@ import { RedisService } from '../redis/redis.service';
 import { normalizePhone } from '../customers/customers.service';
 import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { TransferDetectorService } from './transfer-detector.service';
-import { classifyLeg, getChannelEndpointName } from './call-leg.util';
+import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName } from './call-leg.util';
 
 // conv 44 SESSION_PRECEDENCE: 역순 도착 이벤트로 인한 상태 역행 차단.
 // 숫자가 클수록 "더 진행된" 상태. 현재 상태가 이보다 같거나 높으면 새 이벤트의
@@ -123,10 +123,11 @@ export class SessionEngineService {
     const normalized = candidate?.trim();
     if (!normalized) return undefined;
 
-    const extensionCandidate = normalized
-      .replace(/^PJSIP\//i, '')
-      .split('-')[0]
-      .trim();
+    // 큐 멤버 인터페이스는 `PJSIP/1001` 일 수도 `Local/1001@agent-offer` 일 수도 있다.
+    // 접두만 벗기고 첫 하이픈 앞을 취하면 Local 쪽에서 내선을 놓쳐 상담원 매칭이 실패하고,
+    // primaryAgentId 가 빈 채로 남아 통화 이력과 통계가 통째로 빈다.
+    const extensionCandidate = getAgentExtensionFromChannel(normalized)
+      ?? normalized.replace(/^PJSIP\//i, '').split('-')[0].trim();
 
     const orConditions: Prisma.agentsWhereInput[] = [];
     if (/^[0-9a-fA-F-]{36}$/.test(normalized)) {
