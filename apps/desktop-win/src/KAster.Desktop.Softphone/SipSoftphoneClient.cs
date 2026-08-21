@@ -240,6 +240,11 @@ public sealed class SipSoftphoneClient : ISoftphoneControl, IDisposable
         _userAgent?.Dispose();
         _userAgent = null;
 
+        // 종료할 때 PBX 에서 Contact 를 지우려면 해지 REGISTER 가 인증을 통과해야 하는데,
+        // SIPSorcery 10.0.16 은 이 경로에서 401 챌린지에 응답하지 않는다 (2026-08-21 실측: 6초를 기다려도
+        // 인증 없는 REGISTER 만 4회 재전송하고 끝난다). 그래서 여기서 기다려도 얻는 것이 없다.
+        // 죽은 Contact 는 PBX 쪽 `remove_existing=yes` 로 처리한다 — 앱이 강제 종료되면 어차피
+        // 해지를 보낼 수 없으므로 정리 책임은 PBX 에 있어야 한다.
         _registrar?.Stop(true);
         _registrar = null;
 

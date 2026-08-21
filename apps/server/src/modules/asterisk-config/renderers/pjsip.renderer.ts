@@ -136,6 +136,12 @@ function renderAgent(agent: AgentInput): string {
     `[${agent.extension}]`,
     `type=aor`,
     `max_contacts=2`,
+    // A softphone that crashes, loses power, or is closed leaves its contact behind: it cannot
+    // send the de-registration, and nothing else removes it. Once max_contacts is filled with
+    // such dead entries Asterisk answers the next REGISTER with 403 and that agent can no longer
+    // take calls. Letting a fresh registration evict the oldest contact keeps the newest phone
+    // reachable no matter how the previous one went away.
+    `remove_existing=yes`,
     ``,
     `[${agent.extension}]`,
     `type=endpoint`,
