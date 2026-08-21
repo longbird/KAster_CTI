@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { PrismaService } from '../../common/prisma.service';
 import { OperatingModeService } from './operating-mode.service';
 import { LocalSpoolStore } from './local-spool.store';
 import { DurableSpoolService } from './durable-spool.service';
@@ -16,6 +17,9 @@ import { WriteAvailabilityGuard } from './write-availability.guard';
 @Global()
 @Module({
   providers: [
+    // ConfigSnapshotService 와 ResilienceHealthService 가 주입받는다.
+    // 이 저장소는 모듈마다 PrismaService 를 각자 providers 에 올리는 구조다.
+    PrismaService,
     OperatingModeService,
     WriteAvailabilityGuard,
     LocalSpoolStore,
