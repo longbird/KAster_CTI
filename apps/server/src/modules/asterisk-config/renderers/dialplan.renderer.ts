@@ -1335,7 +1335,11 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     ' same => n,ExecIf($["${SMART_FORWARD_ENABLED}"="1" & "${QUEUE_READY_COUNT}"="0"]?Goto(forward-dispatch,s,1))',
     ` same => n,Set(__REC_FILE=\${STRFTIME(\${EPOCH},,%Y/%m/%d)}/\${CHANNEL(linkedid)}-\${UNIQUEID}.${recordingFileExtension})`,
     ' same => n,Set(__CALL_START_TS=${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)})',
-    ' same => n,Set(CDR(userfield)=linkedid=${CHANNEL(linkedid)};queue=${QUEUE_NAME};rec=${REC_FILE})',
+    // extensions.conf 에서 ; 는 주석의 시작이다. 이스케이프하지 않으면 이 줄이 거기서
+    // 잘려 Set() 의 괄호와 ${} 가 짝을 잃고, 통화마다
+    // "Error in extension logic (missing '}')" 가 찍히면서 CDR userfield 가 통째로 빈다.
+    // 녹취 경로와 linkedid 를 CDR 로 역추적하는 경로가 조용히 끊긴다.
+    ' same => n,Set(CDR(userfield)=linkedid=${CHANNEL(linkedid)}\\;queue=${QUEUE_NAME}\\;rec=${REC_FILE})',
     ' same => n,Queue(${QUEUE_NAME},tT,,,${QUEUE_TIMEOUT_SECS},,,agent-pre-bridge)',
     ' same => n,NoOp(Queue Result: ${QUEUESTATUS})',
     ' same => n,Goto(queue-exit,s,1)',

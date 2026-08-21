@@ -22,6 +22,7 @@ import {
   validateRenderedConfFiles,
 } from './asterisk-config-validation';
 import { DEFAULT_SIP_REGISTER_PORT } from '../../common/call-routing.constants';
+import { buildDefaultMohWav } from './default-moh';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const DEFAULT_MOH_DIR = '/var/lib/asterisk/moh';
@@ -629,39 +630,6 @@ function buildSmartArsHookScript(port: number, configuredSecret: string | null):
   ].join('\n');
 }
 
-function buildDefaultMohWav(): Buffer {
-  const sampleRate = 8000;
-  const seconds = 4;
-  const sampleCount = sampleRate * seconds;
-  const pcm = Buffer.alloc(sampleCount * 2);
-  const notes = [392, 494, 587, 494];
-
-  for (let index = 0; index < sampleCount; index += 1) {
-    const noteIndex = Math.floor(index / sampleRate) % notes.length;
-    const frequency = notes[noteIndex];
-    const time = index / sampleRate;
-    const envelope = (index % sampleRate) < sampleRate * 0.65 ? 0.045 : 0;
-    const sample = Math.round(Math.sin(2 * Math.PI * frequency * time) * 32767 * envelope);
-    pcm.writeInt16LE(sample, index * 2);
-  }
-
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0, 'ascii');
-  header.writeUInt32LE(36 + pcm.length, 4);
-  header.write('WAVE', 8, 'ascii');
-  header.write('fmt ', 12, 'ascii');
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
-  header.writeUInt16LE(1, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * 2, 28);
-  header.writeUInt16LE(2, 32);
-  header.writeUInt16LE(16, 34);
-  header.write('data', 36, 'ascii');
-  header.writeUInt32LE(pcm.length, 40);
-
-  return Buffer.concat([header, pcm]);
-}
 
 function buildOptOutGuardedDigitAgiScript(): string {
   return [

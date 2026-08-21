@@ -10,6 +10,20 @@ const baseMenu = {
 };
 
 describe('renderDialplan', () => {
+  // extensions.conf 에서 ; 는 주석의 시작이다. 값 안에 그냥 두면 그 줄이 거기서
+  // 잘려나가 Set() 의 괄호와 ${} 가 짝을 잃는다. 통화마다
+  // "Error in extension logic (missing '}')" 가 찍히고 CDR userfield 가 통째로 빈다.
+  // 파일만 봐서는 멀쩡해 보이기 때문에 렌더 단계에서 막는다.
+  it('escapes semicolons so the CDR line is not cut off as a comment', () => {
+    const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [] });
+    const line = extensionsQueue.split('\n').find((l) => l.includes('CDR(userfield)'));
+
+    expect(line).toBeDefined();
+    expect(line).not.toMatch(/[^\\];/);
+    expect(line).toContain('queue=');
+    expect(line).toContain('rec=');
+  });
+
   it('renders inbound-main context', () => {
     const { extensionsInbound } = renderDialplan({ dids: [], ivrMenus: [] });
     expect(extensionsInbound).toContain('[inbound-main]');
