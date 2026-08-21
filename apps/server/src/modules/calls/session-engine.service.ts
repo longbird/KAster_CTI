@@ -6,7 +6,7 @@ import { RedisService } from '../redis/redis.service';
 import { normalizePhone } from '../customers/customers.service';
 import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { TransferDetectorService } from './transfer-detector.service';
-import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName } from './call-leg.util';
+import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName, hangupEndsCall } from './call-leg.util';
 
 // conv 44 SESSION_PRECEDENCE: 역순 도착 이벤트로 인한 상태 역행 차단.
 // 숫자가 클수록 "더 진행된" 상태. 현재 상태가 이보다 같거나 높으면 새 이벤트의
@@ -371,7 +371,12 @@ export class SessionEngineService {
         );
         break;
       case 'Hangup':
-        await this.finalizeHangup(linkedid, event.tenantId);
+        // 큐가 상담원에게 호를 넘기는 중간 채널은 통화 중에도 사라진다 — 브리지 최적화로
+        // 빠지거나, 상담원이 거절해서 끊긴다. 그걸 종료로 보면 12초 통화한 세션이
+        // 시작과 동시에 ENDED 로 닫힌다.
+        if (hangupEndsCall(event.raw?.Channel)) {
+          await this.finalizeHangup(linkedid, event.tenantId);
+        }
         break;
       case 'AgentComplete': {
         const eventAt = event.eventTime ? new Date(event.eventTime) : new Date();

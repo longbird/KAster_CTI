@@ -9,6 +9,7 @@ import {
 } from '../../../common/outbound-dial-policy.util';
 import {
   AGENT_OFFER_AGI_PATH,
+  AGENT_OFFER_CONTEXT,
   DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
 } from '../../../common/call-routing.constants';
 import {
@@ -497,12 +498,23 @@ function renderPreBridgeAgentBranch(
  * 큐 멤버가 `Local/{내선}@agent-offer` 라서 여기가 먼저 돈다. 여기서 응답하지 않는 한
  * 발신자는 큐에 남아 대기음을 계속 듣는다 — 상담원이 고민하는 동안 무음이 되지 않는다.
  */
-function renderAgentOffer(timeoutSeconds: number): string {
+function renderAgentOffer(
+  agents: AgentDialplanAgentInput[],
+  timeoutSeconds: number,
+  recordingChannelMode: RecordingChannelMode,
+): string {
   const offerFields = 'Extension: ${EXTEN},Caller: ${CALLERID(num)},Linkedid: ${CHANNEL(linkedid)}';
 
   return [
-    '[agent-offer]',
+    `[${AGENT_OFFER_CONTEXT}]`,
+    // Local/{내선}@agent-offer 의 device state 는 그 자체로는 알 수 없다. hint 가 없으면
+    // 큐에게 항상 "쓸 수 있음" 으로 보여 ringinuse=no 가 무력해지고, 통화 중인
+    // 상담원에게 또 전화가 간다.
+    ...agents.map((agent) => `exten => ${agent.extension},hint,PJSIP/${agent.extension}`),
     'exten => _X.,1,NoOp(Agent offer to ${EXTEN})',
+    // REC_FILE 은 발신자 채널에서 물려받는다. 중간에 끊기면 MixMonitor 가 빈 이름으로
+    // 녹취를 쓰려 하고 그 통화 녹취가 통째로 사라진다.
+    ...buildRecordFileLines(recordingChannelMode),
     ` same => n,UserEvent(KasterAgentOffer,Stage: offered,${offerFields})`,
     ` same => n,AGI(${AGENT_OFFER_AGI_PATH},\${EXTEN},${timeoutSeconds})`,
     ` same => n,UserEvent(KasterAgentOffer,Stage: result,Result: \${KASTER_OFFER_RESULT},${offerFields})`,
@@ -594,7 +606,11 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
       ),
     ),
     fromQueue,
-    renderAgentOffer(input.offerTimeoutSeconds ?? DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS),
+    renderAgentOffer(
+      input.agents,
+      input.offerTimeoutSeconds ?? DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+      recordingChannelMode,
+    ),
     sipHeaderHook,
     renderPreBridgeDispatcher(input.agents),
     ...input.agents.map((agent) => renderPreBridgeAgentBranch(agent, recordingChannelMode)),

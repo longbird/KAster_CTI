@@ -30,5 +30,11 @@ export const DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS = 10;
  * 이 배포에는 그 디렉터리가 없다. 못 찾아도 AGI 는 조용히 실패하고, dialplan 은
  * fail-open 이라 모든 호가 확인 없이 통과한다 — 기능이 꺼진 줄도 모르게 된다.
  */
+/**
+ * 큐가 상담원에게 호를 넘기기 전에 거치는 dialplan context.
+ * 큐 멤버 문자열과 dialplan 헤더가 같은 값을 써야 한다.
+ */
+export const AGENT_OFFER_CONTEXT = 'agent-offer';
+
 export const AGENT_OFFER_AGI_NAME = 'kaster-agent-offer.agi';
 export const AGENT_OFFER_AGI_PATH = `/var/lib/asterisk/sounds/custom/${AGENT_OFFER_AGI_NAME}`;

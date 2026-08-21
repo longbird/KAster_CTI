@@ -1,4 +1,5 @@
 import { renderQueuesConf } from './queues.renderer';
+import { queueMemberInterface } from '../../../common/queue-member.util';
 
 describe('renderQueuesConf', () => {
   it('큐 섹션과 일반 설정을 렌더링한다', () => {
@@ -42,9 +43,9 @@ describe('renderQueuesConf', () => {
       },
     ]);
 
-    const first = result.indexOf('member => PJSIP/1001,0,A');
-    const second = result.indexOf('member => PJSIP/1002,1,B');
-    const third = result.indexOf('member => PJSIP/1003,2,C');
+    const first = result.indexOf(`member => ${queueMemberInterface('1001')},0,A`);
+    const second = result.indexOf(`member => ${queueMemberInterface('1002')},1,B`);
+    const third = result.indexOf(`member => ${queueMemberInterface('1003')},2,C`);
 
     expect(first).toBeGreaterThan(-1);
     expect(second).toBeGreaterThan(first);

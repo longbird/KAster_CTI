@@ -45,6 +45,26 @@ describe('renderAgentDialplan - agent-offer', () => {
     expect(declineLine).toContain('"TIMEOUT"');
   });
 
+  /**
+   * Local/1001@agent-offer 의 device state 는 그 자체로는 알 수 없다. hint 가 없으면
+   * 항상 "쓸 수 있음" 으로 보여 queues.conf 의 ringinuse=no 가 무력해지고,
+   * 통화 중인 상담원에게 또 전화가 간다.
+   */
+  it('통화 중인 상담원을 큐가 알아볼 수 있게 hint 를 건다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
+
+    expect(rendered).toContain('exten => 1001,hint,PJSIP/1001');
+  });
+
+  // REC_FILE 은 발신자 채널에서 물려받는다. 중간에 끊기면 MixMonitor 가 빈 이름으로
+  // 녹취를 쓰려 하고, 그 통화 녹취가 통째로 사라진다.
+  it('녹취 파일명이 비어 오면 여기서 채운다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
+    const offerBlock = rendered.slice(rendered.indexOf('[agent-offer]'));
+
+    expect(offerBlock).toContain('Set(__REC_FILE=');
+  });
+
   it('제안 타임아웃을 현장에 맞게 바꿀 수 있다', () => {
     const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 7 });
 

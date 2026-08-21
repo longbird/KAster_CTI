@@ -1,4 +1,4 @@
-import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName } from './call-leg.util';
+import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName, hangupEndsCall } from './call-leg.util';
 
 describe('getChannelEndpointName', () => {
   it('strips the channel suffix Asterisk appends', () => {
@@ -42,6 +42,30 @@ describe('getAgentExtensionFromChannel', () => {
 
   it('has nothing to give for a carrier channel', () => {
     expect(getAgentExtensionFromChannel('PJSIP/trunk-070-5234-6380-00000021')).toBeNull();
+  });
+});
+
+describe('hangupEndsCall', () => {
+  it('고객이나 상담원 다리가 끊기면 통화가 끝난 것이다', () => {
+    expect(hangupEndsCall('PJSIP/trunk-070-5234-6380-00000021')).toBe(true);
+    expect(hangupEndsCall('PJSIP/1001-0000001b')).toBe(true);
+  });
+
+  /**
+   * 큐가 상담원에게 호를 넘기는 중간 채널은 통화 중에도 사라진다 — 브리지 최적화로
+   * 빠지거나, 상담원이 거절해서 끊긴다. 그걸 통화 종료로 보면 실제로는 12초 통화했는데
+   * 세션이 통화 시작과 동시에 ENDED 로 닫힌다(실측). 거절해도 다음 상담원으로
+   * 넘어가지 못하고 발신자만 남는다.
+   */
+  it('중간 채널이 사라지는 것은 통화 종료가 아니다', () => {
+    expect(hangupEndsCall('Local/1001@agent-offer-00000003;1')).toBe(false);
+    expect(hangupEndsCall('Local/1001@agent-offer-00000003;2')).toBe(false);
+  });
+
+  // 채널 이름이 없는 Hangup 도 온다. 그때까지 무시하면 세션이 열린 채 남는다.
+  it('무엇인지 모르면 통화 종료로 본다', () => {
+    expect(hangupEndsCall(undefined)).toBe(true);
+    expect(hangupEndsCall('')).toBe(true);
   });
 });
 

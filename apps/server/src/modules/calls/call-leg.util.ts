@@ -58,6 +58,20 @@ export function classifyLeg(channelName?: string | null): CallLegType | null {
 }
 
 /**
+ * 이 채널이 끊긴 것을 통화 종료로 볼 것인가.
+ *
+ * 큐가 상담원에게 호를 넘기는 중간 채널은 통화 중에도 사라진다 — 브리지 최적화로 빠지거나,
+ * 상담원이 거절해서 끊긴다. 그걸 종료로 보면 12초 통화한 세션이 시작과 동시에 ENDED 로
+ * 닫히고(실측), 거절해도 다음 상담원으로 넘어가지 못한 채 발신자만 남는다.
+ *
+ * 무엇인지 모르면 종료로 본다. 놓친 종료는 세션을 열린 채 남기지만, 잘못된 무시는
+ * 통화 기록을 통째로 잃는다.
+ */
+export function hangupEndsCall(channelName?: string | null): boolean {
+  return classifyLeg(channelName) !== 'local';
+}
+
+/**
  * 채널 이름이나 큐 멤버 인터페이스에서 상담원 내선을 읽어 낸다.
  *
  * `PJSIP/1001-0000001b`, `PJSIP/1001`, `Local/1001@agent-offer-00000007;1` 이 모두 `1001` 이다.
