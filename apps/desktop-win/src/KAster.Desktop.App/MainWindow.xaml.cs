@@ -70,6 +70,10 @@ public partial class MainWindow : Window
         softphone.WindowModeRequested += (_, mode) => ApplyMode(mode, softphone);
         runtime.Events.ConnectionStateChanged += (_, state) =>
             Dispatcher.Invoke(() => softphone.OnConnectionStateChanged(state));
+
+        // SIP 스레드에서 올라온다. UI 스레드로 옮기지 않으면 창 전환이 조용히 멈춘다.
+        runtime.Phone.CallStatusChanged += (_, status) =>
+            Dispatcher.Invoke(() => softphone.OnSoftphoneCallStatusChanged(status));
         runtime.Events.HandlerFailed += (_, ex) => App.LogError(ex);
         runtime.RefreshHandler.SignedOut += (_, _) => Dispatcher.Invoke(SignOut);
 
@@ -80,6 +84,10 @@ public partial class MainWindow : Window
         _timer.Start();
 
         await runtime.StartAsync();
+
+        // 내선 목록과 발신번호는 로그인 뒤 한 번만 받아 두면 된다.
+        // 실패해도 여기서 멈추지 않는다 — 발신만 못 하고 수신·통화는 그대로 돈다.
+        await softphone.LoadDialSetupAsync();
     }
 
     private void ApplyMode(WindowMode mode, SoftphoneViewModel softphone)

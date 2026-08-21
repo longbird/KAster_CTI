@@ -54,19 +54,118 @@
             </Grid>
         </Border>
 
-        <!-- 본문: 대기 안내 -->
+        <!--
+            본문: 상태 · 대기 안내 · 발신.
+            가운데 안내만 남는 공간을 흡수한다(Height="*"). 위아래는 Auto 라 창을 줄여도 밀리지 않는다.
+        -->
         <Border Grid.Row="1" Margin="0,12"
                 Background="{StaticResource BrushSurface}"
                 BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="대기 중" Style="{StaticResource TextTitle}" HorizontalAlignment="Center" />
-                <TextBlock Text="전화가 오면 이 창이 바뀐다"
-                           Style="{StaticResource TextCaption}"
-                           Margin="0,6,0,0"
-                           HorizontalAlignment="Center" />
-            </StackPanel>
+            <Grid Margin="{StaticResource PadPanel}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- 근무 상태: 이석 중에는 큐가 전화를 배정하지 않는다 -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource TextCaption}" Text="근무 상태" />
+                        <TextBlock Margin="0,2,0,0" FontWeight="SemiBold">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
+                                    <Setter Property="Text" Value="이석" />
+                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAvailable}" Value="True">
+                                            <Setter Property="Text" Value="대기" />
+                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" VerticalAlignment="Center" MinWidth="96"
+                            Command="{Binding ToggleAvailabilityCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                                <Setter Property="Content" Value="대기로" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAvailable}" Value="True">
+                                        <Setter Property="Content" Value="이석" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <!-- 대기 안내 -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="대기 중" Style="{StaticResource TextTitle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="전화가 오면 이 창이 바뀐다"
+                               Style="{StaticResource TextCaption}"
+                               Margin="0,6,0,0"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <!-- 발신 -->
+                <StackPanel Grid.Row="2">
+                    <TextBlock Text="전화 걸기" Style="{StaticResource TextCaption}" Margin="0,0,0,6" />
+
+                    <!--
+                        발신번호는 외부로 걸 때만 뜻이 있다. 내선 통화에는 쓰이지 않으므로 접어 둔다.
+                        Collapsed 라 자리도 차지하지 않아 창 높이가 흔들리지 않는다.
+                    -->
+                    <StackPanel Margin="0,0,0,8">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowsCallerIdPicker}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <TextBlock Text="발신번호" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                        <ComboBox ItemsSource="{Binding CallerIds}"
+                                  SelectedItem="{Binding SelectedCallerId}"
+                                  Padding="{StaticResource PadControl}"
+                                  FontFamily="{StaticResource FontUi}"
+                                  FontSize="{StaticResource FontSizeBody}" />
+                    </StackPanel>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- UpdateSourceTrigger=PropertyChanged 라야 한 글자 칠 때마다 버튼이 열린다 -->
+                        <TextBox Grid.Column="0"
+                                 Style="{StaticResource FieldInput}"
+                                 Text="{Binding DialNumber, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <Button Grid.Column="1" Margin="8,0,0,0" MinWidth="80"
+                                Content="걸기"
+                                Style="{StaticResource ButtonPrimary}"
+                                IsDefault="True"
+                                Command="{Binding DialCommand}" />
+                    </Grid>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- 꼬리말: 알림 자리를 고정해 두면 메시지가 떠도 위 영역이 흔들리지 않는다 -->
