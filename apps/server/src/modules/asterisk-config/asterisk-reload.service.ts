@@ -764,7 +764,9 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     const externalSignalingAddress = this.config.get<string>('ASTERISK_EXTERNAL_SIGNALING_ADDRESS')?.trim()
       || externalMediaAddress;
     const localNets = parseCommaSeparatedList(this.config.get<string>('ASTERISK_LOCAL_NETS'));
-    return { externalMediaAddress, externalSignalingAddress, localNets };
+    // 통신사가 국선 INVITE 를 보내는 포트. 통신사와 합의한 값이라 현장마다 다르다.
+    const trunkSignalingPort = Number(this.config.get<string>('ASTERISK_TRUNK_SIP_PORT')) || null;
+    return { externalMediaAddress, externalSignalingAddress, localNets, trunkSignalingPort };
   }
 
   private renderRtpConf() {

@@ -28,6 +28,8 @@ export interface PjsipInput {
   externalMediaAddress?: string | null;
   externalSignalingAddress?: string | null;
   localNets?: string[];
+  /** 통신사가 국선 INVITE 를 보내는 포트. 통신사와 합의한 값이라 현장마다 다르다. */
+  trunkSignalingPort?: number | null;
 }
 
 import { assertNoNewlines, toSlug } from './renderer-utils';
@@ -39,7 +41,7 @@ const SIP_WS_PORT = 8088;
 // 스캐너를 피하려는 의도적 설정이지만, transport 가 하나뿐이면 국선까지 같이 끌려가
 // 인입이 통째로 끊긴다. 발신은 우리가 먼저 나가므로 멀쩡해서 더 늦게 발견된다.
 // (2026-08-21: 실제로 36070 -> 48950 으로 옮기고 국선 인입이 통신사 안내멘트로 끝났다.)
-const SIP_TRUNK_PORT = 5060;
+const DEFAULT_SIP_TRUNK_PORT = 5060;
 const TRUNK_TRANSPORT = 'transport-trunk-udp';
 const AGENT_TRANSPORT = 'transport-udp';
 const ASTERISK_AUTH_REALM = 'asterisk';
@@ -95,6 +97,12 @@ function renderTrunk(trunk: TrunkInput, transport: string): string {
     `rewrite_contact=yes`,
     `trust_id_inbound=yes`,
     `send_pai=yes`,
+    // 통신사가 SDP 에 telephone-event 를 올리지 않으면 RFC2833 이 협상되지 않고,
+    // rfc4733 로 고정돼 있으면 DTMF 가 통째로 사라진다. ARS 에서 키를 눌러도 아무
+    // 일도 일어나지 않고 안내만 다시 나오는데, 신호는 오고 있으니 어디가 잘못됐는지
+    // 로그만 봐서는 알 수 없다. auto 는 협상되면 rfc4733, 아니면 음성 대역에서
+    // 톤을 직접 검출한다. (2026-08-21: 이 현장 SDP 가 "m=audio ... RTP/AVP 8 0 18 4".)
+    `dtmf_mode=auto`,
   ];
   return [
     ...authSection,
@@ -199,7 +207,10 @@ export function renderPjsip(input: PjsipInput): string {
   const transportNatLines = renderTransportNatLines(input, localNets);
   // 전화기가 이미 표준 포트에 있으면 국선용을 따로 두지 않는다.
   // 두 transport 가 같은 포트를 물면 Asterisk 가 기동에 실패한다.
-  const needsTrunkTransport = sipRegisterPort !== SIP_TRUNK_PORT;
+  const trunkSignalingPort = input.trunkSignalingPort && input.trunkSignalingPort > 0
+    ? input.trunkSignalingPort
+    : DEFAULT_SIP_TRUNK_PORT;
+  const needsTrunkTransport = sipRegisterPort !== trunkSignalingPort;
   const trunkTransport = needsTrunkTransport ? TRUNK_TRANSPORT : AGENT_TRANSPORT;
   const header = [
     `[global]`,
@@ -224,7 +235,7 @@ export function renderPjsip(input: PjsipInput): string {
           `[${TRUNK_TRANSPORT}]`,
           `type=transport`,
           `protocol=udp`,
-          `bind=0.0.0.0:${SIP_TRUNK_PORT}`,
+          `bind=0.0.0.0:${trunkSignalingPort}`,
           ...transportNatLines,
         ]
       : []),

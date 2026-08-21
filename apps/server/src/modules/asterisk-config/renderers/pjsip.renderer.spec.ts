@@ -33,8 +33,18 @@ describe('renderPjsip', () => {
     expect(result).toContain('transport=transport-trunk-udp');
   });
 
+  // 통신사가 표준 포트로 보내지 않는 현장이 있다. 실제로 이 현장은 36070 이었고,
+  // 통신사가 보내는 포트를 안 열어두면 OPTIONS 부터 무응답이라 국선이 통째로 죽는다.
+  it('binds the trunk transport on the port the carrier was given', () => {
+    const result = renderPjsip({
+      trunks: [TRUNK], agents: [], sipRegisterPort: 48950, trunkSignalingPort: 36070,
+    });
+    expect(result).toContain('[transport-trunk-udp]\ntype=transport\nprotocol=udp\nbind=0.0.0.0:36070');
+    expect(result).toContain('transport=transport-trunk-udp');
+  });
+
   // 두 transport 가 같은 포트를 물면 Asterisk 가 기동에 실패한다.
-  it('uses the single transport when phones already sit on the standard port', () => {
+  it('uses the single transport when phones already sit on the carrier port', () => {
     const result = renderPjsip({ trunks: [TRUNK], agents: [], sipRegisterPort: 5060 });
     expect(result).not.toContain('[transport-trunk-udp]');
     expect(result).toContain('transport=transport-udp');
@@ -68,6 +78,15 @@ describe('renderPjsip', () => {
     expect(result).toContain('username=trunk01');
     expect(result).toContain('contact=sip:1.2.3.4:5060');
     expect(result).toContain('allow=alaw,ulaw');
+  });
+
+  // 통신사가 SDP 에 telephone-event 를 올리지 않는 현장이 있다. 그러면 RFC2833 이
+  // 협상되지 않아 rfc4733 로는 DTMF 가 통째로 사라진다 — ARS 에서 키를 눌러도
+  // 아무 일도 일어나지 않고 안내만 다시 나온다. auto 는 협상되면 rfc4733, 아니면
+  // 음성 대역에서 톤을 직접 검출한다. (2026-08-21: 이 현장 SDP 가 "8 0 18 4" 였다.)
+  it('lets the trunk fall back to inband DTMF detection', () => {
+    const result = renderPjsip({ trunks: [TRUNK], agents: [] });
+    expect(result).toContain('dtmf_mode=auto');
   });
 
   it('renders unauthenticated trunk without auth section', () => {
