@@ -1102,4 +1102,118 @@ public class SoftphoneViewModelTests
         Assert.False(vm.ShowsDeskPhoneSetup);
         Assert.Contains("등록되지", vm.PhoneStatusText);
     }
+
+    private const string DeskPhoneJson = """
+    {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
+     "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}],"error":null}
+    """;
+
+    private const string DeskPhoneReadyJson = """
+    {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
+     "sipRegistration":{"registered":true,"registrationStatus":"Avail"}}],"error":null}
+    """;
+
+    /// <summary>
+    /// 상담원이 전화기에 값을 넣는 동안 화면은 그대로다. 등록이 끝났는데도 "등록되지 않았다" 가
+    /// 계속 떠 있으면 뭘 잘못한 줄 알고 다시 입력한다. 스스로 다시 확인해야 한다.
+    /// </summary>
+    [Fact]
+    public async Task A_desk_phone_that_registers_later_is_noticed_without_asking()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        await vm.LoadDialSetupAsync();
+        Assert.False(vm.IsPhoneRegistered);
+
+        // 전화기가 등록됐다.
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
+        _now = _now.AddSeconds(6);
+        vm.Tick();
+        await vm.PendingWork;
+
+        Assert.True(vm.IsPhoneRegistered);
+        Assert.False(vm.ShowsDeskPhoneSetup);
+    }
+
+    /// <summary>확인이 1초마다 나가면 서버를 쓸데없이 두드린다.</summary>
+    [Fact]
+    public async Task The_recheck_does_not_run_every_second()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        await vm.LoadDialSetupAsync();
+
+        _now = _now.AddSeconds(1);
+        vm.Tick();
+        await vm.PendingWork;
+
+        Assert.Equal(2, stub.Requests.Count);
+    }
+
+    /// <summary>등록이 끝난 뒤에도 죽는 것을 알아야 하지만, 그때는 자주 볼 필요가 없다.</summary>
+    [Fact]
+    public async Task Once_registered_the_recheck_slows_down()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        await vm.LoadDialSetupAsync();
+        Assert.True(vm.IsPhoneRegistered);
+
+        _now = _now.AddSeconds(10);
+        vm.Tick();
+        await vm.PendingWork;
+        Assert.Equal(2, stub.Requests.Count);
+
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
+        _now = _now.AddSeconds(25);
+        vm.Tick();
+        await vm.PendingWork;
+        Assert.Equal(3, stub.Requests.Count);
+    }
+
+    /// <summary>소프트폰 모드는 우리가 직접 등록하므로 서버에 물어볼 것이 없다.</summary>
+    [Fact]
+    public async Task Softphone_mode_never_polls_for_a_desk_phone()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: true);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        await vm.LoadDialSetupAsync();
+
+        _now = _now.AddMinutes(5);
+        vm.Tick();
+        await vm.PendingWork;
+
+        Assert.Equal(2, stub.Requests.Count);
+    }
+
+    /// <summary>기다리지 않고 바로 확인하고 싶을 때가 있다.</summary>
+    [Fact]
+    public async Task The_agent_can_ask_for_a_recheck_right_away()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        await vm.LoadDialSetupAsync();
+
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
+        await vm.RecheckDeskPhoneAsync();
+
+        Assert.True(vm.IsPhoneRegistered);
+    }
+
+    /// <summary>확인이 실패했다고 화면에 오류를 계속 띄우면 안 된다. 조용히 다음 차례를 기다린다.</summary>
+    [Fact]
+    public async Task A_failed_recheck_stays_quiet()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        await vm.LoadDialSetupAsync();
+
+        stub.Enqueue(HttpStatusCode.InternalServerError, """{"success":false,"data":null,"error":{"code":"X","message":"서버 오류"}}""");
+        _now = _now.AddSeconds(6);
+        vm.Tick();
+        await vm.PendingWork;
+
+        Assert.Null(vm.NoticeMessage);
+        Assert.False(vm.IsPhoneRegistered);
+    }
 }

@@ -179,9 +179,27 @@
                     <TextBlock Text="전화기에 아래 값을 넣으세요"
                                Style="{StaticResource TextBody}"
                                FontWeight="SemiBold" />
-                    <TextBlock Text="등록되면 이 안내는 사라집니다"
-                               Style="{StaticResource TextCaption}"
-                               Margin="0,2,0,10" />
+                    <Grid Margin="0,2,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="등록되면 이 안내는 사라집니다"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource TextCaption}" />
+
+                        <!-- 스스로도 몇 초마다 확인하지만, 기다리지 않고 바로 보고 싶을 때가 있다. -->
+                        <Button Grid.Column="1"
+                                Content="다시 확인"
+                                Padding="6,0" BorderThickness="0"
+                                Background="Transparent" Cursor="Hand"
+                                Foreground="{StaticResource BrushAccent}"
+                                FontFamily="{StaticResource FontUi}"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Command="{Binding RecheckDeskPhoneCommand}" />
+                    </Grid>
 
                     <Grid>
                         <Grid.ColumnDefinitions>

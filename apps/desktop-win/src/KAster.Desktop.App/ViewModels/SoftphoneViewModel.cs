@@ -57,6 +57,15 @@ public sealed class SoftphoneViewModel : ObservableObject
     private bool _isDialing;
     private bool _isPhoneRegistered;
     private bool _isSipPasswordVisible;
+
+    /// <summary>
+    /// 다음 실기기 등록 확인 시각. 등록 전에는 자주, 등록된 뒤에는 드물게 본다.
+    /// 로그인 직후의 첫 조회가 끝나기 전에는 돌지 않는다.
+    /// </summary>
+    private DateTimeOffset _nextDeskPhoneCheck = DateTimeOffset.MaxValue;
+
+    /// <summary>진행 중인 뒷작업. 테스트가 기다릴 수 있게 내보낸다.</summary>
+    private Task _pendingWork = Task.CompletedTask;
     private string _phoneStatusText;
     private string _dialingNumber = string.Empty;
     private string _memoText = string.Empty;
@@ -97,6 +106,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 통화 중 로그아웃은 막는다. 고객이 끊긴 줄 모른 채 남는다.
         SignOutCommand = new RelayCommand(() => SignOutRequested?.Invoke(this, EventArgs.Empty), () => IsFree);
         ToggleSipPasswordCommand = new RelayCommand(() => IsSipPasswordVisible = !IsSipPasswordVisible);
+        RecheckDeskPhoneCommand = new RelayCommand(() => _pendingWork = RecheckDeskPhoneAsync());
     }
 
     public event EventHandler<WindowMode>? WindowModeRequested;
@@ -114,6 +124,11 @@ public sealed class SoftphoneViewModel : ObservableObject
     public RelayCommand SignOutCommand { get; }
 
     public RelayCommand ToggleSipPasswordCommand { get; }
+
+    public RelayCommand RecheckDeskPhoneCommand { get; }
+
+    /// <summary>화면 뒤에서 도는 작업. 테스트에서만 쓴다.</summary>
+    public Task PendingWork => _pendingWork;
 
     /// <summary>로그아웃을 실제로 수행하는 것은 조립 지점이다. 화면은 요청만 한다.</summary>
     public event EventHandler? SignOutRequested;
@@ -245,6 +260,14 @@ public sealed class SoftphoneViewModel : ObservableObject
             _selfAnswerUntil = null;
             _dialedNumber = null;
             StopDialing("기한 안에 전화가 오지 않았다");
+        }
+
+        // 상담원이 전화기에 값을 넣는 동안 화면이 그대로면, 등록이 끝났는데도 뭘 잘못한 줄 안다.
+        if (!_useSoftphone && _now() >= _nextDeskPhoneCheck)
+        {
+            // 응답이 늦어도 매 초 다시 나가지 않도록 먼저 미뤄 둔다.
+            _nextDeskPhoneCheck = _now().AddSeconds(5);
+            _pendingWork = RecheckDeskPhoneAsync();
         }
 
         var answeredAt = _store.Current?.Server?.AnsweredAt;
@@ -577,6 +600,31 @@ public sealed class SoftphoneViewModel : ObservableObject
     private bool IsExtension(string number) => _knownExtensions.Contains(number);
 
     /// <summary>
+    /// 등록 상태를 다시 확인한다. <b>조용히</b> 실패한다 — 주기 확인이 실패했다고
+    /// 화면에 오류를 계속 띄우면 통화 알림이 묻힌다.
+    /// </summary>
+    public async Task RecheckDeskPhoneAsync(CancellationToken ct = default)
+    {
+        if (_useSoftphone) return;
+
+        try
+        {
+            ApplyDeskPhoneRegistration(await _server.GetAgentDirectoryAsync(ct));
+        }
+        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
+        {
+            // 다음 차례에 다시 본다.
+        }
+    }
+
+    /// <summary>
+    /// 등록 전에는 5초, 등록된 뒤에는 30초. 값을 넣는 동안에는 바로 반응해야 하고,
+    /// 붙은 뒤에는 죽는 것만 알면 된다.
+    /// </summary>
+    private void ScheduleNextDeskPhoneCheck()
+        => _nextDeskPhoneCheck = _now().AddSeconds(IsPhoneRegistered ? 30 : 5);
+
+    /// <summary>
     /// 실기기 모드에서 내 내선의 전화기가 PBX 에 등록돼 있는지 확인해 화면에 올린다.
     /// 등록돼 있지 않으면 전화가 한 통도 오지 않는다 — 로그인 직후에 말해 줘야 한다.
     /// </summary>
@@ -591,10 +639,13 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             IsPhoneRegistered = false;
             PhoneStatusText = $"내선 {_agent.Extension} 을 찾을 수 없다";
+            ScheduleNextDeskPhoneCheck();
             return;
         }
 
         IsPhoneRegistered = mine.SipRegistration?.Registered ?? false;
+        ScheduleNextDeskPhoneCheck();
+
         PhoneStatusText = IsPhoneRegistered
             ? "전화기 준비됨"
             : $"전화기가 등록되지 않았다 ({mine.SipRegistration?.RegistrationStatus ?? "UNREGISTERED"})";
