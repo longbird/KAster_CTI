@@ -22,6 +22,12 @@ public sealed class CtiEventClient : IAsyncDisposable
     private readonly Uri _namespaceUri;
     private readonly Func<string?> _accessTokenProvider;
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    /// <summary>Engine.IO v4 서버는 25초마다 ping 을 보낸다. 45초면 두 번을 놓친 것이다.</summary>
+    private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(45);
+
+    private readonly HeartbeatMonitor _heartbeat = new(HeartbeatTimeout);
+    private Timer? _watchdog;
     private SocketIO? _socket;
     private CtiConnectionState _state = CtiConnectionState.Disconnected;
 
@@ -62,14 +68,23 @@ public sealed class CtiEventClient : IAsyncDisposable
                 Reconnection = false,
             });
 
-            socket.OnConnected += (_, _) => Raise(CtiConnectionState.Connected);
+            socket.OnConnected += (_, _) =>
+            {
+                _heartbeat.Beat(DateTimeOffset.UtcNow);
+                Raise(CtiConnectionState.Connected);
+            };
             socket.OnDisconnected += (_, _) => Raise(CtiConnectionState.Disconnected);
+
+            // 서버가 살아 있다는 유일한 근거. 이벤트가 없는 한가한 시간에도 이건 온다.
+            socket.OnPing += (_, _) => _heartbeat.Beat(DateTimeOffset.UtcNow);
+            socket.OnPong += (_, _) => _heartbeat.Beat(DateTimeOffset.UtcNow);
 
             foreach (var name in CtiEventNames.All)
             {
                 var eventName = name;
                 socket.On(eventName, ctx =>
                 {
+                    _heartbeat.Beat(DateTimeOffset.UtcNow);
                     Dispatch(eventName, ctx);
                     return Task.CompletedTask;
                 });
@@ -78,6 +93,7 @@ public sealed class CtiEventClient : IAsyncDisposable
             _socket = socket;
             Raise(CtiConnectionState.Connecting);
             await socket.ConnectAsync(ct);
+            StartWatchdog();
         }
         finally
         {
@@ -130,6 +146,29 @@ public sealed class CtiEventClient : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 5초마다 신호가 끊겼는지 본다. 라이브러리가 끊김을 못 알아채는 경우가 실제로 있어
+    /// (서버 컨테이너 재시작 시 5분 넘게 "연결됨"으로 남아 있었다) 이 감시가 필요하다.
+    /// </summary>
+    private void StartWatchdog()
+    {
+        _watchdog?.Dispose();
+        _watchdog = new Timer(_ =>
+        {
+            if (!_heartbeat.IsStale(DateTimeOffset.UtcNow)) return;
+
+            _heartbeat.Stop();
+            Raise(CtiConnectionState.Disconnected);
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private void StopWatchdog()
+    {
+        _watchdog?.Dispose();
+        _watchdog = null;
+        _heartbeat.Stop();
+    }
+
     private void Raise(CtiConnectionState state)
     {
         // 같은 상태를 두 번 알리지 않는다. 소켓 이벤트와 명시적 종료가 겹칠 수 있다.
@@ -144,6 +183,7 @@ public sealed class CtiEventClient : IAsyncDisposable
 
     private async Task CloseAsync()
     {
+        StopWatchdog();
         if (_socket is null) return;
 
         try
@@ -162,6 +202,7 @@ public sealed class CtiEventClient : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await DisconnectAsync();
+        StopWatchdog();
         _gate.Dispose();
     }
 }
