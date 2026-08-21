@@ -45,6 +45,10 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// </summary>
     private string? _dialedNumber;
     private DateTimeOffset? _selfAnswerUntil;
+    private bool _isDialing;
+    private bool _isPhoneRegistered;
+    private string _phoneStatusText = "전화 꺼짐";
+    private string _dialingNumber = string.Empty;
 
     private const int SelfAnswerWindowSeconds = 45;
 
@@ -193,6 +197,16 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// <summary>1초마다 불린다. 통화 시간은 서버가 준 <c>answeredAt</c> 기준으로 다시 계산한다.</summary>
     public void Tick()
     {
+        // PBX 가 되걸어 주지 않으면 아무 일도 일어나지 않는다. 조용히 두면 상담원은
+        // "대기 중" 화면을 보며 전화가 걸린 줄 안다.
+        if (IsDialing && !IsSelfAnswering)
+        {
+            NoticeMessage = $"{DialingNumber} 발신 요청은 접수됐지만 전화가 오지 않았다. 다시 걸어 달라.";
+            _selfAnswerUntil = null;
+            _dialedNumber = null;
+            StopDialing("기한 안에 전화가 오지 않았다");
+        }
+
         var answeredAt = _store.Current?.Server?.AnsweredAt;
         if (answeredAt is null)
         {
@@ -210,6 +224,37 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public void OnConnectionStateChanged(CtiConnectionState state)
         => IsConnected = state == CtiConnectionState.Connected;
+
+    /// <summary>
+    /// PBX 에 전화기가 등록돼 있는지. <b>서버 연결과 다른 것이다.</b>
+    /// 웹소켓이 붙어 있어도 SIP 등록이 죽으면 전화는 한 통도 오지 않는다.
+    /// 그때 화면이 "연결됨" 하나만 보여 주면 상담원은 원인을 알 수 없다.
+    /// </summary>
+    public bool IsPhoneRegistered
+    {
+        get => _isPhoneRegistered;
+        private set => Set(ref _isPhoneRegistered, value);
+    }
+
+    public string PhoneStatusText
+    {
+        get => _phoneStatusText;
+        private set => Set(ref _phoneStatusText, value);
+    }
+
+    public void OnRegistrationStatusChanged(RegistrationStatus status)
+    {
+        IsPhoneRegistered = status.State == RegistrationState.Registered;
+        PhoneStatusText = status.State switch
+        {
+            RegistrationState.Registered => "전화 준비됨",
+            RegistrationState.Registering => "전화 등록 중",
+            RegistrationState.Failed => string.IsNullOrWhiteSpace(status.Reason)
+                ? "전화 등록 실패"
+                : $"전화 등록 실패: {status.Reason}",
+            _ => "전화 꺼짐",
+        };
+    }
 
     public async Task AnswerAsync(CancellationToken ct = default)
     {
@@ -275,15 +320,27 @@ public sealed class SoftphoneViewModel : ObservableObject
         var number = CleanNumber(DialNumber);
         if (number.Length == 0) return;
 
-        var ack = IsExtension(number)
+        var internalCall = IsExtension(number);
+        Note($"발신 요청 {number} ({(internalCall ? "내선" : "외부")})");
+
+        var ack = internalCall
             ? await Send(() => _server.OriginateInternalAsync(number, ct))
             : await Send(() => _server.OriginateAsync(number, SelectedCallerId, ct));
 
         // 거절당한 번호는 지우지 않는다. 고쳐서 다시 걸 수 있어야 한다.
-        if (ack is null) return;
+        if (ack is null)
+        {
+            Note($"발신 거부 {number}: {NoticeMessage}");
+            return;
+        }
+
+        Note($"발신 접수 {number}");
 
         _dialedNumber = number;
         _selfAnswerUntil = _now().AddSeconds(SelfAnswerWindowSeconds);
+        DialingNumber = number;
+        IsDialing = true;
+        NoticeMessage = null;
         DialNumber = string.Empty;
     }
 
@@ -293,11 +350,13 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// </summary>
     public void OnSoftphoneCallStatusChanged(SoftphoneCallStatus status)
     {
+        Note($"소프트폰 회선 {status.State} (자동응답 대기={IsSelfAnswering})");
         if (status.State == SoftphoneCallState.Ringing && IsSelfAnswering)
         {
             // 한 번만 받는다. 뒤이어 오는 전화는 상담원이 정한다.
             _selfAnswerUntil = null;
-            _ = _phone.AnswerAsync();
+            StopDialing("전화가 도착했다");
+            _ = SelfAnswerAsync();
             return;
         }
 
@@ -305,10 +364,61 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             _selfAnswerUntil = null;
             _dialedNumber = null;
+            StopDialing("소프트폰이 유휴로 돌아갔다");
         }
     }
 
     private bool IsSelfAnswering => _selfAnswerUntil is { } until && _now() <= until;
+
+    /// <summary>발신 요청을 보내고 PBX 가 되걸어 주기를 기다리는 중.</summary>
+    public bool IsDialing
+    {
+        get => _isDialing;
+        private set => Set(ref _isDialing, value);
+    }
+
+    /// <summary>지금 걸고 있는 번호.</summary>
+    public string DialingNumber
+    {
+        get => _dialingNumber;
+        private set => Set(ref _dialingNumber, value);
+    }
+
+    private void StopDialing(string why)
+    {
+        if (IsDialing) Note($"발신 중 해제: {why}");
+        IsDialing = false;
+        DialingNumber = string.Empty;
+    }
+
+    /// <summary>
+    /// 스스로 받기. 실패를 삼키지 않는다 — 조용히 실패하면 상담원은 왜 안 받아지는지 알 수 없고,
+    /// 화면은 계속 "받기"를 띄운 채 멈춰 있게 된다.
+    /// </summary>
+    private async Task SelfAnswerAsync()
+    {
+        try
+        {
+            if (await _phone.AnswerAsync()) return;
+            NoticeMessage = "건 전화를 자동으로 받지 못했다. 받기를 눌러 달라.";
+        }
+        catch (Exception ex)
+        {
+            NoticeMessage = $"자동 응답 실패: {ex.Message}";
+            SelfAnswerFailed?.Invoke(this, ex);
+        }
+    }
+
+    /// <summary>자동 응답이 예외로 끝난 경우. 조립 지점이 파일로 남긴다.</summary>
+    public event EventHandler<Exception>? SelfAnswerFailed;
+
+    /// <summary>
+    /// 발신 한 통이 어디까지 갔는지 남긴다. "전화가 안 걸린다" 는 신고가 들어왔을 때
+    /// 화면 캡처만으로는 알 수 없는 것 — 요청은 나갔는지, PBX 가 되걸었는지 — 을 이걸로 가른다.
+    /// </summary>
+    public event EventHandler<string>? Diagnostic;
+
+    private void Note(string message) => Diagnostic?.Invoke(this, message);
 
     /// <summary>
     /// 내선인지 가른다. <b>자릿수로 짐작하지 않는다</b> — 119·112 는 세 자리라 내선처럼 보이지만
@@ -363,6 +473,8 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
         else
         {
+            // 통화가 잡혔다. 발신 중 표시는 끝난다.
+            StopDialing("서버가 통화를 알려줬다");
             Tick();
         }
     }

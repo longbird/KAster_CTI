@@ -27,6 +27,25 @@ public partial class App : Application
         e.Handled = true;
     }
 
+    /// <summary>
+    /// 통화 흐름 기록. 상담원이 "전화가 안 걸린다" 고 하면 화면 캡처만으로는 알 수 없다 —
+    /// 요청이 나갔는지, PBX 가 되걸었는지, 어디서 끊겼는지가 여기 남는다.
+    /// </summary>
+    public static void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(AppPaths.Root);
+            File.AppendAllText(
+                Path.Combine(AppPaths.Root, "call.log"),
+                $"{DateTimeOffset.Now:HH:mm:ss.fff} {message}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+            // 기록을 못 남겨도 통화는 계속 간다.
+        }
+    }
+
     public static void LogError(Exception? ex)
     {
         if (ex is null) return;

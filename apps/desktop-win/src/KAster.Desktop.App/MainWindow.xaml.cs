@@ -74,7 +74,14 @@ public partial class MainWindow : Window
         // SIP 스레드에서 올라온다. UI 스레드로 옮기지 않으면 창 전환이 조용히 멈춘다.
         runtime.Phone.CallStatusChanged += (_, status) =>
             Dispatcher.Invoke(() => softphone.OnSoftphoneCallStatusChanged(status));
+        runtime.Phone.RegistrationStatusChanged += (_, status) =>
+            Dispatcher.Invoke(() => softphone.OnRegistrationStatusChanged(status));
+
+        // 이미 등록이 끝난 뒤에 붙을 수도 있다. 현재 값을 한 번 밀어 넣는다.
+        softphone.OnRegistrationStatusChanged(runtime.Phone.Status);
         runtime.Events.HandlerFailed += (_, ex) => App.LogError(ex);
+        softphone.SelfAnswerFailed += (_, ex) => App.LogError(ex);
+        softphone.Diagnostic += (_, message) => App.Log(message);
         runtime.RefreshHandler.SignedOut += (_, _) => Dispatcher.Invoke(SignOut);
 
         _runtime = runtime;

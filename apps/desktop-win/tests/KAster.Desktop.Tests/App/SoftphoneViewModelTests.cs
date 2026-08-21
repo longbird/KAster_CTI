@@ -205,6 +205,70 @@ public class SoftphoneViewModelTests
         Assert.Equal(1, phone.AnswerCalls);
     }
 
+    /// <summary>걸기를 눌렀는데 화면이 그대로면 눌린 건지 알 수 없다. 바로 발신 중으로 바뀌어야 한다.</summary>
+    [Fact]
+    public async Task Pressing_dial_shows_that_a_call_is_going_out()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        vm.DialNumber = "1002";
+
+        await vm.DialAsync();
+
+        Assert.True(vm.IsDialing);
+        Assert.Equal("1002", vm.DialingNumber);
+    }
+
+    [Fact]
+    public async Task A_refused_call_never_shows_as_going_out()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(
+            HttpStatusCode.BadRequest,
+            """{"success":false,"data":null,"error":{"code":"BLOCKED","message":"발신이 차단된 번호"}}""");
+        vm.DialNumber = "060123456";
+
+        await vm.DialAsync();
+
+        Assert.False(vm.IsDialing);
+    }
+
+    [Fact]
+    public async Task The_call_arriving_ends_the_going_out_state()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        vm.DialNumber = "1002";
+        await vm.DialAsync();
+
+        vm.OnSoftphoneCallStatusChanged(new SoftphoneCallStatus(SoftphoneCallState.Ringing));
+
+        Assert.False(vm.IsDialing);
+    }
+
+    /// <summary>
+    /// PBX 가 되걸어 주지 않으면 아무 일도 일어나지 않는다. 그대로 두면 상담원은 "대기 중" 화면을
+    /// 보며 전화가 걸린 줄 안다. 기한이 지나면 말해 준다.
+    /// </summary>
+    [Fact]
+    public async Task A_call_that_never_comes_back_says_so_instead_of_going_quiet()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        vm.DialNumber = "1002";
+        await vm.DialAsync();
+
+        _now = _now.AddSeconds(46);
+        vm.Tick();
+
+        Assert.False(vm.IsDialing);
+        Assert.Contains("전화가 오지 않았다", vm.NoticeMessage);
+    }
+
     [Fact]
     public void A_call_we_did_not_place_still_waits_for_the_agent()
     {
@@ -604,6 +668,41 @@ public class SoftphoneViewModelTests
 
         store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
         Assert.False(vm.ToggleAvailabilityCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// 서버 연결과 전화 등록은 다른 것이다. 웹소켓만 보고 "연결됨"을 띄우면, 전화 등록이 죽어도
+    /// 화면은 멀쩡해 보이고 상담원은 전화가 안 오는 이유를 알 수 없다. 둘을 따로 보여 준다.
+    /// </summary>
+    [Fact]
+    public void The_phone_registration_is_shown_separately_from_the_server_link()
+    {
+        var (vm, _, _, _) = Build();
+
+        vm.OnConnectionStateChanged(CtiConnectionState.Connected);
+        Assert.True(vm.IsConnected);
+        Assert.False(vm.IsPhoneRegistered);
+
+        vm.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Registered));
+        Assert.True(vm.IsPhoneRegistered);
+        Assert.Equal("전화 준비됨", vm.PhoneStatusText);
+
+        vm.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Failed, "403 Forbidden"));
+        Assert.False(vm.IsPhoneRegistered);
+        Assert.Contains("403", vm.PhoneStatusText);
+    }
+
+    [Theory]
+    [InlineData(RegistrationState.Stopped, "전화 꺼짐")]
+    [InlineData(RegistrationState.Registering, "전화 등록 중")]
+    public void Every_registration_state_says_something_readable(RegistrationState state, string expected)
+    {
+        var (vm, _, _, _) = Build();
+
+        vm.OnRegistrationStatusChanged(new RegistrationStatus(state));
+
+        Assert.Equal(expected, vm.PhoneStatusText);
+        Assert.False(vm.IsPhoneRegistered);
     }
 
     [Fact]
