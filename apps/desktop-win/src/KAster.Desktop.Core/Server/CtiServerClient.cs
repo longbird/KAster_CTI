@@ -79,6 +79,16 @@ public sealed class CtiServerClient
         return await EnvelopeReader.ReadAsync<CallCapabilities>(response, ct);
     }
 
+    /// <summary>
+    /// 상담 메모. 서버는 후처리 코드와 같은 표에 넣으므로 상담원 id 와 종류를 함께 받는다.
+    /// <c>acw</c> 는 통화 후 작성이라는 뜻이다.
+    /// </summary>
+    public Task<object> SaveMemoAsync(string callId, string agentId, string memoText, CancellationToken ct)
+        => PostAsync<object>(
+            $"calls/{Uri.EscapeDataString(callId)}/memo",
+            new { agentId, memoType = "acw", memoText, isFinal = true },
+            ct);
+
     public Task<CommandAck> AnswerAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/answer", new { }, ct);
 

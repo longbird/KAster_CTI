@@ -44,6 +44,25 @@ public sealed class AuthClient
         return ToResult(data);
     }
 
+    /// <summary>
+    /// 로그아웃. 서버가 refresh token 을 회수한다.
+    /// <b>실패해도 던지지 않는다</b> — 서버가 죽었다고 상담원이 로그인 화면으로 못 나가면 안 된다.
+    /// 토큰은 어차피 이쪽에서도 지운다.
+    /// </summary>
+    public async Task LogoutAsync(string refreshToken, CancellationToken ct)
+    {
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(
+                "auth/logout", new { refreshToken }, JsonDefaults.Options, ct);
+            _ = response;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // 서버에 못 알렸을 뿐이다. 토큰은 만료되면 무효가 된다.
+        }
+    }
+
     public async Task<SessionSummary> GetSessionAsync(CancellationToken ct)
     {
         using var response = await _http.GetAsync("me/session", ct);

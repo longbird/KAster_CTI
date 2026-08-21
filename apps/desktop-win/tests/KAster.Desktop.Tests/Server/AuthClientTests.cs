@@ -96,4 +96,27 @@ public class AuthClientTests
 
         Assert.Equal("udp", session.SoftphoneConfig!.Transport);
     }
+
+    /// <summary>서버가 refresh token 을 회수한다. 토큰이 이미 없어도 성공이다 (멱등).</summary>
+    [Fact]
+    public async Task Logging_out_hands_the_refresh_token_back()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, """{"success":true,"data":{},"error":null}""");
+        var client = new AuthClient(new HttpClient(stub) { BaseAddress = new Uri("http://server/api/v1/") });
+
+        await client.LogoutAsync("rt-1", CancellationToken.None);
+
+        Assert.Equal("/api/v1/auth/logout", stub.Requests[0].RequestUri!.AbsolutePath);
+        Assert.Contains("\"refreshToken\":\"rt-1\"", stub.Bodies[0]);
+    }
+
+    /// <summary>서버가 죽어 있어도 로그아웃은 되어야 한다. 화면이 잠긴 채로 남으면 안 된다.</summary>
+    [Fact]
+    public async Task A_server_that_refuses_the_logout_does_not_throw()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.InternalServerError, """{"success":false,"data":null,"error":{"code":"X","message":"서버 오류"}}""");
+        var client = new AuthClient(new HttpClient(stub) { BaseAddress = new Uri("http://server/api/v1/") });
+
+        await client.LogoutAsync("rt-1", CancellationToken.None);
+    }
 }

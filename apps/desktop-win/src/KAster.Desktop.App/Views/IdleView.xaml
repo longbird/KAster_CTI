@@ -238,9 +238,29 @@
         </Border>
 
         <!-- 꼬리말: 알림 자리를 고정해 두면 메시지가 떠도 위 영역이 흔들리지 않는다 -->
-        <TextBlock Grid.Row="2" Height="20"
-                   Text="{Binding NoticeMessage}"
-                   Foreground="{StaticResource BrushWarning}"
-                   Style="{StaticResource TextCaption}" />
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Height="20"
+                       Text="{Binding NoticeMessage}"
+                       Foreground="{StaticResource BrushWarning}"
+                       TextTrimming="CharacterEllipsis"
+                       Style="{StaticResource TextCaption}" />
+
+            <!-- 교대 근무에서 앞사람 계정으로 앉지 않으려면 나가는 길이 있어야 한다. -->
+            <Button Grid.Column="1"
+                    Content="로그아웃"
+                    Padding="8,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Foreground="{StaticResource BrushTextMuted}"
+                    FontFamily="{StaticResource FontUi}"
+                    FontSize="{StaticResource FontSizeCaption}"
+                    Command="{Binding SignOutCommand}" />
+        </Grid>
     </Grid>
 </UserControl>

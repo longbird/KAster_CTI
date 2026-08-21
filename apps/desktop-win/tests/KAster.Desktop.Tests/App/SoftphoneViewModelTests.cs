@@ -786,6 +786,117 @@ public class SoftphoneViewModelTests
         Assert.False(vm.IsPhoneRegistered);
     }
 
+    /// <summary>
+    /// 메모는 통화가 끝날 때 저장한다. 통화 중에 적어 둔 것이 화면 전환과 함께 사라지면
+    /// 상담원은 그걸 다시 쓸 방법이 없다.
+    /// </summary>
+    [Fact]
+    public void A_memo_typed_during_the_call_is_filed_when_it_ends()
+    {
+        var (vm, store, _, stub) = Build();
+        stub.Enqueue(HttpStatusCode.OK, """{"success":true,"data":{},"error":null}""");
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.MemoText = "고객이 재통화 요청";
+
+        store.Apply(new CallEndedEvent(Call(SessionStatus.Ended)));
+
+        Assert.Equal("/api/v1/calls/c-1/memo", stub.Requests[0].RequestUri!.AbsolutePath);
+        Assert.Equal(string.Empty, vm.MemoText);
+    }
+
+    /// <summary>빈 메모까지 서버로 보내면 통화마다 빈 줄이 쌓인다.</summary>
+    [Fact]
+    public void An_empty_memo_is_not_filed()
+    {
+        var (vm, store, _, stub) = Build();
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.MemoText = "   ";
+
+        store.Apply(new CallEndedEvent(Call(SessionStatus.Ended)));
+
+        Assert.Empty(stub.Requests);
+    }
+
+    /// <summary>다음 통화에 앞 통화의 메모가 남아 있으면 엉뚱한 통화에 붙는다.</summary>
+    [Fact]
+    public void A_new_call_starts_with_an_empty_memo()
+    {
+        var (vm, store, _, stub) = Build();
+        stub.Enqueue(HttpStatusCode.OK, """{"success":true,"data":{},"error":null}""");
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.MemoText = "첫 통화";
+        store.Apply(new CallEndedEvent(Call(SessionStatus.Ended)));
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+
+        Assert.Equal(string.Empty, vm.MemoText);
+    }
+
+    /// <summary>
+    /// 관리자가 상담원을 강제로 이석시키면 그 상담원 화면도 바뀌어야 한다.
+    /// 서버는 <c>agent.status.changed</c> 로 알려 주는데 지금까지 화면이 버리고 있었다.
+    /// </summary>
+    [Fact]
+    public void A_status_change_made_elsewhere_reaches_this_screen()
+    {
+        var (vm, _, _, _) = Build();
+        Assert.True(vm.IsAvailable);
+
+        vm.Apply(new AgentStatusChangedEvent(new AgentStatusChange
+        {
+            AgentId = "a-1",
+            StatusCode = AgentStatusCode.Break,
+        }));
+
+        Assert.Equal(AgentStatusCode.Break, vm.AgentStatus);
+        Assert.False(vm.IsAvailable);
+    }
+
+    /// <summary>같은 테넌트의 다른 상담원 상태까지 내 화면에 반영하면 안 된다.</summary>
+    [Fact]
+    public void Another_agents_status_is_none_of_our_business()
+    {
+        var (vm, _, _, _) = Build();
+
+        vm.Apply(new AgentStatusChangedEvent(new AgentStatusChange
+        {
+            AgentId = "a-2",
+            StatusCode = AgentStatusCode.Break,
+        }));
+
+        Assert.Equal(AgentStatusCode.Available, vm.AgentStatus);
+    }
+
+    /// <summary>스크린팝은 통화 중에 고객이 누구인지 알려 준다. 화면에는 이미 자리가 있다.</summary>
+    [Fact]
+    public void A_screen_pop_names_the_customer_on_the_call()
+    {
+        var (vm, store, _, _) = Build();
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent) with { Customer = null }));
+        Assert.Equal("알 수 없음", vm.CustomerName);
+
+        vm.Apply(new ScreenPopEvent("c-1", new CustomerInfo
+        {
+            CustomerId = "cu-9",
+            CustomerName = "이순신",
+            PhoneNumber = "01099998888",
+        }));
+
+        Assert.Equal("이순신", vm.CustomerName);
+    }
+
+    /// <summary>다른 통화의 스크린팝이 지금 화면을 덮어쓰면 안 된다.</summary>
+    [Fact]
+    public void A_screen_pop_for_another_call_is_ignored()
+    {
+        var (vm, store, _, _) = Build();
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+
+        vm.Apply(new ScreenPopEvent("other-call", new CustomerInfo { CustomerName = "이순신" }));
+
+        Assert.Equal("홍길동", vm.CustomerName);
+    }
+
     [Fact]
     public void The_realtime_connection_state_is_shown()
     {

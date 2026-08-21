@@ -82,6 +82,8 @@ public partial class MainWindow : Window
         runtime.Events.HandlerFailed += (_, ex) => App.LogError(ex);
         softphone.SelfAnswerFailed += (_, ex) => App.LogError(ex);
         softphone.Diagnostic += (_, message) => App.Log(message);
+        runtime.NonCallEvent += (_, evt) => softphone.Apply(evt);
+        softphone.SignOutRequested += async (_, _) => await SignOutAsync();
         runtime.RefreshHandler.SignedOut += (_, _) => Dispatcher.Invoke(SignOut);
 
         _runtime = runtime;
@@ -110,9 +112,23 @@ public partial class MainWindow : Window
         _windowMode.Request(mode);
     }
 
-    private async void SignOut()
+    private async void SignOut() => await SignOutAsync();
+
+    /// <summary>
+    /// 로그아웃. 서버에 refresh token 을 돌려주고 이쪽 금고를 비운 뒤 로그인 화면으로 간다.
+    /// 서버에 못 알려도 진행한다 — 서버가 죽었다고 상담원이 화면에 갇히면 안 된다.
+    /// </summary>
+    private async Task SignOutAsync()
     {
+        var refreshToken = _tokens.Load()?.RefreshToken;
         await ShutdownAsync();
+
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            var auth = new AuthClient(new HttpClient { BaseAddress = _settings.BaseUri });
+            await auth.LogoutAsync(refreshToken, CancellationToken.None);
+        }
+
         _tokens.Clear();
         ShowLogin();
     }

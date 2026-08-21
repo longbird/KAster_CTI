@@ -71,7 +71,13 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
         Phone = new SipSoftphoneClient(CreateAudio);
         Softphone = softphone;
 
-        Events.EventReceived += (_, evt) => _post(() => Calls.Apply(evt));
+        // 통화 이벤트는 상태 저장소가, 나머지(상태 변경·스크린팝)는 화면이 받는다.
+        // 한쪽만 연결하면 서버가 보낸 것이 조용히 사라진다.
+        Events.EventReceived += (_, evt) => _post(() =>
+        {
+            Calls.Apply(evt);
+            NonCallEvent?.Invoke(this, evt);
+        });
 
         // 연결이 도중에 끊기면 스스로 다시 붙는다. 라이브러리 자동 재연결은 만료된 토큰을 재사용하므로 꺼 뒀다.
         Events.ConnectionStateChanged += (_, state) =>
@@ -90,6 +96,9 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
     public CtiEventClient Events { get; }
 
     public CallStateStore Calls { get; }
+
+    /// <summary>통화 상태 밖의 이벤트. 조립 지점이 화면으로 넘긴다.</summary>
+    public event EventHandler<CtiEvent>? NonCallEvent;
 
     public SipSoftphoneClient Phone { get; }
 

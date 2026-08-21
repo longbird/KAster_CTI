@@ -41,13 +41,15 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Text="메모" Style="{StaticResource TextCaption}" />
+                <!-- 통화가 끝날 때 저장된다. 바인딩이 없으면 적은 내용이 화면 전환과 함께 사라진다. -->
                 <TextBox Grid.Row="1" Margin="0,6,0,0"
                          Style="{StaticResource FieldInput}"
                          Height="Auto"
                          AcceptsReturn="True"
                          TextWrapping="Wrap"
                          VerticalScrollBarVisibility="Disabled"
-                         MaxLines="5" />
+                         MaxLines="5"
+                         Text="{Binding MemoText, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
         </Border>
 

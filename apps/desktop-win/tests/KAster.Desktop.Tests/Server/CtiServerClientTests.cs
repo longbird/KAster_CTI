@@ -95,6 +95,26 @@ public class CtiServerClientTests
             stub.Requests[1].Headers.GetValues("x-command-nonce").Single());
     }
 
+    /// <summary>
+    /// 메모는 통화 하나에 붙는다. 서버는 상담원 id 와 메모 종류를 함께 받는다 —
+    /// 후처리 코드와 같은 표를 쓰기 때문이다.
+    /// </summary>
+    [Fact]
+    public async Task A_memo_is_filed_against_the_call_it_belongs_to()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, """{"success":true,"data":{},"error":null}""");
+
+        await Build(stub).SaveMemoAsync("c-1", "a-1", "고객이 재통화 요청", CancellationToken.None);
+
+        Assert.Equal("calls/c-1/memo", PathOf(stub.Requests[0]));
+
+        // 한글은 유니코드 이스케이프로 나간다 (유효한 JSON 이다). 문자열이 아니라 값으로 비교한다.
+        var body = System.Text.Json.JsonDocument.Parse(stub.Bodies[0]!).RootElement;
+        Assert.Equal("a-1", body.GetProperty("agentId").GetString());
+        Assert.Equal("고객이 재통화 요청", body.GetProperty("memoText").GetString());
+        Assert.Equal("acw", body.GetProperty("memoType").GetString());
+    }
+
     [Fact]
     public async Task Internal_calls_go_to_the_extension_path_with_no_command_headers()
     {

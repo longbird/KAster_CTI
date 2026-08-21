@@ -49,6 +49,10 @@ public sealed class SoftphoneViewModel : ObservableObject
     private bool _isPhoneRegistered;
     private string _phoneStatusText = "전화 꺼짐";
     private string _dialingNumber = string.Empty;
+    private string _memoText = string.Empty;
+
+    /// <summary>메모를 붙일 통화. 통화가 끝난 뒤에 저장하므로 그때는 현재 통화가 이미 없다.</summary>
+    private string? _memoCallId;
 
     private const int SelfAnswerWindowSeconds = 45;
 
@@ -74,6 +78,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         ToggleAvailabilityCommand = new RelayCommand(
             () => _ = ChangeStatusAsync(IsAvailable ? AgentStatusCode.Break : AgentStatusCode.Available),
             () => IsFree);
+
+        // 통화 중 로그아웃은 막는다. 고객이 끊긴 줄 모른 채 남는다.
+        SignOutCommand = new RelayCommand(() => SignOutRequested?.Invoke(this, EventArgs.Empty), () => IsFree);
     }
 
     public event EventHandler<WindowMode>? WindowModeRequested;
@@ -87,6 +94,11 @@ public sealed class SoftphoneViewModel : ObservableObject
     public RelayCommand DialCommand { get; }
 
     public RelayCommand ToggleAvailabilityCommand { get; }
+
+    public RelayCommand SignOutCommand { get; }
+
+    /// <summary>로그아웃을 실제로 수행하는 것은 조립 지점이다. 화면은 요청만 한다.</summary>
+    public event EventHandler? SignOutRequested;
 
     /// <summary>걸 번호. 화면에는 사람이 친 그대로 두고, 보낼 때만 기호를 떼어 낸다.</summary>
     public string DialNumber
@@ -119,6 +131,15 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public bool IsAvailable => AgentStatus != AgentStatusCode.Break;
 
+    /// <summary>
+    /// 통화 중에 적는 메모. 통화가 끝날 때 저장한다 — 화면이 바뀌면서 사라지면 다시 쓸 방법이 없다.
+    /// </summary>
+    public string MemoText
+    {
+        get => _memoText;
+        set => Set(ref _memoText, value);
+    }
+
     /// <summary>통화가 걸려 있지 않은 상태. 발신과 상태 변경은 이때만 연다.</summary>
     private bool IsFree => WindowMode == WindowMode.Idle;
 
@@ -140,6 +161,7 @@ public sealed class SoftphoneViewModel : ObservableObject
             ToggleMuteCommand.RaiseCanExecuteChanged();
             DialCommand.RaiseCanExecuteChanged();
             ToggleAvailabilityCommand.RaiseCanExecuteChanged();
+            SignOutCommand.RaiseCanExecuteChanged();
             WindowModeRequested?.Invoke(this, value);
         }
     }
@@ -220,6 +242,28 @@ public sealed class SoftphoneViewModel : ObservableObject
         CallDurationText = elapsed.TotalHours >= 1
             ? $"{(int)elapsed.TotalHours}:{elapsed.Minutes:00}:{elapsed.Seconds:00}"
             : $"{elapsed.Minutes:00}:{elapsed.Seconds:00}";
+    }
+
+    /// <summary>
+    /// 통화 외의 서버 이벤트. 통화 이벤트는 <see cref="CallStateStore"/> 가 맡는다.
+    /// 여기서 받지 않으면 그 이벤트들은 조용히 사라진다 — 관리자가 상태를 바꿔도 화면이 그대로였던 이유다.
+    /// </summary>
+    public void Apply(CtiEvent evt)
+    {
+        switch (evt)
+        {
+            // 관리자가 강제로 이석시키는 경우가 있다. 내 것만 반영한다.
+            case AgentStatusChangedEvent status when status.Change.AgentId == _agent.AgentId:
+                AgentStatus = status.Change.StatusCode;
+                break;
+
+            // 지금 통화의 고객이 누구인지 뒤늦게 밝혀지는 경우다.
+            case ScreenPopEvent pop when pop.CallId == CurrentCallId() && pop.Customer is not null:
+                CustomerName = string.IsNullOrWhiteSpace(pop.Customer.CustomerName)
+                    ? "알 수 없음"
+                    : pop.Customer.CustomerName;
+                break;
+        }
     }
 
     public void OnConnectionStateChanged(CtiConnectionState state)
@@ -443,6 +487,27 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// </summary>
     private bool IsExtension(string number) => _knownExtensions.Contains(number);
 
+    /// <summary>
+    /// 메모를 통화에 붙인다. 빈 메모는 보내지 않는다 — 통화마다 빈 줄이 쌓인다.
+    /// 실패하면 알림만 남기고 화면에는 그대로 둔다. 지워 버리면 상담원이 다시 쓸 수 없다.
+    /// </summary>
+    private async Task FileMemoAsync(CancellationToken ct = default)
+    {
+        var text = MemoText.Trim();
+        var callId = _memoCallId;
+        _memoCallId = null;
+
+        if (text.Length == 0 || callId is null)
+        {
+            MemoText = string.Empty;
+            return;
+        }
+
+        var saved = await Send(() => _server.SaveMemoAsync(callId, _agent.AgentId, text, ct));
+        Note(saved is null ? $"메모 저장 실패 {callId}" : $"메모 저장 {callId}");
+        if (saved is not null) MemoText = string.Empty;
+    }
+
     /// <summary>사람이 치는 공백·하이픈·괄호를 떼어 낸다. 서버는 숫자와 <c>*#+</c> 만 받는다.</summary>
     private static string CleanNumber(string value)
         => new(value.Where(c => char.IsAsciiDigit(c) || c is '*' or '#' or '+').ToArray());
@@ -482,11 +547,15 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 서버가 실제 음소거 상태를 알려주면 그 값을 따른다.
         if (server?.IsMuted is { } muted) IsMuted = muted;
 
+        // 통화가 끝난 뒤에 메모를 저장하므로, 어느 통화였는지 지금 붙잡아 둔다.
+        if (server is not null && WindowMode != WindowMode.Idle) _memoCallId = server.CallId;
+
         if (WindowMode == WindowMode.Idle)
         {
             IsMuted = false;
             CallDurationText = "00:00";
             _dialedNumber = null;
+            _ = FileMemoAsync();
         }
         else
         {
