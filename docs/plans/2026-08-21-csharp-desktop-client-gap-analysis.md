@@ -3,6 +3,9 @@
 > 대상 `apps/desktop-win`. 설계는 [`2026-08-20-csharp-desktop-client-design.md`](../design/2026-08-20-csharp-desktop-client-design.md),
 > 1단계 계획은 [`2026-08-20-csharp-desktop-client-phase1-plan.md`](2026-08-20-csharp-desktop-client-phase1-plan.md).
 
+> **2026-08-21 갱신 — A 묶음 6건 전부 완료.** 진행 중에 서버·PBX 결함 7건이 함께 드러나 같이 고쳤다.
+> 상세는 [`../qa/2026-08-20-csharp-softphone-phase1-verification.md`](../qa/2026-08-20-csharp-softphone-phase1-verification.md) 11~12장.
+
 ## 결론
 
 **1단계 범위 안에서만 6건이 빠져 있다.** 그중 3건은 화면에 자리가 있는데 동작하지 않거나

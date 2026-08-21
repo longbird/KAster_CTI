@@ -12,7 +12,7 @@
 | [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 34 | [`design/_index.md`](design/_index.md) |
 | [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 51 | [`plans/_index.md`](plans/_index.md) |
 | [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 15 | [`operations/_index.md`](operations/_index.md) |
-| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 52 | [`qa/_index.md`](qa/_index.md) |
+| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 53 | [`qa/_index.md`](qa/_index.md) |
 | [`reviews/`](reviews/) | 외부 문서·설계 검토 의견 | 1 | 아래 참조 |
 | [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 25 | [`work-log/_index.md`](work-log/_index.md) |
 | [`reference/`](reference/) | 원본 PDF·외부 원문 (수정 안 함) | 12 | [`reference/README.md`](reference/README.md) |
@@ -36,7 +36,8 @@
 | DB 마이그레이션 | [`operations/db-migration-runbook.md`](operations/db-migration-runbook.md) |
 | PBX 설정 반영 | [`operations/pbx-config-apply-runbook.md`](operations/pbx-config-apply-runbook.md) |
 | 기획 원본 (PDF) | [`reference/01_project_overview.pdf`](reference/01_project_overview.pdf) · [`02_practical_design.pdf`](reference/02_practical_design.pdf) · [`03_db_api_asterisk_spec.pdf`](reference/03_db_api_asterisk_spec.pdf) |
-| 요구사항 대비 구현 현황 | [`qa/2026-08-09-requirements-vs-implementation-verification.md`](qa/2026-08-09-requirements-vs-implementation-verification.md) |
+| 요구사항 대비 구현 현황 (통합 비교표) | [`qa/2026-08-19-requirements-implementation-comparison-verification.md`](qa/2026-08-19-requirements-implementation-comparison-verification.md) |
+| 요구사항 대비 구현 현황 (판정 근거·서술) | [`qa/2026-08-09-requirements-vs-implementation-verification.md`](qa/2026-08-09-requirements-vs-implementation-verification.md) |
 
 ## operations/
 
