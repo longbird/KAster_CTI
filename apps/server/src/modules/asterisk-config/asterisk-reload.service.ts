@@ -23,6 +23,8 @@ import {
 } from './asterisk-config-validation';
 import { DEFAULT_SIP_REGISTER_PORT } from '../../common/call-routing.constants';
 import { buildDefaultMohWav } from './default-moh';
+import { buildAgentOfferAgiScript } from './agent-offer-agi';
+import { AGENT_OFFER_AGI_PATH } from '../../common/call-routing.constants';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const DEFAULT_MOH_DIR = '/var/lib/asterisk/moh';
@@ -30,6 +32,7 @@ const DEFAULT_MOH_FILE_NAME = 'kaster-default-hold.wav';
 const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh';
 const OPT_OUT_GUARDED_DIGIT_AGI_PATH = '/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi';
 const SMART_ARS_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-smart-ars-hook.sh';
+
 const RELOAD_COMMANDS = [
   'module load res_http_websocket.so',
   'module load res_pjsip_transport_websocket.so',
@@ -981,6 +984,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     this.writeOptOutHookScript(httpPort, internalSecret);
     this.writeOptOutGuardedDigitAgiScript();
     this.writeSmartArsHookScript(httpPort, internalSecret);
+    this.writeAgentOfferAgiScript(httpPort, internalSecret);
     return true;
   }
 
@@ -1144,6 +1148,16 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       { encoding: 'utf8', mode: 0o755 },
     );
     fs.chmodSync(SMART_ARS_HOOK_SCRIPT_PATH, 0o755);
+  }
+
+  private writeAgentOfferAgiScript(httpPort: number, internalSecret: string | null) {
+    fs.mkdirSync(path.dirname(AGENT_OFFER_AGI_PATH), { recursive: true });
+    fs.writeFileSync(
+      AGENT_OFFER_AGI_PATH,
+      buildAgentOfferAgiScript(httpPort, internalSecret),
+      { encoding: 'utf8', mode: 0o755 },
+    );
+    fs.chmodSync(AGENT_OFFER_AGI_PATH, 0o755);
   }
 
   private ensureDefaultMohAsset() {

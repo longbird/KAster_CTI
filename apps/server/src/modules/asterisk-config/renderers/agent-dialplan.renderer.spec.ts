@@ -1,5 +1,57 @@
 import { renderAgentDialplan } from './agent-dialplan.renderer';
 
+const OFFER_INPUT = {
+  allowDirectSipDial: true,
+  defaultOutboundCallerId: '07052346380',
+  allowedOutboundCallerIds: ['07052346380'],
+  trunks: [{ name: 'Test Trunk', enabled: true }],
+  agents: [{
+    extension: '1001',
+    outboundEnabled: true,
+    callerIdPrivacy: 'allowed_not_screened' as const,
+    liveRecordingEnabled: true,
+  }],
+};
+
+describe('renderAgentDialplan - agent-offer', () => {
+  it('물어보고 나서 전화기를 울린다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
+
+    expect(rendered).toContain('[agent-offer]');
+    // 이름만 적으면 Asterisk 가 agi-bin 에서 찾는데 이 배포엔 그 디렉터리가 없다.
+    // 못 찾아도 조용히 실패하고 fail-open 이라 확인 없이 다 통과한다.
+    expect(rendered).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,${EXTEN},10)');
+    expect(rendered).toContain('Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
+  });
+
+  it('제안 사실과 결과를 CTI 로 올린다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
+
+    expect(rendered).toContain('UserEvent(KasterAgentOffer,Stage: offered');
+    expect(rendered).toContain('UserEvent(KasterAgentOffer,Stage: result');
+  });
+
+  /**
+   * AGI 가 아예 못 돌면 KASTER_OFFER_RESULT 는 빈 문자열이다. 그때 거절로 보면
+   * 모든 상담원이 통과되고 아무도 전화를 못 받는다 — 콜센터가 통째로 멈춘다.
+   * 명시적인 REJECT/TIMEOUT 만 거절로 본다.
+   */
+  it('제안 절차가 고장나도 전화는 상담원에게 간다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
+    const declineLine = rendered.split('\n').find((l) => l.includes('?declined'));
+
+    expect(declineLine).toBeDefined();
+    expect(declineLine).toContain('"REJECT"');
+    expect(declineLine).toContain('"TIMEOUT"');
+  });
+
+  it('제안 타임아웃을 현장에 맞게 바꿀 수 있다', () => {
+    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 7 });
+
+    expect(rendered).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,${EXTEN},7)');
+  });
+});
+
 describe('renderAgentDialplan', () => {
   it('직접 SIP 발신이 꺼져 있으면 agent-phone 에서 즉시 차단한다', () => {
     const rendered = renderAgentDialplan({

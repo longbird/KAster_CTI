@@ -8,6 +8,10 @@ import {
   REPRESENTATIVE_OUTBOUND_DIALPLAN_PATTERNS,
 } from '../../../common/outbound-dial-policy.util';
 import {
+  AGENT_OFFER_AGI_PATH,
+  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+} from '../../../common/call-routing.constants';
+import {
   getMixMonitorOptions,
   getRecordingFileExtension,
   normalizeRecordingChannelMode,
@@ -80,6 +84,11 @@ export interface AgentDialplanInput {
   trunks: AgentDialplanTrunkInput[];
   trunkGroups?: AgentDialplanTrunkGroupInput[];
   agents: AgentDialplanAgentInput[];
+  /**
+   * 상담원이 호를 수락/거절할 때까지 기다리는 시간(초).
+   * 짧으면 상담원이 놓치고, 길면 발신자가 이유 없이 기다린다.
+   */
+  offerTimeoutSeconds?: number;
   speedDials?: AgentDialplanSpeedDialInput[];
   /**
    * 기능코드 registry. HANDSET_DIAL 성격인 것만 렌더링한다.
@@ -482,6 +491,31 @@ function renderPreBridgeAgentBranch(
   return lines.join('\n');
 }
 
+/**
+ * 큐가 상담원에게 호를 넘기기 전에 거치는 곳.
+ *
+ * 큐 멤버가 `Local/{내선}@agent-offer` 라서 여기가 먼저 돈다. 여기서 응답하지 않는 한
+ * 발신자는 큐에 남아 대기음을 계속 듣는다 — 상담원이 고민하는 동안 무음이 되지 않는다.
+ */
+function renderAgentOffer(timeoutSeconds: number): string {
+  const offerFields = 'Extension: ${EXTEN},Caller: ${CALLERID(num)},Linkedid: ${CHANNEL(linkedid)}';
+
+  return [
+    '[agent-offer]',
+    'exten => _X.,1,NoOp(Agent offer to ${EXTEN})',
+    ` same => n,UserEvent(KasterAgentOffer,Stage: offered,${offerFields})`,
+    ` same => n,AGI(${AGENT_OFFER_AGI_PATH},\${EXTEN},${timeoutSeconds})`,
+    ` same => n,UserEvent(KasterAgentOffer,Stage: result,Result: \${KASTER_OFFER_RESULT},${offerFields})`,
+    // 명시적인 거절만 거절로 본다. AGI 가 아예 못 돌면 이 변수는 빈 문자열인데,
+    // 그걸 거절로 보면 모든 상담원이 통과되고 아무도 전화를 못 받는다 — 콜센터가 통째로 멈춘다.
+    ' same => n,GotoIf($["${KASTER_OFFER_RESULT}"="REJECT" | "${KASTER_OFFER_RESULT}"="TIMEOUT"]?declined)',
+    ' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))',
+    ' same => n,Hangup()',
+    // 끊으면 Queue 가 다음 상담원으로 넘어간다.
+    ' same => n(declined),Hangup()',
+  ].join('\n');
+}
+
 function renderPreBridgeDispatcher(agents: AgentDialplanAgentInput[]): string {
   const lines = [
     '[agent-pre-bridge]',
@@ -560,6 +594,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
       ),
     ),
     fromQueue,
+    renderAgentOffer(input.offerTimeoutSeconds ?? DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS),
     sipHeaderHook,
     renderPreBridgeDispatcher(input.agents),
     ...input.agents.map((agent) => renderPreBridgeAgentBranch(agent, recordingChannelMode)),
