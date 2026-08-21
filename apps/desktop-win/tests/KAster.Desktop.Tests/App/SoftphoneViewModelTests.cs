@@ -1216,4 +1216,52 @@ public class SoftphoneViewModelTests
         Assert.Null(vm.NoticeMessage);
         Assert.False(vm.IsPhoneRegistered);
     }
+
+    /// <summary>
+    /// 발신은 PBX 가 우리 단말을 먼저 부르는 방식이라 수신 INVITE 로 들어온다. 그렇다고 화면에
+    /// "수신 전화 / 받기" 라고 띄우면, 방금 자기가 건 전화를 받아야 하는 줄 알고 멈칫한다.
+    /// </summary>
+    [Fact]
+    public async Task A_call_we_placed_is_not_labelled_as_an_incoming_one()
+    {
+        var (vm, store, _, stub) = Build(useSoftphone: false);
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        vm.DialNumber = "01034623453";
+        await vm.DialAsync();
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent) with { Customer = null }));
+
+        Assert.True(vm.IsOutboundCall);
+        Assert.Equal(WindowMode.Ringing, vm.WindowMode);
+        Assert.False(vm.AnswerCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void A_call_that_arrives_on_its_own_is_still_answerable()
+    {
+        var (vm, store, _, _) = Build(useSoftphone: false);
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+
+        Assert.False(vm.IsOutboundCall);
+        Assert.True(vm.AnswerCommand.CanExecute(null));
+    }
+
+    /// <summary>통화가 끝나면 다음 수신 전화는 다시 받을 수 있어야 한다.</summary>
+    [Fact]
+    public async Task The_outbound_mark_clears_when_the_call_ends()
+    {
+        var (vm, store, _, stub) = Build(useSoftphone: false);
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        vm.DialNumber = "01034623453";
+        await vm.DialAsync();
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+        Assert.True(vm.IsOutboundCall);
+
+        store.Apply(new CallEndedEvent(Call(SessionStatus.Ended)));
+
+        Assert.False(vm.IsOutboundCall);
+    }
 }

@@ -95,7 +95,10 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         _store.CurrentCallChanged += (_, call) => OnCurrentCallChanged(call);
 
-        AnswerCommand = new RelayCommand(() => _ = AnswerAsync(), () => WindowMode == WindowMode.Ringing);
+        // 내가 건 전화에 "받기" 는 뜻이 없다. 소프트폰이면 알아서 받고, 실기기면 수화기를 든다.
+        AnswerCommand = new RelayCommand(
+            () => _ = AnswerAsync(),
+            () => WindowMode == WindowMode.Ringing && !IsOutboundCall);
         HangupCommand = new RelayCommand(() => _ = HangupAsync(), () => WindowMode is WindowMode.Ringing or WindowMode.Talking);
         ToggleMuteCommand = new RelayCommand(() => _ = ToggleMuteAsync(), () => WindowMode == WindowMode.Talking);
         DialCommand = new RelayCommand(() => _ = DialAsync(), () => IsFree && CleanNumber(DialNumber).Length > 0);
@@ -201,6 +204,12 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public bool IsRinging => WindowMode == WindowMode.Ringing;
 
+    /// <summary>
+    /// 우리가 건 전화인지. 발신은 PBX 가 우리 단말을 먼저 부르므로 수신 INVITE 로 들어오는데,
+    /// 그걸 "수신 전화" 라고 띄우면 방금 자기가 건 전화를 받아야 하는 줄 알고 멈칫한다.
+    /// </summary>
+    public bool IsOutboundCall => _dialedNumber is not null;
+
     public bool IsTalking => WindowMode == WindowMode.Talking;
 
     public string CustomerName
@@ -258,7 +267,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             NoticeMessage = $"{DialingNumber} 발신 요청은 접수됐지만 전화가 오지 않았다. 다시 걸어 달라.";
             _selfAnswerUntil = null;
-            _dialedNumber = null;
+            SetDialedNumber(null);
             StopDialing("기한 안에 전화가 오지 않았다");
         }
 
@@ -493,7 +502,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // PBX 는 서버의 HTTP 응답보다 <b>먼저</b> 우리를 부를 수 있다
         // (실측 2026-08-21: 외부 발신에서 INVITE 가 ack 보다 1ms 빨랐다).
         // 그래서 요청을 보내기 전에 창을 연다. 응답을 기다렸다 열면 그 한 통을 놓친다.
-        _dialedNumber = number;
+        SetDialedNumber(number);
         _selfAnswerUntil = _now().AddSeconds(SelfAnswerWindowSeconds);
         DialingNumber = PhoneNumberFormat.ForDisplay(number);
         IsDialing = true;
@@ -508,7 +517,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             Note($"발신 거부 {number}: {NoticeMessage}");
             _selfAnswerUntil = null;
-            _dialedNumber = null;
+            SetDialedNumber(null);
             StopDialing("서버가 거부했다");
             return;
         }
@@ -536,7 +545,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         if (status.State is SoftphoneCallState.Idle or SoftphoneCallState.Ended)
         {
             _selfAnswerUntil = null;
-            _dialedNumber = null;
+            SetDialedNumber(null);
             StopDialing("소프트폰이 유휴로 돌아갔다");
         }
     }
@@ -673,6 +682,15 @@ public sealed class SoftphoneViewModel : ObservableObject
         if (saved is not null) MemoText = string.Empty;
     }
 
+    private void SetDialedNumber(string? number)
+    {
+        if (_dialedNumber == number) return;
+
+        _dialedNumber = number;
+        Raise(nameof(IsOutboundCall));
+        AnswerCommand.RaiseCanExecuteChanged();
+    }
+
     /// <summary>사람이 치는 공백·하이픈·괄호를 떼어 낸다. 서버는 숫자와 <c>*#+</c> 만 받는다.</summary>
     private static string CleanNumber(string value)
         => new(value.Where(c => char.IsAsciiDigit(c) || c is '*' or '#' or '+').ToArray());
@@ -719,7 +737,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             IsMuted = false;
             CallDurationText = "00:00";
-            _dialedNumber = null;
+            SetDialedNumber(null);
             _ = FileMemoAsync();
         }
         else

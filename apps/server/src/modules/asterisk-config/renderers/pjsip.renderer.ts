@@ -170,15 +170,12 @@ function renderAgent(agent: AgentInput): string {
     `rtp_symmetric=yes`,
     `force_rport=yes`,
     `rewrite_contact=yes`,
-    `use_avpf=yes`,
-    `media_encryption=dtls`,
-    `media_use_received_transport=yes`,
-    `dtls_auto_generate_cert=yes`,
-    `dtls_verify=fingerprint`,
-    `dtls_setup=actpass`,
-    `ice_support=yes`,
-    `rtcp_mux=yes`,
-    `webrtc=yes`,
+    // Plain RTP, deliberately. These endpoints previously carried webrtc=yes, which forces
+    // DTLS-SRTP, AVPF, ICE and rtcp-mux — everything a browser needs and nothing a desk phone
+    // can do. A handset registered fine and then rejected every INVITE with 488, which Asterisk
+    // reports as cause 58, "Bearer capability not available": the phone lit up for a second and
+    // went dark. One endpoint cannot offer both, and these agents use desk phones and a native
+    // softphone that both speak plain RTP.
     `moh_suggest=default`,
   ].join('\n');
 }

@@ -96,10 +96,6 @@ describe('renderPjsip', () => {
     expect(result).toContain('remove_existing=yes');
     expect(result).toContain('qualify_frequency=30');
     expect(result).toContain('allow=alaw,ulaw');
-    expect(result).toContain('media_encryption=dtls');
-    expect(result).toContain('dtls_verify=fingerprint');
-    expect(result).toContain('ice_support=yes');
-    expect(result).toContain('webrtc=yes');
     expect(result).toContain('moh_suggest=default');
     expect(result).toContain('callerid_privacy=prohib');
     expect(result).toContain('deny=0.0.0.0/0.0.0.0');
@@ -152,5 +148,28 @@ describe('renderPjsip', () => {
       trunks: [{ name: 'safe', host: '1.1.1.1\ntype=malicious', port: 5060, username: 'u', password: 'p', fromDomain: 'd', codecs: 'alaw', enabled: true }],
       agents: [],
     })).toThrow('illegal newline');
+  });
+
+  // 데스크폰은 DTLS-SRTP 도 AVPF 도 못 한다. 이 설정이 하나라도 남으면 전화기가 울리다
+  // 488 로 끊고(cause 58), 등록은 멀쩡해 보이는데 통화만 안 되는 상태가 된다.
+  it('leaves agent endpoints on plain RTP so a desk phone can take the call', () => {
+    const result = renderPjsip({
+      trunks: [],
+      agents: [{ extension: '1001', agentName: 'Agent1', sipPassword: 'sip123' }],
+    });
+
+    for (const webrtcOnly of [
+      'webrtc=yes',
+      'media_encryption=dtls',
+      'use_avpf=yes',
+      'ice_support=yes',
+      'rtcp_mux=yes',
+      'dtls_verify=',
+      'dtls_setup=',
+      'dtls_auto_generate_cert=',
+      'media_use_received_transport=',
+    ]) {
+      expect(result).not.toContain(webrtcOnly);
+    }
   });
 });

@@ -10,7 +10,23 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="수신 전화" Style="{StaticResource TextCaption}" />
+        <!--
+            발신은 PBX 가 이 단말을 먼저 부르는 방식이라 수신 INVITE 로 들어온다.
+            그걸 "수신 전화" 라고 띄우면 방금 자기가 건 전화를 받아야 하는 줄 알고 멈칫한다.
+        -->
+        <TextBlock Grid.Row="0">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                    <Setter Property="Text" Value="수신 전화" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsOutboundCall}" Value="True">
+                            <Setter Property="Text" Value="발신 중 — 전화기를 받으면 연결됩니다" />
+                            <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
 
         <!-- 고객 정보. 이름과 번호 모두 한 줄 + 말줄임이라 긴 이름이 와도 창이 늘어나지 않는다. -->
         <Border Grid.Row="1" Margin="0,8,0,12"
@@ -39,13 +55,34 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Content="거절"
-                    Style="{StaticResource ButtonDanger}"
-                    Command="{Binding HangupCommand}" />
+            <Button Grid.Column="0" Command="{Binding HangupCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonDanger}">
+                        <Setter Property="Content" Value="거절" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsOutboundCall}" Value="True">
+                                <Setter Property="Content" Value="취소" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <!-- 내가 건 전화에는 받을 것이 없다. 커맨드도 닫혀 있지만 버튼 자체를 감춘다. -->
             <Button Grid.Column="2" Content="받기"
-                    Style="{StaticResource ButtonPrimary}"
                     Command="{Binding AnswerCommand}"
-                    IsDefault="True" />
+                    IsDefault="True">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsOutboundCall}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
         </Grid>
     </Grid>
 </UserControl>
