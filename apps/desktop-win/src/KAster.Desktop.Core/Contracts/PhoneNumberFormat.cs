@@ -31,6 +31,11 @@ public static class PhoneNumberFormat
 
         var digits = new string(trimmed.Where(char.IsAsciiDigit).ToArray());
 
+        // 숫자가 하나도 없으면 번호가 아니다. 발신번호 표시제한은 <unknown> 으로 오고,
+        // 다이얼플랜 확장자가 그대로 실려 오기도 한다. 그런 값을 번호 자리에 그리면
+        // 상담원이 받아 적을 것이 없는데 뭔가 있는 것처럼 보인다.
+        if (digits.Length == 0) return string.Empty;
+
         // 내선과 119·112 는 나누지 않는다. 나누면 오히려 못 알아본다.
         if (digits.Length <= 4 && !Representative.IsMatch(digits)) return trimmed;
 

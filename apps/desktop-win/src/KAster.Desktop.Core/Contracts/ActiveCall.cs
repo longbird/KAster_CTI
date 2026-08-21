@@ -10,6 +10,17 @@ public sealed record ActiveCall
     public string Ani { get; init; } = string.Empty;
     public string Dnis { get; init; } = string.Empty;
     public string QueueName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 고객이 건 번호와 그 번호가 속한 지사.
+    ///
+    /// 상담원이 받기 전에 가장 먼저 알아야 하는 것이다 — 인사말과 안내가 지사마다 다르다.
+    /// 서버가 수신번호(DID)로 찾아 준다. 매핑이 없으면 비어 있다.
+    /// </summary>
+    public string? DidNumber { get; init; }
+    public string? RepresentativeNumber { get; init; }
+    public string? BranchName { get; init; }
+    public string? BranchCode { get; init; }
     public SessionStatus SessionStatus { get; init; }
     public DateTimeOffset StartedAt { get; init; }
     public DateTimeOffset? QueuedAt { get; init; }

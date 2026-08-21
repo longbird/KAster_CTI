@@ -13,10 +13,32 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 상대 -->
+        <!--
+            상대. 번호가 제목 자리에 온다 — 고객명은 모르는 경우가 더 많고, 상담원이 통화 중에
+            눈으로 읽고 받아 적는 것은 번호다. 이름은 있을 때만 아래에 붙는다.
+        -->
         <StackPanel Grid.Row="0">
-            <TextBlock Text="{Binding CustomerName}" Style="{StaticResource TextTitle}" />
-            <TextBlock Text="{Binding PhoneNumber}" Style="{StaticResource TextCaption}" Margin="0,2,0,0" />
+            <TextBlock Text="{Binding CalledLine}"
+                       Style="{StaticResource TextCaption}"
+                       Foreground="{StaticResource BrushAccent}"
+                       TextTrimming="CharacterEllipsis" />
+
+            <TextBlock Text="{Binding PhoneNumber}" Style="{StaticResource TextTitle}" Margin="0,2,0,0" />
+
+            <TextBlock Text="{Binding CustomerName}"
+                       Margin="0,2,0,0"
+                       TextTrimming="CharacterEllipsis">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CustomerName}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </StackPanel>
 
         <!-- 통화 시간 -->

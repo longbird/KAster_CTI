@@ -32,6 +32,8 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     private WindowMode _windowMode = WindowMode.Idle;
     private string _customerName = string.Empty;
+    private string _branchName = string.Empty;
+    private string _calledNumber = string.Empty;
     private string _phoneNumber = string.Empty;
     private string _callDurationText = "00:00";
     private string? _noticeMessage;
@@ -309,6 +311,36 @@ public sealed class SoftphoneViewModel : ObservableObject
         private set => Set(ref _phoneNumber, value);
     }
 
+    /// <summary>
+    /// 고객이 건 곳. 상담원이 받기 전에 가장 먼저 알아야 하는 것이다 —
+    /// 인사말과 안내가 지사마다 다르다. 매핑이 없으면 비어 있다.
+    /// </summary>
+    public string BranchName
+    {
+        get => _branchName;
+        private set
+        {
+            if (!Set(ref _branchName, value)) return;
+            Raise(nameof(CalledLine));
+        }
+    }
+
+    /// <summary>고객이 누른 번호. 대표번호가 있으면 그쪽을, 없으면 수신번호를 보여 준다.</summary>
+    public string CalledNumber
+    {
+        get => _calledNumber;
+        private set
+        {
+            if (!Set(ref _calledNumber, value)) return;
+            Raise(nameof(CalledLine));
+        }
+    }
+
+    /// <summary>화면에 한 줄로 붙일 형태. 지사가 없으면 번호만 남는다.</summary>
+    public string CalledLine => string.IsNullOrEmpty(BranchName)
+        ? CalledNumber
+        : string.IsNullOrEmpty(CalledNumber) ? BranchName : $"{BranchName} · {CalledNumber}";
+
     public string CallDurationText
     {
         get => _callDurationText;
@@ -400,9 +432,7 @@ public sealed class SoftphoneViewModel : ObservableObject
 
             // 지금 통화의 고객이 누구인지 뒤늦게 밝혀지는 경우다.
             case ScreenPopEvent pop when pop.CallId == CurrentCallId() && pop.Customer is not null:
-                CustomerName = string.IsNullOrWhiteSpace(pop.Customer.CustomerName)
-                    ? "알 수 없음"
-                    : pop.Customer.CustomerName;
+                CustomerName = pop.Customer.CustomerName?.Trim() ?? string.Empty;
                 break;
         }
     }
@@ -727,7 +757,8 @@ public sealed class SoftphoneViewModel : ObservableObject
                     call.CallId,
                     PhoneNumberFormat.ForDisplay(call.Ani),
                     string.IsNullOrWhiteSpace(call.Customer?.CustomerName) ? null : call.Customer.CustomerName,
-                    call.QueueName))
+                    call.QueueName,
+                    BranchLineOf(call)))
                 .ToArray();
 
             // 창에 스크롤을 만들지 않는다. 넘치는 건수는 숨기지 말고 숫자로 알린다.
@@ -738,6 +769,20 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             // 다음 차례에 다시 본다.
         }
+    }
+
+    /// <summary>
+    /// 고객이 건 곳. 지사가 있으면 지사와 번호를, 없으면 번호만.
+    /// 받을지 고르는 데 가장 먼저 필요한 정보다.
+    /// </summary>
+    private static string BranchLineOf(ActiveCall call)
+    {
+        var branch = call.BranchName?.Trim() ?? string.Empty;
+        var number = PhoneNumberFormat.ForDisplay(
+            call.RepresentativeNumber ?? call.DidNumber ?? call.Dnis);
+
+        if (branch.Length == 0) return number;
+        return number.Length == 0 ? branch : $"{branch} · {number}";
     }
 
     /// <summary>
@@ -862,15 +907,21 @@ public sealed class SoftphoneViewModel : ObservableObject
             _ => WindowMode.Idle,
         };
 
-        CustomerName = server is null
-            ? string.Empty
-            : string.IsNullOrWhiteSpace(server.Customer?.CustomerName) ? "알 수 없음" : server.Customer.CustomerName;
+        // 고객명은 모르는 경우가 더 많다. "알 수 없음" 을 크게 띄우면 화면의 가장 좋은 자리를
+        // 아무 정보도 없는 문구가 차지한다. 없으면 비운다.
+        CustomerName = server?.Customer?.CustomerName?.Trim() ?? string.Empty;
+
+        BranchName = server?.BranchName?.Trim() ?? string.Empty;
+        CalledNumber = PhoneNumberFormat.ForDisplay(
+            server?.RepresentativeNumber ?? server?.DidNumber ?? server?.Dnis);
 
         // 내선 발신은 서버가 direction 을 outbound 로 남기지 않아 세션의 번호가 우리 내선으로 온다.
         // 우리가 건 번호를 알고 있으면 그쪽이 맞다.
-        PhoneNumber = server is null
+        // 발신번호 표시제한이면 번호 자체가 없다. 빈 자리를 두느니 그 사실을 적는다.
+        var shown = server is null
             ? string.Empty
             : PhoneNumberFormat.ForDisplay(_dialedNumber ?? server.Ani);
+        PhoneNumber = server is not null && shown.Length == 0 ? "번호 없음" : shown;
 
         // 서버가 실제 음소거 상태를 알려주면 그 값을 따른다.
         if (server?.IsMuted is { } muted) IsMuted = muted;

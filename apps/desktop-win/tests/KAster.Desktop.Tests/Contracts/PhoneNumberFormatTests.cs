@@ -48,11 +48,24 @@ public class PhoneNumberFormatTests
     public void Separators_already_typed_do_not_change_the_result()
         => Assert.Equal("010-3462-3453", PhoneNumberFormat.ForDisplay(" 010-3462-3453 "));
 
-    /// <summary>모르는 모양은 건드리지 않는다. 잘못 나누느니 원문이 낫다.</summary>
+    /// <summary>숫자가 있는데 모양을 모르면 건드리지 않는다. 잘못 나누느니 원문이 낫다.</summary>
     [Theory]
-    [InlineData("")]
     [InlineData("00821034623453")]
-    [InlineData("abc")]
+    [InlineData("12345678901234")]
     public void An_unknown_shape_is_shown_as_it_came(string raw)
         => Assert.Equal(raw.Trim(), PhoneNumberFormat.ForDisplay(raw));
+
+    /// <summary>
+    /// 숫자가 하나도 없으면 번호가 아니다. 발신번호 표시제한은 <c>&lt;unknown&gt;</c> 으로 오고,
+    /// 다이얼플랜 확장자(<c>s</c>)가 그대로 실려 오기도 한다. 그걸 번호 자리에 그리면
+    /// 상담원이 받아 적을 것이 없는데 뭔가 있는 것처럼 보인다.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("<unknown>")]
+    [InlineData("anonymous")]
+    [InlineData("s")]
+    public void A_value_with_no_digits_is_not_a_number(string raw)
+        => Assert.Equal(string.Empty, PhoneNumberFormat.ForDisplay(raw));
 }

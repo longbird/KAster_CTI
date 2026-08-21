@@ -428,13 +428,27 @@ export class CallsService {
     return latestTransferCandidateMap;
   }
 
+  /**
+   * 수신번호(DID) 로 "고객이 어디로 걸었는지" 를 찾는다.
+   *
+   * 상담원이 전화를 받을 때 가장 먼저 알아야 하는 것은 <b>어느 지사로 걸려 온 전화인가</b>다.
+   * 인사말과 안내가 지사마다 다르기 때문이다. 지사는 DID 에 매달려 있다
+   * (`asteriskDid` → `branchDids` → `branches`).
+   */
   private async getDidMetaMap(tenantId: string, didNumbers: Array<string | null | undefined>) {
+    type DidMeta = {
+      did: string;
+      representativeNumber: string | null;
+      branchName: string | null;
+      branchCode: string | null;
+    };
+
     const normalized = [...new Set(
       didNumbers
         .map((value) => value?.trim())
         .filter((value): value is string => Boolean(value)),
     )];
-    if (normalized.length === 0) return new Map<string, { did: string; representativeNumber: string | null }>();
+    if (normalized.length === 0) return new Map<string, DidMeta>();
 
     const dids = await this.prisma.asteriskDid.findMany({
       where: {
@@ -444,17 +458,32 @@ export class CallsService {
       select: {
         did: true,
         representativeNumber: true,
-      },
-    } as any) as Array<{ did: string; representativeNumber?: string | null }>;
-
-    return new Map(
-      dids.map((row) => [
-        row.did,
-        {
-          did: row.did,
-          representativeNumber: row.representativeNumber ?? null,
+        branchMappings: {
+          select: {
+            branch: { select: { branchName: true, branchCode: true } },
+          },
+          take: 1,
         },
-      ]),
+      },
+    } as any) as Array<{
+      did: string;
+      representativeNumber?: string | null;
+      branchMappings?: Array<{ branch?: { branchName?: string | null; branchCode?: string | null } | null }> | null;
+    }>;
+
+    return new Map<string, DidMeta>(
+      dids.map((row) => {
+        const branch = row.branchMappings?.[0]?.branch ?? null;
+        return [
+          row.did,
+          {
+            did: row.did,
+            representativeNumber: row.representativeNumber ?? null,
+            branchName: branch?.branchName ?? null,
+            branchCode: branch?.branchCode ?? null,
+          },
+        ];
+      }),
     );
   }
 
@@ -630,6 +659,9 @@ export class CallsService {
         isMuted: muteStateMap.get(r.callId) ?? false,
         representativeNumber:
           didMetaMap.get(r.didNumber ?? r.dnis ?? '')?.representativeNumber ?? null,
+        // 상담원이 받기 전에 알아야 하는 것: 고객이 어느 지사로 걸었는가.
+        branchName: didMetaMap.get(r.didNumber ?? r.dnis ?? '')?.branchName ?? null,
+        branchCode: didMetaMap.get(r.didNumber ?? r.dnis ?? '')?.branchCode ?? null,
       };
     });
 

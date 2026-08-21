@@ -162,6 +162,44 @@ public class SoftphoneViewModelTests
         Assert.Equal("010-1111-2222", vm.PhoneNumber);
     }
 
+    /// <summary>
+    /// 상담원이 받기 전에 가장 먼저 알아야 하는 것은 <b>고객이 어느 지사로 걸었는가</b>다.
+    /// 인사말과 안내가 지사마다 다르다.
+    /// </summary>
+    [Fact]
+    public void Shows_which_branch_the_customer_called()
+    {
+        var (vm, store, _, _) = Build();
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent) with
+        {
+            BranchName = "강남지사",
+            RepresentativeNumber = "15881588",
+        }));
+
+        Assert.Equal("강남지사", vm.BranchName);
+        Assert.Equal("1588-1588", vm.CalledNumber);
+        Assert.Equal("강남지사 · 1588-1588", vm.CalledLine);
+    }
+
+    /// <summary>지사 매핑이 없는 번호도 있다. 그때는 번호만 보여 준다.</summary>
+    [Fact]
+    public void With_no_branch_mapping_the_called_number_stands_alone()
+    {
+        var (vm, store, _, _) = Build();
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent) with
+        {
+            BranchName = null,
+            RepresentativeNumber = null,
+            DidNumber = "0215881588",
+        }));
+
+        Assert.Equal(string.Empty, vm.BranchName);
+        Assert.Equal("02-1588-1588", vm.CalledNumber);
+        Assert.Equal("02-1588-1588", vm.CalledLine);
+    }
+
     [Fact]
     public async Task The_number_being_dialled_is_shown_in_the_same_shape()
     {
@@ -175,15 +213,19 @@ public class SoftphoneViewModelTests
         Assert.Equal("010-3462-3453", vm.DialingNumber);
     }
 
+    /// <summary>
+    /// 고객명은 모르는 경우가 더 많다. 예전에는 "알 수 없음" 을 크게 띄웠지만, 그러면 화면의
+    /// 가장 좋은 자리를 아무 정보도 없는 문구가 차지한다. 번호가 그 자리를 대신한다.
+    /// </summary>
     [Fact]
-    public void Falls_back_to_the_number_when_the_customer_is_unknown()
+    public void An_unknown_customer_leaves_the_name_empty_and_shows_the_number()
     {
         var (vm, store, _, _) = Build();
         var unknown = Call(SessionStatus.RingingAgent) with { Customer = null };
 
         store.Apply(new CallCreatedEvent(unknown));
 
-        Assert.Equal("알 수 없음", vm.CustomerName);
+        Assert.Equal(string.Empty, vm.CustomerName);
         Assert.Equal("010-1111-2222", vm.PhoneNumber);
     }
 
@@ -908,7 +950,7 @@ public class SoftphoneViewModelTests
     {
         var (vm, store, _, _) = Build();
         store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent) with { Customer = null }));
-        Assert.Equal("알 수 없음", vm.CustomerName);
+        Assert.Equal(string.Empty, vm.CustomerName);
 
         vm.Apply(new ScreenPopEvent("c-1", new CustomerInfo
         {
