@@ -20,6 +20,7 @@ public sealed class LoginViewModel : ObservableObject
     private string? _errorMessage;
     private bool _isBusy;
     private bool _rememberMe;
+    private bool _useSoftphone;
 
     public LoginViewModel(AuthClient auth, ITokenStore tokens, ISavedLoginStore savedLogin)
     {
@@ -29,6 +30,10 @@ public sealed class LoginViewModel : ObservableObject
         SignInCommand = new RelayCommand(() => _ = SignInAsync(), () => CanSignIn);
 
         var saved = savedLogin.Load();
+
+        // 모드는 자리의 성질이라 "아이디 저장" 과 무관하게 이어진다.
+        _useSoftphone = saved.UseSoftphone;
+
         if (!saved.Remember) return;
 
         _loginId = saved.LoginId;
@@ -82,6 +87,16 @@ public sealed class LoginViewModel : ObservableObject
         set => Set(ref _rememberMe, value);
     }
 
+    /// <summary>
+    /// 이 PC 가 소프트폰으로 통화하는지. 끄면 <b>실기기 모드</b>이고, 지정된 내선의 책상 전화기가
+    /// 이미 PBX 에 등록돼 있어야 한다. 기본은 실기기 모드다.
+    /// </summary>
+    public bool UseSoftphone
+    {
+        get => _useSoftphone;
+        set => Set(ref _useSoftphone, value);
+    }
+
     /// <summary>지난번 값이 이미 채워져 있어 비밀번호만 치면 되는 상태.</summary>
     public bool NeedsPasswordOnly =>
         !string.IsNullOrWhiteSpace(_loginId) && !string.IsNullOrWhiteSpace(_extension);
@@ -107,8 +122,14 @@ public sealed class LoginViewModel : ObservableObject
             // 로그인이 된 뒤에만 저장한다. 틀린 아이디가 굳어 버리면 매번 지우고 다시 쳐야 한다.
             // 체크를 풀었으면 남아 있던 것도 지운다 — 공용 PC 에서 중요하다.
             _savedLogin.Save(RememberMe
-                ? new SavedLogin { Remember = true, LoginId = _loginId.Trim(), Extension = _extension.Trim() }
-                : new SavedLogin());
+                ? new SavedLogin
+                {
+                    Remember = true,
+                    LoginId = _loginId.Trim(),
+                    Extension = _extension.Trim(),
+                    UseSoftphone = UseSoftphone,
+                }
+                : new SavedLogin { UseSoftphone = UseSoftphone });
 
             Password = string.Empty;
             SignedIn?.Invoke(this, result);

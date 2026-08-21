@@ -62,8 +62,8 @@
                             HorizontalAlignment="Right"
                             Background="{StaticResource BrushSurfaceMuted}">
                         <TextBlock Text="{Binding PhoneStatusText}"
-                                   TextTrimming="CharacterEllipsis"
-                                   MaxWidth="180">
+                                   TextWrapping="Wrap"
+                                   MaxWidth="230">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                                     <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />

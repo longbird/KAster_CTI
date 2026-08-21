@@ -50,13 +50,14 @@ public class SoftphoneViewModelTests
 
     private DateTimeOffset _now = new(2026, 8, 20, 4, 0, 0, TimeSpan.Zero);
 
-    private (SoftphoneViewModel Vm, CallStateStore Store, FakeSoftphone Phone, StubHttpHandler Stub) Build()
+    private (SoftphoneViewModel Vm, CallStateStore Store, FakeSoftphone Phone, StubHttpHandler Stub) Build(
+        bool useSoftphone = true)
     {
         var stub = new StubHttpHandler();
         var store = new CallStateStore(Agent.AgentId, () => _now);
         var phone = new FakeSoftphone();
         var server = new CtiServerClient(new HttpClient(stub) { BaseAddress = new Uri("http://server/api/v1/") });
-        return (new SoftphoneViewModel(store, server, phone, Agent, () => _now), store, phone, stub);
+        return (new SoftphoneViewModel(store, server, phone, Agent, () => _now, useSoftphone), store, phone, stub);
     }
 
     private static ActiveCall Call(SessionStatus status, DateTimeOffset? answeredAt = null) => new()
@@ -907,5 +908,103 @@ public class SoftphoneViewModelTests
 
         vm.OnConnectionStateChanged(CtiConnectionState.Disconnected);
         Assert.False(vm.IsConnected);
+    }
+
+    /// <summary>
+    /// 실기기 모드에서는 소프트폰이 아예 안 돈다. 받기는 서버의 당겨받기로 나가야 한다 —
+    /// 그게 울리는 고객 레그를 이 내선으로 돌리는 경로다.
+    /// </summary>
+    [Fact]
+    public async Task On_a_desk_phone_answering_goes_through_the_server()
+    {
+        var (vm, store, phone, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+
+        await vm.AnswerAsync();
+
+        Assert.Equal(0, phone.AnswerCalls);
+        Assert.Equal("/api/v1/calls/c-1/answer", stub.Requests[0].RequestUri!.AbsolutePath);
+    }
+
+    /// <summary>실기기 모드에는 우리 오디오가 없다. 음소거는 PBX 가 건다.</summary>
+    [Fact]
+    public async Task On_a_desk_phone_muting_is_the_servers_job()
+    {
+        var (vm, store, phone, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        await vm.ToggleMuteAsync();
+
+        Assert.False(phone.IsMuted);
+        Assert.True(vm.IsMuted);
+        Assert.Equal("/api/v1/calls/c-1/mute", stub.Requests[0].RequestUri!.AbsolutePath);
+    }
+
+    /// <summary>실기기 모드에서 우리 SIP 등록 상태를 보여 주면 거짓말이다. 우리는 등록하지 않는다.</summary>
+    [Fact]
+    public void On_a_desk_phone_the_status_describes_the_desk_phone()
+    {
+        var (vm, _, _, _) = Build(useSoftphone: false);
+
+        Assert.Equal("전화기 확인 중", vm.PhoneStatusText);
+        Assert.False(vm.IsPhoneRegistered);
+    }
+
+    [Fact]
+    public async Task A_desk_phone_that_is_registered_says_so()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":[
+          {"agentId":"a-1","agentName":"김상담","extension":"1001",
+           "sipRegistration":{"registered":true,"registrationStatus":"Avail","contactUri":"sip:1001@x","userAgent":"Yealink"}}
+        ],"error":null}
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+
+        await vm.LoadDialSetupAsync();
+
+        Assert.True(vm.IsPhoneRegistered);
+        Assert.Equal("전화기 준비됨", vm.PhoneStatusText);
+    }
+
+    /// <summary>
+    /// 등록 안 된 내선으로 로그인하면 전화가 한 통도 안 온다. 그 사실을 로그인 직후에 말해야 한다.
+    /// </summary>
+    [Fact]
+    public async Task A_desk_phone_that_is_missing_says_that_too()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":[
+          {"agentId":"a-1","agentName":"김상담","extension":"1001",
+           "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}
+        ],"error":null}
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+
+        await vm.LoadDialSetupAsync();
+
+        Assert.False(vm.IsPhoneRegistered);
+        Assert.Contains("등록되지", vm.PhoneStatusText);
+    }
+
+    /// <summary>소프트폰 모드에서는 서버가 보내 준 남의 등록 상태가 우리 표시를 건드리면 안 된다.</summary>
+    [Fact]
+    public async Task In_softphone_mode_the_directory_does_not_touch_the_phone_status()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: true);
+        vm.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Registered));
+        stub.Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":[
+          {"agentId":"a-1","agentName":"김상담","extension":"1001",
+           "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}
+        ],"error":null}
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+
+        await vm.LoadDialSetupAsync();
+
+        Assert.True(vm.IsPhoneRegistered);
+        Assert.Equal("전화 준비됨", vm.PhoneStatusText);
     }
 }

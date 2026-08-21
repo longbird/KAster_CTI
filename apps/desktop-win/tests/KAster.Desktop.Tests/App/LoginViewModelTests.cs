@@ -238,4 +238,47 @@ public class LoginViewModelTests
         Assert.False(saved.Load().Remember);
         Assert.Equal(string.Empty, saved.Load().LoginId);
     }
+
+    /// <summary>
+    /// 기본은 실기기 모드다. 대부분의 자리에 책상 전화기가 있고, 소프트폰을 잘못 켜면
+    /// 전화기가 울리는데 앱이 같은 내선을 가져가려 든다.
+    /// </summary>
+    [Fact]
+    public void The_desk_phone_is_the_default()
+    {
+        var vm = Build(new StubHttpHandler(), new FakeTokenStore(null));
+
+        Assert.False(vm.UseSoftphone);
+    }
+
+    /// <summary>
+    /// 자리에 전화기가 있는지 없는지는 잘 바뀌지 않는다. "아이디 저장" 을 껐어도 모드는 기억한다 —
+    /// 매번 체크하게 하면 잊고 실기기 모드로 로그인해 전화를 못 받는다.
+    /// </summary>
+    [Fact]
+    public async Task The_mode_is_remembered_even_without_remembering_the_id()
+    {
+        var saved = new MemoryStore();
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, SuccessJson);
+        var vm = Filled(stub, new FakeTokenStore(null), saved);
+        vm.RememberMe = false;
+        vm.UseSoftphone = true;
+
+        await vm.SignInAsync();
+
+        Assert.True(saved.Load().UseSoftphone);
+        Assert.False(saved.Load().Remember);
+        Assert.Equal(string.Empty, saved.Load().LoginId);
+    }
+
+    [Fact]
+    public void A_remembered_softphone_desk_comes_back_in_softphone_mode()
+    {
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { UseSoftphone = true });
+
+        var vm = Build(new StubHttpHandler(), new FakeTokenStore(null), saved);
+
+        Assert.True(vm.UseSoftphone);
+    }
 }

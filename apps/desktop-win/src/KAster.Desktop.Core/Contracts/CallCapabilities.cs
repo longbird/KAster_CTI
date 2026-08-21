@@ -6,6 +6,18 @@ public sealed record AgentDirectoryEntry
     public string AgentId { get; init; } = string.Empty;
     public string AgentName { get; init; } = string.Empty;
     public string Extension { get; init; } = string.Empty;
+
+    /// <summary>이 내선의 전화기가 PBX 에 등록돼 있는지. 실기기 모드에서 이 값이 곧 통화 가능 여부다.</summary>
+    public SipRegistrationInfo? SipRegistration { get; init; }
+}
+
+/// <summary>서버가 PBX 에 직접 물어본 단말 등록 상태.</summary>
+public sealed record SipRegistrationInfo
+{
+    public bool Registered { get; init; }
+    public string RegistrationStatus { get; init; } = "UNREGISTERED";
+    public string? ContactUri { get; init; }
+    public string? UserAgent { get; init; }
 }
 
 /// <summary>관리자가 등록해 둔 발신번호. 여기 없는 번호로는 서버가 발신을 거부한다.</summary>

@@ -21,6 +21,12 @@ public sealed class SoftphoneViewModel : ObservableObject
     private readonly AgentProfile _agent;
     private readonly Func<DateTimeOffset> _now;
 
+    /// <summary>
+    /// 소프트폰으로 통화하는지. false 면 <b>실기기 모드</b> — 책상 전화기가 소리를 맡고
+    /// 이 앱은 통화 제어만 한다. 그때 우리 SIP 등록 상태를 보여 주면 거짓말이 된다.
+    /// </summary>
+    private readonly bool _useSoftphone;
+
     private WindowMode _windowMode = WindowMode.Idle;
     private string _customerName = string.Empty;
     private string _phoneNumber = string.Empty;
@@ -47,7 +53,7 @@ public sealed class SoftphoneViewModel : ObservableObject
     private DateTimeOffset? _selfAnswerUntil;
     private bool _isDialing;
     private bool _isPhoneRegistered;
-    private string _phoneStatusText = "전화 꺼짐";
+    private string _phoneStatusText;
     private string _dialingNumber = string.Empty;
     private string _memoText = string.Empty;
 
@@ -61,13 +67,16 @@ public sealed class SoftphoneViewModel : ObservableObject
         CtiServerClient server,
         ISoftphoneControl phone,
         AgentProfile agent,
-        Func<DateTimeOffset> now)
+        Func<DateTimeOffset> now,
+        bool useSoftphone)
     {
         _store = store;
         _server = server;
         _phone = phone;
         _agent = agent;
         _now = now;
+        _useSoftphone = useSoftphone;
+        _phoneStatusText = useSoftphone ? "전화 꺼짐" : "전화기 확인 중";
 
         _store.CurrentCallChanged += (_, call) => OnCurrentCallChanged(call);
 
@@ -288,6 +297,9 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public void OnRegistrationStatusChanged(RegistrationStatus status)
     {
+        // 실기기 모드에서는 우리가 등록하지 않는다. 우리 상태를 보여 주면 거짓말이다.
+        if (!_useSoftphone) return;
+
         IsPhoneRegistered = status.State == RegistrationState.Registered;
         PhoneStatusText = status.State switch
         {
@@ -305,15 +317,22 @@ public sealed class SoftphoneViewModel : ObservableObject
         var callId = CurrentCallId();
         if (callId is null) return;
 
-        // SIP 200 OK 하나로 끝난다. 서버는 PBX 이벤트로 응답을 알게 된다.
-        // 서버의 answer 는 <b>당겨받기</b>라서 이미 내 단말에 울리는 전화에 부르면 거부당한다.
-        await _phone.AnswerAsync();
+        if (_useSoftphone)
+        {
+            // SIP 200 OK 하나로 끝난다. 서버는 PBX 이벤트로 응답을 알게 된다.
+            // 서버의 answer 는 <b>당겨받기</b>라서 이미 내 단말에 울리는 전화에 부르면 거부당한다.
+            await _phone.AnswerAsync();
+            return;
+        }
+
+        // 실기기 모드에는 우리가 열 SIP 다이얼로그가 없다. 서버가 고객 레그를 이 내선으로 돌린다.
+        await Send(() => _server.AnswerAsync(callId, ct));
     }
 
     public async Task HangupAsync(CancellationToken ct = default)
     {
         var callId = CurrentCallId();
-        _phone.Hangup();
+        if (_useSoftphone) _phone.Hangup();
 
         if (callId is not null) await Send(() => _server.HangupAsync(callId, ct));
     }
@@ -323,16 +342,19 @@ public sealed class SoftphoneViewModel : ObservableObject
         var callId = CurrentCallId();
         var next = !IsMuted;
 
-        // 로컬을 먼저 바꾼다. 서버 왕복을 기다리는 사이에 목소리가 나가면 안 된다.
-        _phone.IsMuted = next;
-
-        // 소리 경로가 안 열려 있으면 소프트폰은 이 요청을 조용히 삼킨다.
-        // 그때 화면만 "마이크 켜기" 로 바꾸면 상담원은 꺼진 줄 알고 말하고, 상대에게 다 들린다.
-        if (_phone.IsMuted != next)
+        if (_useSoftphone)
         {
-            Note($"음소거 {next} 적용 실패 — 소프트폰이 받아들이지 않았다");
-            NoticeMessage = "마이크를 끄지 못했다. 통화 오디오가 열려 있지 않다.";
-            return;
+            // 로컬을 먼저 바꾼다. 서버 왕복을 기다리는 사이에 목소리가 나가면 안 된다.
+            _phone.IsMuted = next;
+
+            // 소리 경로가 안 열려 있으면 소프트폰은 이 요청을 조용히 삼킨다.
+            // 그때 화면만 "마이크 켜기" 로 바꾸면 상담원은 꺼진 줄 알고 말하고, 상대에게 다 들린다.
+            if (_phone.IsMuted != next)
+            {
+                Note($"음소거 {next} 적용 실패 — 소프트폰이 받아들이지 않았다");
+                NoticeMessage = "마이크를 끄지 못했다. 통화 오디오가 열려 있지 않다.";
+                return;
+            }
         }
 
         IsMuted = next;
@@ -354,6 +376,8 @@ public sealed class SoftphoneViewModel : ObservableObject
                 .Select(entry => entry.Extension?.Trim())
                 .Where(extension => !string.IsNullOrEmpty(extension))
                 .ToHashSet(StringComparer.Ordinal)!;
+
+            ApplyDeskPhoneRegistration(directory);
         }
 
         var capabilities = await Send(() => _server.GetCallCapabilitiesAsync(ct));
@@ -486,6 +510,31 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// 사내로 빠지면 안 되는 번호다. 실제 상담원 내선 목록에 있는 번호만 내선으로 본다.
     /// </summary>
     private bool IsExtension(string number) => _knownExtensions.Contains(number);
+
+    /// <summary>
+    /// 실기기 모드에서 내 내선의 전화기가 PBX 에 등록돼 있는지 확인해 화면에 올린다.
+    /// 등록돼 있지 않으면 전화가 한 통도 오지 않는다 — 로그인 직후에 말해 줘야 한다.
+    /// </summary>
+    private void ApplyDeskPhoneRegistration(IReadOnlyList<AgentDirectoryEntry> directory)
+    {
+        if (_useSoftphone) return;
+
+        var mine = directory.FirstOrDefault(entry =>
+            string.Equals(entry.Extension?.Trim(), _agent.Extension, StringComparison.Ordinal));
+
+        if (mine is null)
+        {
+            IsPhoneRegistered = false;
+            PhoneStatusText = $"내선 {_agent.Extension} 을 찾을 수 없다";
+            return;
+        }
+
+        IsPhoneRegistered = mine.SipRegistration?.Registered ?? false;
+        PhoneStatusText = IsPhoneRegistered
+            ? "전화기 준비됨"
+            : $"전화기가 등록되지 않았다 ({mine.SipRegistration?.RegistrationStatus ?? "UNREGISTERED"})";
+        Note($"실기기 등록 확인 내선={_agent.Extension} 등록={IsPhoneRegistered}");
+    }
 
     /// <summary>
     /// 메모를 통화에 붙인다. 빈 메모는 보내지 않는다 — 통화마다 빈 줄이 쌓인다.

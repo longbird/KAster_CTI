@@ -28,6 +28,9 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
     private readonly SemaphoreSlim _connectGate = new(1, 1);
     private readonly Action<Action> _post;
 
+    /// <summary>실기기 모드면 SIP 를 아예 띄우지 않는다. 책상 전화기와 같은 내선을 두고 다투면 안 된다.</summary>
+    private readonly bool _useSoftphone;
+
     /// <param name="post">
     /// 서버 이벤트를 UI 스레드로 옮기는 통로. 소켓 스레드에서 상태를 바꾸면 WPF 가
     /// <c>CanExecuteChanged</c> 를 거부해 화면 전환이 조용히 멈춘다.
@@ -37,9 +40,11 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
         ITokenStore tokens,
         AgentProfile agent,
         SoftphoneConfig? softphone,
-        Action<Action> post)
+        Action<Action> post,
+        bool useSoftphone)
     {
         _post = post;
+        _useSoftphone = useSoftphone;
         _settings = settings;
         _tokens = tokens;
         _deviceController = new AudioDeviceController(_devices);
@@ -110,7 +115,7 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
     {
         await ConnectEventsAsync();
 
-        if (SoftphoneOptions.TryCreate(Softphone, out var options, out _))
+        if (_useSoftphone && SoftphoneOptions.TryCreate(Softphone, out var options, out _))
         {
             Phone.Start(options!);
         }

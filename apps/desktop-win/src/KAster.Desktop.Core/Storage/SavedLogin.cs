@@ -11,6 +11,12 @@ public sealed record SavedLogin
     public bool Remember { get; init; }
     public string LoginId { get; init; } = string.Empty;
     public string Extension { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 이 PC 가 소프트폰으로 통화하는지. 기본은 <b>실기기 모드</b>(false) — 책상 전화기가 통화를 맡는다.
+    /// 자리에 전화기가 있는지 없는지는 잘 바뀌지 않으므로 "아이디 저장" 과 무관하게 기억한다.
+    /// </summary>
+    public bool UseSoftphone { get; init; }
 }
 
 /// <summary>

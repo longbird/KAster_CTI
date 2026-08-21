@@ -46,6 +46,17 @@
                      Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" />
 
             <StackPanel Grid.Row="8">
+                <!--
+                    기본은 실기기 모드다. 대부분의 자리에 책상 전화기가 있고,
+                    소프트폰을 잘못 켜면 앱이 전화기와 같은 내선을 두고 다툰다.
+                -->
+                <CheckBox Content="이 PC 에서 소프트폰으로 통화"
+                          Margin="0,0,0,6"
+                          IsChecked="{Binding UseSoftphone}"
+                          Foreground="{StaticResource BrushText}"
+                          FontFamily="{StaticResource FontUi}"
+                          FontSize="{StaticResource FontSizeCaption}" />
+
                 <!-- 저장하는 것은 아이디와 내선뿐이다. 비밀번호는 매번 친다. -->
                 <CheckBox Content="아이디·내선 저장"
                           Margin="0,0,0,8"

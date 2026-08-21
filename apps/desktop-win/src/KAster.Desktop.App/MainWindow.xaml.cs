@@ -43,27 +43,29 @@ public partial class MainWindow : Window
     {
         var auth = new AuthClient(new HttpClient { BaseAddress = _settings.BaseUri });
         var vm = new LoginViewModel(auth, _tokens, new SavedLoginStore(AppPaths.SavedLogin));
-        vm.SignedIn += async (_, result) => await StartRuntimeAsync(result);
+        vm.SignedIn += async (_, result) => await StartRuntimeAsync(result, vm.UseSoftphone);
 
         _windowMode.Request(WindowMode.Idle);
         Host.Content = new LoginView { DataContext = vm };
     }
 
-    private async Task StartRuntimeAsync(LoginResult login)
+    private async Task StartRuntimeAsync(LoginResult login, bool useSoftphone)
     {
         var runtime = new SoftphoneRuntime(
             _settings,
             _tokens,
             login.Session.Agent,
             login.Session.SoftphoneConfig,
-            action => Dispatcher.Invoke(action));
+            action => Dispatcher.Invoke(action),
+            useSoftphone);
 
         var softphone = new SoftphoneViewModel(
             runtime.Calls,
             runtime.Server,
             runtime.Phone,
             login.Session.Agent,
-            () => DateTimeOffset.UtcNow);
+            () => DateTimeOffset.UtcNow,
+            useSoftphone);
 
         // 창을 만지는 일은 모두 여기 한 줄을 지난다.
         // 서버 이벤트는 이미 UI 스레드로 넘어와 있으므로 여기서는 그대로 받는다.
