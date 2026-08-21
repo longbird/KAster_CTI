@@ -50,14 +50,29 @@ public class SoftphoneViewModelTests
 
     private DateTimeOffset _now = new(2026, 8, 20, 4, 0, 0, TimeSpan.Zero);
 
+    private static readonly SoftphoneConfig SipConfig = new()
+    {
+        Enabled = true,
+        SipUri = "sip:1001@pbx.local",
+        SipServer = "49.247.46.86:48950",
+        Transport = "udp",
+        AuthorizationUsername = "1001",
+        AuthorizationPassword = "s3cret-pw",
+        DisplayName = "김상담",
+    };
+
     private (SoftphoneViewModel Vm, CallStateStore Store, FakeSoftphone Phone, StubHttpHandler Stub) Build(
-        bool useSoftphone = true)
+        bool useSoftphone = true,
+        bool withSipConfig = true)
     {
         var stub = new StubHttpHandler();
         var store = new CallStateStore(Agent.AgentId, () => _now);
         var phone = new FakeSoftphone();
         var server = new CtiServerClient(new HttpClient(stub) { BaseAddress = new Uri("http://server/api/v1/") });
-        return (new SoftphoneViewModel(store, server, phone, Agent, () => _now, useSoftphone), store, phone, stub);
+        return (
+            new SoftphoneViewModel(
+                store, server, phone, Agent, () => _now, useSoftphone, withSipConfig ? SipConfig : null),
+            store, phone, stub);
     }
 
     private static ActiveCall Call(SessionStatus status, DateTimeOffset? answeredAt = null) => new()
@@ -1006,5 +1021,85 @@ public class SoftphoneViewModelTests
 
         Assert.True(vm.IsPhoneRegistered);
         Assert.Equal("전화 준비됨", vm.PhoneStatusText);
+    }
+
+    /// <summary>
+    /// 전화기가 등록돼 있지 않으면 전화를 한 통도 못 받는다. 그 자리에서 가장 필요한 것은
+    /// "대기 중" 이라는 안내가 아니라 <b>전화기에 넣을 정보</b>다.
+    /// </summary>
+    [Fact]
+    public async Task An_unregistered_desk_phone_is_told_what_to_type_into_it()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
+         "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}],"error":null}
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+
+        await vm.LoadDialSetupAsync();
+
+        Assert.True(vm.ShowsDeskPhoneSetup);
+        Assert.Equal("49.247.46.86:48950", vm.SipServerAddress);
+        Assert.Equal("1001", vm.SipUsername);
+        Assert.Equal("pbx.local", vm.SipDomain);
+        Assert.Equal("UDP", vm.SipTransport);
+    }
+
+    /// <summary>등록이 끝나면 그 안내는 자리를 비켜야 한다.</summary>
+    [Fact]
+    public async Task A_registered_desk_phone_does_not_need_the_instructions()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false);
+        stub.Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
+         "sipRegistration":{"registered":true,"registrationStatus":"Avail"}}],"error":null}
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+
+        await vm.LoadDialSetupAsync();
+
+        Assert.False(vm.ShowsDeskPhoneSetup);
+    }
+
+    /// <summary>소프트폰 모드에는 책상 전화기가 없다.</summary>
+    [Fact]
+    public void Softphone_mode_never_shows_desk_phone_instructions()
+    {
+        var (vm, _, _, _) = Build(useSoftphone: true);
+
+        Assert.False(vm.ShowsDeskPhoneSetup);
+    }
+
+    /// <summary>
+    /// 비밀번호는 기본으로 가린다. 상담원 자리 화면은 지나가는 사람에게 다 보인다.
+    /// 전화기에 넣을 때만 펼친다.
+    /// </summary>
+    [Fact]
+    public void The_sip_password_is_hidden_until_it_is_asked_for()
+    {
+        var (vm, _, _, _) = Build(useSoftphone: false);
+
+        Assert.Equal("••••••••", vm.SipPasswordDisplay);
+        Assert.False(vm.IsSipPasswordVisible);
+
+        vm.ToggleSipPasswordCommand.Execute(null);
+
+        Assert.True(vm.IsSipPasswordVisible);
+        Assert.Equal("s3cret-pw", vm.SipPasswordDisplay);
+    }
+
+    /// <summary>서버가 SIP 정보를 안 내려주는 현장이 있다. 빈 칸을 보여 주면 더 헷갈린다.</summary>
+    [Fact]
+    public async Task With_no_sip_config_the_screen_says_so_instead_of_showing_blanks()
+    {
+        var (vm, _, _, stub) = Build(useSoftphone: false, withSipConfig: false);
+        stub.Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
+         "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}],"error":null}
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+
+        await vm.LoadDialSetupAsync();
+
+        Assert.False(vm.ShowsDeskPhoneSetup);
+        Assert.Contains("등록되지", vm.PhoneStatusText);
     }
 }

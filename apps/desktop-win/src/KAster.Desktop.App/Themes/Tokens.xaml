@@ -87,6 +87,22 @@
         <Setter Property="Height" Value="34" />
     </Style>
 
+    <!--
+        읽기 전용 값. 테두리 없이 글자만 보이되 TextBox 라서 끌어서 복사할 수 있다 —
+        전화기 설정 화면에 옮겨 적어야 하는 값이라 선택이 되어야 한다.
+        고정폭 글꼴이라 주소와 자릿수를 잘못 읽지 않는다.
+    -->
+    <Style x:Key="FieldReadOnly" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="Consolas, Malgun Gothic" />
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+        <Setter Property="Foreground" Value="{StaticResource BrushText}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="IsReadOnlyCaretVisible" Value="False" />
+    </Style>
+
     <Style x:Key="FieldPassword" TargetType="PasswordBox">
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />

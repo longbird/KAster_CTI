@@ -145,6 +145,9 @@
                                 <DataTrigger Binding="{Binding IsDialing}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding ShowsDeskPhoneSetup}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </StackPanel.Style>
@@ -154,6 +157,91 @@
                                Style="{StaticResource TextCaption}"
                                Margin="0,6,0,0"
                                HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <!--
+                    실기기 등록 안내. 전화기가 등록돼 있지 않으면 전화를 한 통도 못 받으므로,
+                    그 자리에서 필요한 것은 "대기 중" 안내가 아니라 전화기에 넣을 값이다.
+                    값은 읽기 전용 TextBox 라 상담원이 끌어서 복사할 수 있다.
+                -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowsDeskPhoneSetup}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <TextBlock Text="전화기에 아래 값을 넣으세요"
+                               Style="{StaticResource TextBody}"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="등록되면 이 안내는 사라집니다"
+                               Style="{StaticResource TextCaption}"
+                               Margin="0,2,0,10" />
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="서버" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SipServerAddress, Mode=OneWay}"
+                                 Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="계정" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SipUsername, Mode=OneWay}"
+                                 Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="도메인" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SipDomain, Mode=OneWay}"
+                                 Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="전송" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SipTransport, Mode=OneWay}"
+                                 Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="비밀번호" Style="{StaticResource TextCaption}" Margin="0,0,10,0" />
+                        <Grid Grid.Row="4" Grid.Column="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 자리 화면은 지나가는 사람에게 그대로 보인다. 넣을 때만 펼친다. -->
+                            <TextBox Grid.Column="0" Text="{Binding SipPasswordDisplay, Mode=OneWay}"
+                                     Style="{StaticResource FieldReadOnly}" />
+
+                            <Button Grid.Column="1" Padding="6,0" BorderThickness="0"
+                                    Background="Transparent" Cursor="Hand"
+                                    Foreground="{StaticResource BrushAccent}"
+                                    FontFamily="{StaticResource FontUi}"
+                                    FontSize="{StaticResource FontSizeCaption}"
+                                    Command="{Binding ToggleSipPasswordCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Content" Value="보기" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSipPasswordVisible}" Value="True">
+                                                <Setter Property="Content" Value="가리기" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Grid>
                 </StackPanel>
 
                 <!--

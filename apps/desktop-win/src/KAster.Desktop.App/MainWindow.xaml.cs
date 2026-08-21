@@ -65,7 +65,8 @@ public partial class MainWindow : Window
             runtime.Phone,
             login.Session.Agent,
             () => DateTimeOffset.UtcNow,
-            useSoftphone);
+            useSoftphone,
+            login.Session.SoftphoneConfig);
 
         // 창을 만지는 일은 모두 여기 한 줄을 지난다.
         // 서버 이벤트는 이미 UI 스레드로 넘어와 있으므로 여기서는 그대로 받는다.

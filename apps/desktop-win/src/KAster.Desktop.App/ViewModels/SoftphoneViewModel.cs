@@ -27,6 +27,9 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// </summary>
     private readonly bool _useSoftphone;
 
+    /// <summary>서버가 내려준 SIP 계정. 실기기 모드에서는 책상 전화기에 넣을 값이 된다.</summary>
+    private readonly SoftphoneConfig? _sipConfig;
+
     private WindowMode _windowMode = WindowMode.Idle;
     private string _customerName = string.Empty;
     private string _phoneNumber = string.Empty;
@@ -53,6 +56,7 @@ public sealed class SoftphoneViewModel : ObservableObject
     private DateTimeOffset? _selfAnswerUntil;
     private bool _isDialing;
     private bool _isPhoneRegistered;
+    private bool _isSipPasswordVisible;
     private string _phoneStatusText;
     private string _dialingNumber = string.Empty;
     private string _memoText = string.Empty;
@@ -68,7 +72,8 @@ public sealed class SoftphoneViewModel : ObservableObject
         ISoftphoneControl phone,
         AgentProfile agent,
         Func<DateTimeOffset> now,
-        bool useSoftphone)
+        bool useSoftphone,
+        SoftphoneConfig? sipConfig)
     {
         _store = store;
         _server = server;
@@ -76,6 +81,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         _agent = agent;
         _now = now;
         _useSoftphone = useSoftphone;
+        _sipConfig = sipConfig;
         _phoneStatusText = useSoftphone ? "전화 꺼짐" : "전화기 확인 중";
 
         _store.CurrentCallChanged += (_, call) => OnCurrentCallChanged(call);
@@ -90,6 +96,7 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         // 통화 중 로그아웃은 막는다. 고객이 끊긴 줄 모른 채 남는다.
         SignOutCommand = new RelayCommand(() => SignOutRequested?.Invoke(this, EventArgs.Empty), () => IsFree);
+        ToggleSipPasswordCommand = new RelayCommand(() => IsSipPasswordVisible = !IsSipPasswordVisible);
     }
 
     public event EventHandler<WindowMode>? WindowModeRequested;
@@ -105,6 +112,8 @@ public sealed class SoftphoneViewModel : ObservableObject
     public RelayCommand ToggleAvailabilityCommand { get; }
 
     public RelayCommand SignOutCommand { get; }
+
+    public RelayCommand ToggleSipPasswordCommand { get; }
 
     /// <summary>로그아웃을 실제로 수행하는 것은 조립 지점이다. 화면은 요청만 한다.</summary>
     public event EventHandler? SignOutRequested;
@@ -275,6 +284,58 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
     }
 
+    // ---- 실기기 등록 안내 ----------------------------------------------------
+    //
+    // 전화기가 등록돼 있지 않으면 전화를 한 통도 못 받는다. 그 자리에서 필요한 것은
+    // "대기 중" 안내가 아니라 전화기에 넣을 값이다.
+
+    /// <summary>실기기 모드인데 아직 등록이 안 됐고, 넣을 값을 서버가 내려준 경우.</summary>
+    public bool ShowsDeskPhoneSetup
+        => !_useSoftphone && !IsPhoneRegistered && _sipConfig is not null && SipServerAddress.Length > 0;
+
+    public string SipServerAddress => _sipConfig?.SipServer?.Trim() ?? string.Empty;
+
+    public string SipUsername
+    {
+        get
+        {
+            var name = _sipConfig?.AuthorizationUsername?.Trim();
+            return string.IsNullOrEmpty(name) ? _agent.Extension : name;
+        }
+    }
+
+    /// <summary>전화기의 "도메인" 또는 "SIP 영역" 칸에 넣는 값. <c>sip:1001@pbx.local</c> 의 뒷부분이다.</summary>
+    public string SipDomain
+    {
+        get
+        {
+            var uri = _sipConfig?.SipUri;
+            if (string.IsNullOrWhiteSpace(uri)) return string.Empty;
+
+            var at = uri.IndexOf('@');
+            return at < 0 ? string.Empty : uri[(at + 1)..].Trim();
+        }
+    }
+
+    public string SipTransport => (_sipConfig?.Transport ?? "udp").Trim().ToUpperInvariant();
+
+    /// <summary>
+    /// 비밀번호는 기본으로 가린다. 상담원 자리 화면은 지나가는 사람에게 그대로 보인다.
+    /// 전화기에 넣을 때만 펼친다.
+    /// </summary>
+    public bool IsSipPasswordVisible
+    {
+        get => _isSipPasswordVisible;
+        private set
+        {
+            if (!Set(ref _isSipPasswordVisible, value)) return;
+            Raise(nameof(SipPasswordDisplay));
+        }
+    }
+
+    public string SipPasswordDisplay
+        => IsSipPasswordVisible ? _sipConfig?.AuthorizationPassword ?? string.Empty : "••••••••";
+
     public void OnConnectionStateChanged(CtiConnectionState state)
         => IsConnected = state == CtiConnectionState.Connected;
 
@@ -286,7 +347,11 @@ public sealed class SoftphoneViewModel : ObservableObject
     public bool IsPhoneRegistered
     {
         get => _isPhoneRegistered;
-        private set => Set(ref _isPhoneRegistered, value);
+        private set
+        {
+            if (!Set(ref _isPhoneRegistered, value)) return;
+            Raise(nameof(ShowsDeskPhoneSetup));
+        }
     }
 
     public string PhoneStatusText
