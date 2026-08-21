@@ -8,6 +8,7 @@ import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface CdrRow {
   callId: string;
@@ -279,7 +280,7 @@ export function CallsReportPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<CdrRow>
+      <ResponsiveTable<CdrRow>
         rowKey="callId"
         dataSource={rows}
         loading={loading}

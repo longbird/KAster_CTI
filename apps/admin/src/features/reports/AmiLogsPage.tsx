@@ -7,6 +7,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface AmiLogRow {
   eventId: string;
@@ -365,7 +366,7 @@ export function AmiLogsPage() {
         ) : null}
       </Space>
 
-      <Table<CallLogRow>
+      <ResponsiveTable<CallLogRow>
         className="call-log-table"
         rowKey="callId"
         dataSource={calls}

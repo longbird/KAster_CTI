@@ -7,6 +7,7 @@ import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface MissedRow {
   callId: string;
@@ -167,7 +168,7 @@ export function MissedCallsPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<MissedRow>
+      <ResponsiveTable<MissedRow>
         rowKey="callId"
         dataSource={rows}
         loading={loading}

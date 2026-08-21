@@ -20,6 +20,7 @@ import {
   SMS_TEMPLATE_CATEGORY_LABELS,
   SMS_TEMPLATE_CATEGORY_OPTIONS,
 } from './types/smsTemplate';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 const ACTIVE_FILTER_OPTIONS = [
   { value: 'ALL', label: '전체 상태' },
@@ -230,7 +231,7 @@ export function SmsTemplatesPage() {
         </Button>
       </Space>
 
-      <Table<SmsTemplateRow>
+      <ResponsiveTable<SmsTemplateRow>
         rowKey="templateId"
         dataSource={rows}
         loading={loading}

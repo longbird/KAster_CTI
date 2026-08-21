@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { ShareRuleEditDrawer } from './ShareRuleEditDrawer';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface ShareRuleRow {
   shareRuleId: string;
@@ -139,7 +140,7 @@ export function ShareRulesPage() {
           룰별로 상담원·그룹 우선순위와 지사 적용 범위를 정의합니다. 매트릭스를 저장하면 연결된 지사의 PBX 큐 멤버가 동기화됩니다.
         </Typography.Paragraph>
 
-        <Table<ShareRuleRow>
+        <ResponsiveTable<ShareRuleRow>
           rowKey="shareRuleId"
           dataSource={rows}
           loading={loading}

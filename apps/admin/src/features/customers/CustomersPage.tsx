@@ -11,6 +11,7 @@ import { CustomerImportModal } from './CustomerImportModal';
 import type { CustomerFormInput, CustomerRow } from './types/customer';
 import type { CustomerListParams } from './api/customersApi';
 import { formatCustomerListDate, formatCustomerPhoneDisplay } from './customerDisplay';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface Props {
   initialGrade?: 'NORMAL' | 'VIP' | 'BLACK';
@@ -209,7 +210,7 @@ export function CustomersPage({ initialGrade, title = '고객 목록' }: Props) 
       </div>
 
       <div className="admin-workbench__table">
-        <Table<CustomerRow>
+        <ResponsiveTable<CustomerRow>
           rowKey="customerId"
           loading={loading}
           dataSource={rows}

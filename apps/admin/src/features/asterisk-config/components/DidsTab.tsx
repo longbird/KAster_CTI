@@ -5,6 +5,7 @@ import type { AsteriskDid } from '../types/asterisk-config';
 import { DidForm } from './DidForm';
 import { usePermissionStore } from '../../../store/usePermissionStore';
 import { formatPhoneNumber } from '../../../shared/lib/format';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 export interface DidsTabProps {
   resourceId?: string | null;
@@ -132,7 +133,7 @@ export function DidsTab({ resourceId, onResourceHandled }: DidsTabProps) {
         </Space>
       </Card>
       <Card title="DID 목록">
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={rows}
           columns={columns}

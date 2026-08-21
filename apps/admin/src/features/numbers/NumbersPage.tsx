@@ -9,6 +9,7 @@ import {
   type NumberResourceType,
   type NumberFeatureCodeRow,
 } from './numberResources';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface DidRow {
   id: string;
@@ -135,7 +136,7 @@ export function NumbersPage() {
             ROUTING INDEX
           </span>
         </div>
-        <Table<NumberResourceRow>
+        <ResponsiveTable<NumberResourceRow>
           rowKey="id"
           dataSource={numberResources}
           pagination={false}
@@ -189,7 +190,7 @@ export function NumbersPage() {
             REPRESENTATIVE NUMBERS
           </span>
         </div>
-        <Table<DidRow>
+        <ResponsiveTable<DidRow>
           rowKey="id"
           dataSource={dids}
           pagination={false}
@@ -239,7 +240,7 @@ export function NumbersPage() {
             EXTENSIONS
           </span>
         </div>
-        <Table<AgentExtRow>
+        <ResponsiveTable<AgentExtRow>
           rowKey="agentId"
           dataSource={agents}
           pagination={false}

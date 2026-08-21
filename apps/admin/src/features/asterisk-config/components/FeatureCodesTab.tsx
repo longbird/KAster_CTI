@@ -4,6 +4,7 @@ import { getFeatureCodes, upsertFeatureCode } from '../api/asteriskConfigApi';
 import type { FeatureCode } from '../types/asterisk-config';
 import { FeatureHelpButton } from '../../../shared/help/FeatureHelpButton';
 import { usePermissionStore } from '../../../store/usePermissionStore';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 const INVOCATION_META: Record<FeatureCode['invocation'], { label: string; color: string; hint: string }> = {
   HANDSET_DIAL: {
@@ -143,7 +144,7 @@ export function FeatureCodesTab() {
             </Space>
           )}
         />
-        <Table
+        <ResponsiveTable
           rowKey="featureKey"
           size="small"
           loading={loading}

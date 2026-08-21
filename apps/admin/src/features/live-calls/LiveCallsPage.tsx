@@ -5,6 +5,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { FeatureHelpButton } from '../../shared/help';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { CallDetailDrawer, type CallRow } from './CallDetailDrawer';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   QUEUED:          { label: '대기열',  color: 'var(--accent-warn)' },
@@ -109,7 +110,7 @@ export function LiveCallsPage() {
             style={{ margin: 12 }}
           />
         ) : null}
-        <Table<CallRow>
+        <ResponsiveTable<CallRow>
           rowKey="callId"
           dataSource={rows}
           pagination={false}

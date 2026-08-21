@@ -6,6 +6,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchAgentCidAuthDrawer } from './BranchAgentCidAuthDrawer';
 import { BranchEditModal, type BranchRow } from './BranchEditModal';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 export function BranchSettingsPage() {
   const [rows, setRows] = useState<BranchRow[] | null>(null);
@@ -93,7 +94,7 @@ export function BranchSettingsPage() {
         {!rows ? (
           <Skeleton active paragraph={{ rows: 6 }} />
         ) : (
-          <Table<BranchRow>
+          <ResponsiveTable<BranchRow>
             rowKey="branchId"
             dataSource={rows}
             pagination={false}

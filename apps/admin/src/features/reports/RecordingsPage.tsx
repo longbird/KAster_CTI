@@ -8,6 +8,7 @@ import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { RecordingPlayer } from './RecordingPlayer';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface RecRow {
   recordingId: string;
@@ -310,7 +311,7 @@ export function RecordingsPage() {
             key: 'recordings',
             label: '녹취 목록',
             children: (
-              <Table<RecRow>
+              <ResponsiveTable<RecRow>
                 rowKey="recordingId"
                 dataSource={rows}
                 loading={loading}

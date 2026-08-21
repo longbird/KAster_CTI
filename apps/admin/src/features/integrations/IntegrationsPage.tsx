@@ -25,6 +25,7 @@ import {
   IntegrationAutomationRow,
   IntegrationFormModal,
 } from './IntegrationFormModal';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface IntegrationCard {
   id: string;
@@ -297,7 +298,7 @@ export function IntegrationsPage() {
         <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
           전화/SMS/Webhook 자동화 대상을 등록하고 수동 테스트 전송을 실행합니다. 통화/이벤트 자동 트리거 연결은 follow-up PR.
         </Typography.Paragraph>
-        <Table<IntegrationAutomationRow>
+        <ResponsiveTable<IntegrationAutomationRow>
           rowKey="integrationAutomationId"
           dataSource={automations}
           loading={automationsLoading}

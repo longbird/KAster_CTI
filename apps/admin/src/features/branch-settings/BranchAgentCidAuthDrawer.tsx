@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface AgentRow {
   agentId: string;
@@ -328,7 +329,7 @@ export function BranchAgentCidAuthDrawer({ open, branchId, branchName, onClose }
       {callerIds.length === 0 ? (
         <Empty description="등록된 발신번호가 없습니다. 우측 상단 [발신번호 추가]로 시작하세요." />
       ) : (
-        <Table<AgentRow>
+        <ResponsiveTable<AgentRow>
           rowKey="agentId"
           dataSource={agents}
           loading={loading}

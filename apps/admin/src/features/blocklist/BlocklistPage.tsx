@@ -18,6 +18,7 @@ import type { AsteriskBlocklistEntry } from '../asterisk-config/types/asterisk-c
 import { BLOCKLIST_COPY } from './blocklistCopy';
 import { BlocklistEntryModal, type BlocklistEntryFormValue } from './BlocklistEntryModal';
 import { BlocklistImportModal, type ImportBlocklistEntryRow } from './BlocklistImportModal';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 export function summarizeBlocklistRows(rows: AsteriskBlocklistEntry[]) {
   return rows.reduce(
@@ -162,7 +163,7 @@ export function BlocklistPage() {
         </Space>
       </div>
 
-      <Table<AsteriskBlocklistEntry>
+      <ResponsiveTable<AsteriskBlocklistEntry>
         rowKey="id"
         dataSource={rows}
         pagination={false}

@@ -13,6 +13,7 @@ import {
 } from '../asterisk-config/api/asteriskConfigApi';
 import type { AsteriskDid, AsteriskForwardingRule } from '../asterisk-config/types/asterisk-config';
 import { ForwardingRuleModal, type ForwardingRuleFormValue } from './ForwardingRuleModal';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface AgentOption {
   agentId: string;
@@ -173,7 +174,7 @@ export function ForwardingSettingsPage() {
         ) : null}
       </Space>
 
-      <Table<AsteriskForwardingRule>
+      <ResponsiveTable<AsteriskForwardingRule>
         rowKey="id"
         dataSource={rows}
         pagination={false}

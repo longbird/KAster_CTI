@@ -6,6 +6,7 @@ import { SpeedDialForm } from './SpeedDialForm';
 import { FeatureHelpButton } from '../../../shared/help/FeatureHelpButton';
 import { usePermissionStore } from '../../../store/usePermissionStore';
 import { formatPhoneNumber } from '../../../shared/lib/format';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 export function SpeedDialsTab() {
   const [rows, setRows] = useState<AsteriskSpeedDial[]>([]);
@@ -98,7 +99,7 @@ export function SpeedDialsTab() {
         </Space>
       </Card>
       <Card title="단축 발신 목록">
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={rows}
           columns={columns}

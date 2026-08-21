@@ -23,6 +23,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { QueueCreateModal } from './QueueCreateModal';
 import { QueueEditModal, type QueueRow } from './QueueEditModal';
 import { getDistributionModeLabel, getQueueStrategyLabel, getUnconditionalTargetTypeLabel } from './queueStrategy';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 function renderSingleLine(text: string) {
   return (
@@ -114,7 +115,7 @@ export function QueueSettingsPage() {
         ) : null}
       </Space>
 
-      <Table<QueueRow>
+      <ResponsiveTable<QueueRow>
         rowKey="queueId"
         dataSource={rows}
         pagination={false}

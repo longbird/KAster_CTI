@@ -6,6 +6,7 @@ import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../config';
 import { getAgentSip } from '../features/asterisk-config/api/asteriskConfigApi';
 import { downloadCsv } from '../shared/lib/csv';
 import { usePermissionStore } from '../store/usePermissionStore';
+import { ResponsiveTable } from '../components/ResponsiveTable';
 
 interface AgentRow {
   agentId: string;
@@ -126,7 +127,7 @@ export function AgentsPage() {
           </Button>
         ) : null}
       </div>
-      <Table<AgentRow>
+      <ResponsiveTable<AgentRow>
         rowKey="agentId"
         dataSource={rows}
         pagination={false}

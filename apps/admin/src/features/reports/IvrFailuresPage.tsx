@@ -8,6 +8,7 @@ import { formatPhoneNumber } from '../../shared/lib/format';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface IvrFailureRow {
   eventId: string;
@@ -163,7 +164,7 @@ export function IvrFailuresPage() {
           ) : null}
         </Space>
 
-        <Table<IvrFailureRow>
+        <ResponsiveTable<IvrFailureRow>
           rowKey="eventId"
           dataSource={rows}
           loading={loading}

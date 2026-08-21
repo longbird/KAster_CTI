@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 type MatchType = 'EXACT' | 'PREFIX' | 'REGEX' | 'DIALPLAN_PATTERN';
 
@@ -224,7 +225,7 @@ export function OutboundRulesPage() {
         <code>REGEX</code> 룰은 dialplan 으로 옮길 수 없어 NoOp 주석으로만 남습니다.
       </Typography.Paragraph>
 
-      <Table<OutboundRuleRow>
+      <ResponsiveTable<OutboundRuleRow>
         rowKey="outboundCallerIdRuleId"
         dataSource={rows}
         loading={loading}

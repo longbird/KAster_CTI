@@ -19,6 +19,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { labelForMenuPath, menuKeyToPath } from '../../shared/permissions/menuConfig';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 type PermissionAction = 'canView' | 'canCreate' | 'canUpdate' | 'canDelete' | 'canOperate' | 'canExport';
 
@@ -290,7 +291,7 @@ export function PermissionSettingsPage() {
                       기본 권한 저장
                     </Button>
                   </Space>
-                  <Table<{ key: string; menuKey: string }>
+                  <ResponsiveTable<{ key: string; menuKey: string }>
                     rowKey="key"
                     dataSource={rows}
                     pagination={false}
@@ -406,7 +407,7 @@ export function PermissionSettingsPage() {
                         </Space>
                       </Space>
 
-                      <Table<{ key: string; menuKey: string }>
+                      <ResponsiveTable<{ key: string; menuKey: string }>
                         rowKey="key"
                         dataSource={rows}
                         pagination={false}

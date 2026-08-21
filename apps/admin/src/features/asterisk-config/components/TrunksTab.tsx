@@ -7,6 +7,7 @@ import { TrunkGroupForm } from './TrunkGroupForm';
 import { TrunkForm } from './TrunkForm';
 import { usePermissionStore } from '../../../store/usePermissionStore';
 import { FeatureHelpButton } from '../../../shared/help/FeatureHelpButton';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 export function TrunksTab() {
   const [rows, setRows] = useState<AsteriskTrunk[]>([]);
@@ -193,7 +194,7 @@ export function TrunksTab() {
         </Space>
       </Card>
       <Card title="트렁크 목록">
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={rows}
           columns={columns}
@@ -216,7 +217,7 @@ export function TrunksTab() {
         <Typography.Paragraph type="secondary">
           여러 회선을 하나의 발신 풀로 묶습니다. 기본 그룹이 있으면 발신 시 우선순위 순서로 회선을 사용합니다.
         </Typography.Paragraph>
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={groups}
           columns={groupColumns}

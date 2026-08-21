@@ -10,6 +10,7 @@ import {
 } from '../asterisk-config/api/asteriskConfigApi';
 import type { AsteriskPrompt } from '../asterisk-config/types/asterisk-config';
 import { PromptModal, type PromptFormValue } from './PromptModal';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 export function PromptSettingsPage() {
   const promptPermission = usePermissionStore((state) => state.permissionsByMenu['settings/prompts']);
@@ -78,7 +79,7 @@ export function PromptSettingsPage() {
         ) : null}
       </Space>
 
-      <Table<AsteriskPrompt>
+      <ResponsiveTable<AsteriskPrompt>
         rowKey="id"
         dataSource={rows}
         pagination={false}

@@ -19,6 +19,7 @@ import {
   listHolidayRules,
   updateHolidayRule,
 } from './holidayRulesApi';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 type FormValues = {
   branchId?: string | null;
@@ -199,7 +200,7 @@ export function HolidaySettingsPage() {
       {!rows ? (
         <Skeleton active paragraph={{ rows: 6 }} />
       ) : (
-        <Table<HolidayRuleRow>
+        <ResponsiveTable<HolidayRuleRow>
           rowKey="holidayRuleId"
           dataSource={rows}
           pagination={false}

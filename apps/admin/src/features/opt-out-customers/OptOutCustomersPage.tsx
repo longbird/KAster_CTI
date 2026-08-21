@@ -18,6 +18,7 @@ import {
   isOptOutCustomerEntry,
   toOptOutDeactivatePayload,
 } from './optOutCustomers';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 type StatusFilter = 'ACTIVE' | 'ALL' | 'INACTIVE';
 
@@ -107,7 +108,7 @@ export function OptOutCustomersPage() {
         </Space>
       </div>
 
-      <Table<AsteriskBlocklistEntry>
+      <ResponsiveTable<AsteriskBlocklistEntry>
         rowKey="id"
         dataSource={filteredRows}
         pagination={{ pageSize: 20, showSizeChanger: true }}

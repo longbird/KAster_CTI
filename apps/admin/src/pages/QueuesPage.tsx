@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../config';
 import { downloadCsv } from '../shared/lib/csv';
 import { usePermissionStore } from '../store/usePermissionStore';
+import { ResponsiveTable } from '../components/ResponsiveTable';
 
 interface QueueRow {
   queueId: string;
@@ -152,7 +153,7 @@ export function QueuesPage() {
       </Card>
 
       <Card>
-        <Table<QueueRow>
+        <ResponsiveTable<QueueRow>
           rowKey="queueId"
           dataSource={rows}
           pagination={false}
@@ -213,7 +214,7 @@ export function QueuesPage() {
                 </Tag>
               ))}
             </Space>
-            <Table<QueueMemberRow>
+            <ResponsiveTable<QueueMemberRow>
               rowKey={(row) => row.queueMemberId ?? `${row.agent?.extension}-${row.memberOrder}`}
               dataSource={members}
               loading={membersLoading}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { getAgentSip, syncAgentSip, updateAgentSipPassword } from '../api/asteriskConfigApi';
 import type { AgentSipRow } from '../types/asterisk-config';
 import { usePermissionStore } from '../../../store/usePermissionStore';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 const headerStyle = { whiteSpace: 'nowrap' as const };
 
@@ -128,7 +129,7 @@ export function AgentSipTab() {
         </Space>
       </Card>
       <Card title="내선 등록 상태">
-        <Table
+        <ResponsiveTable
           rowKey="agentId"
           dataSource={rows}
           columns={columns}

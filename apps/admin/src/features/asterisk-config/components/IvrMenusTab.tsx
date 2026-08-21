@@ -4,6 +4,7 @@ import { createIvrMenu, deleteIvrMenu, getIvrMenus, updateIvrMenu } from '../api
 import type { AsteriskIvrMenu } from '../types/asterisk-config';
 import { IvrMenuForm } from './IvrMenuForm';
 import { usePermissionStore } from '../../../store/usePermissionStore';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 export function IvrMenusTab() {
   const [rows, setRows] = useState<AsteriskIvrMenu[]>([]);
@@ -80,7 +81,7 @@ export function IvrMenusTab() {
         </Space>
       </Card>
       <Card title="IVR 메뉴 목록">
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={rows}
           columns={columns}

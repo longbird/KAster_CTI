@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { joinAgentsAndCalls, summarizeMonitorRows } from './fixtures';
 import type { ActiveCallRow, AgentMonitorRow } from './types';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 const STATUS_LABELS: Record<string, string> = {
   AVAILABLE: '대기',
@@ -300,7 +301,7 @@ export function AgentMonitoringPage() {
             ) : null}
           </Space>
 
-          <Table<AgentMonitorRow>
+          <ResponsiveTable<AgentMonitorRow>
             rowKey="agentId"
             loading={loading && rows.length === 0}
             dataSource={filteredRows}

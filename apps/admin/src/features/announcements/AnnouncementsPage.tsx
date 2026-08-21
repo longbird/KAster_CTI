@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface Notice {
   announcementId: string;
@@ -133,7 +134,7 @@ export function AnnouncementsPage() {
         ) : null}
       </Space>
 
-      <Table<Notice>
+      <ResponsiveTable<Notice>
         rowKey="announcementId"
         dataSource={rows}
         loading={loading}

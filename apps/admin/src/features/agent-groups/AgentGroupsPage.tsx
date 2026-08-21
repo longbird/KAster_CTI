@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { getDistributionRuleLabels, type AgentGroupDistributionRule } from './agentGroupDistributionRules';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface AgentGroupRow {
   agentGroupId: string;
@@ -122,7 +123,7 @@ export function AgentGroupsPage() {
         ) : null}
       </Space>
 
-      <Table<AgentGroupRow>
+      <ResponsiveTable<AgentGroupRow>
         rowKey="agentGroupId"
         dataSource={rows}
         loading={loading}

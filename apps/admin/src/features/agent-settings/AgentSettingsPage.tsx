@@ -27,6 +27,7 @@ import { AgentEditModal, type AgentRow } from './AgentEditModal';
 import { AgentPermissionCopyModal } from './AgentPermissionCopyModal';
 import { formatExtensionDisplayName } from './extensionDisplayName';
 import { getExtensionLockModeLabel } from './extensionPolicy';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 const STATUS_COLOR: Record<string, string> = {
   AVAILABLE: 'green',
@@ -142,7 +143,7 @@ export function AgentSettingsPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<AgentRow>
+      <ResponsiveTable<AgentRow>
         rowKey="agentId"
         dataSource={rows}
         pagination={{ pageSize: 20 }}

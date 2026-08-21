@@ -7,6 +7,7 @@ import { downloadCsv } from '../../shared/lib/csv';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface HistoryRow {
   callId: string;
@@ -128,7 +129,7 @@ export function HistoryPage() {
             </Button>
           </Space>
         </div>
-        <Table<HistoryRow>
+        <ResponsiveTable<HistoryRow>
           rowKey="callId"
           dataSource={rows ?? []}
           loading={loading}
