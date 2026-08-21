@@ -6,6 +6,7 @@ import { RedisService } from '../redis/redis.service';
 import { normalizePhone } from '../customers/customers.service';
 import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { TransferDetectorService } from './transfer-detector.service';
+import { classifyLeg, getChannelEndpointName } from './call-leg.util';
 
 // conv 44 SESSION_PRECEDENCE: 역순 도착 이벤트로 인한 상태 역행 차단.
 // 숫자가 클수록 "더 진행된" 상태. 현재 상태가 이보다 같거나 높으면 새 이벤트의
@@ -298,6 +299,10 @@ export class SessionEngineService {
       }
     }
 
+    // 통화 제어(마이크 끄기·끊기·전환·홀드)는 전부 "상담원 쪽 채널"을 찾아야 동작한다.
+    // 채널이 실린 이벤트마다 leg 를 남겨 두지 않으면 그 조회가 항상 빈손이 된다.
+    await this.trackLeg(event, linkedid);
+
     switch (event.eventName) {
       case 'Newchannel':
         {
@@ -476,6 +481,59 @@ export class SessionEngineService {
 
       await this.enqueueOutbox(tx, tenantId, REALTIME_EVENTS.CALL_UPDATED, updated);
     });
+  }
+
+  /**
+   * 채널 하나를 callLegs 한 줄로 남긴다.
+   *
+   * 세션이 아직 없으면 아무것도 하지 않는다 — leg 는 세션에 매달리므로, 세션을 만드는
+   * 이벤트가 먼저 지나가야 한다. 그 다음 이벤트에서 다시 시도된다.
+   *
+   * 실패해도 던지지 않는다. leg 기록이 안 됐다고 통화 상태 전이까지 멈추면
+   * 화면에서 통화가 통째로 사라진다.
+   */
+  private async trackLeg(event: any, linkedid: string) {
+    const channelName: string | undefined = event?.raw?.Channel || event?.channel;
+    const uniqueid: string | undefined = event?.uniqueid || event?.raw?.Uniqueid;
+    const legType = classifyLeg(channelName);
+    if (!channelName || !uniqueid || !legType) return;
+
+    try {
+      const session = await this.prisma.callSessions.findFirst({
+        where: { linkedid, tenantId: event.tenantId },
+        select: { callId: true },
+      });
+      if (!session) return;
+
+      const ended = event.eventName === 'Hangup' ? new Date() : undefined;
+      const endpoint = getChannelEndpointName(channelName);
+
+      await (this.prisma as any).callLegs.upsert({
+        where: { tenantId_uniqueid: { tenantId: event.tenantId, uniqueid } },
+        create: {
+          tenantId: event.tenantId,
+          callId: session.callId,
+          linkedid,
+          uniqueid,
+          legType,
+          channelName,
+          endpoint,
+          stateCode: event?.raw?.ChannelStateDesc,
+          startedAt: new Date(),
+          endedAt: ended,
+        },
+        update: {
+          channelName,
+          endpoint,
+          ...(event?.raw?.ChannelStateDesc ? { stateCode: event.raw.ChannelStateDesc } : {}),
+          // 이미 끝난 leg 를 되살리지 않는다. 늦게 도착한 이벤트가 endedAt 를 지우면
+          // 끝난 통화가 제어 대상으로 다시 잡힌다.
+          ...(ended ? { endedAt: ended } : {}),
+        },
+      });
+    } catch (err) {
+      this.logger.debug(`leg 기록 실패 ${channelName}: ${(err as Error).message}`);
+    }
   }
 
   private async upsertSession(
