@@ -14,6 +14,9 @@ public static class AppPaths
     public static string TokenVault => Path.Combine(Root, "tokens.bin");
 
     public static string AudioDevices => Path.Combine(Root, "audio-devices.json");
+
+    /// <summary>다음 로그인 때 채워 둘 아이디·내선. 비밀번호는 들어가지 않는다.</summary>
+    public static string SavedLogin => Path.Combine(Root, "login.json");
 }
 
 /// <summary>앱이 붙을 서버. 현장마다 다르므로 파일로 뺀다.</summary>

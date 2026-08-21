@@ -12,18 +12,28 @@ public sealed class LoginViewModel : ObservableObject
 {
     private readonly AuthClient _auth;
     private readonly ITokenStore _tokens;
+    private readonly ISavedLoginStore _savedLogin;
 
     private string _loginId = string.Empty;
     private string _password = string.Empty;
     private string _extension = string.Empty;
     private string? _errorMessage;
     private bool _isBusy;
+    private bool _rememberMe;
 
-    public LoginViewModel(AuthClient auth, ITokenStore tokens)
+    public LoginViewModel(AuthClient auth, ITokenStore tokens, ISavedLoginStore savedLogin)
     {
         _auth = auth;
         _tokens = tokens;
+        _savedLogin = savedLogin;
         SignInCommand = new RelayCommand(() => _ = SignInAsync(), () => CanSignIn);
+
+        var saved = savedLogin.Load();
+        if (!saved.Remember) return;
+
+        _loginId = saved.LoginId;
+        _extension = saved.Extension;
+        _rememberMe = true;
     }
 
     public event EventHandler<LoginResult>? SignedIn;
@@ -65,6 +75,17 @@ public sealed class LoginViewModel : ObservableObject
         private set { if (Set(ref _isBusy, value)) OnFormChanged(); }
     }
 
+    /// <summary>아이디와 내선을 다음에도 채워 둘지. 비밀번호는 저장 대상이 아니다.</summary>
+    public bool RememberMe
+    {
+        get => _rememberMe;
+        set => Set(ref _rememberMe, value);
+    }
+
+    /// <summary>지난번 값이 이미 채워져 있어 비밀번호만 치면 되는 상태.</summary>
+    public bool NeedsPasswordOnly =>
+        !string.IsNullOrWhiteSpace(_loginId) && !string.IsNullOrWhiteSpace(_extension);
+
     public bool CanSignIn =>
         !IsBusy &&
         !string.IsNullOrWhiteSpace(_loginId) &&
@@ -82,6 +103,13 @@ public sealed class LoginViewModel : ObservableObject
         {
             var result = await _auth.LoginAsync(_loginId.Trim(), _password, _extension.Trim(), ct);
             _tokens.Save(result.Tokens);
+
+            // 로그인이 된 뒤에만 저장한다. 틀린 아이디가 굳어 버리면 매번 지우고 다시 쳐야 한다.
+            // 체크를 풀었으면 남아 있던 것도 지운다 — 공용 PC 에서 중요하다.
+            _savedLogin.Save(RememberMe
+                ? new SavedLogin { Remember = true, LoginId = _loginId.Trim(), Extension = _extension.Trim() }
+                : new SavedLogin());
+
             Password = string.Empty;
             SignedIn?.Invoke(this, result);
         }

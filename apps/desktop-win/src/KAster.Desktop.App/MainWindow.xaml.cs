@@ -42,7 +42,7 @@ public partial class MainWindow : Window
     private void ShowLogin()
     {
         var auth = new AuthClient(new HttpClient { BaseAddress = _settings.BaseUri });
-        var vm = new LoginViewModel(auth, _tokens);
+        var vm = new LoginViewModel(auth, _tokens, new SavedLoginStore(AppPaths.SavedLogin));
         vm.SignedIn += async (_, result) => await StartRuntimeAsync(result);
 
         _windowMode.Request(WindowMode.Idle);

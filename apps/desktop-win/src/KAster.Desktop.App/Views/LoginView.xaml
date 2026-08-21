@@ -46,6 +46,14 @@
                      Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" />
 
             <StackPanel Grid.Row="8">
+                <!-- 저장하는 것은 아이디와 내선뿐이다. 비밀번호는 매번 친다. -->
+                <CheckBox Content="아이디·내선 저장"
+                          Margin="0,0,0,8"
+                          IsChecked="{Binding RememberMe}"
+                          Foreground="{StaticResource BrushTextMuted}"
+                          FontFamily="{StaticResource FontUi}"
+                          FontSize="{StaticResource FontSizeCaption}" />
+
                 <!-- 오류 자리를 항상 잡아 두면 메시지가 떴다 사라질 때 아래 버튼이 흔들리지 않는다. -->
                 <TextBlock Height="34"
                            Text="{Binding ErrorMessage}"
