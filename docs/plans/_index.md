@@ -45,6 +45,7 @@
 | [`2026-08-08-prisma-schema-drift-plan.md`](2026-08-08-prisma-schema-drift-plan.md) |
 | [`2026-08-09-feature-code-registry-plan.md`](2026-08-09-feature-code-registry-plan.md) |
 | [`2026-08-20-csharp-desktop-client-phase1-plan.md`](2026-08-20-csharp-desktop-client-phase1-plan.md) |
+| [`2026-08-21-csharp-desktop-client-gap-analysis.md`](2026-08-21-csharp-desktop-client-gap-analysis.md) |
 | [`agent-desktop-runtime-kickoff.md`](agent-desktop-runtime-kickoff.md) |
 | [`agent-desktop-server-integration-checklist.md`](agent-desktop-server-integration-checklist.md) |
 | [`business-30-concurrent-call-development-plan-20260509.md`](business-30-concurrent-call-development-plan-20260509.md) |
