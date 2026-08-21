@@ -104,6 +104,16 @@ public sealed class SipSoftphoneClient : ISoftphoneControl, IDisposable
                 Raise(new RegistrationStatus(RegistrationState.Registering, reason));
             registrar.RegistrationRemoved += (_, _) => Raise(new RegistrationStatus(RegistrationState.Stopped));
 
+            // PBX 가 주기적으로 OPTIONS 를 보내 단말이 살아 있는지 확인한다 (qualify).
+            // 답하지 않으면 Contact 가 Unavailable 로 표시되고 <b>전화가 오지 않는다.</b>
+            // 이 응답은 NAT 매핑을 열어 두는 역할도 한다 — 공유기는 조용한 UDP 구멍을 금방 닫는다.
+            transport.SIPTransportRequestReceived += async (_, _, request) =>
+            {
+                if (request.Method != SIPMethodsEnum.OPTIONS) return;
+                await transport.SendResponseAsync(
+                    SIPResponse.GetResponse(request, SIPResponseStatusCodesEnum.Ok, null));
+            };
+
             var userAgent = new SIPUserAgent(transport, null);
             userAgent.OnIncomingCall += HandleIncomingCall;
             userAgent.OnCallHungup += _ => EndCall("상대가 끊었다");

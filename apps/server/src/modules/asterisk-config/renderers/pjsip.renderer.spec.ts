@@ -94,6 +94,7 @@ describe('renderPjsip', () => {
     expect(result).toContain('context=agent-phone-1001');
     expect(result).toContain('max_contacts=2');
     expect(result).toContain('remove_existing=yes');
+    expect(result).toContain('qualify_frequency=30');
     expect(result).toContain('allow=alaw,ulaw');
     expect(result).toContain('media_encryption=dtls');
     expect(result).toContain('dtls_verify=fingerprint');

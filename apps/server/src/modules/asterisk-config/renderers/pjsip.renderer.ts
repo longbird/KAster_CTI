@@ -142,6 +142,12 @@ function renderAgent(agent: AgentInput): string {
     // take calls. Letting a fresh registration evict the oldest contact keeps the newest phone
     // reachable no matter how the previous one went away.
     `remove_existing=yes`,
+    // Softphones sit behind NAT, and the router closes the UDP pinhole between registrations.
+    // An INVITE that arrives in that gap is dropped and the agent's phone never rings, with
+    // nothing anywhere reporting a failure. Qualifying keeps the pinhole open and, as a side
+    // effect, makes a dead contact visible instead of leaving it listed as if it were fine.
+    // (2026-08-21: measured the NAT port moving 41768 -> 36131 -> 54724 between registrations.)
+    `qualify_frequency=30`,
     ``,
     `[${agent.extension}]`,
     `type=endpoint`,
