@@ -112,7 +112,7 @@ PBX 는 공유 개발 서버에 있고 접근 가능하다(1장의 초기 기술
 
 대상: 공유 개발 서버 `49.247.46.86`.
 
-### 6-1. SIP 포트가 문서와 다르다 — 조치 필요
+### 6-1. SIP 포트 불일치 — **해소됨 (2026-08-21)**
 
 | | 값 |
 |---|---|
@@ -128,8 +128,31 @@ WWW-Authenticate: Digest realm="asterisk", ...
 Server: KAster_CTI
 ```
 
-**위험**: 관리자 화면에서 PBX 설정을 재적용하면 포트가 48950 으로 바뀌면서 36070 에 맞춰 둔 단말이 전부 끊긴다.
-이 불일치는 소프트폰 작업과 별개로 정리해야 한다.
+**원인**: 커밋이 저장소만 바꿨고 **개발 서버에 배포된 적이 없다.**
+마지막 적용 마이그레이션이 `20260802_sip_security_blocks` 이고 `20260808_sip_register_port_default` 는 적용되지 않았다.
+컨테이너 이미지가 8/2 빌드라 그 안의 `prisma/migrations` 에도 8/8 마이그레이션이 없어 `migrate deploy` 가 적용할 것이 없었다.
+DB 가 36070 이니 렌더러도 36070 을 뽑고 PBX 도 36070 에 bind 했다 — 전 축이 일관되게 옛 값이었다.
+
+**조치 (2026-08-21, 통화 0건 상태에서 수행)**:
+
+| 단계 | 결과 |
+|---|---|
+| DB `tenantSystemSettings.sipRegisterPort` 36070 → 48950 | 완료 |
+| 서버 재시작 → 부팅 동기화가 `pjsip.conf` 재렌더 | `bind=0.0.0.0:48950` |
+| **Asterisk 프로세스 재시작** | PID 교체, 48950 bind, 36070 소멸 |
+| 서버 `.env` `SOFTPHONE_SIP_SERVER` → 48950 | 완료 |
+| 48950 등록 검증 | `Registered` |
+| 36070 | 무응답 확인 |
+
+### 6-1-1. 제품 결함 — SIP 포트 변경이 reload 로는 반영되지 않는다
+
+`AsteriskReloadService` 는 `pjsip.conf` 를 다시 쓰고 AMI `module reload res_pjsip` 을 보내지만,
+**PJSIP 는 reload 로 transport 를 다시 bind 하지 않는다.** 실제로 이번에 파일은 48950 으로 바뀌었는데
+Asterisk 는 36070 에 그대로 붙어 있었고, `systemctl restart asterisk` 이후에야 옮겨졌다.
+
+즉 관리자 화면에서 SIP 포트를 바꾸면 **실패 표시 없이 조용히 무시된다.** 게다가 그 사이에
+"파일은 새 포트, 프로세스는 옛 포트" 인 상태가 남아, 나중에 아무 이유로든 Asterisk 가 재시작되면
+포트가 갑자기 바뀌며 단말이 전부 끊긴다. 소프트폰과 별개로 처리해야 할 결함이다.
 
 ### 6-2. 서버 변경 반영 결과
 
@@ -140,7 +163,7 @@ Server: KAster_CTI
 | `enabled` | `true` |
 | `sipUri` | `sip:1001@49.247.46.86` |
 | `wsServer` | `ws://49.247.46.86:8088/ws` (기존 경로 그대로) |
-| `sipServer` | `49.247.46.86:36070` |
+| `sipServer` | `49.247.46.86:48950` |
 | `transport` | `udp` |
 | `authorizationPassword` | 내려옴 |
 
@@ -153,8 +176,8 @@ C# 클라이언트(`AuthClient` → `SoftphoneOptions` → `SipSoftphoneClient`)
 ```
 >>> 로그인
     agent=홍길동 ext=1001
-    sipServer=49.247.46.86:36070 transport=udp enabled=True
->>> SIP 등록 시도 49.247.46.86:36070 as 1001@49.247.46.86
+    sipServer=49.247.46.86:48950 transport=udp enabled=True
+>>> SIP 등록 시도 49.247.46.86:48950 as 1001@49.247.46.86
     STATUS Registering
     STATUS Registered
 ```
@@ -171,8 +194,11 @@ C# 클라이언트(`AuthClient` → `SoftphoneOptions` → `SipSoftphoneClient`)
 그래서 서버 변경을 컴파일된 `dist/src/modules/auth/auth.service.js` 교체로 반영했다
 (컨테이너에 `dist.prev.*` 백업이 5개 있는 걸 보면 이 팀이 써 온 방식이다).
 
-- **원본 복구**: `docker compose -f docker-compose.dev.yml up -d --force-recreate --no-build server`
-- **주의**: 컨테이너를 재생성하면 교체본이 사라진다. 실제로 이번 작업 중 한 번 덮어썼다.
+- 처음에는 `docker cp` 로 넣었는데 컨테이너를 재생성할 때마다 사라졌다(실제로 한 번 덮어썼다).
+  그래서 `docker-compose.dev.yml` 에 **bind mount** 로 고정했다:
+  `/home/blueadm/kaster_cti/auth.service.js.new:/app/dist/src/modules/auth/auth.service.js:ro`
+- ⚠️ **egress 허용 후 정상 빌드하면 이 마운트를 반드시 제거해야 한다.** 안 지우면 새로 빌드한
+  코드를 이 파일이 계속 덮어쓴다. compose 에 주석으로도 적어 뒀다.
 - **근본 조치**: egress 에 `registry-1.docker.io`, `auth.docker.io`,
   `production.cloudflare.docker.com`, `registry.npmjs.org`, `security.debian.org` 를 허용해야
   서버에서 정상 빌드가 가능하다.
