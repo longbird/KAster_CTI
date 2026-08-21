@@ -203,10 +203,17 @@ public sealed class SipSoftphoneClient : ISoftphoneControl, IDisposable
         EndCall("이 단말에서 끊었다");
     }
 
+    /// <summary>
+    /// 통화 종료. 상대가 끊으면 <c>OnCallHungup</c> 이, 사용자가 끊으면 <see cref="Hangup"/> 이 부른다.
+    /// 두 경로가 겹치는 것이 정상이므로 **이미 끝난 통화는 다시 알리지 않는다.**
+    /// 안 그러면 화면에 종료가 두 번 올라온다.
+    /// </summary>
     private void EndCall(string reason)
     {
         lock (_gate)
         {
+            if (CallStatus.State == SoftphoneCallState.Idle) return;
+
             _audio?.Dispose();
             _audio = null;
             _pendingCall = null;
