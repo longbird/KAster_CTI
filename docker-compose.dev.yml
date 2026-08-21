@@ -102,7 +102,11 @@ services:
       ASTERISK_EXTERNAL_MEDIA_ADDRESS: ${ASTERISK_EXTERNAL_MEDIA_ADDRESS:-49.247.46.86}
       ASTERISK_EXTERNAL_SIGNALING_ADDRESS: ${ASTERISK_EXTERNAL_SIGNALING_ADDRESS:-49.247.46.86}
       ASTERISK_LOCAL_NETS: ${ASTERISK_LOCAL_NETS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
-      ASTERISK_RTP_STUN_ADDRESS: ${ASTERISK_RTP_STUN_ADDRESS:-stun.l.google.com:19302}
+      # 기본값을 두지 않는다. PJSIP 는 ASTERISK_EXTERNAL_MEDIA_ADDRESS 로 이미 외부 주소를 알고 있어
+      # STUN 이 필요 없고, 닿지 않는 STUN 주소가 걸려 있으면 통화마다 설정이 수십 초 지연된다.
+      # (2026-08-21 실측: 닿지 않는 stun.l.google.com 때문에 Newchannel→DialBegin 이 19초, 제거 후 1초)
+      # 값이 필요한 현장은 .env 에 명시한다. `-` 는 미설정일 때만 기본값을 쓴다는 뜻이다.
+      ASTERISK_RTP_STUN_ADDRESS: ${ASTERISK_RTP_STUN_ADDRESS-}
       KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET:-change_me_internal}
       SEED_DEMO_PASSWORD: Password123!
       AUTO_SEED_DEMO_DATA: "true"
