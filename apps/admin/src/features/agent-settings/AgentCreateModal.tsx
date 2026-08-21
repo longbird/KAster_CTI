@@ -48,7 +48,7 @@ function labelWithHelp(label: string, help?: string) {
       <span>{label}</span>
       {help ? (
         <Tooltip title={help}>
-          <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+          <QuestionCircleOutlined style={{ color: 'var(--fg-3)', cursor: 'help' }} />
         </Tooltip>
       ) : null}
     </span>
@@ -63,7 +63,7 @@ function SectionTitle({ title, help }: { title: string; help?: string }) {
       </Typography.Title>
       {help ? (
         <Tooltip title={help}>
-          <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+          <QuestionCircleOutlined style={{ color: 'var(--fg-3)', cursor: 'help' }} />
         </Tooltip>
       ) : null}
     </div>
@@ -72,7 +72,7 @@ function SectionTitle({ title, help }: { title: string; help?: string }) {
 
 const PANEL_STYLE: CSSProperties = {
   borderRadius: 16,
-  border: '1px solid rgba(195, 197, 215, 0.45)',
+  border: '1px solid var(--line-2)',
   boxShadow: '0 10px 24px rgba(25, 28, 29, 0.04)',
 };
 
@@ -131,8 +131,8 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(19, 83, 216, 0.08)',
-              color: '#1353d8',
+              background: 'var(--accent-info-soft)',
+              color: 'var(--accent-info)',
             }}
           >
             <SettingOutlined style={{ fontSize: 22 }} />
@@ -158,9 +158,9 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
         </div>
       )}
       styles={{
-        header: { padding: '24px 28px 18px', borderBottom: '1px solid rgba(195, 197, 215, 0.35)' },
-        body: { maxHeight: '75vh', overflowY: 'auto', overflowX: 'hidden', padding: 28, background: '#f8f9fa' },
-        footer: { padding: '16px 28px 20px', borderTop: '1px solid rgba(195, 197, 215, 0.25)', background: '#f3f4f5' },
+        header: { padding: '24px 28px 18px', borderBottom: '1px solid var(--line-2)' },
+        body: { maxHeight: '75vh', overflowY: 'auto', overflowX: 'hidden', padding: 28, background: 'var(--bg-0)' },
+        footer: { padding: '16px 28px 20px', borderTop: '1px solid var(--line-1)', background: 'var(--bg-2)' },
         content: { borderRadius: 20, overflow: 'hidden' },
       }}
     >
@@ -304,8 +304,8 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
                       gap: 16,
                       padding: 16,
                       borderRadius: 14,
-                      background: '#ffffff',
-                      border: '1px solid rgba(195, 197, 215, 0.35)',
+                      background: 'var(--bg-1)',
+                      border: '1px solid var(--line-2)',
                     }}
                   >
                     <div>
@@ -329,8 +329,8 @@ export function AgentCreateModal({ open, onClose, onCreated }: Props) {
                     style={{
                       padding: 16,
                       borderRadius: 14,
-                      background: '#ffffff',
-                      border: '1px solid rgba(195, 197, 215, 0.35)',
+                      background: 'var(--bg-1)',
+                      border: '1px solid var(--line-2)',
                     }}
                   >
                     <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>

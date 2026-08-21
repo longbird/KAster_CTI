@@ -195,9 +195,9 @@ export function SystemSettingsPage() {
             style={{
               marginBottom: 16,
               padding: 12,
-              border: '1px solid rgba(195, 197, 215, 0.55)',
+              border: '1px solid var(--line-2)',
               borderRadius: 8,
-              background: '#fff',
+              background: 'var(--bg-1)',
             }}
           >
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
@@ -234,9 +234,9 @@ export function SystemSettingsPage() {
             style={{
               marginBottom: 16,
               padding: 12,
-              border: '1px solid rgba(195, 197, 215, 0.55)',
+              border: '1px solid var(--line-2)',
               borderRadius: 8,
-              background: '#fff',
+              background: 'var(--bg-1)',
             }}
           >
             <Space direction="vertical" size={8} style={{ width: '100%' }}>

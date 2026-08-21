@@ -361,9 +361,9 @@ export function ForwardingRuleModal({
                           alignItems: 'center',
                           gap: 12,
                           padding: '12px 14px',
-                          border: '1px solid #f0f0f0',
+                          border: '1px solid var(--line-1)',
                           borderRadius: 8,
-                          background: '#fafafa',
+                          background: 'var(--bg-3)',
                         }}
                       >
                         <Typography.Text strong>{`시간대 ${index + 1}`}</Typography.Text>
