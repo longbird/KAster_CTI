@@ -34,6 +34,14 @@ import { assertNoNewlines, toSlug } from './renderer-utils';
 import { DEFAULT_SIP_REGISTER_PORT } from '../../../common/call-routing.constants';
 
 const SIP_WS_PORT = 8088;
+
+// 통신사는 국선 INVITE 를 표준 SIP 포트로 보낸다. 전화기 등록 포트를 비표준으로 옮기는 것은
+// 스캐너를 피하려는 의도적 설정이지만, transport 가 하나뿐이면 국선까지 같이 끌려가
+// 인입이 통째로 끊긴다. 발신은 우리가 먼저 나가므로 멀쩡해서 더 늦게 발견된다.
+// (2026-08-21: 실제로 36070 -> 48950 으로 옮기고 국선 인입이 통신사 안내멘트로 끝났다.)
+const SIP_TRUNK_PORT = 5060;
+const TRUNK_TRANSPORT = 'transport-trunk-udp';
+const AGENT_TRANSPORT = 'transport-udp';
 const ASTERISK_AUTH_REALM = 'asterisk';
 
 function isValidIpv4Cidr(value: string) {
@@ -53,7 +61,7 @@ function renderTransportNatLines(input: PjsipInput, localNets: string[]): string
   ];
 }
 
-function renderTrunk(trunk: TrunkInput): string {
+function renderTrunk(trunk: TrunkInput, transport: string): string {
   const slug = toSlug(trunk.name);
   if (!slug) throw new Error(`Trunk name "${trunk.name}" produces an empty slug`);
   assertNoNewlines(trunk.host, 'host');
@@ -74,7 +82,7 @@ function renderTrunk(trunk: TrunkInput): string {
   const endpointLines = [
     `[trunk-${slug}]`,
     `type=endpoint`,
-    `transport=transport-udp`,
+    `transport=${transport}`,
     `context=inbound-main`,
     `disallow=all`,
     `allow=${trunk.codecs}`,
@@ -189,6 +197,10 @@ export function renderPjsip(input: PjsipInput): string {
   const localNets = [...new Set((input.localNets || []).map((item) => item.trim()).filter(Boolean))];
   localNets.forEach((localNet) => assertNoNewlines(localNet, 'localNet'));
   const transportNatLines = renderTransportNatLines(input, localNets);
+  // 전화기가 이미 표준 포트에 있으면 국선용을 따로 두지 않는다.
+  // 두 transport 가 같은 포트를 물면 Asterisk 가 기동에 실패한다.
+  const needsTrunkTransport = sipRegisterPort !== SIP_TRUNK_PORT;
+  const trunkTransport = needsTrunkTransport ? TRUNK_TRANSPORT : AGENT_TRANSPORT;
   const header = [
     `[global]`,
     `type=global`,
@@ -206,11 +218,21 @@ export function renderPjsip(input: PjsipInput): string {
     `protocol=ws`,
     `bind=0.0.0.0:${SIP_WS_PORT}`,
     ...transportNatLines,
+    ...(needsTrunkTransport
+      ? [
+          ``,
+          `[${TRUNK_TRANSPORT}]`,
+          `type=transport`,
+          `protocol=udp`,
+          `bind=0.0.0.0:${SIP_TRUNK_PORT}`,
+          ...transportNatLines,
+        ]
+      : []),
   ].join('\n');
 
   const trunks = input.trunks
     .filter((t) => t.enabled)
-    .map(renderTrunk)
+    .map((trunk) => renderTrunk(trunk, trunkTransport))
     .join('\n\n');
 
   const agents = input.agents

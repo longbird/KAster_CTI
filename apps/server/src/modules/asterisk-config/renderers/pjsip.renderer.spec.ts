@@ -1,5 +1,10 @@
 import { renderPjsip } from './pjsip.renderer';
 
+const TRUNK = {
+  name: '070-5234-6380', host: '27.255.98.132', port: 5060,
+  username: '', password: '', fromDomain: '', codecs: 'alaw,ulaw', enabled: true,
+};
+
 describe('renderPjsip', () => {
   it('renders global and transport sections', () => {
     const result = renderPjsip({ trunks: [], agents: [] });
@@ -16,6 +21,23 @@ describe('renderPjsip', () => {
     // 검증되지 않는다 (예전에 실제로 그런 상태였다).
     const result = renderPjsip({ trunks: [], agents: [], sipRegisterPort: 15060 });
     expect(result).toContain('bind=0.0.0.0:15060');
+  });
+
+  // 통신사는 국선 INVITE 를 표준 포트 5060 으로 보낸다. 전화기 등록 포트를 비표준으로
+  // 옮기면(스캐너 회피) 그 하나뿐인 transport 가 같이 옮겨가서 국선 인입이 통째로 끊긴다.
+  // 실제로 이 현장이 그 상태였다 — 발신만 되고 수신은 통신사 안내멘트로 끝났다.
+  it('keeps a standard-port transport for trunks when phones use a non-standard port', () => {
+    const result = renderPjsip({ trunks: [TRUNK], agents: [], sipRegisterPort: 48950 });
+    expect(result).toContain('bind=0.0.0.0:48950');
+    expect(result).toContain('[transport-trunk-udp]\ntype=transport\nprotocol=udp\nbind=0.0.0.0:5060');
+    expect(result).toContain('transport=transport-trunk-udp');
+  });
+
+  // 두 transport 가 같은 포트를 물면 Asterisk 가 기동에 실패한다.
+  it('uses the single transport when phones already sit on the standard port', () => {
+    const result = renderPjsip({ trunks: [TRUNK], agents: [], sipRegisterPort: 5060 });
+    expect(result).not.toContain('[transport-trunk-udp]');
+    expect(result).toContain('transport=transport-udp');
   });
 
   it('renders external media and signaling addresses for NAT traversal', () => {
