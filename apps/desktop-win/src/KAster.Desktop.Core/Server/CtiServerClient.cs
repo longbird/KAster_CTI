@@ -89,6 +89,13 @@ public sealed class CtiServerClient
             new { agentId, memoType = "acw", memoText, isFinal = true },
             ct);
 
+    /// <summary>
+    /// 당겨받기. 옆자리에 울리는 전화를 내 내선으로 끌어온다.
+    /// 서버는 큐 대기(QUEUED) 또는 상담원 호출 중(RINGING_AGENT) 일 때만 받아 준다.
+    /// </summary>
+    public Task<CommandAck> PickupAsync(string callId, CancellationToken ct)
+        => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/pickup", new { }, ct);
+
     public Task<CommandAck> AnswerAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/answer", new { }, ct);
 

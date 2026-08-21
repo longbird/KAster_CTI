@@ -157,6 +157,150 @@
                                Style="{StaticResource TextCaption}"
                                Margin="0,6,0,0"
                                HorizontalAlignment="Center" />
+
+                    <!--
+                        당겨받기. 옆자리에 울리는 전화를 여기서 끌어온다.
+                        받을 수 있는 것이 있을 때만 나타난다 — 늘 떠 있으면 빈 목록이 자리만 차지한다.
+                    -->
+                    <StackPanel Margin="0,14,0,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasWaitingCalls}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="당겨받을 수 있는 전화"
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource TextCaption}" />
+
+                            <!--
+                                한두 건이면 목록이 읽기 좋고, 쌓이면 타일이 한눈에 들어온다.
+                                자리마다 선호가 달라 고르게 둔다.
+                            -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="목록"
+                                        Padding="6,1" BorderThickness="0" Cursor="Hand"
+                                        Background="Transparent"
+                                        FontFamily="{StaticResource FontUi}"
+                                        FontSize="{StaticResource FontSizeCaption}"
+                                        Command="{Binding SetWaitingLayoutCommand}"
+                                        CommandParameter="list">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ShowsWaitingAsList}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Content="타일"
+                                        Padding="6,1" BorderThickness="0" Cursor="Hand"
+                                        Background="Transparent"
+                                        FontFamily="{StaticResource FontUi}"
+                                        FontSize="{StaticResource FontSizeCaption}"
+                                        Command="{Binding SetWaitingLayoutCommand}"
+                                        CommandParameter="tile">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ShowsWaitingAsTile}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 목록: 한 줄에 하나. 고객명과 큐를 함께 읽는다. -->
+                        <ItemsControl ItemsSource="{Binding WaitingCalls}">
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowsWaitingAsList}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Margin="0,0,0,4"
+                                            HorizontalContentAlignment="Left"
+                                            Style="{StaticResource ButtonSecondary}"
+                                            Command="{Binding DataContext.PickupCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Subtitle}"
+                                                       FontSize="{StaticResource FontSizeCaption}"
+                                                       Foreground="{StaticResource BrushTextMuted}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 타일: 한 줄에 둘. 번호 위주로 여러 건을 한눈에 본다. -->
+                        <ItemsControl ItemsSource="{Binding WaitingCalls}">
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowsWaitingAsTile}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Margin="0,0,4,4"
+                                            HorizontalContentAlignment="Center"
+                                            Style="{StaticResource ButtonSecondary}"
+                                            Command="{Binding DataContext.PickupCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="{Binding PhoneNumber}"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 자리에 못 들어간 건수는 숨기지 않고 숫자로 알린다. -->
+                        <TextBlock Text="{Binding WaitingCallsHiddenText}"
+                                   Style="{StaticResource TextCaption}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!--

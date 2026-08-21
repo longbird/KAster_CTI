@@ -13,6 +13,23 @@ export class AsteriskManagerService {
     private readonly ami: AmiConnectionService,
   ) {}
 
+  /**
+   * 큐 배정 일시정지. 내선이 없으면 아무것도 하지 않는다 —
+   * 큐에 없는 상담원을 정지시키려 하면 AMI 가 오류를 돌려준다.
+   */
+  setQueuePaused(extension: string | null | undefined, paused: boolean, reason?: string | null): void {
+    const trimmed = extension?.trim();
+    if (!trimmed) return;
+
+    this.ami.sendAction({
+      Action: 'QueuePause',
+      Interface: `PJSIP/${trimmed}`,
+      Paused: paused ? 'true' : 'false',
+      ...(reason ? { Reason: reason } : {}),
+    });
+    this.logger.log(`Queue pause ${paused} for PJSIP/${trimmed}`);
+  }
+
   originate(params: {
     agentExtension: string;
     phoneNumber: string;

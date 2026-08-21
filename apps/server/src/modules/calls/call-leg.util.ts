@@ -27,10 +27,15 @@ export function getChannelEndpointName(channelName?: string | null): string | nu
   return endpoint || null;
 }
 
-export type CallLegType = 'agent' | 'trunk';
+/**
+ * leg 종류. <b>이 문자열은 계약이다</b> — 당겨받기는 고객 leg 를 `['inbound','customer']` 로 찾고
+ * 나머지 통화 제어는 상담원 leg 를 `'agent'` 로 찾는다. 시드 스크립트도 같은 값을 쓴다.
+ * 바꾸면 `calls.service.ts` 의 leg 조회를 전부 함께 고쳐야 한다.
+ */
+export type CallLegType = 'agent' | 'inbound';
 
 /**
- * 이 채널이 상담원 쪽인지 통신사 쪽인지.
+ * 이 채널이 상담원 쪽인지 고객(통신사) 쪽인지.
  * 판단이 안 되면 상담원으로 보지 않는다 — 잘못 잡아 상담원 다리를 끊는 것보다
  * 제어를 거부하는 편이 낫다.
  */
@@ -38,5 +43,5 @@ export function classifyLeg(channelName?: string | null): CallLegType | null {
   const endpoint = getChannelEndpointName(channelName);
   if (!endpoint) return null;
 
-  return endpoint.startsWith(TRUNK_ENDPOINT_PREFIX) ? 'trunk' : 'agent';
+  return endpoint.startsWith(TRUNK_ENDPOINT_PREFIX) ? 'inbound' : 'agent';
 }

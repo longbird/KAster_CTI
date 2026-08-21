@@ -153,6 +153,16 @@ public class CtiServerClientTests
     }
 
     [Fact]
+    public async Task Pickup_hits_the_call_scoped_path()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, AckJson);
+
+        await Build(stub).PickupAsync("c-9", CancellationToken.None);
+
+        Assert.Equal("calls/c-9/pickup", PathOf(stub.Requests[0]));
+    }
+
+    [Fact]
     public async Task Answer_and_hangup_hit_the_call_scoped_paths()
     {
         var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, AckJson).Enqueue(HttpStatusCode.OK, AckJson);

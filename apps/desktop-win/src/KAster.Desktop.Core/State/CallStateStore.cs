@@ -48,6 +48,7 @@ public sealed class CallStateStore
     private DateTimeOffset? _serverReceivedAt;
     private LocalSipCall? _sip;
     private bool _paired;
+    private DateTimeOffset? _expectOutboundUntil;
 
     public CallStateStore(string agentId, Func<DateTimeOffset> now, TimeSpan? pairingWindow = null)
     {
@@ -78,6 +79,21 @@ public sealed class CallStateStore
                 break;
         }
     }
+
+    /// <summary>
+    /// 발신을 요청했다. 곧 서버가 만들어 줄 통화는 아직 아무에게도 배정돼 있지 않지만 우리 것이다.
+    ///
+    /// 기한을 두는 이유는, 발신이 실패해 아무 통화도 안 왔을 때 이 상태가 남아 있다가
+    /// 한참 뒤 큐에 들어온 남의 전화를 우리 화면에 띄우는 것을 막기 위해서다.
+    /// </summary>
+    public void ExpectOutboundCall(TimeSpan window)
+        => Mutate(() => _expectOutboundUntil = _now() + window);
+
+    private bool IsExpectingOutbound()
+        => _expectOutboundUntil is { } until && _now() <= until;
+
+    /// <summary>이미 들고 있는 통화의 갱신이면 배정 여부와 무관하게 받는다.</summary>
+    private bool HoldsCall(string callId) => _server?.CallId == callId;
 
     public void OnSipIncoming(string dialogId, string remoteNumber)
     {
@@ -114,6 +130,12 @@ public sealed class CallStateStore
             // 다른 상담원에게 배정된 통화는 이 클라이언트의 관심사가 아니다.
             if (call.PrimaryAgentId is not null && call.PrimaryAgentId != _agentId) return;
 
+            // 배정된 사람이 없는 통화는 큐에서 기다리는 중이거나 방금 만들어진 것이다.
+            // 그걸 자기 전화로 띄우면 그 큐의 모든 상담원 화면이 같은 통화로 덮이고 받기 경쟁이 난다.
+            // 그런 통화가 우리 것인 경우는 하나뿐이다 — 우리가 방금 걸었을 때.
+            // (배정되면 서버가 RINGING_AGENT 로 바꾸며 primaryAgentId 를 채운다.)
+            if (call.PrimaryAgentId is null && !IsExpectingOutbound() && !HoldsCall(call.CallId)) return;
+
             // 이미 다른 통화를 들고 있으면 그 통화의 갱신만 받는다.
             if (_server is not null && _server.CallId != call.CallId) return;
 
@@ -136,6 +158,7 @@ public sealed class CallStateStore
             _serverReceivedAt = null;
             _sip = null;
             _paired = false;
+            _expectOutboundUntil = null;
         });
     }
 

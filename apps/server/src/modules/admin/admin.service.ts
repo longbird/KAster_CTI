@@ -1875,6 +1875,7 @@ export class AdminService {
   private getLegTypeLabel(legType?: string | null) {
     switch (legType) {
       case 'caller': return '고객 채널';
+      case 'inbound': return '고객 채널';
       case 'agent': return '상담원 채널';
       case 'queue': return '큐 채널';
       case 'trunk': return '회선 채널';

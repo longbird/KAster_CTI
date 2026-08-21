@@ -124,12 +124,28 @@ public class SoftphoneViewModelTests
         Assert.Equal(WindowMode.AfterCall, vm.WindowMode);
     }
 
+    /// <summary>
+    /// 큐에서 기다리는 통화는 아직 아무에게도 배정되지 않았다. 예전에는 이것도 자기 전화로
+    /// 띄웠지만, 그러면 그 큐의 모든 상담원 화면이 같은 통화로 덮이고 받기 경쟁이 난다.
+    /// 이제 그 자리는 당겨받기 목록이다.
+    /// </summary>
     [Fact]
-    public void A_queued_call_is_shown_as_ringing()
+    public void A_queued_call_does_not_take_over_the_screen()
     {
         var (vm, store, _, _) = Build();
 
-        store.Apply(new CallCreatedEvent(Call(SessionStatus.Queued)));
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.Queued) with { PrimaryAgentId = null }));
+
+        Assert.Equal(WindowMode.Idle, vm.WindowMode);
+    }
+
+    /// <summary>배정되면 서버가 RINGING_AGENT 로 바꾸며 내 것이라고 알려 준다.</summary>
+    [Fact]
+    public void A_call_assigned_to_me_does_take_over_the_screen()
+    {
+        var (vm, store, _, _) = Build();
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
 
         Assert.Equal(WindowMode.Ringing, vm.WindowMode);
     }
@@ -501,6 +517,9 @@ public class SoftphoneViewModelTests
       "outboundDialOptions":{"allowedCallerIds":["0215881588","07052346380"],"defaultCallerId":"07052346380"},
       "disabledReasons":[]},"error":null}
     """;
+
+    private static int DirectoryLookups(StubHttpHandler stub)
+        => stub.Requests.Count(r => r.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal));
 
     private static async Task<StubHttpHandler> Ready(SoftphoneViewModel vm, StubHttpHandler stub)
     {
@@ -1125,8 +1144,10 @@ public class SoftphoneViewModelTests
         await vm.LoadDialSetupAsync();
         Assert.False(vm.IsPhoneRegistered);
 
-        // 전화기가 등록됐다.
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
+        // 전화기가 등록됐다. 대기 콜 조회도 같은 Tick 에서 도므로 경로로 응답한다.
+        stub.RespondWith(request => request.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal)
+            ? StubHttpHandler.Json(HttpStatusCode.OK, DeskPhoneReadyJson)
+            : StubHttpHandler.Json(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}"""));
         _now = _now.AddSeconds(6);
         vm.Tick();
         await vm.PendingWork;
@@ -1143,11 +1164,12 @@ public class SoftphoneViewModelTests
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
         await vm.LoadDialSetupAsync();
 
+        stub.RespondWith(_ => StubHttpHandler.Json(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}"""));
         _now = _now.AddSeconds(1);
         vm.Tick();
         await vm.PendingWork;
 
-        Assert.Equal(2, stub.Requests.Count);
+        Assert.Equal(1, DirectoryLookups(stub));
     }
 
     /// <summary>등록이 끝난 뒤에도 죽는 것을 알아야 하지만, 그때는 자주 볼 필요가 없다.</summary>
@@ -1159,16 +1181,19 @@ public class SoftphoneViewModelTests
         await vm.LoadDialSetupAsync();
         Assert.True(vm.IsPhoneRegistered);
 
+        stub.RespondWith(request => request.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal)
+            ? StubHttpHandler.Json(HttpStatusCode.OK, DeskPhoneReadyJson)
+            : StubHttpHandler.Json(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}"""));
+
         _now = _now.AddSeconds(10);
         vm.Tick();
         await vm.PendingWork;
-        Assert.Equal(2, stub.Requests.Count);
+        Assert.Equal(1, DirectoryLookups(stub));
 
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
         _now = _now.AddSeconds(25);
         vm.Tick();
         await vm.PendingWork;
-        Assert.Equal(3, stub.Requests.Count);
+        Assert.Equal(2, DirectoryLookups(stub));
     }
 
     /// <summary>소프트폰 모드는 우리가 직접 등록하므로 서버에 물어볼 것이 없다.</summary>
@@ -1179,11 +1204,12 @@ public class SoftphoneViewModelTests
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
         await vm.LoadDialSetupAsync();
 
+        stub.RespondWith(_ => StubHttpHandler.Json(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}"""));
         _now = _now.AddMinutes(5);
         vm.Tick();
         await vm.PendingWork;
 
-        Assert.Equal(2, stub.Requests.Count);
+        Assert.Equal(1, DirectoryLookups(stub));
     }
 
     /// <summary>기다리지 않고 바로 확인하고 싶을 때가 있다.</summary>
@@ -1208,7 +1234,9 @@ public class SoftphoneViewModelTests
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
         await vm.LoadDialSetupAsync();
 
-        stub.Enqueue(HttpStatusCode.InternalServerError, """{"success":false,"data":null,"error":{"code":"X","message":"서버 오류"}}""");
+        stub.RespondWith(_ => StubHttpHandler.Json(
+            HttpStatusCode.InternalServerError,
+            """{"success":false,"data":null,"error":{"code":"X","message":"서버 오류"}}"""));
         _now = _now.AddSeconds(6);
         vm.Tick();
         await vm.PendingWork;
@@ -1263,5 +1291,133 @@ public class SoftphoneViewModelTests
         store.Apply(new CallEndedEvent(Call(SessionStatus.Ended)));
 
         Assert.False(vm.IsOutboundCall);
+    }
+
+    /// <summary>대기 8건. 화면에 다 못 들어가는 상황을 만든다.</summary>
+    private static readonly string ManyWaitingJson =
+        """{"success":true,"data":["""
+        + string.Join(",", Enumerable.Range(1, 8).Select(n =>
+            $$"""{"callId":"c-{{n}}","linkedid":"l-{{n}}","ani":"0105555000{{n}}","sessionStatus":"QUEUED","startedAt":"2026-08-20T04:00:00.000Z","primaryAgentId":null}"""))
+        + """],"error":null}""";
+
+    private const string WaitingCallsJson = """
+    {"success":true,"data":[
+      {"callId":"c-9","linkedid":"l-9","ani":"01055556666","sessionStatus":"QUEUED",
+       "startedAt":"2026-08-20T04:00:00.000Z","queueName":"대표","primaryAgentId":null},
+      {"callId":"c-1","linkedid":"l-1","ani":"01011112222","sessionStatus":"TALKING",
+       "startedAt":"2026-08-20T04:00:00.000Z","primaryAgentId":"a-2"}
+    ],"error":null}
+    """;
+
+    /// <summary>
+    /// 옆자리에 울리는 전화를 당겨받으려면 그런 전화가 있다는 것부터 보여야 한다.
+    /// 이미 통화 중인 건은 당길 수 없으므로 목록에 넣지 않는다.
+    /// </summary>
+    [Fact]
+    public async Task Only_calls_that_can_still_be_picked_up_are_listed()
+    {
+        var (vm, _, _, stub) = Build();
+        stub.Enqueue(HttpStatusCode.OK, WaitingCallsJson);
+
+        await vm.RefreshWaitingCallsAsync();
+
+        var waiting = Assert.Single(vm.WaitingCalls);
+        Assert.Equal("c-9", waiting.CallId);
+        Assert.Equal("010-5555-6666", waiting.PhoneNumber);
+    }
+
+    [Fact]
+    public async Task Picking_one_up_asks_the_server_for_that_call()
+    {
+        var (vm, _, _, stub) = Build();
+        stub.Enqueue(HttpStatusCode.OK, WaitingCallsJson);
+        await vm.RefreshWaitingCallsAsync();
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+
+        await vm.PickupAsync(vm.WaitingCalls[0]);
+
+        Assert.Equal("/api/v1/calls/c-9/pickup", stub.Requests[1].RequestUri!.AbsolutePath);
+    }
+
+    /// <summary>내 전화가 울리는 중에 남의 전화를 당기면 둘 다 놓친다.</summary>
+    [Fact]
+    public async Task Nothing_is_listed_while_this_agent_is_on_a_call()
+    {
+        var (vm, store, _, stub) = Build();
+        stub.Enqueue(HttpStatusCode.OK, WaitingCallsJson);
+        await vm.RefreshWaitingCallsAsync();
+        Assert.NotEmpty(vm.WaitingCalls);
+
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        Assert.Empty(vm.WaitingCalls);
+    }
+
+    /// <summary>
+    /// 대기가 한두 건일 때는 목록이 읽기 좋고, 쌓이면 타일이 한눈에 들어온다.
+    /// 자리마다 선호가 달라 고를 수 있어야 한다.
+    /// </summary>
+    [Fact]
+    public void The_waiting_list_starts_as_a_list()
+    {
+        var (vm, _, _, _) = Build();
+
+        Assert.Equal(WaitingCallLayout.List, vm.WaitingLayout);
+        Assert.True(vm.ShowsWaitingAsList);
+        Assert.False(vm.ShowsWaitingAsTile);
+    }
+
+    [Fact]
+    public void The_screen_can_switch_to_tiles()
+    {
+        var (vm, _, _, _) = Build();
+
+        vm.SetWaitingLayoutCommand.Execute("tile");
+
+        Assert.Equal(WaitingCallLayout.Tile, vm.WaitingLayout);
+        Assert.False(vm.ShowsWaitingAsList);
+        Assert.True(vm.ShowsWaitingAsTile);
+    }
+
+    /// <summary>타일은 한 줄에 둘씩 들어가므로 같은 높이에 더 담긴다.</summary>
+    [Fact]
+    public async Task Tiles_show_more_calls_than_the_list_does()
+    {
+        var (vm, _, _, stub) = Build();
+        stub.RespondWith(_ => StubHttpHandler.Json(HttpStatusCode.OK, ManyWaitingJson));
+
+        await vm.RefreshWaitingCallsAsync();
+        var asList = vm.WaitingCalls.Count;
+
+        vm.WaitingLayout = WaitingCallLayout.Tile;
+        await vm.RefreshWaitingCallsAsync();
+
+        Assert.True(vm.WaitingCalls.Count > asList, $"타일 {vm.WaitingCalls.Count} > 목록 {asList} 이어야 한다");
+    }
+
+    /// <summary>못 보여 준 건수는 숨기지 않는다. 대기가 더 있는데 없는 줄 알면 안 된다.</summary>
+    [Fact]
+    public async Task The_calls_that_did_not_fit_are_counted_out_loud()
+    {
+        var (vm, _, _, stub) = Build();
+        stub.RespondWith(_ => StubHttpHandler.Json(HttpStatusCode.OK, ManyWaitingJson));
+
+        await vm.RefreshWaitingCallsAsync();
+
+        Assert.True(vm.WaitingCallsHidden > 0);
+        Assert.Contains("외", vm.WaitingCallsHiddenText);
+    }
+
+    /// <summary>조회가 실패했다고 화면에 오류를 띄우면 통화 알림이 묻힌다.</summary>
+    [Fact]
+    public async Task A_failed_lookup_stays_quiet()
+    {
+        var (vm, _, _, stub) = Build();
+        stub.Enqueue(HttpStatusCode.InternalServerError, """{"success":false,"data":null,"error":{"code":"X","message":"서버 오류"}}""");
+
+        await vm.RefreshWaitingCallsAsync();
+
+        Assert.Null(vm.NoticeMessage);
+        Assert.Empty(vm.WaitingCalls);
     }
 }

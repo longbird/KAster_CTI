@@ -28,8 +28,9 @@ describe('classifyLeg', () => {
     expect(classifyLeg('PJSIP/1001-0000001b')).toBe('agent');
   });
 
-  it('reads a carrier channel as the trunk leg', () => {
-    expect(classifyLeg('PJSIP/trunk-070-5234-6380-00000021')).toBe('trunk');
+  // 'inbound' 는 당겨받기가 고객 leg 를 찾을 때 쓰는 값이다. 'trunk' 로 쓰면 못 찾는다.
+  it('reads a carrier channel as the customer leg the pickup lookup expects', () => {
+    expect(classifyLeg('PJSIP/trunk-070-5234-6380-00000021')).toBe('inbound');
   });
 
   // 판단이 안 되면 상담원으로 보지 않는다. 잘못 잡으면 통화 중인 다리를 끊는다.

@@ -115,16 +115,6 @@ public class CallStateStoreTests
     }
 
     [Fact]
-    public void Adopts_a_queued_call_that_has_no_agent_yet()
-    {
-        var store = Build();
-
-        store.Apply(new CallCreatedEvent(Call(status: SessionStatus.Queued, agentId: null)));
-
-        Assert.Equal("c-1", store.Current!.Server!.CallId);
-    }
-
-    [Fact]
     public void Attaches_the_screen_pop_customer_to_the_current_call()
     {
         var store = Build();
@@ -174,5 +164,64 @@ public class CallStateStoreTests
         Assert.NotNull(store.Current!.Server);
         Assert.Null(store.Current.Sip);
         Assert.False(store.Current.IsPaired);
+    }
+
+    /// <summary>
+    /// 큐에서 기다리는 통화는 아직 아무에게도 배정되지 않았다. 그걸 자기 전화로 띄우면
+    /// 모든 상담원 화면이 같은 통화로 덮이고, 정작 당겨받을 목록에서는 사라진다.
+    /// </summary>
+    [Fact]
+    public void A_call_waiting_in_the_queue_belongs_to_nobody_yet()
+    {
+        var store = Build();
+
+        store.Apply(new CallCreatedEvent(Call(status: SessionStatus.Queued, agentId: null)));
+
+        Assert.Null(store.Current);
+    }
+
+    /// <summary>
+    /// 발신은 서버가 primaryAgentId 를 채우지 않는다. 배정된 사람이 없다고 전부 버리면
+    /// 자기가 건 전화가 화면에 안 뜬다. 우리가 걸었다고 알려 준 동안만 받는다.
+    /// </summary>
+    [Fact]
+    public void A_call_we_just_placed_is_ours_even_before_it_is_assigned()
+    {
+        var store = Build();
+        store.ExpectOutboundCall(TimeSpan.FromSeconds(45));
+
+        store.Apply(new CallCreatedEvent(Call(status: SessionStatus.RingingAgent, agentId: null)));
+
+        Assert.NotNull(store.Current);
+    }
+
+    /// <summary>
+    /// 발신이 실패해 아무 통화도 안 왔으면 그 기대는 끝나야 한다. 남겨 두면 한참 뒤
+    /// 큐에 들어온 남의 전화가 우리 화면을 차지한다.
+    /// </summary>
+    [Fact]
+    public void The_expectation_runs_out_so_a_later_call_is_not_taken()
+    {
+        var store = Build();
+        store.ExpectOutboundCall(TimeSpan.FromSeconds(45));
+
+        _now = _now.AddSeconds(46);
+        store.Apply(new CallCreatedEvent(Call(status: SessionStatus.RingingAgent, agentId: null)));
+
+        Assert.Null(store.Current);
+    }
+
+    /// <summary>이미 들고 있는 통화의 갱신은 배정 여부와 무관하게 받는다.</summary>
+    [Fact]
+    public void Updates_to_the_call_we_hold_keep_arriving()
+    {
+        var store = Build();
+        store.ExpectOutboundCall(TimeSpan.FromSeconds(45));
+        store.Apply(new CallCreatedEvent(Call(status: SessionStatus.RingingAgent, agentId: null)));
+
+        _now = _now.AddSeconds(60);
+        store.Apply(new CallUpdatedEvent(Call(status: SessionStatus.Talking, agentId: null)));
+
+        Assert.Equal(SessionStatus.Talking, store.Current!.Server!.SessionStatus);
     }
 }

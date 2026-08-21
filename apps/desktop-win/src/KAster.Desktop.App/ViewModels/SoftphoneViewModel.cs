@@ -69,11 +69,29 @@ public sealed class SoftphoneViewModel : ObservableObject
     private string _phoneStatusText;
     private string _dialingNumber = string.Empty;
     private string _memoText = string.Empty;
+    private IReadOnlyList<WaitingCall> _waitingCalls = Array.Empty<WaitingCall>();
+    private DateTimeOffset _nextWaitingLook = DateTimeOffset.MaxValue;
+    private int _waitingCallsHidden;
+    private WaitingCallLayout _waitingLayout = WaitingCallLayout.List;
 
     /// <summary>메모를 붙일 통화. 통화가 끝난 뒤에 저장하므로 그때는 현재 통화가 이미 없다.</summary>
     private string? _memoCallId;
 
     private const int SelfAnswerWindowSeconds = 45;
+
+    /// <summary>당겨받을 전화를 다시 보는 주기. 울리는 동안 반응해야 하므로 짧다.</summary>
+    private const int WaitingLookSeconds = 5;
+
+    /// <summary>
+    /// 화면에 한 번에 보일 건수. 이보다 많으면 창이 스크롤된다.
+    /// 타일은 한 줄에 둘씩 들어가므로 같은 높이에 더 담긴다.
+    /// </summary>
+    private const int MaxWaitingCallsAsList = 3;
+
+    private const int MaxWaitingCallsAsTile = 6;
+
+    private int MaxWaitingCallsShown
+        => WaitingLayout == WaitingCallLayout.Tile ? MaxWaitingCallsAsTile : MaxWaitingCallsAsList;
 
     public SoftphoneViewModel(
         CallStateStore store,
@@ -113,6 +131,13 @@ public sealed class SoftphoneViewModel : ObservableObject
         OpenSettingsCommand = new RelayCommand(
             () => SettingsRequested?.Invoke(this, EventArgs.Empty),
             () => IsFree);
+        PickupCommand = new RelayCommand<WaitingCall>(call => _pendingWork = PickupAsync(call));
+
+        // 화면에서 문자열로 넘긴다. 뷰가 enum 을 알 필요가 없다.
+        SetWaitingLayoutCommand = new RelayCommand<string>(name =>
+            WaitingLayout = string.Equals(name, "tile", StringComparison.OrdinalIgnoreCase)
+                ? WaitingCallLayout.Tile
+                : WaitingCallLayout.List);
     }
 
     public event EventHandler<WindowMode>? WindowModeRequested;
@@ -134,6 +159,57 @@ public sealed class SoftphoneViewModel : ObservableObject
     public RelayCommand RecheckDeskPhoneCommand { get; }
 
     public RelayCommand OpenSettingsCommand { get; }
+
+    public RelayCommand<WaitingCall> PickupCommand { get; }
+
+    /// <summary>
+    /// 지금 당겨받을 수 있는 전화. 큐에서 기다리거나 남의 자리에서 울리는 것들이다.
+    /// 내가 통화 중이면 비운다 — 남의 전화를 당기면 내 전화까지 놓친다.
+    /// </summary>
+    public IReadOnlyList<WaitingCall> WaitingCalls
+    {
+        get => _waitingCalls;
+        private set
+        {
+            if (!Set(ref _waitingCalls, value)) return;
+            Raise(nameof(HasWaitingCalls));
+        }
+    }
+
+    public bool HasWaitingCalls => WaitingCalls.Count > 0;
+
+    /// <summary>자리에 안 들어가 못 보여 준 건수. 0 이면 다 보이고 있다는 뜻이다.</summary>
+    public int WaitingCallsHidden
+    {
+        get => _waitingCallsHidden;
+        private set
+        {
+            if (!Set(ref _waitingCallsHidden, value)) return;
+            Raise(nameof(WaitingCallsHiddenText));
+        }
+    }
+
+    public string WaitingCallsHiddenText
+        => WaitingCallsHidden > 0 ? $"외 {WaitingCallsHidden}건" : string.Empty;
+
+    /// <summary>목록으로 볼지 타일로 볼지. 대기가 쌓이면 타일이 한눈에 들어온다.</summary>
+    public WaitingCallLayout WaitingLayout
+    {
+        get => _waitingLayout;
+        set
+        {
+            if (!Set(ref _waitingLayout, value)) return;
+
+            Raise(nameof(ShowsWaitingAsList));
+            Raise(nameof(ShowsWaitingAsTile));
+        }
+    }
+
+    public bool ShowsWaitingAsList => WaitingLayout == WaitingCallLayout.List;
+
+    public bool ShowsWaitingAsTile => WaitingLayout == WaitingCallLayout.Tile;
+
+    public RelayCommand<string> SetWaitingLayoutCommand { get; }
 
     /// <summary>설정 화면을 여는 것은 조립 지점이 한다. 화면은 요청만 한다.</summary>
     public event EventHandler? SettingsRequested;
@@ -286,6 +362,12 @@ public sealed class SoftphoneViewModel : ObservableObject
             // 응답이 늦어도 매 초 다시 나가지 않도록 먼저 미뤄 둔다.
             _nextDeskPhoneCheck = _now().AddSeconds(5);
             _pendingWork = RecheckDeskPhoneAsync();
+        }
+
+        if (_now() >= _nextWaitingLook)
+        {
+            _nextWaitingLook = _now().AddSeconds(WaitingLookSeconds);
+            _pendingWork = RefreshWaitingCallsAsync();
         }
 
         var answeredAt = _store.Current?.Server?.AnsweredAt;
@@ -486,6 +568,8 @@ public sealed class SoftphoneViewModel : ObservableObject
             ApplyDeskPhoneRegistration(directory);
         }
 
+        _nextWaitingLook = _now();
+
         var capabilities = await Send(() => _server.GetCallCapabilitiesAsync(ct));
         if (capabilities is null) return;
 
@@ -513,6 +597,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 그래서 요청을 보내기 전에 창을 연다. 응답을 기다렸다 열면 그 한 통을 놓친다.
         SetDialedNumber(number);
         _selfAnswerUntil = _now().AddSeconds(SelfAnswerWindowSeconds);
+
+        // 곧 서버가 만들 통화는 아직 아무에게도 배정돼 있지 않다. 그래도 우리 것이다.
+        _store.ExpectOutboundCall(TimeSpan.FromSeconds(SelfAnswerWindowSeconds));
         DialingNumber = PhoneNumberFormat.ForDisplay(number);
         IsDialing = true;
 
@@ -616,6 +703,55 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// 사내로 빠지면 안 되는 번호다. 실제 상담원 내선 목록에 있는 번호만 내선으로 본다.
     /// </summary>
     private bool IsExtension(string number) => _knownExtensions.Contains(number);
+
+    /// <summary>
+    /// 당겨받을 수 있는 전화를 다시 훑는다. <b>조용히</b> 실패한다 —
+    /// 주기 조회가 실패했다고 화면에 오류를 띄우면 통화 알림이 묻힌다.
+    /// </summary>
+    public async Task RefreshWaitingCallsAsync(CancellationToken ct = default)
+    {
+        // 내가 통화 중이면 볼 것도, 당길 것도 없다.
+        if (!IsFree)
+        {
+            WaitingCalls = Array.Empty<WaitingCall>();
+            WaitingCallsHidden = 0;
+            return;
+        }
+
+        try
+        {
+            var calls = await _server.GetActiveCallsAsync(ct);
+            var pickable = calls
+                .Where(CanBePickedUp)
+                .Select(call => new WaitingCall(
+                    call.CallId,
+                    PhoneNumberFormat.ForDisplay(call.Ani),
+                    string.IsNullOrWhiteSpace(call.Customer?.CustomerName) ? null : call.Customer.CustomerName,
+                    call.QueueName))
+                .ToArray();
+
+            // 창에 스크롤을 만들지 않는다. 넘치는 건수는 숨기지 말고 숫자로 알린다.
+            WaitingCallsHidden = Math.Max(0, pickable.Length - MaxWaitingCallsShown);
+            WaitingCalls = pickable.Take(MaxWaitingCallsShown).ToArray();
+        }
+        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
+        {
+            // 다음 차례에 다시 본다.
+        }
+    }
+
+    /// <summary>
+    /// 서버는 큐 대기 또는 상담원 호출 중인 통화만 당겨받게 해 준다.
+    /// 이미 누가 받은 통화를 목록에 띄우면 눌러도 거부당한다.
+    /// </summary>
+    private static bool CanBePickedUp(ActiveCall call)
+        => call.SessionStatus is SessionStatus.Queued or SessionStatus.RingingAgent;
+
+    public async Task PickupAsync(WaitingCall call, CancellationToken ct = default)
+    {
+        Note($"당겨받기 {call.CallId}");
+        await Send(() => _server.PickupAsync(call.CallId, ct));
+    }
 
     /// <summary>
     /// 등록 상태를 다시 확인한다. <b>조용히</b> 실패한다 — 주기 확인이 실패했다고
@@ -751,8 +887,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
         else
         {
-            // 통화가 잡혔다. 발신 중 표시는 끝난다.
+            // 통화가 잡혔다. 발신 중 표시는 끝나고, 당겨받을 목록도 비운다.
             StopDialing("서버가 통화를 알려줬다");
+            WaitingCalls = Array.Empty<WaitingCall>();
             Tick();
         }
     }

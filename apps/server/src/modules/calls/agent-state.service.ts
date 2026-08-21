@@ -3,6 +3,8 @@ import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../events/event-bus.service';
 import { QueuesService } from '../queues/queues.service';
 import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
+import { AsteriskManagerService } from './asterisk-manager.service';
+import { pausesQueueAssignment } from './agent-availability.util';
 
 @Injectable()
 export class AgentStateService {
@@ -10,6 +12,7 @@ export class AgentStateService {
     private readonly prisma: PrismaService,
     private readonly eventBus: EventBusService,
     private readonly queuesService: QueuesService,
+    private readonly asteriskManager: AsteriskManagerService,
   ) {}
 
   async changeStatus(agentId: string, statusCode: string, reasonCode?: string) {
@@ -30,6 +33,14 @@ export class AgentStateService {
         startedAt: new Date(),
       },
     });
+
+    // 상태만 적어 두면 큐는 그대로 배정한다. 화면에는 "이석" 인데 책상 전화기가 울린다.
+    // 상태와 큐 일시정지는 함께 움직여야 뜻이 맞는다.
+    this.asteriskManager.setQueuePaused(
+      agent.extension,
+      pausesQueueAssignment(statusCode),
+      reasonCode ?? statusCode,
+    );
 
     await this.eventBus.publish('agent.status.changed', {
       agentId,
