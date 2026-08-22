@@ -32,6 +32,23 @@ function buildPresence() {
   } as any;
 }
 
+// socket.io 서버를 흉내내되 "어느 방으로 갔는지" 를 기록한다.
+// room '*' 은 서버 전체 emit — 즉 남의 회사 소켓까지 받은 경우다.
+function buildFakeServer() {
+  const delivered: Array<{ room: string; event: string; payload: unknown }> = [];
+  return {
+    delivered,
+    to(room: string) {
+      return {
+        emit: (event: string, payload: unknown) => delivered.push({ room, event, payload }),
+      };
+    },
+    emit(event: string, payload: unknown) {
+      delivered.push({ room: '*', event, payload });
+    },
+  };
+}
+
 describe('RealtimeGateway presence', () => {
   const previousSecret = process.env.JWT_SECRET;
 
@@ -95,5 +112,42 @@ describe('RealtimeGateway presence', () => {
     expect(client.disconnect).toHaveBeenCalled();
     expect(presence.markConnected).not.toHaveBeenCalled();
     expect(presence.markDisconnected).not.toHaveBeenCalled();
+  });
+});
+
+describe('RealtimeGateway tenant scoping', () => {
+  it('delivers an event only to the room of the tenant it belongs to', () => {
+    const gateway = new RealtimeGateway(buildPresence());
+    const server = buildFakeServer();
+    gateway.server = server;
+
+    gateway.broadcastToTenant('queue.summary.updated', { queues: ['sales'] }, 'tenant-1');
+
+    expect(server.delivered).toEqual([
+      { room: 'tenant:tenant-1', event: 'queue.summary.updated', payload: { queues: ['sales'] } },
+    ]);
+  });
+
+  // 다른 회사 상담원 화면에 남의 큐 이름과 대기 건수가 가면 안 된다.
+  it('never reaches another tenant or the whole server', () => {
+    const gateway = new RealtimeGateway(buildPresence());
+    const server = buildFakeServer();
+    gateway.server = server;
+
+    gateway.broadcastToTenant('queue.summary.updated', { queues: ['sales'] }, 'tenant-1');
+
+    expect(server.delivered.some((d) => d.room === '*')).toBe(false);
+    expect(server.delivered.some((d) => d.room === 'tenant:tenant-2')).toBe(false);
+  });
+
+  // 테넌트를 모르는 이벤트는 전 테넌트로 흘리느니 버린다.
+  it('drops an event with no tenant instead of sending it everywhere', () => {
+    const gateway = new RealtimeGateway(buildPresence());
+    const server = buildFakeServer();
+    gateway.server = server;
+
+    gateway.broadcastToTenant('queue.summary.updated', { queues: ['sales'] }, '');
+
+    expect(server.delivered).toEqual([]);
   });
 });

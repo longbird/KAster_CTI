@@ -47,12 +47,13 @@ export class AgentStateService {
       agentId,
       statusCode,
       reasonCode: reasonCode ?? null,
-    });
+    }, agent.tenantId);
 
     const queueSummary = await this.queuesService.getSummary(agent.tenantId);
     await this.eventBus.publish(
       'queue.summary.updated',
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+      agent.tenantId,
     );
 
     return row;
@@ -89,6 +90,7 @@ export class AgentStateService {
     await this.eventBus.publish(
       'queue.summary.updated',
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+      agent.tenantId,
     );
   }
 }

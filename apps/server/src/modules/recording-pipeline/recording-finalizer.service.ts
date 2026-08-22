@@ -144,7 +144,7 @@ export class RecordingFinalizerService implements OnModuleInit {
         callId: job.callId,
         linkedid: job.linkedid,
         recordingId: saved?.recordingId,
-      });
+      }, job.tenantId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.saveRecording(job, {

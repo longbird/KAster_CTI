@@ -34,12 +34,12 @@ export class OutboxPublisherService implements OnModuleInit {
 
     for (const row of pending) {
       const payload = await this.enrichPayload(row.eventType, row.tenantId, row.payload as any);
-      await this.eventBus.publish(row.eventType, payload);
+      await this.eventBus.publish(row.eventType, payload, row.tenantId);
       if (row.eventType === 'call.created' && payload?.customer) {
         await this.eventBus.publish('screenpop.customer', {
           callId: payload.callId,
           customer: payload.customer,
-        });
+        }, row.tenantId);
       }
       if (row.eventType === 'call.created' || row.eventType === 'call.updated' || row.eventType === 'call.ended') {
         await this.publishQueueSummary(row.tenantId);
@@ -63,6 +63,7 @@ export class OutboxPublisherService implements OnModuleInit {
     await this.eventBus.publish(
       'queue.summary.updated',
       toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
+      tenantId,
     );
   }
 

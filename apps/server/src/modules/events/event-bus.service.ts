@@ -22,7 +22,7 @@ interface EventBusMessage {
   tenantId?: string;
 }
 
-type EventBusListener = (event: string, payload: unknown, tenantId?: string) => void | Promise<void>;
+type EventBusListener = (event: string, payload: unknown, tenantId: string) => void | Promise<void>;
 
 @Injectable()
 export class EventBusService implements OnModuleInit, OnModuleDestroy {
@@ -42,7 +42,13 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
     this.subClient.on('message', (_channel, raw) => {
       try {
         const { event, payload, tenantId } = JSON.parse(raw) as EventBusMessage;
-        this.realtimeGateway.broadcast(event, payload, tenantId);
+        // 롤링 배포 중이면 tenantId 를 안 싣는 구버전 노드가 섞여 있을 수 있다.
+        // 그 메시지를 전 테넌트로 뿌리면 회사 경계가 무너지므로 버린다.
+        if (!tenantId) {
+          this.logger.warn(`pubsub message dropped (no tenant): ${event}`);
+          return;
+        }
+        this.realtimeGateway.broadcastToTenant(event, payload, tenantId);
         void this.notifyListeners(event, payload, tenantId);
       } catch (err) {
         this.logger.warn(`bad pubsub message: ${(err as Error).message}`);
@@ -61,14 +67,18 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async publish(event: string, payload: unknown, tenantId?: string) {
+  /**
+   * 모든 이벤트는 어느 회사의 것인지 밝혀야 한다. tenantId 가 선택 인자였을 때는
+   * 빠뜨린 호출부의 이벤트가 접속한 전 테넌트로 나갔다.
+   */
+  async publish(event: string, payload: unknown, tenantId: string) {
     const message = JSON.stringify({ event, payload, sourceNode: this.nodeId, tenantId }, safeReplacer);
     try {
       await this.redis.getClient().publish(CHANNEL, message);
     } catch (err) {
       // Redis 장애 시에도 최소한 현재 노드의 WS 클라이언트는 받게 한다.
       this.logger.error(`redis publish failed, local fallback: ${(err as Error).message}`);
-      this.realtimeGateway.broadcast(event, payload, tenantId);
+      this.realtimeGateway.broadcastToTenant(event, payload, tenantId);
       await this.notifyListeners(event, payload, tenantId);
     }
   }
@@ -78,7 +88,7 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
     return () => this.listeners.delete(listener);
   }
 
-  private async notifyListeners(event: string, payload: unknown, tenantId?: string) {
+  private async notifyListeners(event: string, payload: unknown, tenantId: string) {
     for (const listener of this.listeners) {
       try {
         await listener(event, payload, tenantId);

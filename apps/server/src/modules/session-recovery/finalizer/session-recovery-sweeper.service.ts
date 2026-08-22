@@ -40,7 +40,7 @@ export class SessionRecoverySweeperService implements OnModuleInit {
         },
       });
 
-      await this.eventBus.publish('call.ended', ended);
+      await this.eventBus.publish('call.ended', ended, ended.tenantId);
     }
 
     if (staleSessions.length) {

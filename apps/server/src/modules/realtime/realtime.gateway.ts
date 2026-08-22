@@ -80,14 +80,23 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.logger.log(`WS disconnected: ${client.id}`);
   }
 
-  broadcast(event: string, payload: unknown, tenantId?: string) {
-    if (this.server) {
-      if (tenantId) {
-        this.server.to(`tenant:${tenantId}`).emit(event, payload);
-        return;
-      }
-      this.server.emit(event, payload);
+  /**
+   * 이벤트는 그 이벤트가 속한 회사의 방에만 넣는다.
+   *
+   * 이름과 타입이 둘 다 테넌트를 요구한다. 예전 `broadcast(event, payload, tenantId?)` 는
+   * tenantId 를 빠뜨리면 조용히 접속한 모든 소켓으로 나갔고, 그래서 한 회사의 큐 요약이
+   * 다른 회사 상담원 화면에 떴다. 실수하기 쉬운 기본값은 남겨두지 않는다.
+   *
+   * 테넌트를 모르는 이벤트는 전 테넌트로 흘리느니 버린다 — 한 건 놓치는 것보다
+   * 회사 경계가 무너지는 쪽이 훨씬 비싸다.
+   */
+  broadcastToTenant(event: string, payload: unknown, tenantId: string) {
+    if (!this.server) return;
+    if (!tenantId) {
+      this.logger.warn(`WS event dropped (no tenant): ${event}`);
+      return;
     }
+    this.server.to(`tenant:${tenantId}`).emit(event, payload);
   }
 
   getClientCount() {

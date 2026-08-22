@@ -71,6 +71,25 @@ describe('AgentStateService', () => {
     await service.markLoggedOut('agent-1');
 
     expect(queuesService.getSummary).toHaveBeenCalledWith('tenant-1');
-    expect(eventBus.publish).toHaveBeenCalledWith('queue.summary.updated', expect.anything());
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'queue.summary.updated',
+      expect.anything(),
+      'tenant-1',
+    );
+  });
+
+  // 한 회사의 큐 이름과 대기 건수를 계산해 놓고 전 테넌트에 뿌리면
+  // 다른 회사 상담원 화면에 남의 큐가 뜬다.
+  it('scopes every event it publishes to the agent tenant', async () => {
+    const { prisma, eventBus, queuesService, queuePause } = buildDeps();
+    const service = new AgentStateService(prisma, eventBus, queuesService, queuePause);
+
+    await service.changeStatus('agent-1', 'BREAK', 'LUNCH');
+    await service.markLoggedOut('agent-1');
+
+    expect(eventBus.publish).toHaveBeenCalledTimes(3);
+    for (const call of eventBus.publish.mock.calls) {
+      expect(call[2]).toBe('tenant-1');
+    }
   });
 });

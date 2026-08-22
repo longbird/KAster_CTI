@@ -151,4 +151,40 @@ describe('RecordingFinalizerService', () => {
       }),
     }));
   });
+
+  // 녹취가 준비됐다는 알림이 전 테넌트로 가면 남의 회사 통화 식별자가 보인다.
+  it('announces a ready recording only to the tenant that owns it', async () => {
+    const recFile = '2026/08/21/scoped.wav';
+    const absolute = path.join(tmpDir, recFile);
+    fs.mkdirSync(path.dirname(absolute), { recursive: true });
+    fs.writeFileSync(absolute, 'ready-recording');
+
+    const prisma = createPrismaMock();
+    prisma.callRecordings.findFirst.mockResolvedValue(null);
+    prisma.callRecordings.create.mockResolvedValue({ recordingId: 'rec-scoped-1' });
+    prisma.recordingRetentionPolicies.findUnique.mockResolvedValue(null);
+
+    const eventBus = { publish: jest.fn().mockResolvedValue(undefined) } as any;
+    const service = new RecordingFinalizerService(
+      prisma,
+      new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
+      new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
+      eventBus,
+    );
+
+    await service.finalizeJob({
+      recordingFinalizeJobId: 'job-scoped-1',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      callId: '11111111-1111-1111-1111-111111111111',
+      linkedid: 'linked-scoped-1',
+      recFile,
+      attempts: 0,
+    });
+
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'recording.ready',
+      expect.objectContaining({ recordingId: 'rec-scoped-1' }),
+      '00000000-0000-0000-0000-000000000001',
+    );
+  });
 });
