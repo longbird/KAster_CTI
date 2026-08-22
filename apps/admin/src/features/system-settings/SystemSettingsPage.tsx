@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { AGENT_OFFER_TIMEOUT_MAX_SECONDS, AGENT_OFFER_TIMEOUT_MIN_SECONDS } from './agentOfferTimeout';
 import { getTimeSyncStatusMeta } from './timeSyncStatus';
 import { formatUptime, type SystemVersionView } from './systemVersion';
 
@@ -10,6 +11,7 @@ interface SystemSettingsFormValue {
   recordingEnabled: boolean;
   recordingChannelMode: 'MONO' | 'STEREO_RAW';
   defaultMaxWaitSeconds: number;
+  agentOfferTimeoutSeconds: number;
   allowDirectSipDial: boolean;
   defaultSipPassword?: string;
   allowedOutboundCallerIds?: string;
@@ -284,6 +286,19 @@ export function SystemSettingsPage() {
             rules={[{ required: true, message: '기본 최대 대기시간을 입력하세요.' }]}
           >
             <InputNumber min={5} max={600} style={{ width: 240 }} />
+          </Form.Item>
+
+          <Form.Item
+            name="agentOfferTimeoutSeconds"
+            label="상담원 수신 여부 확인 대기시간(초)"
+            extra={`전화가 배정되면 상담원 화면에 "받으시겠습니까" 가 뜹니다. 이 시간 안에 받지 않으면 다음 상담원에게 넘어가고, 그동안 발신자는 대기음을 계속 듣습니다. ${AGENT_OFFER_TIMEOUT_MIN_SECONDS}~${AGENT_OFFER_TIMEOUT_MAX_SECONDS}초.`}
+            rules={[{ required: true, message: '상담원 수신 여부 확인 대기시간을 입력하세요.' }]}
+          >
+            <InputNumber
+              min={AGENT_OFFER_TIMEOUT_MIN_SECONDS}
+              max={AGENT_OFFER_TIMEOUT_MAX_SECONDS}
+              style={{ width: 240 }}
+            />
           </Form.Item>
 
           <Form.Item name="allowDirectSipDial" label="SIP 전화기 직접 발신 허용" valuePropName="checked">

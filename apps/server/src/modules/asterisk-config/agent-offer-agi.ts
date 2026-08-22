@@ -12,6 +12,12 @@
  * ACCEPT/REJECT/TIMEOUT 세 가지를 구분할 수 없다.
  */
 
+import {
+  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+  MAX_AGENT_OFFER_TIMEOUT_SECONDS,
+  MIN_AGENT_OFFER_TIMEOUT_SECONDS,
+} from '../../common/call-routing.constants';
+
 /** AGI 가 서버에 붙을 때 쓰는 경로. 내부 전용이라 JWT 가 아니라 공유 시크릿을 쓴다. */
 export const AGENT_OFFER_WAIT_PATH = '/api/v1/internal/agent-offer/wait';
 
@@ -55,10 +61,12 @@ export function buildAgentOfferAgiScript(httpPort: number, internalSecret: strin
     '',
     'env = read_env()',
     'extension = env.get("agi_arg_1", "") or ""',
+    // 서버가 받아주는 범위 밖이면 롱폴이 400 을 주고, 아래 except 가 ACCEPT 로 열어버린다.
+    // 렌더러가 먼저 깎지만 서버를 부르기 직전인 여기서도 같은 범위로 묶는다.
     'try:',
-    '    timeout = max(1, int(env.get("agi_arg_2", "10") or "10"))',
+    `    timeout = min(${MAX_AGENT_OFFER_TIMEOUT_SECONDS}, max(${MIN_AGENT_OFFER_TIMEOUT_SECONDS}, int(env.get("agi_arg_2", "${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}") or "${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}")))`,
     'except ValueError:',
-    '    timeout = 10',
+    `    timeout = ${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}`,
     '',
     'linkedid = get_var("CHANNEL(linkedid)")',
     'caller = get_var("CALLERID(num)")',

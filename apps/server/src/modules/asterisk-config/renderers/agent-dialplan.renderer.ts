@@ -10,7 +10,7 @@ import {
 import {
   AGENT_OFFER_AGI_PATH,
   AGENT_OFFER_CONTEXT,
-  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+  clampAgentOfferTimeoutSeconds,
 } from '../../../common/call-routing.constants';
 import {
   getMixMonitorOptions,
@@ -88,6 +88,7 @@ export interface AgentDialplanInput {
   /**
    * 상담원이 호를 수락/거절할 때까지 기다리는 시간(초).
    * 짧으면 상담원이 놓치고, 길면 발신자가 이유 없이 기다린다.
+   * 범위 밖 값은 렌더 직전에 깎는다 (`clampAgentOfferTimeoutSeconds`).
    */
   offerTimeoutSeconds?: number;
   speedDials?: AgentDialplanSpeedDialInput[];
@@ -608,7 +609,9 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
     fromQueue,
     renderAgentOffer(
       input.agents,
-      input.offerTimeoutSeconds ?? DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+      // 범위 밖 값을 그대로 박으면 AGI 가 롱폴 검증에 걸려 400 을 받고, AGI 는 실패하면
+      // ACCEPT 로 fail-open 한다 — 전 상담원이 묻지도 않고 자동 수락된다.
+      clampAgentOfferTimeoutSeconds(input.offerTimeoutSeconds),
       recordingChannelMode,
     ),
     sipHeaderHook,

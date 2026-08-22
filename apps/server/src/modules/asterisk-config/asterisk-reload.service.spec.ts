@@ -1,4 +1,5 @@
 import { AsteriskReloadService } from './asterisk-reload.service';
+import { DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS } from '../../common/call-routing.constants';
 
 describe('AsteriskReloadService Smart ARS preview', () => {
   it('maps branch Smart ARS settings into generated DID dialplan', async () => {
@@ -368,5 +369,95 @@ describe('AsteriskReloadService LKG 캡처', () => {
     } finally {
       rmSync(confDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('AsteriskReloadService 상담원 제안 대기 시간', () => {
+  const fs = require('fs');
+
+  function buildPrisma(agentOfferTimeoutSeconds: number | null) {
+    return {
+      asteriskTrunk: { findMany: jest.fn().mockResolvedValue([]) },
+      agents: {
+        findMany: jest.fn().mockResolvedValue([{
+          agentId: 'agent-1',
+          extension: '1001',
+          agentName: '상담원1',
+          sipPassword: 'pw',
+          settingsProfile: null,
+          branchMappings: [],
+        }]),
+      },
+      asteriskDid: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskIvrMenu: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskForwardingRules: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskBlocklistEntry: { findMany: jest.fn().mockResolvedValue([]) },
+      tenantHolidayRules: { findMany: jest.fn().mockResolvedValue([]) },
+      asteriskPrompt: { findMany: jest.fn().mockResolvedValue([]) },
+      queues: { findMany: jest.fn().mockResolvedValue([]) },
+      tenantSystemSettings: {
+        findUnique: jest.fn().mockResolvedValue({ agentOfferTimeoutSeconds }),
+      },
+      outboundCallerIdRules: { findMany: jest.fn().mockResolvedValue([]) },
+    } as any;
+  }
+
+  function buildService(prisma: any) {
+    const config = { get: jest.fn((key: string, fallback?: string) => fallback) } as any;
+    return new AsteriskReloadService(
+      prisma,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn() } as any,
+      { save: jest.fn().mockResolvedValue(undefined) } as any,
+    );
+  }
+
+  it('미리보기가 테넌트에 저장된 대기 시간을 dialplan 에 넣는다', async () => {
+    const service = buildService(buildPrisma(25));
+
+    const preview = await service.previewConfFiles('tenant-1');
+
+    expect(preview.extensionsAgent).toContain('kaster-agent-offer.agi,${EXTEN},25)');
+  });
+
+  /**
+   * 실제 PBX 에 나가는 것은 writeConfFiles 쪽이다. 미리보기만 고치면
+   * 화면에는 관리자가 정한 값이 보이는데 PBX 는 예전 값으로 도는 상태가 된다.
+   */
+  it('실제 conf 쓰기도 같은 대기 시간을 dialplan 에 넣는다', async () => {
+    const service = buildService(buildPrisma(25));
+    const written = new Map<string, string>();
+    const spies = [
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true),
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('#include kaster_prompt_moh.conf\n'),
+      jest.spyOn(fs, 'readdirSync').mockReturnValue([]),
+      jest.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined),
+      jest.spyOn(fs, 'chmodSync').mockImplementation(() => undefined),
+      jest.spyOn(fs, 'rmSync').mockImplementation(() => undefined),
+      jest.spyOn(fs, 'copyFileSync').mockImplementation(() => undefined),
+      jest.spyOn(fs, 'writeFileSync').mockImplementation((filePath: any, content: any) => {
+        written.set(String(filePath), String(content));
+      }),
+    ];
+
+    try {
+      await service.writeConfFiles('tenant-1');
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+
+    const agentConf = [...written.entries()]
+      .find(([filePath]) => filePath.endsWith('extensions_agent.conf'))?.[1];
+    expect(agentConf).toContain('kaster-agent-offer.agi,${EXTEN},25)');
+  });
+
+  it('테넌트 설정이 없으면 기본값으로 렌더한다', async () => {
+    const service = buildService(buildPrisma(null));
+
+    const preview = await service.previewConfFiles('tenant-1');
+
+    expect(preview.extensionsAgent).toContain(
+      `kaster-agent-offer.agi,\${EXTEN},${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    );
   });
 });

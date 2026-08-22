@@ -24,6 +24,42 @@ export const DEFAULT_SIP_REGISTER_PORT = 48950;
 export const DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS = 10;
 
 /**
+ * 관리자가 고를 수 있는 대기 시간의 범위(초).
+ *
+ * 이 범위는 **롱폴 엔드포인트가 받아주는 범위와 같아야 한다.** 관리자 입력이 더 넓으면
+ * 관리자가 저장한 값이 dialplan → AGI 를 타고 서버에 도착했을 때 검증에 걸려 400 이 되고,
+ * AGI 는 실패하면 ACCEPT 로 fail-open 한다 — 전 상담원이 묻지도 않고 자동 수락되어
+ * 수락/거절 기능이 통째로 무력화된다. 그래서 리터럴을 흩지 않고 여기 한 곳에 둔다.
+ *
+ * 이 값을 쓰는 곳:
+ *   - `modules/calls/dto/agent-offer-wait.dto.ts` (AGI 가 호출하는 롱폴 검증)
+ *   - `modules/admin/dto/update-system-settings.dto.ts` (관리자 저장 검증)
+ *   - `modules/asterisk-config/renderers/agent-dialplan.renderer.ts` (렌더 직전 클램프)
+ *   - `apps/admin/src/features/system-settings/agentOfferTimeout.ts` (화면 입력 제한.
+ *     패키지가 달라 import 할 수 없으므로 짝 테스트가 이 파일을 읽어 값이 갈리면 실패시킨다)
+ *
+ * 상한 60초의 근거: 롱폴 요청이 그 시간만큼 서버 커넥션을 붙잡는다.
+ */
+export const MIN_AGENT_OFFER_TIMEOUT_SECONDS = 1;
+export const MAX_AGENT_OFFER_TIMEOUT_SECONDS = 60;
+
+/**
+ * 어떤 값이 오든 dialplan 에 박아도 안전한 대기 시간으로 만든다.
+ *
+ * DB 에는 범위 밖 값이 남아 있을 수 있다 — 마이그레이션 이전 행, DB 직접 수정.
+ * 그걸 그대로 내보내면 위의 fail-open 사고가 난다.
+ */
+export function clampAgentOfferTimeoutSeconds(value: number | null | undefined): number {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS;
+  }
+  const seconds = Math.trunc(value);
+  if (seconds < MIN_AGENT_OFFER_TIMEOUT_SECONDS) return MIN_AGENT_OFFER_TIMEOUT_SECONDS;
+  if (seconds > MAX_AGENT_OFFER_TIMEOUT_SECONDS) return MAX_AGENT_OFFER_TIMEOUT_SECONDS;
+  return seconds;
+}
+
+/**
  * dialplan 이 호출하는 AGI. 실제 파일은 `AsteriskReloadService` 가 쓴다.
  *
  * **절대경로로 부른다.** 이름만 적으면 Asterisk 가 `astagidir`(기본 `agi-bin`)에서 찾는데

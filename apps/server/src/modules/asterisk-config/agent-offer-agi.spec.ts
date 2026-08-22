@@ -1,4 +1,9 @@
 import { AGENT_OFFER_WAIT_PATH, buildAgentOfferAgiScript } from './agent-offer-agi';
+import {
+  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+  MAX_AGENT_OFFER_TIMEOUT_SECONDS,
+  MIN_AGENT_OFFER_TIMEOUT_SECONDS,
+} from '../../common/call-routing.constants';
 
 describe('buildAgentOfferAgiScript', () => {
   it('runs as python3 and answers the dialplan through KASTER_OFFER_RESULT', () => {
@@ -48,5 +53,19 @@ describe('buildAgentOfferAgiScript', () => {
     const script = buildAgentOfferAgiScript(3000, 'secret');
 
     expect(script).toContain('timeout=timeout + 3');
+  });
+
+  /**
+   * dialplan 인자가 서버가 받아주는 범위를 벗어나면 롱폴이 400 을 돌려주고,
+   * AGI 는 예외를 만나 ACCEPT 로 fail-open 한다 — 전 상담원이 묻지도 않고 자동 수락된다.
+   * 렌더러가 먼저 깎지만, 서버를 부르기 직전인 여기서도 같은 범위로 묶는다.
+   */
+  it('clamps the dialplan argument into the range the server accepts', () => {
+    const script = buildAgentOfferAgiScript(3000, 'secret');
+
+    expect(script).toContain(
+      `timeout = min(${MAX_AGENT_OFFER_TIMEOUT_SECONDS}, max(${MIN_AGENT_OFFER_TIMEOUT_SECONDS}, int(env.get("agi_arg_2", "${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}") or "${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}")))`,
+    );
+    expect(script).toContain(`    timeout = ${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}`);
   });
 });

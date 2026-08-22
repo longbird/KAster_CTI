@@ -1,4 +1,9 @@
 import { renderAgentDialplan } from './agent-dialplan.renderer';
+import {
+  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+  MAX_AGENT_OFFER_TIMEOUT_SECONDS,
+  MIN_AGENT_OFFER_TIMEOUT_SECONDS,
+} from '../../../common/call-routing.constants';
 
 const OFFER_INPUT = {
   allowDirectSipDial: true,
@@ -69,6 +74,35 @@ describe('renderAgentDialplan - agent-offer', () => {
     const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 7 });
 
     expect(rendered).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,${EXTEN},7)');
+  });
+
+  /**
+   * DB 에는 범위 밖 값이 들어올 수 있다 — 마이그레이션 이전 행, DB 직접 수정.
+   * 그 값을 그대로 dialplan 에 박으면 AGI 가 롱폴 DTO 검증(1~60초)에 걸려 400 을 받고,
+   * AGI 는 예외를 만나면 ACCEPT 로 fail-open 한다 — 전 상담원이 묻지도 않고 자동 수락된다.
+   */
+  it('상한을 넘는 대기 시간은 상한으로 깎아서 내보낸다', () => {
+    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 900 });
+
+    expect(rendered).toContain(
+      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},${MAX_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    );
+  });
+
+  it('하한보다 짧은 대기 시간은 하한으로 올려서 내보낸다', () => {
+    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 0 });
+
+    expect(rendered).toContain(
+      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},${MIN_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    );
+  });
+
+  it('숫자가 아닌 대기 시간이 오면 기본값으로 되돌린다', () => {
+    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: Number.NaN });
+
+    expect(rendered).toContain(
+      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    );
   });
 });
 

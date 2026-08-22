@@ -874,6 +874,7 @@ model tenantSystemSettings {
   recordingEnabled       Boolean  @default(true)
   recordingChannelMode   String   @default("MONO") @db.VarChar(16)
   defaultMaxWaitSeconds  Int      @default(45)
+  agentOfferTimeoutSeconds Int    @default(10)
   allowDirectSipDial     Boolean  @default(false)
   defaultSipPassword     String?  @db.Text
   allowedOutboundCallerIds String? @db.Text
