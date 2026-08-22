@@ -51,12 +51,23 @@
                    Margin="0,12,0,0" />
 
         <!-- 메모: 고정 줄 수까지만 보인다. 길어져도 창이 스크롤되지 않는다. -->
+        <!-- 키패드를 켜면 메모 자리를 내준다. 행을 늘리면 창이 늘어난다. -->
         <Border Grid.Row="2" Margin="0,12"
                 Padding="{StaticResource PadPanel}"
                 Background="{StaticResource BrushSurface}"
                 BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsKeypadOpen}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -104,10 +115,63 @@
                     Command="{Binding HangupCommand}" />
         </Grid>
 
-        <!-- 돌려주기는 통화 중에만 뜻이 있다. 대기 중에는 커맨드가 닫혀 있다. -->
-        <Button Grid.Row="4" Margin="0,8,0,0" Content="돌려주기"
-                Style="{StaticResource ButtonSecondary}"
-                Command="{Binding StartTransferCommand}" />
+        <!-- 키패드. 메모와 같은 행을 쓴다 — 둘 중 하나만 보인다. -->
+        <UniformGrid Grid.Row="2" Margin="0,12" Columns="3" Rows="4">
+            <UniformGrid.Style>
+                <Style TargetType="UniformGrid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsKeypadOpen}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </UniformGrid.Style>
+
+            <Button Content="1" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="1" />
+            <Button Content="2" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="2" />
+            <Button Content="3" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="3" />
+            <Button Content="4" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="4" />
+            <Button Content="5" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="5" />
+            <Button Content="6" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="6" />
+            <Button Content="7" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="7" />
+            <Button Content="8" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="8" />
+            <Button Content="9" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="9" />
+            <Button Content="*" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="*" />
+            <Button Content="0" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="0" />
+            <Button Content="#" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="#" />
+        </UniformGrid>
+
+        <!--
+            돌려주기와 키패드. 키패드는 소프트폰 모드에서만 뜻이 있다 — 실기기는
+            전화기의 키패드가 진짜라, 화면에 띄우면 눌러도 아무 데도 안 가는데
+            상담원은 눌렀다고 믿는다.
+        -->
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="돌려주기"
+                    Style="{StaticResource ButtonSecondary}"
+                    Command="{Binding StartTransferCommand}" />
+
+            <Button Grid.Column="2" Content="키패드"
+                    Command="{Binding ToggleKeypadCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowsKeypad}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </Grid>
 
         <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0"
                    Text="{Binding NoticeMessage}"

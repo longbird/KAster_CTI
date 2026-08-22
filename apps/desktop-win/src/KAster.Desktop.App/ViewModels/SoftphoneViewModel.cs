@@ -34,6 +34,8 @@ public sealed class SoftphoneViewModel : ObservableObject
     private CallOffer? _offer;
     private IReadOnlyList<AgentDirectoryEntry> _directory = Array.Empty<AgentDirectoryEntry>();
     private bool _isChoosingTransferTarget;
+    private bool _isViewingHistory;
+    private bool _isKeypadOpen;
     private string _transferFilter = string.Empty;
     private string _customerName = string.Empty;
     private string _branchName = string.Empty;
@@ -140,6 +142,11 @@ public sealed class SoftphoneViewModel : ObservableObject
             () => IsFree);
         PickupCommand = new RelayCommand<WaitingCall>(call => _pendingWork = PickupAsync(call));
         StartTransferCommand = new RelayCommand(BeginTransfer, () => _store.Current is not null);
+        SendDigitCommand = new RelayCommand<string>(key => _pendingWork = SendDigitAsync(key));
+        ToggleKeypadCommand = new RelayCommand(() => IsKeypadOpen = !IsKeypadOpen);
+        OpenHistoryCommand = new RelayCommand(() => _pendingWork = OpenHistoryAsync(), () => IsFree);
+        CloseHistoryCommand = new RelayCommand(CloseHistory);
+        CallBackCommand = new RelayCommand<HistoryRow>(CallBack);
         CancelTransferCommand = new RelayCommand(EndTransfer);
         TransferToCommand = new RelayCommand<string>(target => _pendingWork = TransferToAsync(target));
         AcceptOfferCommand = new RelayCommand(() => _pendingWork = RespondToOfferAsync(accept: true), () => HasOffer);
@@ -805,6 +812,87 @@ public sealed class SoftphoneViewModel : ObservableObject
             NoticeMessage = $"돌려주지 못했습니다: {ex.Message}";
         }
     }
+
+    /// <summary>
+    /// 통화 중 키패드를 보여 줄 것인가.
+    ///
+    /// 실기기 모드에서는 전화기의 키패드가 진짜다. 화면에 키패드를 띄우면 눌러도
+    /// 아무 데도 가지 않는데 상담원은 눌렀다고 믿는다.
+    /// </summary>
+    public bool ShowsKeypad => _useSoftphone;
+
+    /// <summary>키패드가 열려 있는가. 메모와 같은 자리를 쓰므로 둘 중 하나만 보인다.</summary>
+    public bool IsKeypadOpen
+    {
+        get => _isKeypadOpen;
+        private set => Set(ref _isKeypadOpen, value);
+    }
+
+    public RelayCommand ToggleKeypadCommand { get; }
+
+    public RelayCommand<string> SendDigitCommand { get; }
+
+    /// <summary>통화 중에 키를 하나 보낸다. ARS 내선 입력이나 인증번호에 쓴다.</summary>
+    public async Task SendDigitAsync(string? key)
+    {
+        var digit = key?.Trim();
+        if (string.IsNullOrEmpty(digit)) return;
+
+        await _phone.SendDigitAsync(digit[0]);
+    }
+
+    /// <summary>지난 통화를 보고 있는가.</summary>
+    public bool IsViewingHistory
+    {
+        get => _isViewingHistory;
+        private set => Set(ref _isViewingHistory, value);
+    }
+
+    public IReadOnlyList<HistoryRow> History { get; private set; } = Array.Empty<HistoryRow>();
+
+    public RelayCommand OpenHistoryCommand { get; }
+
+    public RelayCommand CloseHistoryCommand { get; }
+
+    public RelayCommand<HistoryRow> CallBackCommand { get; }
+
+    /// <summary>
+    /// 지난 통화를 받아 온다. 열 때마다 새로 받는다 — 그 사이에 통화가 더 쌓였을 수 있고,
+    /// 오래된 목록을 보여 주면 방금 놓친 전화가 안 보인다.
+    /// </summary>
+    public async Task OpenHistoryAsync(CancellationToken ct = default)
+    {
+        var rows = await Send(() => _server.GetCallHistoryAsync(_agent.AgentId, MaxHistoryShown, ct));
+        if (rows is null)
+        {
+            NoticeMessage = "통화 이력을 불러오지 못했습니다.";
+            return;
+        }
+
+        History = rows.Select(entry => HistoryRow.From(entry, _now)).ToArray();
+        Raise(nameof(History));
+        IsViewingHistory = true;
+        WindowMode = WindowMode.Settings;
+    }
+
+    /// <summary>이력에서 바로 다시 건다. 번호를 옮겨 적게 하지 않는다.</summary>
+    private void CallBack(HistoryRow? row)
+    {
+        if (row is null || row.RawNumber.Length == 0) return;
+
+        DialNumber = row.RawNumber;
+        CloseHistory();
+    }
+
+    private void CloseHistory()
+    {
+        if (!IsViewingHistory) return;
+
+        IsViewingHistory = false;
+        OnCurrentCallChanged(_store.Current);
+    }
+
+    private const int MaxHistoryShown = 20;
 
     private const int MaxTransferTargetsShown = 5;
 

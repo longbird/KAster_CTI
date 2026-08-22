@@ -10,5 +10,11 @@ public interface ISoftphoneControl
 
     Task<bool> AnswerAsync();
 
+    /// <summary>
+    /// 통화 중에 키패드를 누른다. ARS 를 타고 들어간 곳에서 내선을 누르거나
+    /// 인증번호를 넣을 때 쓴다. 통화 중이 아니면 아무 일도 하지 않는다.
+    /// </summary>
+    Task SendDigitAsync(char digit);
+
     void Hangup();
 }

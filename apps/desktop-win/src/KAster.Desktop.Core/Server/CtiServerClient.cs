@@ -72,6 +72,20 @@ public sealed class CtiServerClient
         return await EnvelopeReader.ReadAsync<List<AgentDirectoryEntry>>(response, ct);
     }
 
+    /// <summary>
+    /// 이 상담원의 지난 통화. <b>agentId 를 반드시 싣는다</b> — 빼면 서버가 테넌트
+    /// 전체의 통화를 돌려주고, 상담원이 남의 통화 기록을 보게 된다.
+    /// </summary>
+    public async Task<IReadOnlyList<CallHistoryEntry>> GetCallHistoryAsync(
+        string agentId,
+        int limit,
+        CancellationToken ct)
+    {
+        var path = $"calls/history?agentId={Uri.EscapeDataString(agentId)}&limit={limit}";
+        using var response = await _http.GetAsync(path, ct);
+        return await EnvelopeReader.ReadAsync<List<CallHistoryEntry>>(response, ct);
+    }
+
     /// <summary>이 상담원의 발신 권한과 쓸 수 있는 발신번호.</summary>
     public async Task<CallCapabilities> GetCallCapabilitiesAsync(CancellationToken ct)
     {

@@ -31,6 +31,14 @@ internal sealed class FakeSoftphone : ISoftphoneControl
         return Task.FromResult(true);
     }
 
+    public List<char> Digits { get; } = new();
+
+    public Task SendDigitAsync(char digit)
+    {
+        Digits.Add(digit);
+        return Task.CompletedTask;
+    }
+
     public void Hangup() => HangupCalls++;
 }
 
@@ -722,6 +730,107 @@ public class SoftphoneViewModelTests
 
         Assert.False(vm.IsChoosingTransferTarget);
         Assert.Equal(WindowMode.Talking, vm.WindowMode);
+    }
+
+    private const string HistoryJson = """
+    {"success":true,"data":[
+      {"callId":"c-9","startedAt":"2026-08-22T01:00:00Z","direction":"inbound",
+       "ani":"01034623453","dnis":"07052346380","talkSeconds":42,"missedReason":null},
+      {"callId":"c-8","startedAt":"2026-08-22T00:50:00Z","direction":"inbound",
+       "ani":"01055556666","dnis":"07052346380","talkSeconds":0,"missedReason":"ABANDONED"}
+    ],"error":null}
+    """;
+
+    [Fact]
+    public async Task History_opens_with_the_newest_calls()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, HistoryJson);
+
+        await vm.OpenHistoryAsync();
+
+        Assert.True(vm.IsViewingHistory);
+        Assert.Equal(2, vm.History.Count);
+        Assert.Equal("010-3462-3453", vm.History[0].PhoneNumber);
+    }
+
+    /// <summary>못 받은 통화는 한눈에 구분돼야 한다. 다시 걸어야 하는 것들이다.</summary>
+    [Fact]
+    public async Task A_missed_call_is_marked_as_missed()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, HistoryJson);
+
+        await vm.OpenHistoryAsync();
+
+        Assert.False(vm.History[0].WasMissed);
+        Assert.True(vm.History[1].WasMissed);
+    }
+
+    [Fact]
+    public async Task Closing_history_goes_back_to_waiting()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, HistoryJson);
+        await vm.OpenHistoryAsync();
+
+        vm.CloseHistoryCommand.Execute(null);
+
+        Assert.False(vm.IsViewingHistory);
+        Assert.Equal(WindowMode.Idle, vm.WindowMode);
+    }
+
+    /// <summary>이력에서 바로 다시 걸 수 있어야 한다. 번호를 옮겨 적게 하면 안 된다.</summary>
+    [Fact]
+    public async Task Calling_back_from_history_fills_the_dial_box()
+    {
+        var (vm, _, _, stub) = Build();
+        await Ready(vm, stub);
+        stub.Enqueue(HttpStatusCode.OK, HistoryJson);
+        await vm.OpenHistoryAsync();
+
+        vm.CallBackCommand.Execute(vm.History[1]);
+
+        Assert.Equal("01055556666", vm.DialNumber);
+        Assert.False(vm.IsViewingHistory);
+    }
+
+    /// <summary>
+    /// ARS 를 타고 들어간 곳에서 내선을 누르거나 인증번호를 넣어야 할 때가 있다.
+    /// 소프트폰 모드에서는 누를 키패드가 화면에만 있다.
+    /// </summary>
+    [Fact]
+    public void The_keypad_sends_digits_while_on_a_call()
+    {
+        var (vm, store, phone, _) = Build();
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        vm.SendDigitCommand.Execute("5");
+        vm.SendDigitCommand.Execute("#");
+
+        Assert.Equal(new[] { '5', '#' }, phone.Digits);
+    }
+
+    /// <summary>실기기 모드에서는 전화기 키패드가 진짜다. 화면 키패드는 아무 데도 안 간다.</summary>
+    [Fact]
+    public void The_keypad_is_not_offered_on_a_desk_phone()
+    {
+        var (vm, store, _, _) = Build(useSoftphone: false);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        Assert.False(vm.ShowsKeypad);
+    }
+
+    [Fact]
+    public void The_keypad_is_offered_on_a_softphone_call()
+    {
+        var (vm, store, _, _) = Build();
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        Assert.True(vm.ShowsKeypad);
     }
 
     private static int DirectoryLookups(StubHttpHandler stub)

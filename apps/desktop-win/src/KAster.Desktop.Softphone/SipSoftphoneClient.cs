@@ -194,6 +194,42 @@ public sealed class SipSoftphoneClient : ISoftphoneControl, IDisposable
         return true;
     }
 
+    /// <summary>
+    /// 통화 중 키패드. RFC2833(telephone-event)로 보낸다 — 음성 대역에 톤을 섞는 방식은
+    /// 코덱을 지나며 뭉개져 상대가 못 알아듣는 경우가 있다.
+    ///
+    /// 통화 중이 아니면 아무 일도 하지 않는다. 눌러도 갈 곳이 없다.
+    /// </summary>
+    public async Task SendDigitAsync(char digit)
+    {
+        SIPUserAgent? userAgent;
+        lock (_gate)
+        {
+            userAgent = _userAgent;
+        }
+
+        if (userAgent is null || !userAgent.IsCallActive) return;
+
+        try
+        {
+            await userAgent.SendDtmf((byte)ToneOf(digit));
+        }
+        catch (Exception)
+        {
+            // 키 하나 못 보낸 것으로 통화를 끊지 않는다. 상담원이 다시 누르면 된다.
+        }
+    }
+
+    /// <summary>RFC2833 이벤트 번호. 0-9 는 그대로, * 는 10, # 은 11 이다.</summary>
+    private static int ToneOf(char digit) => digit switch
+    {
+        >= '0' and <= '9' => digit - '0',
+        '*' => 10,
+        '#' => 11,
+        >= 'A' and <= 'D' => 12 + (digit - 'A'),
+        _ => 0,
+    };
+
     /// <summary>사용자가 끊기를 눌렀을 때. 아직 안 받은 통화면 거절한다.</summary>
     public void Hangup()
     {
