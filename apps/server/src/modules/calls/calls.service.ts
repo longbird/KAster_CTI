@@ -22,6 +22,7 @@ import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
+import { SendDtmfDto } from './dto/send-dtmf.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { TransferDetectorService } from './transfer-detector.service';
 import { normalizePhone } from '../customers/customers.service';
@@ -1537,6 +1538,63 @@ export class CallsService {
       data: buildAcceptedCommand({
         callId,
         action,
+      }, meta),
+      error: null,
+    };
+  }
+
+  /**
+   * 통화 중 상담원이 누른 키를 상대에게 보낸다. 실기기(PJSIP) 상담원은
+   * 소프트폰과 달리 자기 단말에서 통화 중 DTMF 를 보낼 수단이 없어 ARS 안에서
+   * 내선이나 인증번호를 입력하지 못한다. 그 경로를 서버가 대신 열어 준다.
+   *
+   * 자릿값 검증은 SendDtmfDto(HTTP 경계)와 AsteriskManagerService(AMI 경계)가
+   * 나눠 맡는다. 여기서 다시 검사하지 않는 것은 두 경계 사이에 다른 입력원이
+   * 없기 때문이다.
+   */
+  async sendDtmf(
+    tenantId: string,
+    callId: string,
+    dto: SendDtmfDto,
+    metaInput?: CommandMetaInput,
+    actor?: CallCommandActor,
+  ) {
+    const meta = normalizeCommandMeta(metaInput);
+    const verifiedActor = await this.resolveCommandActor(tenantId, actor);
+
+    const call = await this.prisma.callSessions.findFirst({
+      where: { callId, tenantId },
+      include: { callLegs: { orderBy: { startedAt: 'desc' } } },
+    });
+    if (!call) {
+      throw new NotFoundException('Call not found');
+    }
+
+    const agentLeg = call.callLegs.find(
+      (leg) => leg.legType === 'agent' && !leg.endedAt,
+    );
+    if (!agentLeg?.channelName) {
+      throw new BadRequestException('상담원 제어 채널을 찾을 수 없습니다.');
+    }
+    this.assertActorCanControlCall(call, agentLeg, verifiedActor);
+
+    this.asteriskManager.sendDtmf(agentLeg.channelName, dto.digits);
+
+    // 누른 값이 인증번호나 카드번호일 수 있다. 이벤트는 Redis pub/sub 으로
+    // 모든 노드와 로그에 퍼지므로 자릿수만 남기고 값 자체는 싣지 않는다.
+    await this.eventBus.publish('ami.command.dtmf.requested', {
+      callId,
+      linkedid: call.linkedid,
+      channel: agentLeg.channelName,
+      digitCount: dto.digits.length,
+      ...meta,
+    }, call.tenantId);
+
+    return {
+      success: true,
+      data: buildAcceptedCommand({
+        callId,
+        digitCount: dto.digits.length,
       }, meta),
       error: null,
     };

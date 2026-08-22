@@ -152,6 +152,39 @@ export class AsteriskManagerService {
       throw new Error('Feature code is empty');
     }
 
+    this.playDtmf(channel, digits);
+  }
+
+  /**
+   * 상담원이 통화 중에 누른 키를 상대(ARS 등)에게 그대로 보낸다.
+   *
+   * sendFeatureCode 와 나눠 둔 이유: 기능코드는 PBX 가 가로채는 제어 신호이고
+   * 이쪽은 상대 장비로 흘러가는 사용자 입력이다. 정규화 규칙(기능코드는 공백을
+   * 걷어내지만 키 입력의 공백은 오입력이라 거절해야 한다)과 로깅 정책(누른 값이
+   * 인증번호일 수 있어 자릿값을 남기지 않는다)이 서로 다르다. 한 함수로 묶으면
+   * 한쪽 요구로 고친 것이 다른 쪽을 조용히 바꾼다.
+   */
+  sendDtmf(channel: string, digits: string): void {
+    if (!digits) {
+      throw new Error('DTMF digits are empty');
+    }
+
+    this.playDtmf(channel, digits);
+    this.logger.log(`DTMF requested: ${channel} (${digits.length} digits)`);
+  }
+
+  /**
+   * PlayDTMF 로 나가는 마지막 지점. 값이 AMI 프로토콜 필드에 그대로 실리므로
+   * 여기서 문자를 검증한다. HTTP DTO 검증은 REST 경로만 덮지만 기능코드는
+   * 관리자가 DB(featureCodes)와 env 로 넣는 값이라 그 경로를 지나지 않는다.
+   * 허용 집합은 DTMF 규격 그대로(0-9 * # A-D)라 개행·공백·구분자가 전부 걸린다.
+   */
+  private playDtmf(channel: string, digits: string): void {
+    // 앞자리를 보낸 뒤에 던지면 상대 장비에 반쪽짜리 입력이 남는다. 먼저 전부 검사한다.
+    if (!/^[0-9*#A-D]+$/.test(digits)) {
+      throw new Error('DTMF digits contain characters outside 0-9 * # A-D');
+    }
+
     for (const digit of digits) {
       this.ami.sendAction({
         Action: 'PlayDTMF',

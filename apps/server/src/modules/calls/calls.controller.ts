@@ -12,6 +12,7 @@ import { InternalOriginateDto } from './dto/internal-originate.dto';
 import { ListCallsQueryDto } from './dto/list-calls-query.dto';
 import { MuteCallDto } from './dto/mute-call.dto';
 import { OriginateDto } from './dto/originate.dto';
+import { SendDtmfDto } from './dto/send-dtmf.dto';
 import { TransferDto } from './dto/transfer.dto';
 
 function buildDownloadDisposition(fileName: string) {
@@ -627,6 +628,40 @@ export class CallsController {
       req.user.tenantId,
       callId,
       'resume',
+      { correlationId, idempotencyKey },
+      getCommandActor(req),
+    );
+  }
+
+  @Post(':callId/dtmf')
+  @ApiOperation({
+    summary: '통화 중 DTMF 전송',
+    description:
+      '상담원이 누른 키를 활성 상담원 leg 채널에서 AMI PlayDTMF 로 상대에게 보낸다. 실기기(PJSIP) 상담원이 ARS 안에서 내선·인증번호를 입력할 때 쓴다. digits 는 0-9, *, # 만 허용하며 최대 32자리. 본인에게 배정된 통화만 제어할 수 있고 supervisor/admin 은 예외다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.',
+  })
+  @ApiHeader({ name: 'x-correlation-id', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: CommandAckResponseDto })
+  async sendDtmf(
+    @Req() req: any,
+    @Param('callId') callId: string,
+    @Body() dto: SendDtmfDto,
+    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (req.user.role === 'supervisor' || req.user.role === 'admin') {
+      await this.menuPermissionService.assertAnyMenuAction(
+        req.user.tenantId,
+        req.user.role,
+        ['dashboard', 'live-calls'],
+        'operate',
+        req.user.sub,
+      );
+    }
+    return this.callsService.sendDtmf(
+      req.user.tenantId,
+      callId,
+      dto,
       { correlationId, idempotencyKey },
       getCommandActor(req),
     );

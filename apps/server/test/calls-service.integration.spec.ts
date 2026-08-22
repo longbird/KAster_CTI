@@ -78,6 +78,7 @@ describe('CallsService branch filter integration', () => {
     pickup: jest.fn(),
     muteAudio: jest.fn(),
     sendFeatureCode: jest.fn(),
+    sendDtmf: jest.fn(),
     hangup: jest.fn(),
   };
   const transferDetector = {
@@ -1705,5 +1706,137 @@ describe('CallsService branch filter integration', () => {
       error: null,
     });
     delete process.env.ASTERISK_HOLD_FEATURE_CODE;
+  });
+
+  it('sendDtmf 는 활성 agent leg 로 자릿수를 보내고 명령 ACK 를 돌려준다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-dtmf-1',
+      tenantId: 'tenant-1',
+      linkedid: 'L-dtmf-1',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000dtmf',
+        },
+      ],
+    });
+
+    const result = await service.sendDtmf(
+      'tenant-1',
+      'call-dtmf-1',
+      { digits: '1234#' },
+      { correlationId: 'corr-dtmf', idempotencyKey: 'idem-dtmf' },
+    );
+
+    expect(asteriskManager.sendDtmf).toHaveBeenCalledWith('PJSIP/1001-00000dtmf', '1234#');
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        callId: 'call-dtmf-1',
+        accepted: true,
+        digitCount: 5,
+        correlationId: 'corr-dtmf',
+        idempotencyKey: 'idem-dtmf',
+      },
+      error: null,
+    });
+  });
+
+  /**
+   * 이 값은 인증번호나 카드번호일 수 있다. 이벤트는 Redis pub/sub 을 타고
+   * 모든 노드와 로그로 퍼지므로 자릿값 자체를 싣지 않는다.
+   */
+  it('sendDtmf 이벤트는 누른 자릿값을 싣지 않는다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-dtmf-2',
+      tenantId: 'tenant-1',
+      linkedid: 'L-dtmf-2',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/1001-00000dtm2',
+        },
+      ],
+    });
+
+    await service.sendDtmf('tenant-1', 'call-dtmf-2', { digits: '9876' });
+
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      'ami.command.dtmf.requested',
+      expect.objectContaining({
+        callId: 'call-dtmf-2',
+        linkedid: 'L-dtmf-2',
+        channel: 'PJSIP/1001-00000dtm2',
+        digitCount: 4,
+      }),
+      'tenant-1',
+    );
+    const payload = eventBus.publish.mock.calls.find(
+      (call) => call[0] === 'ami.command.dtmf.requested',
+    )?.[1];
+    expect(JSON.stringify(payload)).not.toContain('9876');
+  });
+
+  it('sendDtmf 는 없는 통화면 404 로 거절한다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.sendDtmf('tenant-1', 'call-missing', { digits: '1' }),
+    ).rejects.toThrow('Call not found');
+    expect(asteriskManager.sendDtmf).not.toHaveBeenCalled();
+  });
+
+  it('sendDtmf 는 활성 상담원 leg 가 없으면 거절한다', async () => {
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-dtmf-3',
+      tenantId: 'tenant-1',
+      linkedid: 'L-dtmf-3',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: new Date('2026-08-22T00:00:00.000Z'),
+          channelName: 'PJSIP/1001-00000dtm3',
+        },
+      ],
+    });
+
+    await expect(
+      service.sendDtmf('tenant-1', 'call-dtmf-3', { digits: '1' }),
+    ).rejects.toThrow('상담원 제어 채널을 찾을 수 없습니다.');
+    expect(asteriskManager.sendDtmf).not.toHaveBeenCalled();
+  });
+
+  it('sendDtmf 는 일반 상담원이 남의 통화에 키를 보내려 하면 거부한다', async () => {
+    prisma.agents.findFirst.mockResolvedValue({
+      agentId: 'agent-1',
+      extension: '1001',
+      role: 'agent',
+    });
+    prisma.callSessions.findFirst.mockResolvedValue({
+      callId: 'call-dtmf-4',
+      tenantId: 'tenant-1',
+      linkedid: 'L-dtmf-4',
+      primaryAgentId: 'agent-2',
+      callLegs: [
+        {
+          legType: 'agent',
+          endedAt: null,
+          channelName: 'PJSIP/2002-00000dtm4',
+        },
+      ],
+    });
+
+    await expect(
+      service.sendDtmf(
+        'tenant-1',
+        'call-dtmf-4',
+        { digits: '1' },
+        undefined,
+        { agentId: 'agent-1', extension: '1001', role: 'agent' },
+      ),
+    ).rejects.toThrow('본인에게 배정된 통화만 제어할 수 있습니다.');
+    expect(asteriskManager.sendDtmf).not.toHaveBeenCalled();
   });
 });

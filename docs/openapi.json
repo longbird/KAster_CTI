@@ -1161,6 +1161,69 @@
         ]
       }
     },
+    "/api/v1/calls/{callId}/dtmf": {
+      "post": {
+        "operationId": "CallsController_sendDtmf",
+        "summary": "통화 중 DTMF 전송",
+        "description": "상담원이 누른 키를 활성 상담원 leg 채널에서 AMI PlayDTMF 로 상대에게 보낸다. 실기기(PJSIP) 상담원이 ARS 안에서 내선·인증번호를 입력할 때 쓴다. digits 는 0-9, *, # 만 허용하며 최대 32자리. 본인에게 배정된 통화만 제어할 수 있고 supervisor/admin 은 예외다. Clients may send x-correlation-id and idempotency-key headers; the response echoes correlationId and requestedAt.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendDtmfDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAckResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calls"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/calls/{callId}/memo": {
       "post": {
         "operationId": "CallsController_memo",
@@ -6480,6 +6543,20 @@
             "default": "all"
           }
         }
+      },
+      "SendDtmfDto": {
+        "type": "object",
+        "properties": {
+          "digits": {
+            "type": "string",
+            "description": "통화 중 상대에게 보낼 DTMF 자릿수. 0-9, *, # 만 허용하며 최대 32자리.",
+            "example": "1234#",
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "digits"
+        ]
       },
       "CreateMemoDto": {
         "type": "object",
