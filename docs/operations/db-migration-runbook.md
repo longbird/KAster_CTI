@@ -85,6 +85,42 @@ API 확인:
 - [ ] `migrate status` 확인
 - [ ] 운영 백업 생성
 - [ ] `migrate deploy` 성공
+- [ ] **생성된 Prisma Client 가 새 schema 를 아는지 확인** (7장 참고 — 이미지를 다시 빌드하지 않는 배포에서 빠지기 쉽다)
 - [ ] 앱 재기동
 - [ ] health/smoke 통과
 - [ ] migration 결과와 배포 로그 보관
+
+## 7. 이미지를 다시 빌드하지 않는 배포에서 빠지는 단계
+
+`deploy/sites/<site>/compose.prod.yml` 로 이미지를 다시 빌드하는 배포는 빌드 중에 `prisma generate` 가
+돌므로 이 장이 필요 없다. **컴파일된 `dist` 만 올려 컨테이너를 재시작하는 방식**에서는 그 단계가 없다.
+
+DB 에 컬럼은 생겼는데 컨테이너 안의 생성된 Client 는 그 컬럼을 모르는 상태가 되고, 그 필드를
+`select` 하는 경로만 500 으로 죽는다. **health 는 200 을 그대로 돌려주므로 smoke 로는 안 잡힌다.**
+
+실제 사례(2026-08-22): `tenantSystemSettings.agentOfferTimeoutSeconds` 를 추가하고 dist 만 올린 뒤
+`POST /asterisk-config/reload` 가 `Unknown field ... for select statement` 로 실패했다. PBX 설정
+반영 경로가 통째로 막혔다.
+
+### 왜 컨테이너 안에서 바로 못 고치는가
+
+`/app/node_modules/.prisma` 가 **읽기 전용 바인드 마운트**라 `docker exec ... npx prisma generate` 는
+`EROFS` 로 실패한다. 같은 이미지를 그 경로만 쓰기 가능하게 마운트해 일회성으로 돌린다.
+
+```bash
+# 1. 바뀐 schema 를 호스트의 바인드 마운트 원본에 올린다
+scp apps/server/prisma/schema.prisma <host>:<deploy>/server/prisma/schema.prisma
+
+# 2. 같은 이미지로 일회성 컨테이너를 띄워 Client 를 다시 만든다
+ssh <host> 'docker run --rm   -v <deploy>/server/prisma:/app/prisma:ro   -v <deploy>/prisma-client:/app/node_modules/.prisma   -w /app <image> npx prisma generate --schema /app/prisma/schema.prisma'
+
+# 3. 새 필드가 실제로 들어갔는지 확인한다 (재시작 전에)
+ssh <host> 'grep -c "<새필드명>" <deploy>/prisma-client/client/index.d.ts'
+
+# 4. 재시작
+ssh <host> 'docker restart <container>'
+```
+
+### 확인은 health 로 하지 마라
+
+새 필드를 실제로 읽는 엔드포인트를 직접 불러라. schema 를 바꾼 이유가 된 그 기능이 확인 대상이다.
