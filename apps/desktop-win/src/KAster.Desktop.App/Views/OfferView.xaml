@@ -17,10 +17,39 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Text="받으시겠습니까?"
-                   Style="{StaticResource TextCaption}"
-                   Foreground="{StaticResource BrushAccent}" />
+        <!--
+            남은 시간은 물음과 같은 줄에 둔다. 줄을 새로 만들면 아래 요소가 밀려 창이 스크롤된다.
+            0 이 돼도 버튼은 그대로 살아 있다 — 제안을 닫는 것은 서버이지 이 숫자가 아니다.
+        -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="받으시겠습니까?"
+                       Style="{StaticResource TextCaption}"
+                       Foreground="{StaticResource BrushAccent}" />
+
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Offer.CountdownText}"
+                       Margin="8,0,0,0"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource BrushWarning}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <!-- 대기 시간을 안 내려주는 서버도 있다. 그때는 자리를 차지하지 않는다. -->
+                            <DataTrigger Binding="{Binding Offer.CountdownText}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
 
         <Border Grid.Row="1" Margin="0,8,0,12"
                 Padding="{StaticResource PadPanel}"
