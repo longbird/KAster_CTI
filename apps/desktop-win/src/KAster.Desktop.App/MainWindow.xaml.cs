@@ -25,6 +25,25 @@ public partial class MainWindow : Window
     private static readonly SubWindowSpec SettingsWindow =
         new("settings", "PBX 설정", 560, 720, 500, 640);
 
+    /// <summary>
+    /// 읽기 전용 정보 창들. 메인 화면은 그대로 두고 옆에 세운다 — 목록을 보는 동안에도
+    /// 울리는 전화가 보여야 한다 (<see cref="SubWindowPlacement"/> 가 자리를 잡는다).
+    ///
+    /// 크기는 각 화면이 스크롤 없이 담는 줄 수에서 나왔다. 창을 늘려도 줄이 늘지는 않는다 —
+    /// 넘치는 것은 "외 n건" 으로 알린다.
+    /// </summary>
+    private static readonly SubWindowSpec AgentDirectoryWindow =
+        new("agent-directory", "상담원 목록", 380, 520, 340, 420);
+
+    private static readonly SubWindowSpec QueueStatusWindow =
+        new("queue-status", "큐 대기 현황", 460, 460, 420, 380);
+
+    private static readonly SubWindowSpec AnnouncementsWindow =
+        new("announcements", "공지", 460, 560, 400, 440);
+
+    private static readonly SubWindowSpec CustomerInfoWindow =
+        new("customer-info", "고객 정보", 380, 440, 340, 360);
+
     private AppSettings _settings;
 
     private readonly TokenVault _tokens;
@@ -88,7 +107,9 @@ public partial class MainWindow : Window
             login.Session.Agent,
             () => DateTimeOffset.UtcNow,
             useSoftphone,
-            login.Session.SoftphoneConfig);
+            login.Session.SoftphoneConfig,
+            new JsonSettingsStore<AnnouncementReadState>(
+                AppPaths.AnnouncementReads, new AnnouncementReadState()));
 
         // 창을 만지는 일은 모두 여기 한 줄을 지난다.
         // 서버 이벤트는 이미 UI 스레드로 넘어와 있으므로 여기서는 그대로 받는다.
@@ -109,6 +130,10 @@ public partial class MainWindow : Window
         softphone.Diagnostic += (_, message) => App.Log(message);
         runtime.NonCallEvent += (_, evt) => softphone.Apply(evt);
         softphone.SignOutRequested += async (_, _) => await SignOutAsync();
+
+        // 정보 화면은 창을 스스로 만들지 않는다. 어느 창인지만 올라오고 여기서 띄운다.
+        softphone.InfoWindowRequested += (_, which) => ShowInfoWindow(which, softphone);
+        softphone.InfoWindowDismissed += (_, which) => _subWindows.Close(SpecOf(which).Key);
         // 메인 창은 그대로 있으므로 설정을 닫아도 되돌릴 화면이 없다.
         softphone.SettingsRequested += (_, _) => ShowSettings(useSoftphone, leave: null);
         runtime.RefreshHandler.SignedOut += (_, _) => Dispatcher.Invoke(SignOut);
@@ -124,7 +149,49 @@ public partial class MainWindow : Window
         // 내선 목록과 발신번호는 로그인 뒤 한 번만 받아 두면 된다.
         // 실패해도 여기서 멈추지 않는다 — 발신만 못 하고 수신·통화는 그대로 돈다.
         await softphone.LoadDialSetupAsync();
+
+        // 안 읽은 공지 수는 창을 열기 전에 맞아야 한다. 조용히 실패하므로 발신 준비와 묶지 않는다.
+        await softphone.Announcements.RefreshAsync();
     }
+
+    /// <summary>
+    /// 읽기 전용 정보 창을 띄운다.
+    ///
+    /// <paramref name="softphone"/> 를 통째로 <c>DataContext</c> 로 넘기는 것은 이 앱의 다른 화면과
+    /// 같은 방식이다 — 화면 XAML 이 <c>{Binding Queues.Rows}</c> 처럼 자기 갈래를 찾아 읽는다.
+    ///
+    /// 닫힘 처리를 거는 이유는 <b>X 로 닫는 경로</b> 때문이다. 화면 안쪽 닫기 버튼만 듣고 있으면,
+    /// X 로 닫은 큐 현황 창의 5초 조회가 아무도 안 보는 채로 계속 돈다.
+    /// </summary>
+    private void ShowInfoWindow(InfoWindow which, SoftphoneViewModel softphone)
+    {
+        var spec = SpecOf(which);
+
+        _subWindows.Open(
+            spec,
+            () => (object)(which switch
+            {
+                InfoWindow.AgentDirectory => new AgentDirectoryView { DataContext = softphone },
+                InfoWindow.QueueStatus => new QueueStatusView { DataContext = softphone },
+                InfoWindow.Announcements => new AnnouncementsView { DataContext = softphone },
+                _ => (System.Windows.Controls.UserControl)new CustomerInfoView { DataContext = softphone },
+            }),
+            which switch
+            {
+                InfoWindow.AgentDirectory => softphone.Directory.Close,
+                InfoWindow.QueueStatus => softphone.Queues.Close,
+                InfoWindow.Announcements => softphone.Announcements.Close,
+                _ => softphone.Customer.Close,
+            });
+    }
+
+    private static SubWindowSpec SpecOf(InfoWindow which) => which switch
+    {
+        InfoWindow.AgentDirectory => AgentDirectoryWindow,
+        InfoWindow.QueueStatus => QueueStatusWindow,
+        InfoWindow.Announcements => AnnouncementsWindow,
+        _ => CustomerInfoWindow,
+    };
 
     private void ApplyMode(WindowMode mode, SoftphoneViewModel softphone)
     {

@@ -1,0 +1,95 @@
+<UserControl x:Class="KAster.Desktop.App.Views.AgentDirectoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BrushBackground}">
+
+    <!--
+        상담원 목록. 사람이 많아도 창이 늘어나면 안 되므로 보여 주는 수를 고정하고,
+        나머지는 검색으로 좁힌다. 가린 인원은 숨기지 말고 숫자로 알린다.
+    -->
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBox Grid.Row="0"
+                 Style="{StaticResource FieldInput}"
+                 Text="{Binding Directory.Filter, UpdateSourceTrigger=PropertyChanged}" />
+
+        <ItemsControl Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding Directory.Rows}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <!--
+                        줄 전체가 "이 사람에게 걸기" 다. 못 받는 상대는 아예 누를 수 없다 —
+                        걸어 봐야 아무도 받지 않는다.
+                    -->
+                    <Button Margin="0,0,0,6"
+                            HorizontalContentAlignment="Stretch"
+                            IsEnabled="{Binding CanTakeCall}"
+                            ToolTip="{Binding StatusText}"
+                            Style="{StaticResource ButtonSecondary}"
+                            Command="{Binding DataContext.Directory.CallCommand,
+                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding Extension}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding AgentName}"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Left"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Extension}"
+                                           HorizontalAlignment="Left"
+                                           Style="{StaticResource TextCaption}" />
+                            </StackPanel>
+
+                            <!-- 받을 수 있는 사람만 눈에 띄어야 한다. 그것이 이 목록을 여는 이유다. -->
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding StatusText}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Right">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CanTakeCall}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- 가린 인원이 없으면 이 줄 자체가 없어야 한다. 남아 있으면 "0명 더 있음" 이 뜬다. -->
+        <TextBlock Grid.Row="2" Margin="0,2,0,0">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Directory.RowsHidden}" Value="0">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+            <Run Text="이름이나 내선을 입력해 좁히세요 (" /><Run Text="{Binding Directory.RowsHiddenText, Mode=OneWay}" /><Run Text=")" />
+        </TextBlock>
+
+        <Button Grid.Row="3" Margin="0,10,0,0" Content="닫기"
+                Style="{StaticResource ButtonSecondary}"
+                Command="{Binding Directory.CloseCommand}" />
+    </Grid>
+</UserControl>

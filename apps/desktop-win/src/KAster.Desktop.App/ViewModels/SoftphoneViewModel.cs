@@ -3,6 +3,7 @@ using KAster.Desktop.App.Services;
 using KAster.Desktop.Core.Contracts;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.State;
+using KAster.Desktop.Core.Storage;
 using KAster.Desktop.Softphone;
 
 namespace KAster.Desktop.App.ViewModels;
@@ -79,7 +80,8 @@ public sealed class SoftphoneViewModel : ObservableObject
         AgentProfile agent,
         Func<DateTimeOffset> now,
         bool useSoftphone,
-        SoftphoneConfig? sipConfig)
+        SoftphoneConfig? sipConfig,
+        ISettingsStore<AnnouncementReadState> announcementReads)
     {
         _store = store;
         _server = server;
@@ -98,10 +100,28 @@ public sealed class SoftphoneViewModel : ObservableObject
         Transfer = new TransferViewModel(store, server, agent.Extension, now, Notify, Track);
         Keypad = new KeypadViewModel(phone, server, useSoftphone, CurrentCallId, Notify, Track);
         Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree);
+        // 같은 통화 목록을 돌려주기와 상담원 목록이 함께 쓴다. 두 번 물어보지 않는다.
         Waiting = new WaitingCallsViewModel(
-            server, now, Notify, Note, Track, () => IsFree, Transfer.UseActiveCalls);
+            server, now, Notify, Note, Track, () => IsFree, ShareActiveCalls);
         History = new HistoryViewModel(
             server, agent.AgentId, now, Notify, Track, number => Dial.DialNumber = number, () => IsFree);
+
+        // 읽기 전용 정보 화면들. 창을 만드는 일은 조립 지점이 하고, 여기서는 어느 창인지만 넘긴다.
+        // 목록에서 바로 거는 길은 발신 화면을 지나간다 — "우리가 건 전화" 표시의 주인이 거기다.
+        Directory = new AgentDirectoryViewModel(
+            server, agent.Extension, now, Notify, Track, () => IsFree, CallExtension);
+        Queues = new QueueStatusViewModel(server, now, Track);
+        Announcements = new AnnouncementsViewModel(server, announcementReads, agent.AgentId, now, Track);
+        Customer = new CustomerInfoViewModel(store);
+
+        Directory.Opened += (_, _) => InfoWindowRequested?.Invoke(this, InfoWindow.AgentDirectory);
+        Directory.Closed += (_, _) => InfoWindowDismissed?.Invoke(this, InfoWindow.AgentDirectory);
+        Queues.Opened += (_, _) => InfoWindowRequested?.Invoke(this, InfoWindow.QueueStatus);
+        Queues.Closed += (_, _) => InfoWindowDismissed?.Invoke(this, InfoWindow.QueueStatus);
+        Announcements.Opened += (_, _) => InfoWindowRequested?.Invoke(this, InfoWindow.Announcements);
+        Announcements.Closed += (_, _) => InfoWindowDismissed?.Invoke(this, InfoWindow.Announcements);
+        Customer.Opened += (_, _) => InfoWindowRequested?.Invoke(this, InfoWindow.CustomerInfo);
+        Customer.Closed += (_, _) => InfoWindowDismissed?.Invoke(this, InfoWindow.CustomerInfo);
 
         // 제안이 뜨면 창이 그것부터 보여야 한다. 내려가면 원래 통화 상태로 돌아간다.
         Offer.Changed += (_, offer) =>
@@ -162,7 +182,28 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// <summary>당겨받을 수 있는 전화.</summary>
     public WaitingCallsViewModel Waiting { get; }
 
+    /// <summary>상담원 목록.</summary>
+    public AgentDirectoryViewModel Directory { get; }
+
+    /// <summary>큐 대기 현황.</summary>
+    public QueueStatusViewModel Queues { get; }
+
+    /// <summary>공지.</summary>
+    public AnnouncementsViewModel Announcements { get; }
+
+    /// <summary>지금 통화 중인 고객.</summary>
+    public CustomerInfoViewModel Customer { get; }
+
     public event EventHandler<WindowMode>? WindowModeRequested;
+
+    /// <summary>
+    /// 읽기 전용 화면을 서브 창으로 띄워 달라. 창을 만드는 일은 조립 지점이 한다 —
+    /// 이 코드베이스에서 창을 만지는 곳은 <c>MainWindow</c> 하나뿐이다.
+    /// </summary>
+    public event EventHandler<InfoWindow>? InfoWindowRequested;
+
+    /// <summary>서브 창 안쪽 닫기 버튼을 눌렀거나, 화면이 스스로 닫혔다.</summary>
+    public event EventHandler<InfoWindow>? InfoWindowDismissed;
 
     public RelayCommand AnswerCommand { get; }
 
@@ -194,6 +235,27 @@ public sealed class SoftphoneViewModel : ObservableObject
     private void Track(Task work) => _pendingWork = work;
 
     private void Notify(string? message) => NoticeMessage = message;
+
+    /// <summary>
+    /// 훑어 온 진행 중인 통화를 그것을 쓰는 화면들에 나눠 준다. 누가 통화 중인지 판단하는 근거가
+    /// 돌려주기와 상담원 목록에서 같아야 한다 — 다르면 같은 사람이 두 화면에서 다르게 보인다.
+    /// </summary>
+    private void ShareActiveCalls(IReadOnlyList<ActiveCall> calls)
+    {
+        Transfer.UseActiveCalls(calls);
+        Directory.UseActiveCalls(calls);
+    }
+
+    /// <summary>
+    /// 상담원 목록에서 고른 내선으로 건다. <b>발신 화면을 지나간다</b> — 발신은 PBX 가 이 단말을
+    /// 먼저 부르는 방식이라, "우리가 건 전화" 표시를 세우는 곳을 건너뛰면 방금 자기가 건 전화가
+    /// 수신 전화로 뜨고 자동 응답도 안 된다.
+    /// </summary>
+    private void CallExtension(string extension)
+    {
+        Dial.DialNumber = extension;
+        Track(Dial.DialAsync());
+    }
 
     /// <summary>로그아웃을 실제로 수행하는 것은 조립 지점이다. 화면은 요청만 한다.</summary>
     public event EventHandler? SignOutRequested;
@@ -382,6 +444,10 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 협의 전환의 연결·취소도 같은 사정이다 — 답이 없으면 스스로 기다림을 끝낸다.
         Transfer.Tick();
 
+        // 정보 창들은 <b>떠 있을 때만</b> 조회한다. 닫혀 있으면 여기서 그대로 돌아간다.
+        Queues.Tick();
+        Directory.Tick();
+
         // PBX 가 feature code 를 안 먹으면 아무 이벤트도 오지 않는다. 서버는 그것을 모른다.
         // 기다림을 스스로 끝내지 않으면 버튼이 잠긴 채 남아 다시 시도할 방법이 없어진다.
         if (_holdRequestDeadline is { } due && _now() >= due)
@@ -421,6 +487,17 @@ public sealed class SoftphoneViewModel : ObservableObject
             // 지금 통화의 고객이 누구인지 뒤늦게 밝혀지는 경우다.
             case ScreenPopEvent pop when pop.CallId == CurrentCallId() && pop.Customer is not null:
                 CustomerName = pop.Customer.CustomerName?.Trim() ?? string.Empty;
+                break;
+
+            // 아래 둘은 <b>본문을 읽지 않는다</b>. 받는 쪽 메서드에 인자가 없는 것이 그 약속이다 —
+            // 큐 현황은 WS 와 REST 의 필드명이 다르고, 공지 수정 이벤트는 관리자가 보낸 필드만
+            // 실려 와 매번 구성이 다르다. 두 벌로 파싱하면 한쪽이 바뀔 때 다른 쪽이 조용히 어긋난다.
+            case QueueSummaryUpdatedEvent:
+                Queues.OnSummaryPushed();
+                break;
+
+            case AnnouncementPushedEvent:
+                Announcements.OnPushed();
                 break;
         }
     }

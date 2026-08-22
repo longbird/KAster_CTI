@@ -3,6 +3,7 @@ using KAster.Desktop.App.ViewModels;
 using KAster.Desktop.Core.Contracts;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.State;
+using KAster.Desktop.Core.Storage;
 using KAster.Desktop.Softphone;
 using KAster.Desktop.Tests.Server;
 
@@ -109,7 +110,8 @@ public abstract class SoftphoneViewModelTestBase
 
     protected (SoftphoneViewModel Vm, CallStateStore Store, FakeSoftphone Phone, StubHttpHandler Stub) Build(
         bool useSoftphone = true,
-        bool withSipConfig = true)
+        bool withSipConfig = true,
+        ISettingsStore<AnnouncementReadState>? announcementReads = null)
     {
         var stub = new StubHttpHandler();
         var store = new CallStateStore(Agent.AgentId, () => _now, null, Agent.Extension);
@@ -117,7 +119,8 @@ public abstract class SoftphoneViewModelTestBase
         var server = new CtiServerClient(new HttpClient(stub) { BaseAddress = new Uri("http://server/api/v1/") });
         return (
             new SoftphoneViewModel(
-                store, server, phone, Agent, () => _now, useSoftphone, withSipConfig ? SipConfig : null),
+                store, server, phone, Agent, () => _now, useSoftphone, withSipConfig ? SipConfig : null,
+                announcementReads ?? new MemoryStore<AnnouncementReadState>(new AnnouncementReadState())),
             store, phone, stub);
     }
 

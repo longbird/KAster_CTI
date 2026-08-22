@@ -73,6 +73,30 @@ public sealed class CtiServerClient
     }
 
     /// <summary>
+    /// 큐 대기 현황. <b>WS <c>queue.summary.updated</c> 대신 이 경로를 쓴다</b> —
+    /// 그쪽 브로드캐스트는 테넌트로 좁혀지지 않아 남의 테넌트 큐가 섞여 오고, 필드도 적다.
+    /// 이 경로는 <c>JwtAuthGuard</c> 만이라 상담원도 부를 수 있다.
+    /// </summary>
+    public async Task<IReadOnlyList<QueueStatusRow>> GetQueueSummaryAsync(CancellationToken ct)
+    {
+        using var response = await _http.GetAsync("queues/summary", ct);
+        return (await EnvelopeReader.ReadAsync<QueueSummaryResponse>(response, ct)).Queues;
+    }
+
+    /// <summary>
+    /// 이 상담원이 볼 공지. 대상 앱과 게시 기간은 서버가 이미 거르고 고정 공지를 위로 올려 준다 —
+    /// 쿼리 파라미터가 없고, 클라이언트가 다시 거르지 않는다.
+    ///
+    /// 읽음 처리 경로는 <b>부르지 않는다</b>. <c>POST admin/announcements/{id}/read</c> 는
+    /// supervisor/admin 전용이라 상담원이 부르면 403 이다. 읽음 표시는 이 PC 안에만 남는다.
+    /// </summary>
+    public async Task<IReadOnlyList<Announcement>> GetAnnouncementsAsync(CancellationToken ct)
+    {
+        using var response = await _http.GetAsync("announcements", ct);
+        return await EnvelopeReader.ReadAsync<List<Announcement>>(response, ct);
+    }
+
+    /// <summary>
     /// 이 상담원의 지난 통화. <b>agentId 를 반드시 싣는다</b> — 빼면 서버가 테넌트
     /// 전체의 통화를 돌려주고, 상담원이 남의 통화 기록을 보게 된다.
     /// </summary>

@@ -101,6 +101,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
@@ -121,7 +122,53 @@
                         </TextBlock>
                     </StackPanel>
 
-                    <Button Grid.Column="1" VerticalAlignment="Center" MinWidth="96"
+                    <!--
+                        읽기 전용 정보 화면으로 가는 길. 전부 서브 창으로 뜨므로 이 화면은 그대로 있다.
+
+                        이 자리에 두는 이유는 <b>행이 늘지 않기 때문</b>이다 — 이 행의 높이는 옆의
+                        이석 버튼(38)이 이미 정하고 있어, 여기에 작은 버튼을 더 놓아도 창이 안 커진다.
+                        안 읽은 공지 수도 버튼 글자 안에 넣는다. 새 줄을 만들면 창이 스크롤된다.
+                    -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Button Content="상담원"
+                                Padding="6,2" BorderThickness="0" Cursor="Hand"
+                                Background="Transparent"
+                                Foreground="{StaticResource BrushTextMuted}"
+                                FontFamily="{StaticResource FontUi}"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Command="{Binding Directory.OpenCommand}" />
+
+                        <Button Content="큐 현황"
+                                Padding="6,2" BorderThickness="0" Cursor="Hand"
+                                Background="Transparent"
+                                Foreground="{StaticResource BrushTextMuted}"
+                                FontFamily="{StaticResource FontUi}"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Command="{Binding Queues.OpenCommand}" />
+
+                        <!-- 안 읽은 공지가 있으면 글자로 그 수를 말한다. 배지를 따로 얹지 않는다. -->
+                        <Button Content="{Binding Announcements.EntryText}"
+                                Padding="6,2" BorderThickness="0" Cursor="Hand"
+                                Background="Transparent"
+                                FontFamily="{StaticResource FontUi}"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Command="{Binding Announcements.OpenCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Announcements.HasUnread}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+
+                    <Button Grid.Column="2" VerticalAlignment="Center" MinWidth="96"
                             Command="{Binding ToggleAvailabilityCommand}">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">

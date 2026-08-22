@@ -190,6 +190,25 @@
                 </Button.Style>
             </Button>
 
+            <!--
+                고객 정보. 스크린팝이 실어 온 것이 있을 때만 버튼을 만든다 — 없는 통화도 있고,
+                그때 빈 창을 여는 버튼을 띄우면 조회가 실패한 줄 알고 기다린다.
+                서브 창은 통화 화면 옆에 서므로 통화 중에 봐도 화면이 가려지지 않는다.
+            -->
+            <Button Content="고객 정보" Margin="2,0"
+                    Command="{Binding Customer.OpenCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Customer.HasCustomerInfo}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
             <Button Content="키패드" Margin="2,0"
                     Command="{Binding Keypad.ToggleKeypadCommand}">
                 <Button.Style>

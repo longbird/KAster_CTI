@@ -47,6 +47,11 @@ public static class AppPaths
 
     /// <summary>다음 로그인 때 채워 둘 아이디·내선. 비밀번호는 들어가지 않는다.</summary>
     public static string SavedLogin => Path.Combine(Root, "login.json");
+
+    /// <summary>
+    /// 읽은 공지. 서버에 남길 길이 없어(상담원에게 읽음 처리 경로가 403) 이 PC 안에만 둔다.
+    /// </summary>
+    public static string AnnouncementReads => Path.Combine(Root, "announcement-reads.json");
 }
 
 /// <summary>앱이 붙을 서버. 현장마다 다르므로 파일로 뺀다.</summary>

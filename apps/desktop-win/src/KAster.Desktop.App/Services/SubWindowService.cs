@@ -36,8 +36,13 @@ public sealed class SubWindowService
     /// 창이 없을 때만 불린다. 이미 열려 있는데 화면과 뷰모델을 새로 만들면 상담원이 보고 있던
     /// 창은 옛 뷰모델을 든 채 남고, 새로 만든 쪽에만 값이 들어간다.
     /// </param>
-    public void Open(SubWindowSpec spec, Func<object> createContent)
-        => _ledger.OpenOrSurface(spec.Key, () => Create(spec, createContent()), Surface);
+    /// <param name="onClosed">
+    /// 창이 실제로 닫힌 뒤에 불린다. <b>상담원이 제목 표시줄 X 로 닫은 경로도 여기를 지난다</b> —
+    /// 화면 안쪽 닫기 버튼만 듣고 있으면, X 로 닫은 창의 주기 조회가 아무도 안 보는 채로 계속 돈다.
+    /// 이미 열려 있는 창을 다시 요청한 경우에는 걸지 않는다 — 두 번 걸면 한 번 닫을 때 두 번 불린다.
+    /// </param>
+    public void Open(SubWindowSpec spec, Func<object> createContent, Action? onClosed = null)
+        => _ledger.OpenOrSurface(spec.Key, () => Create(spec, createContent(), onClosed), Surface);
 
     /// <summary>화면 안쪽 버튼으로 닫는 경로. 창의 Closed 가 장부에서 자기를 지운다.</summary>
     public void Close(string key)
@@ -53,7 +58,7 @@ public sealed class SubWindowService
         foreach (var window in _ledger.Drain()) window.Close();
     }
 
-    private Window Create(SubWindowSpec spec, object content)
+    private Window Create(SubWindowSpec spec, object content, Action? onClosed)
     {
         var window = new Window
         {
@@ -84,7 +89,12 @@ public sealed class SubWindowService
         window.Top = at.Top;
 
         // 상담원이 X 로 닫은 창을 장부에 남겨 두면 그 창은 영영 다시 안 열린다.
-        window.Closed += (_, _) => _ledger.Forget(spec.Key);
+        // 장부를 먼저 비운다 — onClosed 가 뷰모델을 닫으면 그쪽이 다시 이 창을 닫으러 온다.
+        window.Closed += (_, _) =>
+        {
+            _ledger.Forget(spec.Key);
+            onClosed?.Invoke();
+        };
 
         window.Show();
         return window;
