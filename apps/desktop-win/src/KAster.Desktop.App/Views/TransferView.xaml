@@ -28,20 +28,48 @@
                 <DataTemplate>
                     <Button Margin="0,0,0,6"
                             HorizontalContentAlignment="Stretch"
+                            ToolTip="{Binding StatusText}"
                             Style="{StaticResource ButtonSecondary}"
                             Command="{Binding DataContext.TransferToCommand,
                                               RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Extension}">
-                        <!-- 버튼 스타일의 가운데 정렬이 내려오면 이름이 가운데로 몰린다. -->
-                        <StackPanel HorizontalAlignment="Left">
-                            <TextBlock Text="{Binding AgentName}"
-                                       FontWeight="SemiBold"
-                                       HorizontalAlignment="Left"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding Extension}"
-                                       HorizontalAlignment="Left"
-                                       Style="{StaticResource TextCaption}" />
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding AgentName}"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Left"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Extension}"
+                                           HorizontalAlignment="Left"
+                                           Style="{StaticResource TextCaption}" />
+                            </StackPanel>
+
+                            <!--
+                                지금 받을 수 있는지. 모르고 돌려주면 통화가 허공으로 가고
+                                발신자는 그 사이 기다리다 끊는다.
+                            -->
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding StatusText}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Right">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CanTakeCall}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
                     </Button>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

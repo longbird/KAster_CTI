@@ -36,6 +36,7 @@ public sealed class SoftphoneViewModel : ObservableObject
     private bool _isChoosingTransferTarget;
     private bool _isViewingHistory;
     private bool _isKeypadOpen;
+    private IReadOnlyList<ActiveCall> _activeCalls = Array.Empty<ActiveCall>();
     private string _transferFilter = string.Empty;
     private string _customerName = string.Empty;
     private string _branchName = string.Empty;
@@ -779,8 +780,15 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
     }
 
-    /// <summary>돌려줄 수 있는 상대. 자기 자신은 뺀다 — 자기에게 돌려주는 것은 뜻이 없다.</summary>
-    public IReadOnlyList<AgentDirectoryEntry> TransferTargets => MatchingTargets().Take(MaxTransferTargetsShown).ToArray();
+    /// <summary>
+    /// 돌려줄 수 있는 상대. 자기 자신은 뺀다 — 자기에게 돌려주는 것은 뜻이 없다.
+    /// 받을 수 있는 사람이 위로 온다. 목록이 잘려도 쓸 수 있는 쪽이 남는다.
+    /// </summary>
+    public IReadOnlyList<TransferTarget> TransferTargets => MatchingTargets()
+        .Select(entry => TransferTarget.From(entry, IsOnACall(entry.AgentId)))
+        .OrderByDescending(target => target.CanTakeCall)
+        .Take(MaxTransferTargetsShown)
+        .ToArray();
 
     /// <summary>창에 못 담아 가린 인원. 숨기지 말고 숫자로 알린다.</summary>
     public int TransferTargetsHidden => Math.Max(0, MatchingTargets().Count() - MaxTransferTargetsShown);
@@ -909,11 +917,32 @@ public sealed class SoftphoneViewModel : ObservableObject
                 || entry.AgentName.Contains(needle, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// 이 상담원이 지금 통화 중인가. 서버가 주는 근무 상태는 통화 시작과 함께 바로
+    /// 바뀌지 않을 수 있어, 실제 진행 중인 통화로 한 번 더 본다.
+    /// </summary>
+    private bool IsOnACall(string agentId)
+        => _activeCalls.Any(call => string.Equals(call.PrimaryAgentId, agentId, StringComparison.Ordinal));
+
     private void BeginTransfer()
     {
         TransferFilter = string.Empty;
         IsChoosingTransferTarget = true;
         WindowMode = WindowMode.Transferring;
+
+        // 상태는 낡는다. 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면
+        // 이미 이석한 사람에게 돌려주게 된다. 열면서 다시 받는다.
+        _pendingWork = RefreshTransferTargetsAsync();
+    }
+
+    private async Task RefreshTransferTargetsAsync(CancellationToken ct = default)
+    {
+        var directory = await Send(() => _server.GetAgentDirectoryAsync(ct));
+        if (directory is null) return;
+
+        _directory = directory;
+        Raise(nameof(TransferTargets));
+        Raise(nameof(TransferTargetsHidden));
     }
 
     private void EndTransfer()
@@ -996,6 +1025,8 @@ public sealed class SoftphoneViewModel : ObservableObject
         try
         {
             var calls = await _server.GetActiveCallsAsync(ct);
+            // 누가 통화 중인지 판단하는 데도 쓴다 — 돌려줄 상대를 고를 때.
+            _activeCalls = calls;
             var pickable = calls
                 .Where(CanBePickedUp)
                 .Select(call => new WaitingCall(

@@ -556,8 +556,17 @@ public class SoftphoneViewModelTests
 
     private const string DirectoryJson = """
     {"success":true,"data":[
-      {"agentId":"a-1","agentName":"김상담","extension":"1001"},
-      {"agentId":"a-2","agentName":"이상담","extension":"1002"}
+      {"agentId":"a-1","agentName":"김상담","extension":"1001",
+       "loginStatus":"LOGGED_IN","currentStatus":{"statusCode":"AVAILABLE"}},
+      {"agentId":"a-2","agentName":"이상담","extension":"1002",
+       "loginStatus":"LOGGED_IN","currentStatus":{"statusCode":"AVAILABLE"},
+       "sipRegistration":{"registered":true}},
+      {"agentId":"a-3","agentName":"박상담","extension":"1003",
+       "loginStatus":"LOGGED_IN","currentStatus":{"statusCode":"BREAK"},
+       "sipRegistration":{"registered":true}},
+      {"agentId":"a-4","agentName":"최상담","extension":"1004",
+       "loginStatus":"LOGGED_OUT","currentStatus":null,
+       "sipRegistration":{"registered":false}}
     ],"error":null}
     """;
 
@@ -831,6 +840,71 @@ public class SoftphoneViewModelTests
         store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
 
         Assert.True(vm.ShowsKeypad);
+    }
+
+    /// <summary>
+    /// 상대가 받을 수 있는 상태인지 모르고 돌려주면 통화가 허공으로 간다.
+    /// 발신자는 그 사이 기다리다 끊는다.
+    /// </summary>
+    [Fact]
+    public async Task Transfer_targets_show_what_each_person_is_doing()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.StartTransferCommand.Execute(null);
+
+        var byExtension = vm.TransferTargets.ToDictionary(t => t.Extension);
+
+        Assert.Equal("대기", byExtension["1002"].StatusText);
+        Assert.Equal("이석", byExtension["1003"].StatusText);
+        Assert.Equal("로그아웃", byExtension["1004"].StatusText);
+    }
+
+    [Fact]
+    public async Task Someone_who_cannot_take_a_call_is_marked_so()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.StartTransferCommand.Execute(null);
+
+        var byExtension = vm.TransferTargets.ToDictionary(t => t.Extension);
+
+        Assert.True(byExtension["1002"].CanTakeCall);
+        Assert.False(byExtension["1003"].CanTakeCall);
+        Assert.False(byExtension["1004"].CanTakeCall);
+    }
+
+    /// <summary>
+    /// 상태는 낡는다. 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면 이미 이석한
+    /// 사람에게 돌려주게 된다. 목록을 열 때마다 다시 받는다.
+    /// </summary>
+    [Fact]
+    public async Task Opening_the_transfer_list_asks_for_fresh_status()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        var before = DirectoryLookups(stub);
+        stub.Enqueue(HttpStatusCode.OK, DirectoryJson);
+
+        vm.StartTransferCommand.Execute(null);
+        await vm.PendingWork;
+
+        Assert.Equal(before + 1, DirectoryLookups(stub));
+    }
+
+    /// <summary>받을 수 있는 사람이 위로 온다. 목록이 잘려도 쓸 수 있는 쪽이 남는다.</summary>
+    [Fact]
+    public async Task People_who_can_answer_come_first()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.StartTransferCommand.Execute(null);
+
+        Assert.Equal("1002", vm.TransferTargets[0].Extension);
     }
 
     private static int DirectoryLookups(StubHttpHandler stub)
