@@ -24,6 +24,19 @@ describe('renderDialplan', () => {
     expect(line).toContain('rec=');
   });
 
+  /**
+   * Asterisk 는 상대 경로 음원을 언어 디렉터리(sounds/en/custom/) 밑에서 찾는다.
+   * 우리는 sounds/custom/ 에 쓰므로 상대 경로로 부르면 못 찾고, 발신자는 45초를
+   * 기다린 끝에 아무 말도 없이 끊긴다. 로그에는 "발신자가 포기함" 으로만 남는다.
+   * 다른 안내(Smart ARS 등)가 모두 절대 경로인 것과 짝을 맞춘다.
+   */
+  it('큐 대기 초과 안내를 Asterisk 가 찾을 수 있는 경로로 부른다', () => {
+    const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [] });
+
+    expect(extensionsQueue).toContain('Playback(/var/lib/asterisk/sounds/custom/queue_timeout)');
+    expect(extensionsQueue).not.toContain('Playback(custom/queue_timeout)');
+  });
+
   it('renders inbound-main context', () => {
     const { extensionsInbound } = renderDialplan({ dids: [], ivrMenus: [] });
     expect(extensionsInbound).toContain('[inbound-main]');

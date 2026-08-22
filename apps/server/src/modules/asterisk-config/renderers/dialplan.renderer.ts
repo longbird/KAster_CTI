@@ -408,7 +408,10 @@ function renderQueueOverflowTimeoutContext(queueOverflowRules: QueueOverflowRule
 function renderQueueOverflowContext(queueOverflowRules: QueueOverflowRuleInput[]): string {
   const lines = [
     '[queue-overflow]',
-    'exten => _.,1,Playback(custom/queue_timeout)',
+    // 상대 경로로 부르면 Asterisk 가 언어 디렉터리(sounds/en/custom/) 밑에서 찾는다.
+    // 우리는 sounds/custom/ 에 쓰므로 못 찾고, 발신자는 45초를 기다린 끝에 아무 말도 없이
+    // 끊긴다. 로그에는 "발신자가 포기함" 으로만 남아 원인을 알 수 없다.
+    `exten => _.,1,Playback(${CUSTOM_SOUND_ABSOLUTE_PREFIX}queue_timeout)`,
     ' same => n,Hangup()',
   ];
 

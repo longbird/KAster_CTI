@@ -29,6 +29,8 @@ import { AGENT_OFFER_AGI_PATH } from '../../common/call-routing.constants';
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const DEFAULT_MOH_DIR = '/var/lib/asterisk/moh';
 const DEFAULT_MOH_FILE_NAME = 'kaster-default-hold.wav';
+// dialplan 의 Playback(custom/queue_timeout) 과 짝이다. 한쪽만 바꾸면 다시 무음이 된다.
+const QUEUE_TIMEOUT_PROMPT_FILE_NAME = 'queue_timeout.wav';
 const OPT_OUT_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-opt-out-hook.sh';
 const OPT_OUT_GUARDED_DIGIT_AGI_PATH = '/var/lib/asterisk/sounds/custom/kaster-guarded-digit.agi';
 const SMART_ARS_HOOK_SCRIPT_PATH = '/var/lib/asterisk/sounds/custom/kaster-smart-ars-hook.sh';
@@ -971,6 +973,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     })));
 
     this.ensureDefaultMohAsset();
+    this.ensureQueueTimeoutPrompt(soundsDir);
     this.syncPromptMohAssets(promptMohClasses, soundsDir);
 
     fs.writeFileSync(path.join(confDir, 'pjsip.conf'), pjsipContent, 'utf8');
@@ -1158,6 +1161,24 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       { encoding: 'utf8', mode: 0o755 },
     );
     fs.chmodSync(AGENT_OFFER_AGI_PATH, 0o755);
+  }
+
+  /**
+   * 큐 대기 시간을 넘겼을 때 나가는 안내.
+   *
+   * 없으면 발신자는 45초를 기다린 끝에 <b>아무 말도 없이</b> 끊긴다. 통화가 잘못된 것인지
+   * 그냥 끊긴 것인지 알 수 없고, 로그에는 "발신자가 포기함" 으로만 남는다.
+   *
+   * 이미 파일이 있으면 건드리지 않는다. 현장에서 녹음한 안내를 올려 뒀을 수 있는데,
+   * 부팅할 때마다 기본 음으로 덮으면 그 녹음이 조용히 사라진다.
+   */
+  private ensureQueueTimeoutPrompt(soundsDir: string) {
+    const targetPath = path.join(soundsDir, QUEUE_TIMEOUT_PROMPT_FILE_NAME);
+    if (fs.existsSync(targetPath)) return;
+
+    fs.mkdirSync(soundsDir, { recursive: true });
+    fs.writeFileSync(targetPath, buildDefaultMohWav());
+    this.logger.log(`default queue timeout prompt created at ${targetPath}`);
   }
 
   private ensureDefaultMohAsset() {
