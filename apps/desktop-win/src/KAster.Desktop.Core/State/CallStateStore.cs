@@ -182,7 +182,16 @@ public sealed class CallStateStore
         Mutate(() =>
         {
             // 다른 상담원에게 배정된 통화는 이 클라이언트의 관심사가 아니다.
-            if (call.PrimaryAgentId is not null && call.PrimaryAgentId != _agentId) return;
+            if (call.PrimaryAgentId is not null && call.PrimaryAgentId != _agentId)
+            {
+                // 단, 들고 있던 통화가 남의 것이 되어 돌아왔으면 놓아야 한다.
+                //
+                // 큐는 여러 상담원에게 동시에 걸어 보고, 그동안 세션의 주인은 우리였다가
+                // 먼저 받은 사람으로 바뀐다. 그 갱신을 그냥 무시하면 배정 직전의 "울리는 중" 이
+                // 화면에 굳은 채 통화가 끝날 때까지 남는다 — 이미 놓친 전화를 계속 들여다보게 된다.
+                if (HoldsCall(call.CallId)) Release();
+                return;
+            }
 
             // 배정된 사람이 없는 통화는 큐에서 기다리는 중이거나 방금 만들어진 것이다.
             // 그걸 자기 전화로 띄우면 그 큐의 모든 상담원 화면이 같은 통화로 덮이고 받기 경쟁이 난다.
@@ -208,12 +217,18 @@ public sealed class CallStateStore
         {
             if (_server is not null && _server.CallId != call.CallId) return;
 
-            _server = null;
-            _serverReceivedAt = null;
-            _sip = null;
-            _paired = false;
-            _expectOutboundUntil = null;
+            Release();
         });
+    }
+
+    /// <summary>들고 있던 통화를 놓는다. 끝났거나, 더는 우리 통화가 아니거나.</summary>
+    private void Release()
+    {
+        _server = null;
+        _serverReceivedAt = null;
+        _sip = null;
+        _paired = false;
+        _expectOutboundUntil = null;
     }
 
     private void AttachCustomer(ScreenPopEvent pop)

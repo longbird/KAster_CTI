@@ -61,6 +61,95 @@ describe('AgentOfferService', () => {
   });
 
   /**
+   * 이 프로젝트에서 실제로 난 사고다. 옆 상담원이 먼저 받았는데도 진 쪽 화면에는
+   * "받으시겠습니까?" 가 그대로 남았다.
+   *
+   * PBX 신호로는 못 잡는다 — 진 쪽 Local 채널이 끊겨도 AGI 는 `urlopen()` 안에서 막혀 있어
+   * 롱폴 연결이 그대로 살아 있다. 누가 받았다는 사실로 닫아야 한다.
+   */
+  it('한 상담원이 받으면 같은 호를 물어봐 둔 다른 자리도 닫는다', async () => {
+    const { service, publish } = makeService();
+
+    const winner = service.waitForDecision(REQUEST);
+    const loser = service.waitForDecision({ ...REQUEST, extension: '1002' });
+    await Promise.resolve();
+
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+
+    await expect(winner).resolves.toBe('ACCEPT');
+    await expect(loser).resolves.toBe('ABANDONED');
+
+    // 화면의 제안은 이 알림으로만 내려간다.
+    expect(publish).toHaveBeenCalledWith(
+      AGENT_OFFER_CLOSED_EVENT,
+      expect.objectContaining({ extension: '1002', decision: 'ABANDONED' }),
+      'tenant-1',
+    );
+  });
+
+  /** 다른 호의 제안까지 같이 내리면 멀쩡히 울리던 전화가 사라진다. */
+  it('다른 호의 제안은 건드리지 않는다', async () => {
+    jest.useFakeTimers();
+    const { service } = makeService();
+
+    const other = service.waitForDecision({ ...REQUEST, linkedid: '1787355742.99', extension: '1002' });
+    const accepted = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+    await expect(accepted).resolves.toBe('ACCEPT');
+
+    jest.advanceTimersByTime(10_000);
+    await expect(other).resolves.toBe('TIMEOUT');
+  });
+
+  /**
+   * AGI 재시도가 이미 떠 있는 제안에 합류하는 길. 예전에는 그 길이 곧장 return 해서
+   * 결정을 받고도 닫힘을 안 알렸고, 화면의 제안이 영영 안 내려갔다.
+   */
+  it('이미 떠 있는 제안에 합류해도 닫힘을 알린다', async () => {
+    const { service, publish } = makeService();
+
+    const first = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+    publish.mockClear();
+
+    const second = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+
+    await expect(first).resolves.toBe('ACCEPT');
+    await expect(second).resolves.toBe('ACCEPT');
+    expect(publish).toHaveBeenCalledWith(
+      AGENT_OFFER_CLOSED_EVENT,
+      expect.objectContaining({ offerId: '1787355742.21:1001', decision: 'ACCEPT' }),
+      'tenant-1',
+    );
+  });
+
+  /**
+   * 앞선 연결이 끊겼다고 제안을 닫으면, 그 제안을 넘겨받아 기다리던 재시도까지 같이 죽는다.
+   * 그러면 상담원이 누른 수락이 아무 데도 도착하지 않는다.
+   */
+  it('아직 기다리는 연결이 남아 있으면 제안을 닫지 않는다', async () => {
+    const { service } = makeService();
+
+    let abandonFirst = () => {};
+    const first = service.waitForDecision(REQUEST, (abandon) => { abandonFirst = abandon; });
+    await Promise.resolve();
+
+    const second = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+
+    abandonFirst();
+    await expect(first).resolves.toBe('ABANDONED');
+
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+    await expect(second).resolves.toBe('ACCEPT');
+  });
+
+  /**
    * 상담원이 자리를 비웠을 수 있다. 무한정 기다리면 발신자가 큐에 갇힌 채
    * 다음 상담원에게 넘어가지 못한다.
    */

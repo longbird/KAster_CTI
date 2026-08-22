@@ -3,13 +3,14 @@
  *
  * dialplan 이 `AGI(kaster-agent-offer.agi, <내선>, <타임아웃초>)` 로 부른다.
  * 서버에 롱폴을 걸어 상담원의 결정을 기다렸다가 `KASTER_OFFER_RESULT` 에
- * `ACCEPT` / `REJECT` / `TIMEOUT` 중 하나를 넣어 준다.
+ * `ACCEPT` / `REJECT` / `TIMEOUT` / `ABANDONED` 중 하나를 넣어 준다.
+ * `ABANDONED` 는 사람이 고른 값이 아니라 **다른 상담원이 먼저 받았다**는 뜻이다.
  *
  * **실패하면 ACCEPT 로 연다.** 서버가 죽었거나 네트워크가 막혔을 때 전부 거절로 처리하면
  * 콜센터가 통째로 멈춘다. 확인 절차가 고장난 것과 전화를 못 받는 것 중에서는 전자가 낫다.
  *
  * `System()` 이 아니라 AGI 인 이유: `SYSTEMSTATUS` 는 성공/실패 두 가지뿐이라
- * ACCEPT/REJECT/TIMEOUT 세 가지를 구분할 수 없다.
+ * 이 여러 갈래를 구분할 수 없다.
  */
 
 import {
@@ -95,7 +96,7 @@ export function buildAgentOfferAgiScript(httpPort: number, internalSecret: strin
     '        with urllib.request.urlopen(request, timeout=timeout + 3) as response:',
     '            body = json.loads(response.read().decode("utf-8") or "{}")',
     '        decision = (body.get("data") or {}).get("decision") or body.get("decision")',
-    '        if decision in ("ACCEPT", "REJECT", "TIMEOUT"):',
+    '        if decision in ("ACCEPT", "REJECT", "TIMEOUT", "ABANDONED"):',
     '            result = decision',
     '    except Exception:',
     '        result = "ACCEPT"',

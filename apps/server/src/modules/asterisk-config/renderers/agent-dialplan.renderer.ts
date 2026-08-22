@@ -521,7 +521,9 @@ function renderAgentOffer(
     ` same => n,UserEvent(KasterAgentOffer,Stage: result,Result: \${KASTER_OFFER_RESULT},${offerFields})`,
     // 명시적인 거절만 거절로 본다. AGI 가 아예 못 돌면 이 변수는 빈 문자열인데,
     // 그걸 거절로 보면 모든 상담원이 통과되고 아무도 전화를 못 받는다 — 콜센터가 통째로 멈춘다.
-    ' same => n,GotoIf($["${KASTER_OFFER_RESULT}"="REJECT" | "${KASTER_OFFER_RESULT}"="TIMEOUT"]?declined)',
+    // ABANDONED 는 다른 상담원이 먼저 받았다는 뜻이다. 여기 안 적으면 아래 Dial 로 떨어져,
+    // 방금 호를 놓친 상담원의 전화기가 이미 끝난 통화로 울린다.
+    ' same => n,GotoIf($["${KASTER_OFFER_RESULT}"="REJECT" | "${KASTER_OFFER_RESULT}"="TIMEOUT" | "${KASTER_OFFER_RESULT}"="ABANDONED"]?declined)',
     ' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))',
     ' same => n,Hangup()',
     // 끊으면 Queue 가 다음 상담원으로 넘어간다.

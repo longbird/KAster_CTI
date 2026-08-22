@@ -35,8 +35,15 @@ export function agentOfferId(linkedid: string, extension: string): string {
   return `${linkedid}:${extension}`;
 }
 
+type OfferResolver = (decision: AgentOfferDecision) => void;
+
 interface PendingOffer {
-  resolve: (decision: AgentOfferDecision) => void;
+  /**
+   * 이 제안을 기다리는 롱폴들. **하나가 아니다** — AGI 가 재시도로 같은 제안을 다시 부를 수 있고,
+   * 그때 앞선 기다림을 버리면 그쪽은 영영 답을 못 받는다. AGI 는 답이 없으면 ACCEPT 로
+   * 열어 버리므로(고장 나도 전화는 받게 하려는 설계), 버려진 기다림 하나가 곧 자동 수락이 된다.
+   */
+  resolvers: Set<OfferResolver>;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -60,8 +67,33 @@ export class AgentOfferService implements OnModuleInit {
       const { offerId, decision } = (payload ?? {}) as { offerId?: string; decision?: AgentOfferDecision };
       if (!offerId || !decision) return;
 
+      // 한 사람이 받았으면 그 호는 끝났다. 같은 호를 물어봐 둔 다른 자리도 같이 내린다.
+      if (decision === 'ACCEPT') this.abandonSiblings(offerId);
+
       this.settle(offerId, decision);
     });
+  }
+
+  /**
+   * 같은 호를 물어봐 둔 다른 상담원의 제안을 닫는다.
+   *
+   * 이걸 PBX 신호에 기대면 안 된다. 진 쪽 Local 채널이 끊겨도 AGI 는 `urlopen()` 안에서
+   * 막혀 있어 우리 쪽 연결은 그대로 열려 있고, 그래서 "연결이 끊겼다" 는 신호가 오지 않는다.
+   * 결국 이미 끝난 전화의 수락 버튼이 대기 시간을 다 채울 때까지 남는다.
+   * 반면 **누가 받았다는 사실은 우리가 이미 알고 있다** — 그것으로 닫는 편이 확실하다.
+   */
+  private abandonSiblings(acceptedOfferId: string) {
+    const separator = acceptedOfferId.lastIndexOf(':');
+    if (separator <= 0) return;
+
+    const prefix = `${acceptedOfferId.slice(0, separator)}:`;
+
+    for (const offerId of [...this.pending.keys()]) {
+      if (offerId === acceptedOfferId) continue;
+      if (!offerId.startsWith(prefix)) continue;
+
+      this.settle(offerId, 'ABANDONED');
+    }
   }
 
   /**
@@ -76,34 +108,7 @@ export class AgentOfferService implements OnModuleInit {
     onAbort?: AgentOfferAbortHook,
   ): Promise<AgentOfferDecision> {
     const offerId = agentOfferId(request.linkedid, request.extension);
-
-    // 이미 같은 제안이 떠 있으면 새로 열지 않는다. AGI 가 재시도로 두 번 부를 수 있고,
-    // 그때 앞선 대기를 버리면 상담원이 누른 결정이 아무 데도 도착하지 않는다.
-    const existing = this.pending.get(offerId);
-    if (existing) {
-      return new Promise((resolve) => {
-        existing.resolve = resolve;
-        onAbort?.(() => this.abandonIfOwned(offerId, resolve));
-      });
-    }
-
-    let ownResolve: (decision: AgentOfferDecision) => void;
-    const decision = new Promise<AgentOfferDecision>((resolve) => {
-      ownResolve = resolve;
-      const timer = setTimeout(() => this.settle(offerId, 'TIMEOUT'), request.timeoutSeconds * 1000);
-      this.pending.set(offerId, { resolve, timer });
-    });
-    onAbort?.(() => this.abandonIfOwned(offerId, ownResolve));
-
-    await this.eventBus.publish(AGENT_OFFER_EVENT, {
-      offerId,
-      linkedid: request.linkedid,
-      extension: request.extension,
-      caller: request.caller ?? null,
-      timeoutSeconds: request.timeoutSeconds,
-    }, request.tenantId);
-
-    const result = await decision;
+    const result = await this.enqueue(offerId, request, onAbort);
 
     // 다른 상담원이 받았든 시간이 지났든, 화면에 뜬 제안은 사라져야 한다.
     await this.eventBus.publish(AGENT_OFFER_CLOSED_EVENT, {
@@ -113,6 +118,47 @@ export class AgentOfferService implements OnModuleInit {
     }, request.tenantId);
 
     return result;
+  }
+
+  /**
+   * 이 제안의 결정을 기다리는 줄에 선다.
+   *
+   * 제안을 여는 것과 <b>닫혔다고 알리는 것</b>을 갈라 둔 이유가 있다. 예전에는 이미 떠 있는
+   * 제안에 합류하는 길이 곧장 return 해서, 그 길로 들어온 요청은 결정을 받고도 닫힘을
+   * 알리지 않았다. 화면의 제안은 그 알림으로만 내려가므로, 상담원 앞에는 이미 끝난 전화의
+   * 수락 버튼이 계속 남았다. 이제 두 길 모두 <see cref="waitForDecision"/> 의 알림을 지난다.
+   */
+  private enqueue(
+    offerId: string,
+    request: AgentOfferRequest,
+    onAbort?: AgentOfferAbortHook,
+  ): Promise<AgentOfferDecision> {
+    const existing = this.pending.get(offerId);
+
+    // 이미 같은 제안이 떠 있으면 새로 열지 않는다. AGI 가 재시도로 두 번 부를 수 있고,
+    // 그때 앞선 대기를 버리면 상담원이 누른 결정이 아무 데도 도착하지 않는다.
+    if (existing) {
+      return new Promise<AgentOfferDecision>((resolve) => {
+        existing.resolvers.add(resolve);
+        onAbort?.(() => this.dropWaiter(offerId, resolve));
+      });
+    }
+
+    const decision = new Promise<AgentOfferDecision>((resolve) => {
+      const timer = setTimeout(() => this.settle(offerId, 'TIMEOUT'), request.timeoutSeconds * 1000);
+      this.pending.set(offerId, { resolvers: new Set([resolve]), timer });
+      onAbort?.(() => this.dropWaiter(offerId, resolve));
+    });
+
+    return this.eventBus
+      .publish(AGENT_OFFER_EVENT, {
+        offerId,
+        linkedid: request.linkedid,
+        extension: request.extension,
+        caller: request.caller ?? null,
+        timeoutSeconds: request.timeoutSeconds,
+      }, request.tenantId)
+      .then(() => decision);
   }
 
   /** 상담원이 누른 결정을 기다리고 있는 노드로 보낸다. */
@@ -132,17 +178,20 @@ export class AgentOfferService implements OnModuleInit {
   }
 
   /**
-   * 기다리던 연결이 끊겼으니 제안을 닫는다. 단, 그 기다림이 아직 이 제안의 주인일 때만.
+   * 기다리던 연결 하나가 끊겼다. 그 하나만 놓아주고, 아직 기다리는 쪽이 있으면 제안은 살려 둔다.
    *
-   * 두 가지를 이 확인 하나로 막는다.
-   * - 정상 응답 뒤에도 연결은 닫힌다. `settle` 이 pending 을 먼저 지우므로 그땐 걸리는 게 없다.
-   *   안 막으면 이미 수락된 제안을 한 번 더 닫아, 다음 통화의 같은 제안을 엉뚱하게 내린다.
-   * - AGI 재시도가 같은 제안을 넘겨받았을 수 있다. 그땐 우리 것이 아니므로 두고 나간다.
-   *   안 막으면 앞선 연결이 끊길 때 지금 기다리는 재시도까지 같이 죽는다.
+   * 마지막 하나까지 끊겼을 때만 제안을 닫는 이유는 AGI 재시도 때문이다. 재시도가 같은 제안을
+   * 넘겨받은 뒤 앞선 연결이 끊기는데, 그걸로 제안을 닫으면 지금 기다리는 재시도까지 같이 죽는다.
+   *
+   * 정상 응답 뒤에도 연결은 닫힌다. 그땐 `settle` 이 이미 pending 을 지웠으므로 걸리는 게 없다 —
+   * 안 그러면 이미 수락된 제안을 한 번 더 닫아 다음 통화의 같은 제안을 엉뚱하게 내린다.
    */
-  private abandonIfOwned(offerId: string, resolve: (decision: AgentOfferDecision) => void) {
-    if (this.pending.get(offerId)?.resolve !== resolve) return;
-    this.settle(offerId, 'ABANDONED');
+  private dropWaiter(offerId: string, resolve: OfferResolver) {
+    const offer = this.pending.get(offerId);
+    if (!offer?.resolvers.delete(resolve)) return;
+
+    resolve('ABANDONED');
+    if (offer.resolvers.size === 0) this.settle(offerId, 'ABANDONED');
   }
 
   private settle(offerId: string, decision: AgentOfferDecision) {
@@ -152,6 +201,6 @@ export class AgentOfferService implements OnModuleInit {
     // 결정은 자기 노드에도 되돌아온다. 먼저 지우고 풀어야 두 번 처리되지 않는다.
     this.pending.delete(offerId);
     clearTimeout(offer.timer);
-    offer.resolve(decision);
+    for (const resolve of offer.resolvers) resolve(decision);
   }
 }

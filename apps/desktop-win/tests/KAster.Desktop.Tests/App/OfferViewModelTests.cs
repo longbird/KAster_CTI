@@ -64,6 +64,53 @@ public class OfferViewModelTests : SoftphoneViewModelTestBase
         Assert.Equal(WindowMode.Idle, vm.WindowMode);
     }
 
+    /// <summary>
+    /// 실제로 난 사고의 재현. 옆 상담원이 먼저 받아 제안이 내려갔는데도 "받으시겠습니까?" 화면이
+    /// 버튼만 죽은 채 그대로 남았다.
+    ///
+    /// 큐는 우리에게도 걸어 보므로 그동안 이 통화는 우리 것이다. 그래서 제안이 내려가도 창 모양은
+    /// <c>Ringing</c> 그대로고, 창을 여는 쪽은 값이 <b>바뀔 때만</b> 화면을 다시 골랐다.
+    /// 화면 선택은 창 모양뿐 아니라 제안이 떠 있는지도 보므로, 값이 같아도 다시 골라야 한다.
+    /// </summary>
+    [Fact]
+    public void A_closed_offer_rechooses_the_screen_even_when_the_window_shape_stays()
+    {
+        var (vm, store, _, _) = Build();
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+        store.Apply(new CallOfferedEvent(new CallOffer
+        {
+            OfferId = "lk:1001", Linkedid = "lk", Extension = "1001", TimeoutSeconds = 10,
+        }));
+        Assert.Equal(WindowMode.Ringing, vm.WindowMode);
+
+        var rechosen = 0;
+        vm.WindowModeRequested += (_, _) => rechosen++;
+
+        store.Apply(new CallOfferClosedEvent("lk:1001", "1001", "ABANDONED"));
+
+        Assert.False(vm.Offer.HasOffer);
+        Assert.Equal(WindowMode.Ringing, vm.WindowMode);
+        Assert.Equal(1, rechosen);
+    }
+
+    /// <summary>
+    /// 큐는 여러 상담원에게 동시에 걸어 보고, 세션의 주인은 먼저 받은 사람으로 바뀐다.
+    /// 그 갱신을 무시하면 배정 직전의 "울리는 중" 이 화면에 굳어 통화가 끝날 때까지 남는다.
+    /// </summary>
+    [Fact]
+    public void A_call_taken_by_someone_else_leaves_our_screen()
+    {
+        var (vm, store, _, _) = Build();
+
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+        Assert.Equal(WindowMode.Ringing, vm.WindowMode);
+
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking) with { PrimaryAgentId = "a-2" }));
+
+        Assert.Equal(WindowMode.Idle, vm.WindowMode);
+    }
+
     [Fact]
     public async Task Accepting_an_offer_tells_the_server_which_call_it_was()
     {

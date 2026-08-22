@@ -126,19 +126,23 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 덮으면 알리는 것이 아니라 뺏는 것이다 — 대신 알릴 것이 생겼다고만 올린다.
         Offer.Changed += (_, offer) =>
         {
+            RechooseView(() =>
+            {
+                if (offer is not null) WindowMode = WindowMode.Ringing;
+                else OnCurrentCallChanged(_store.Current);
+            });
+
             if (offer is not null)
             {
-                WindowMode = WindowMode.Ringing;
                 AttentionRequested?.Invoke(
                     this, OfferAlert.For(Offer.OfferPhoneNumber, Offer.CountdownText));
             }
-            else OnCurrentCallChanged(_store.Current);
         };
 
-        Transfer.Started += (_, _) => WindowMode = WindowMode.Transferring;
-        Transfer.Ended += (_, _) => OnCurrentCallChanged(_store.Current);
-        History.Opened += (_, _) => WindowMode = WindowMode.Settings;
-        History.Closed += (_, _) => OnCurrentCallChanged(_store.Current);
+        Transfer.Started += (_, _) => RechooseView(() => WindowMode = WindowMode.Transferring);
+        Transfer.Ended += (_, _) => RechooseView(() => OnCurrentCallChanged(_store.Current));
+        History.Opened += (_, _) => RechooseView(() => WindowMode = WindowMode.Settings);
+        History.Closed += (_, _) => RechooseView(() => OnCurrentCallChanged(_store.Current));
 
         // 내가 건 전화에 "받기" 는 뜻이 없다. 소프트폰이면 알아서 받고, 실기기면 수화기를 든다.
         AnswerCommand = new RelayCommand(
@@ -317,6 +321,27 @@ public sealed class SoftphoneViewModel : ObservableObject
     public string AgentName => _agent.AgentName;
 
     public string Extension => _agent.Extension;
+
+    /// <summary>
+    /// 화면을 고르는 근거가 바뀌었다고 알린다.
+    ///
+    /// 창은 <see cref="WindowMode"/> 하나로 정해지지 않는다 — 같은 <c>Ringing</c> 이라도
+    /// 제안이 떠 있으면 수락/거절 화면이고 아니면 수신 화면이며, <c>Transferring</c>·<c>Settings</c>
+    /// 도 각각 전환·기록이 열려 있는지를 함께 본다. 그런데 창 모양이 <b>같은 값으로</b> 다시
+    /// 정해지면 setter 가 조용히 빠져나가 아무도 화면을 다시 고르지 않는다.
+    ///
+    /// 그 자리에서 난 사고가 이것이다: 옆 상담원이 먼저 받아 제안이 내려갔는데도 수락/거절 화면이
+    /// 그대로 남고, 버튼만 죽은 채라 상담원은 자기가 놓친 전화를 계속 들여다본다.
+    /// 그래서 근거를 건드리는 쪽은 전부 이 문을 지난다.
+    /// </summary>
+    private void RechooseView(Action change)
+    {
+        var before = _windowMode;
+        change();
+
+        // 값이 바뀌었으면 setter 가 이미 올렸다. 두 번 올리면 화면이 두 번 만들어진다.
+        if (_windowMode == before) WindowModeRequested?.Invoke(this, _windowMode);
+    }
 
     public WindowMode WindowMode
     {
