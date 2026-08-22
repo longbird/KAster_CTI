@@ -1,3 +1,4 @@
+using KAster.Desktop.App.Services;
 using KAster.Desktop.Core.Contracts;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.State;
@@ -49,7 +50,17 @@ public sealed class DialViewModel : ObservableObject
     /// </summary>
     private string? _lastNotice;
 
-    private const int SelfAnswerWindowSeconds = 45;
+    /// <summary>
+    /// 현장 설정. <b>쓸 때마다 읽는다</b> — 설정 화면에서 바꾼 값이 다시 로그인해야 먹으면
+    /// 상담원은 자기가 고친 값이 안 쓰이는 줄 안다.
+    /// </summary>
+    private readonly Func<CallPreferences> _preferences;
+
+    /// <summary>
+    /// 걸기를 누른 뒤 되걸려 오는 전화를 우리 것으로 보는 기간.
+    /// PBX 가 이 단말을 되부르기까지 걸리는 시간이 트렁크마다 다르다.
+    /// </summary>
+    private int SelfAnswerWindowSeconds => _preferences().Sane().SelfAnswerWindowSeconds;
 
     public DialViewModel(
         CallStateStore store,
@@ -58,8 +69,11 @@ public sealed class DialViewModel : ObservableObject
         Func<DateTimeOffset> now,
         Action<string?> notify,
         Action<string> note,
-        Func<bool> isFree)
+        Func<bool> isFree,
+        Func<CallPreferences>? preferences = null)
     {
+        _preferences = preferences ?? (static () => new CallPreferences());
+
         _store = store;
         _server = server;
         _phone = phone;
@@ -173,10 +187,12 @@ public sealed class DialViewModel : ObservableObject
         // (실측 2026-08-21: 외부 발신에서 INVITE 가 ack 보다 1ms 빨랐다).
         // 그래서 요청을 보내기 전에 창을 연다. 응답을 기다렸다 열면 그 한 통을 놓친다.
         SetDialedNumber(number);
-        _selfAnswerUntil = _now().AddSeconds(SelfAnswerWindowSeconds);
+        // 기한과 저장소가 같은 값을 봐야 한다. 사이에 설정이 바뀌면 둘이 어긋난다.
+        var window = SelfAnswerWindowSeconds;
+        _selfAnswerUntil = _now().AddSeconds(window);
 
         // 곧 서버가 만들 통화는 아직 아무에게도 배정돼 있지 않다. 그래도 우리 것이다.
-        _store.ExpectOutboundCall(TimeSpan.FromSeconds(SelfAnswerWindowSeconds));
+        _store.ExpectOutboundCall(TimeSpan.FromSeconds(window));
         DialingNumber = PhoneNumberFormat.ForDisplay(number);
         IsDialing = true;
 

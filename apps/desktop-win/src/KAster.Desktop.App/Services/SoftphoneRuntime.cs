@@ -5,6 +5,7 @@ using KAster.Desktop.Core.Runtime;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.State;
 using KAster.Desktop.Core.Storage;
+using KAster.Desktop.Core.Updates;
 using KAster.Desktop.Softphone;
 using KAster.Desktop.Softphone.Audio;
 
@@ -71,6 +72,13 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
         };
 
         Server = new CtiServerClient(new HttpClient(RefreshHandler) { BaseAddress = settings.BaseUri });
+
+        // 업데이트는 회전 핸들러를 <b>안 거친다</b>. 그쪽은 모든 요청에 로그인 토큰을 덮어쓰는데,
+        // manifest 와 다운로드는 각자 다른 토큰을 실어야 한다 (UpdateClient 주석 참조).
+        Updates = new UpdateClient(
+            new HttpClient { BaseAddress = settings.BaseUri },
+            () => tokens.Load()?.AccessToken,
+            AppRelease.DeviceId);
         Events = new CtiEventClient(settings.BaseUri, () => tokens.Load()?.AccessToken);
         Calls = new CallStateStore(agent.AgentId, () => DateTimeOffset.UtcNow, null, agent.Extension);
         Phone = new SipSoftphoneClient(CreateAudio);
@@ -97,6 +105,9 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
     public TokenRefreshHandler RefreshHandler { get; }
 
     public CtiServerClient Server { get; }
+
+    /// <summary>승인된 새 버전 확인. 알리는 데까지만 쓴다 — 설치는 상담원이 정한다.</summary>
+    public UpdateClient Updates { get; }
 
     public CtiEventClient Events { get; }
 

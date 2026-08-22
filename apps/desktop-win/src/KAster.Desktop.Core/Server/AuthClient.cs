@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using KAster.Desktop.Core.Contracts;
 using KAster.Desktop.Core.Serialization;
@@ -6,6 +7,12 @@ using KAster.Desktop.Core.Storage;
 namespace KAster.Desktop.Core.Server;
 
 public sealed record LoginResult(TokenPair Tokens, SessionSummary Session);
+
+/// <summary>
+/// 웹에서 넘어온 1회용 토큰을 바꾼 결과. <b>SIP 설정이 없다</b> — 교환 응답에는 상담원만 실려 온다.
+/// 전화기를 띄우려면 <see cref="AuthClient.GetDesktopSessionAsync"/> 를 한 번 더 불러야 한다.
+/// </summary>
+public sealed record HandoffResult(TokenPair Tokens, AgentProfile Agent);
 
 /// <summary>
 /// 로그인 · 토큰 회전 · 세션 조회. 이 클라이언트는 <see cref="TokenRefreshHandler"/> 를 거치지 않는
@@ -66,6 +73,34 @@ public sealed class AuthClient
     public async Task<SessionSummary> GetSessionAsync(CancellationToken ct)
     {
         using var response = await _http.GetAsync("me/session", ct);
+        return await EnvelopeReader.ReadAsync<SessionSummary>(response, ct);
+    }
+
+    /// <summary>
+    /// 웹에서 넘긴 1회용 토큰을 이 앱의 세션으로 바꾼다. 가드가 없는 공개 경로다.
+    ///
+    /// 없는 토큰 · 만료된 토큰 · 이미 쓴 토큰 · 비활성 계정이 서버에서 <b>전부 같은 401</b> 이다.
+    /// 우리도 그것을 가르지 않는다 — 가를 근거가 없고, 가르는 척하면 없는 정보를 지어내는 것이다.
+    /// </summary>
+    public async Task<HandoffResult> ExchangeHandoffAsync(string handoffToken, CancellationToken ct)
+    {
+        using var response = await _http.PostAsJsonAsync(
+            "auth/handoff/exchange", new { handoffToken }, JsonDefaults.Options, ct);
+        var data = await EnvelopeReader.ReadAsync<AuthResponse>(response, ct);
+
+        return new HandoffResult(new TokenPair(data.AccessToken, data.RefreshToken), data.Agent);
+    }
+
+    /// <summary>
+    /// SIP credential 이 실린 데스크톱 세션. 방금 교환한 토큰은 아직 어느 클라이언트에도
+    /// 실려 있지 않으므로 <b>여기서 직접 얹는다</b> — 안 얹으면 401 이다.
+    /// </summary>
+    public async Task<SessionSummary> GetDesktopSessionAsync(string accessToken, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "auth/desktop/session");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await _http.SendAsync(request, ct);
         return await EnvelopeReader.ReadAsync<SessionSummary>(response, ct);
     }
 

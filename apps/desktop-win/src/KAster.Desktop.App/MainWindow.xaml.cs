@@ -5,6 +5,8 @@ using System.Windows.Threading;
 using KAster.Desktop.App.Services;
 using KAster.Desktop.App.ViewModels;
 using KAster.Desktop.App.Views;
+using KAster.Desktop.Core.Contracts;
+using KAster.Desktop.Core.Protocol;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.Storage;
 using KAster.Desktop.Softphone.Audio;
@@ -56,6 +58,12 @@ public partial class MainWindow : Window
     private SoftphoneViewModel? _softphone;
 
     /// <summary>
+    /// 새 버전 확인. 통화 화면과 설정 화면이 <b>같은 것 하나</b>를 본다 —
+    /// 둘로 두면 설정에서 확인한 결과가 통화 화면에 안 뜨고 그 반대도 마찬가지다.
+    /// </summary>
+    private UpdateViewModel? _update;
+
+    /// <summary>
     /// 전역 핫키. 창 핸들이 생긴 뒤라야 등록할 수 있어 생성자가 아니라 로그인 뒤에 세운다 —
     /// 어차피 로그인 전에는 받을 전화도 끊을 통화도 없다.
     /// </summary>
@@ -91,6 +99,11 @@ public partial class MainWindow : Window
 
         ShowLogin();
         _tray.Show(CurrentTrayState());
+
+        // 앱이 꺼져 있을 때 웹에서 링크를 누르면 요청이 창보다 먼저 도착해 있다.
+        // 화면이 선 지금에야 그것을 처리할 수 있다.
+        App.Protocol.Attach(request => Dispatcher.Invoke(() => OnHandoffRequested(request)));
+        App.Protocol.MarkReady();
 
         // 창을 닫으면 <b>앱이 끝난다</b>. 트레이가 생겼다고 X 를 최소화로 바꾸지 않았다 —
         // 서버는 앱이 붙어 있는지로 큐 배정을 정하므로(파동 1), 트레이로 내려간 앱은 상담원이
@@ -154,14 +167,20 @@ public partial class MainWindow : Window
         }
 
         var settings = new JsonSettingsStore<HotkeySettings>(AppPaths.Hotkeys).Load(new HotkeySettings());
-        var failures = _hotkeys.Apply(HotkeyPlan.For(settings));
 
-        if (HotkeyNotice.For(failures) is { } notice)
+        if (HotkeyNotice.For(ApplyHotkeys(settings)) is { } notice)
         {
             softphone.ShowNotice(notice);
             App.Log($"핫키 등록 실패: {notice}");
         }
     }
+
+    /// <summary>
+    /// 조합을 실제로 윈도우에 건다. 설정 화면이 저장할 때도 이 길을 지난다 —
+    /// 등록 경로가 둘이면 설정에서 바꾼 조합과 지금 걸려 있는 조합이 어긋난다.
+    /// </summary>
+    private IReadOnlyList<string> ApplyHotkeys(HotkeySettings combos)
+        => _hotkeys?.Apply(HotkeyPlan.For(combos)) ?? Array.Empty<string>();
 
     private void ShowLogin()
     {
@@ -188,6 +207,27 @@ public partial class MainWindow : Window
             action => Dispatcher.Invoke(action),
             useSoftphone);
 
+        // 통화 동작은 현장마다 다르다. 값이 없거나 말이 안 되면 옛 상수와 같은 기본값으로 떨어진다.
+        // <b>쓸 때마다 읽는다</b> — 설정에서 바꾼 값이 다시 로그인해야 먹으면 상담원은
+        // 자기가 고친 값이 안 쓰이는 줄 안다.
+        var callPreferences = new JsonSettingsStore<CallPreferences>(AppPaths.CallPreferences);
+
+        // 통화 중에는 받지 않고, 알림은 상담원이 이미 보고 있는 그 한 자리에 적는다.
+        // 두 closure 가 아래에서야 채워지는 _softphone 을 보지만, 불리는 시점은 언제나 그 뒤다.
+        var update = new UpdateViewModel(
+            runtime.Updates,
+            AppRelease.Version,
+            AppRelease.Channel,
+            AppPaths.UpdateDownloads,
+            () => DateTimeOffset.UtcNow,
+            () => _softphone?.WindowMode == WindowMode.Idle,
+            // 업데이트 작업은 스스로 실패를 삼키므로 여기서 붙잡을 것이 없다.
+            // 예상 못 한 예외는 App 의 UnobservedTaskException 이 파일로 남긴다.
+            _ => { },
+            message => _softphone?.ShowNotice(message));
+
+        update.FolderRequested += (_, path) => OpenFolder(path);
+
         var softphone = new SoftphoneViewModel(
             runtime.Calls,
             runtime.Server,
@@ -197,7 +237,9 @@ public partial class MainWindow : Window
             useSoftphone,
             login.Session.SoftphoneConfig,
             new JsonSettingsStore<AnnouncementReadState>(
-                AppPaths.AnnouncementReads, new AnnouncementReadState()));
+                AppPaths.AnnouncementReads, new AnnouncementReadState()),
+            () => callPreferences.Load(new CallPreferences()),
+            update);
 
         // 창을 만지는 일은 모두 여기 한 줄을 지난다.
         // 서버 이벤트는 이미 UI 스레드로 넘어와 있으므로 여기서는 그대로 받는다.
@@ -229,6 +271,7 @@ public partial class MainWindow : Window
 
         _runtime = runtime;
         _softphone = softphone;
+        _update = update;
 
         ApplyMode(WindowMode.Idle, softphone);
         StartHotkeys(softphone);
@@ -321,11 +364,23 @@ public partial class MainWindow : Window
     {
         _subWindows.Open(SettingsWindow, () =>
         {
+            // 핫키와 업데이트는 로그인한 뒤에만 뜻이 있다. 로그인 전에는 걸 창 핸들도 없고
+            // (등록 실패를 그 자리에서 알릴 수 없다) 물어볼 서버도 없다 — 그 탭은 아예 안 만든다.
+            var signedIn = _softphone is not null;
+
             var vm = new SettingsViewModel(
                 new JsonSettingsStore<AppSettings>(AppPaths.Settings, new AppSettings()),
                 new JsonSettingsStore<AudioDeviceSelection>(AppPaths.AudioDevices, new AudioDeviceSelection()),
                 new WasapiDeviceEnumerator(),
-                useSoftphone);
+                useSoftphone,
+                signedIn
+                    ? new JsonSettingsStore<HotkeySettings>(AppPaths.Hotkeys, new HotkeySettings())
+                    : null,
+                new JsonSettingsStore<CallPreferences>(AppPaths.CallPreferences, new CallPreferences()),
+                signedIn ? ApplyHotkeys : null,
+                _update,
+                ProtocolRegistration.IsRegistered(AppRelease.ExecutablePath),
+                () => ProtocolRegistration.Register(AppRelease.ExecutablePath));
 
             vm.FolderRequested += (_, path) => OpenFolder(path);
 
@@ -362,6 +417,105 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 웹에서 넘어온 로그인 요청. 받을지는 <see cref="HandoffGate"/> 가 정하고, 여기서는 그 판정을 따른다.
+    ///
+    /// <b>토큰을 교환한 뒤에야 지금 세션을 내린다.</b> 순서를 뒤집으면 교환이 실패했을 때
+    /// 앉아 있던 상담원이 아무 이유 없이 로그아웃된 채 남는다.
+    /// </summary>
+    private async void OnHandoffRequested(ProtocolRequest request)
+    {
+        var onCall = _softphone is not null && _softphone.WindowMode != WindowMode.Idle;
+
+        var decision = HandoffGate.For(
+            signedIn: _softphone is not null,
+            onCall: onCall,
+            sameServer: request.TargetsSameServer(_settings.BaseUri),
+            _softphone?.AgentName,
+            _softphone?.Extension);
+
+        App.Log($"웹 로그인 요청 판정: {decision.Verdict}");
+
+        switch (decision.Verdict)
+        {
+            case HandoffVerdict.Refuse:
+                Tell(decision.Message);
+                return;
+
+            // 조용히 갈아타면 상담원 모르게 남의 계정이 된다. 지금 누구로 앉아 있는지 적어 물어본다.
+            case HandoffVerdict.AskToSwitch when MessageBox.Show(
+                    this, decision.Message, "웹에서 온 로그인", MessageBoxButton.YesNo, MessageBoxImage.Question)
+                != MessageBoxResult.Yes:
+                return;
+        }
+
+        await AcceptHandoffAsync(request);
+    }
+
+    private async Task AcceptHandoffAsync(ProtocolRequest request)
+    {
+        // 페이로드가 적어 보낸 주소가 아니라 <b>이 PC 에 설정된 주소</b>로 간다.
+        // 게이트가 둘이 같은 서버인지 이미 확인했다.
+        var auth = new AuthClient(new HttpClient { BaseAddress = _settings.BaseUri });
+
+        HandoffResult exchanged;
+        try
+        {
+            exchanged = await auth.ExchangeHandoffAsync(request.HandoffToken, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
+        {
+            App.LogError(ex);
+
+            // 없음·만료·이미 씀·비활성이 서버에서 전부 같은 401 이다. 가를 근거가 없으므로 가르지 않는다.
+            Tell("웹에서 넘어온 로그인이 만료됐거나 이미 쓰였습니다. 웹에서 다시 눌러 주세요.");
+            return;
+        }
+
+        // SIP 설정은 여기서만 온다. 못 받아도 로그인은 살린다 — 실기기 자리는 어차피 쓰지 않는다.
+        SoftphoneConfig? softphone = null;
+        try
+        {
+            softphone = (await auth.GetDesktopSessionAsync(
+                exchanged.Tokens.AccessToken, CancellationToken.None)).SoftphoneConfig;
+        }
+        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
+        {
+            App.LogError(ex);
+        }
+
+        // 앞 상담원의 refresh token 을 서버에 돌려준다. 안 돌려주면 그 계정이 서버에서 계속 살아 있다.
+        var previous = _tokens.Load()?.RefreshToken;
+        await ShutdownAsync();
+        if (!string.IsNullOrEmpty(previous)) await auth.LogoutAsync(previous, CancellationToken.None);
+
+        _tokens.Save(exchanged.Tokens);
+
+        // 소프트폰이냐 실기기냐는 자리의 성질이라 웹이 정하지 않는다. 이 PC 에 남아 있는 선택을 따른다.
+        var useSoftphone = new SavedLoginStore(AppPaths.SavedLogin).Load().UseSoftphone;
+
+        await StartRuntimeAsync(
+            new LoginResult(
+                exchanged.Tokens,
+                new SessionSummary { Agent = exchanged.Agent, SoftphoneConfig = softphone }),
+            useSoftphone);
+    }
+
+    /// <summary>
+    /// 웹 로그인에 대한 답. 통화 화면이 서 있으면 그 알림 자리에 적는다 —
+    /// 통화 중에 모달 창을 띄우면 상담원이 그것부터 치워야 통화를 이어갈 수 있다.
+    /// </summary>
+    private void Tell(string message)
+    {
+        if (_softphone is { } softphone)
+        {
+            softphone.ShowNotice(message);
+            return;
+        }
+
+        MessageBox.Show(this, message, "웹에서 온 로그인", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private async void SignOut() => await SignOutAsync();
 
     /// <summary>
@@ -394,6 +548,7 @@ public partial class MainWindow : Window
         // 로그아웃하면 누를 통화가 없다. 남겨 두면 로그인 화면에서 누른 핫키가 조용히 사라진다.
         _hotkeys?.Clear();
         _softphone = null;
+        _update = null;
         _tray.Show(CurrentTrayState());
 
         if (_runtime is not null)

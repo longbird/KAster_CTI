@@ -52,7 +52,10 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// </summary>
     private DateTimeOffset? _holdRequestDeadline;
 
-    private const int HoldRequestTimeoutSeconds = 5;
+    /// <summary>현장 설정. PBX 마다 feature code 를 먹는 데 걸리는 시간이 다르다.</summary>
+    private readonly Func<CallPreferences> _preferences;
+
+    private int HoldRequestTimeoutSeconds => _preferences().Sane().PbxResponseWaitSeconds;
 
     /// <summary>진행 중인 뒷작업. 테스트가 기다릴 수 있게 내보낸다.</summary>
     private Task _pendingWork = Task.CompletedTask;
@@ -69,8 +72,13 @@ public sealed class SoftphoneViewModel : ObservableObject
         Func<DateTimeOffset> now,
         bool useSoftphone,
         SoftphoneConfig? sipConfig,
-        ISettingsStore<AnnouncementReadState> announcementReads)
+        ISettingsStore<AnnouncementReadState> announcementReads,
+        Func<CallPreferences>? callPreferences = null,
+        UpdateViewModel? update = null)
     {
+        _preferences = callPreferences ?? (static () => new CallPreferences());
+        Update = update;
+
         _store = store;
         _server = server;
         _phone = phone;
@@ -86,9 +94,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 순서가 있다. 돌려주기는 당겨받기가 훑어 온 통화 목록을 받고, 이력의 "다시 걸기" 는
         // 발신 칸에 번호를 넣는다. 받는 쪽이 먼저 서 있어야 한다.
         Offer = new OfferViewModel(store, server, Notify, Track);
-        Transfer = new TransferViewModel(store, server, agent.Extension, now, Notify, Track);
+        Transfer = new TransferViewModel(store, server, agent.Extension, now, Notify, Track, _preferences);
         Keypad = new KeypadViewModel(phone, server, useSoftphone, CurrentCallId, Notify, Track);
-        Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree);
+        Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree, _preferences);
         // 같은 통화 목록을 돌려주기와 상담원 목록이 함께 쓴다. 두 번 물어보지 않는다.
         Waiting = new WaitingCallsViewModel(
             server, now, Notify, Note, Track, () => IsFree, ShareActiveCalls);
@@ -191,6 +199,12 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     /// <summary>지금 통화 중인 고객.</summary>
     public CustomerInfoViewModel Customer { get; }
+
+    /// <summary>
+    /// 새 버전 확인. <b>알리는 데까지만 한다</b> — 설치도 재시작도 상담원이 정한다.
+    /// 로그인 화면에서 만든 화면에는 물어볼 서버가 없어 null 이다.
+    /// </summary>
+    public UpdateViewModel? Update { get; }
 
     public event EventHandler<WindowMode>? WindowModeRequested;
 
@@ -466,6 +480,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 정보 창들은 <b>떠 있을 때만</b> 조회한다. 닫혀 있으면 여기서 그대로 돌아간다.
         Queues.Tick();
         Directory.Tick();
+
+        // 새 버전 확인도 주기가 됐을 때만 나간다. 안 됐으면 그대로 돌아간다.
+        Update?.Tick();
 
         // PBX 가 feature code 를 안 먹으면 아무 이벤트도 오지 않는다. 서버는 그것을 모른다.
         // 기다림을 스스로 끝내지 않으면 버튼이 잠긴 채 남아 다시 시도할 방법이 없어진다.

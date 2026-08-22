@@ -48,8 +48,17 @@ public static class AppPaths
     /// <summary>다음 로그인 때 채워 둘 아이디·내선. 비밀번호는 들어가지 않는다.</summary>
     public static string SavedLogin => Path.Combine(Root, "login.json");
 
-    /// <summary>전역 핫키 조합. 고르는 화면은 아직 없고 기본값이 쓰인다.</summary>
+    /// <summary>전역 핫키 조합. 설정 화면의 핫키 탭이 여기에 쓴다.</summary>
     public static string Hotkeys => Path.Combine(Root, "hotkeys.json");
+
+    /// <summary>현장마다 다른 통화 동작 (자동응답 대기 · PBX 응답 대기).</summary>
+    public static string CallPreferences => Path.Combine(Root, "call-preferences.json");
+
+    /// <summary>
+    /// 받아 둔 설치 파일. 상담원이 스스로 실행할 자리라 <b>폴더</b>다 —
+    /// 앱이 대신 실행하지 않으므로 탐색기로 열어 줄 수 있어야 한다.
+    /// </summary>
+    public static string UpdateDownloads => Path.Combine(Root, "updates");
 
     /// <summary>통화 흐름 기록. "전화가 안 걸린다" 는 신고를 화면 캡처 대신 이걸로 가른다.</summary>
     public static string CallLog => Path.Combine(Root, "call.log");

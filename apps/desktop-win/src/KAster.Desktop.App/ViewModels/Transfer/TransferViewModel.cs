@@ -1,3 +1,4 @@
+using KAster.Desktop.App.Services;
 using KAster.Desktop.Core.Contracts;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.State;
@@ -49,8 +50,11 @@ public sealed class TransferViewModel : ObservableObject
 
     private const int MaxTransferTargetsShown = 5;
 
-    /// <summary>PBX 응답을 기다리는 한도. 보류와 같은 값을 쓴다.</summary>
-    private const int ConfirmationTimeoutSeconds = 5;
+    /// <summary>현장 설정. 쓸 때마다 읽는다.</summary>
+    private readonly Func<CallPreferences> _preferences;
+
+    /// <summary>PBX 응답을 기다리는 한도. 보류와 <b>같은 설정</b>을 쓴다 — 같은 사정이다.</summary>
+    private int ConfirmationTimeoutSeconds => _preferences().Sane().PbxResponseWaitSeconds;
 
     public TransferViewModel(
         CallStateStore store,
@@ -58,8 +62,11 @@ public sealed class TransferViewModel : ObservableObject
         string myExtension,
         Func<DateTimeOffset> now,
         Action<string?> notify,
-        Action<Task> track)
+        Action<Task> track,
+        Func<CallPreferences>? preferences = null)
     {
+        _preferences = preferences ?? (static () => new CallPreferences());
+
         _store = store;
         _server = server;
         _myExtension = myExtension;

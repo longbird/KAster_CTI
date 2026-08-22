@@ -532,6 +532,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Height="20"
@@ -540,8 +541,40 @@
                        TextTrimming="CharacterEllipsis"
                        Style="{StaticResource TextCaption}" />
 
-            <!-- 못 받은 전화를 다시 걸려면 지난 통화를 볼 수 있어야 한다. -->
+            <!--
+                새 버전이 있을 때만 나타난다. 알림 자리(NoticeMessage)는 통화 알림이 지나가면
+                덮이므로, 남아 있어야 하는 것은 이 자리가 든다. 누르면 설정의 앱 탭으로 간다.
+                이 행의 높이는 옆 버튼들이 이미 정하고 있어 창이 커지지 않는다.
+            -->
             <Button Grid.Column="1"
+                    Content="업데이트 있음"
+                    Padding="8,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    FontFamily="{StaticResource FontUi}"
+                    FontSize="{StaticResource FontSizeCaption}"
+                    FontWeight="SemiBold"
+                    Command="{Binding OpenSettingsCommand}">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Update.HasUpdate}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                            <!-- 필수는 눈에 더 걸려야 한다. 그래도 앱을 끄지는 않는다. -->
+                            <DataTrigger Binding="{Binding Update.IsRequired}" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <!-- 못 받은 전화를 다시 걸려면 지난 통화를 볼 수 있어야 한다. -->
+            <Button Grid.Column="2"
                     Content="지난 통화"
                     Padding="8,2"
                     Background="Transparent"
@@ -553,7 +586,7 @@
                     Command="{Binding History.OpenHistoryCommand}" />
 
             <!-- 교대 근무에서 앞사람 계정으로 앉지 않으려면 나가는 길이 있어야 한다. -->
-            <Button Grid.Column="2"
+            <Button Grid.Column="3"
                     Content="설정"
                     Padding="8,2"
                     Background="Transparent"
@@ -564,7 +597,7 @@
                     FontSize="{StaticResource FontSizeCaption}"
                     Command="{Binding OpenSettingsCommand}" />
 
-            <Button Grid.Column="3"
+            <Button Grid.Column="4"
                     Content="로그아웃"
                     Padding="8,2"
                     Background="Transparent"

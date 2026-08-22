@@ -3,7 +3,22 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{StaticResource BrushBackground}">
 
-    <!-- 창에 스크롤을 만들지 않는다. 가운데 한 곳만 남는 공간을 흡수한다. -->
+    <UserControl.Resources>
+        <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+            <Setter Property="Margin" Value="0,10,0,4" />
+        </Style>
+
+        <Style x:Key="ErrorLine" TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+            <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <!--
+        창에 스크롤을 만들지 않는다. 항목이 늘어난 만큼 구역을 탭으로 나눴고,
+        세로로 남는 공간은 탭 내용 한 곳만 흡수한다.
+    -->
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -11,92 +26,292 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="설정" Style="{StaticResource TextTitle}" Margin="0,0,0,12" />
+        <TextBlock Grid.Row="0" Text="설정" Style="{StaticResource TextTitle}" Margin="0,0,0,8" />
 
-        <Border Grid.Row="1"
-                Padding="{StaticResource PadPanel}"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
-                BorderThickness="1"
-                CornerRadius="{StaticResource RadiusPanel}">
-            <StackPanel>
-                <TextBlock Text="서버 주소" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
-                <TextBox Style="{StaticResource FieldInput}"
-                         Text="{Binding ServerBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+        <TabControl Grid.Row="1" Style="{StaticResource TabStrip}">
 
-                <!--
-                    안내와 오류가 한 자리를 나눠 쓴다. 높이를 고정해 두면 메시지가 떴다 사라질 때
-                    아래 항목들이 흔들리지 않는다.
-                -->
-                <TextBlock Height="34" Margin="0,4,0,4" TextWrapping="Wrap">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-                            <Setter Property="Text" Value="" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ServerUrlChanged}" Value="True">
-                                    <Setter Property="Text" Value="바뀐 주소는 다시 로그인할 때부터 쓰입니다" />
-                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding ServerUrlError}" Value="{x:Null}">
-                                    <!-- 오류가 없으면 위 안내를 그대로 둔다 -->
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+            <!-- 서버 -->
+            <TabItem Header="서버" Style="{StaticResource TabHeader}">
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <TextBlock Text="서버 주소" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding ServerBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
 
-                <TextBlock Text="{Binding ServerUrlError}"
-                           Foreground="{StaticResource BrushDanger}"
-                           TextWrapping="Wrap"
-                           Style="{StaticResource TextCaption}"
-                           Margin="0,0,0,4" />
+                        <!--
+                            안내와 오류가 한 자리를 나눠 쓴다. 높이를 고정해 두면 메시지가 떴다 사라질 때
+                            아래 항목들이 흔들리지 않는다.
+                        -->
+                        <TextBlock Height="34" Margin="0,4,0,0" TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                    <Setter Property="Text" Value="" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ServerUrlChanged}" Value="True">
+                                            <Setter Property="Text" Value="바뀐 주소는 다시 로그인할 때부터 쓰입니다" />
+                                            <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
 
-                <!-- 실기기 모드에는 우리 오디오가 없다. 고를 것을 보여 주면 안 고른 줄 알고 헤맨다. -->
-                <StackPanel>
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ShowsAudioDevices}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
+                        <TextBlock Text="{Binding ServerUrlError}" Style="{StaticResource ErrorLine}" Margin="0" />
 
-                    <TextBlock Text="마이크" Style="{StaticResource TextCaption}" Margin="0,4,0,4" />
-                    <ComboBox ItemsSource="{Binding CaptureDevices}"
-                              SelectedItem="{Binding SelectedCapture}"
-                              Padding="{StaticResource PadControl}"
-                              FontFamily="{StaticResource FontUi}"
-                              FontSize="{StaticResource FontSizeBody}" />
+                        <!--
+                            웹에서 "데스크톱으로 열기" 를 눌러도 이 등록이 풀려 있으면 아무 일이 없다.
+                            그때 상담원이 볼 수 있는 자리가 여기뿐이다.
+                        -->
+                        <TextBlock Text="웹 연동" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <TextBlock Text="{Binding ProtocolStatusText}"
+                                   Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,8" />
+                        <Button Content="링크 다시 등록"
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource ButtonSecondary}"
+                                Command="{Binding RepairProtocolCommand}" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
 
-                    <TextBlock Text="통화 소리" Style="{StaticResource TextCaption}" Margin="0,10,0,4" />
-                    <ComboBox ItemsSource="{Binding CallRenderDevices}"
-                              SelectedItem="{Binding SelectedCallRender}"
-                              Padding="{StaticResource PadControl}"
-                              FontFamily="{StaticResource FontUi}"
-                              FontSize="{StaticResource FontSizeBody}" />
+            <!-- 오디오: 실기기 모드에는 우리 오디오가 없다 -->
+            <TabItem Header="오디오">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource TabHeader}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowsAudioDevices}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <TextBlock Text="마이크" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                        <ComboBox ItemsSource="{Binding CaptureDevices}"
+                                  SelectedItem="{Binding SelectedCapture}"
+                                  Padding="{StaticResource PadControl}"
+                                  FontFamily="{StaticResource FontUi}"
+                                  FontSize="{StaticResource FontSizeBody}" />
 
-                    <TextBlock Text="벨소리" Style="{StaticResource TextCaption}" Margin="0,10,0,4" />
-                    <ComboBox ItemsSource="{Binding RingRenderDevices}"
-                              SelectedItem="{Binding SelectedRingRender}"
-                              Padding="{StaticResource PadControl}"
-                              FontFamily="{StaticResource FontUi}"
-                              FontSize="{StaticResource FontSizeBody}" />
-                </StackPanel>
+                        <TextBlock Text="통화 소리" Style="{StaticResource SectionLabel}" />
+                        <ComboBox ItemsSource="{Binding CallRenderDevices}"
+                                  SelectedItem="{Binding SelectedCallRender}"
+                                  Padding="{StaticResource PadControl}"
+                                  FontFamily="{StaticResource FontUi}"
+                                  FontSize="{StaticResource FontSizeBody}" />
 
-                <!--
-                    앱이 조용히 멈추면 로그 파일이 유일한 단서다. 상담원에게 %LOCALAPPDATA% 경로를
-                    전화로 불러 주는 것은 현장에서 통하지 않는다.
-                -->
-                <TextBlock Text="문제 기록" Style="{StaticResource TextCaption}" Margin="0,16,0,4" />
-                <Button Content="로그 폴더 열기"
-                        HorizontalAlignment="Left"
-                        Style="{StaticResource ButtonSecondary}"
-                        Command="{Binding OpenLogFolderCommand}" />
-            </StackPanel>
-        </Border>
+                        <TextBlock Text="벨소리" Style="{StaticResource SectionLabel}" />
+                        <ComboBox ItemsSource="{Binding RingRenderDevices}"
+                                  SelectedItem="{Binding SelectedRingRender}"
+                                  Padding="{StaticResource PadControl}"
+                                  FontFamily="{StaticResource FontUi}"
+                                  FontSize="{StaticResource FontSizeBody}" />
+
+                        <TextBlock Text="바꾼 장치는 다음 통화부터 쓰입니다"
+                                   Style="{StaticResource TextCaption}"
+                                   Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
+            <!-- 핫키 -->
+            <TabItem Header="핫키">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource TabHeader}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowsHotkeys}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,10"
+                                   Text="창이 뒤에 있어도 먹는 키입니다. Ctrl·Shift·Alt 중 하나를 반드시 넣으세요. 예) Ctrl+Shift+F9" />
+
+                        <TextBlock Text="받기" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding AnswerHotkey, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="끊기" Style="{StaticResource SectionLabel}" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding HangupHotkey, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="마이크" Style="{StaticResource SectionLabel}" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding MuteHotkey, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="비워 두면 그 동작에는 핫키를 쓰지 않습니다"
+                                   Style="{StaticResource TextCaption}"
+                                   Margin="0,8,0,0" />
+
+                        <TextBlock Text="{Binding HotkeyError}" Style="{StaticResource ErrorLine}" />
+
+                        <!-- 다른 프로그램이 먼저 잡은 조합은 눌러도 아무 일이 없다. 그 자리에서 알린다. -->
+                        <TextBlock Text="{Binding HotkeyNotice}"
+                                   Style="{StaticResource TextCaption}"
+                                   Foreground="{StaticResource BrushWarning}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
+            <!-- 통화 -->
+            <TabItem Header="통화">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource TabHeader}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowsCallPreferences}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <TextBlock Text="자동응답 대기 (초)" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding SelfAnswerSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="걸기를 누른 뒤 이 시간 안에 걸려 오는 전화를 내가 건 것으로 보고 자동으로 받습니다. 길게 잡으면 그 사이 걸려 온 고객 전화까지 받습니다." />
+
+                        <TextBlock Text="PBX 응답 대기 (초)" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding PbxWaitSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="보류·협의 전환을 요청한 뒤 PBX 의 응답을 기다리는 시간입니다. 짧게 잡으면 멀쩡히 걸린 보류에도 응답이 없다고 뜹니다." />
+
+                        <TextBlock Text="{Binding CallSettingsError}" Style="{StaticResource ErrorLine}" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
+            <!-- 앱: 버전 · 업데이트 · 문제 기록 -->
+            <TabItem Header="앱" Style="{StaticResource TabHeader}">
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowsUpdate}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <TextBlock Text="버전" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding Update.CurrentVersion}"
+                                       Style="{StaticResource TextBody}"
+                                       FontWeight="SemiBold" />
+
+                            <TextBlock Text="{Binding Update.StatusText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,8,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                        <Style.Triggers>
+                                            <!-- 필수 업데이트는 눈에 걸려야 한다. 그래도 앱을 끄지는 않는다. -->
+                                            <DataTrigger Binding="{Binding Update.IsRequired}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+
+                            <TextBlock Text="{Binding Update.Notes}"
+                                       Style="{StaticResource TextCaption}"
+                                       TextWrapping="Wrap"
+                                       MaxHeight="60"
+                                       Margin="0,6,0,0" />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Button Content="지금 확인"
+                                        MinWidth="96"
+                                        Style="{StaticResource ButtonSecondary}"
+                                        Command="{Binding Update.CheckCommand}" />
+                                <Button Content="설치 파일 받기"
+                                        Margin="8,0,0,0"
+                                        MinWidth="110"
+                                        Style="{StaticResource ButtonPrimary}"
+                                        Command="{Binding Update.DownloadCommand}" />
+                                <!-- 받아 둔 것이 있을 때만 나타난다. 없는데 열면 빈 폴더가 뜬다. -->
+                                <Button Content="받은 폴더 열기"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding Update.OpenDownloadFolderCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Update.HasFile}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource TextCaption}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,10,0,0"
+                                       Text="설치는 상담원이 정합니다. 받은 파일은 통화가 없을 때 실행하세요." />
+
+                            <Border Height="1"
+                                    Background="{StaticResource BrushBorder}"
+                                    Margin="0,16,0,0" />
+                        </StackPanel>
+
+                        <!--
+                            앱이 조용히 멈추면 로그 파일이 유일한 단서다. 상담원에게 %LOCALAPPDATA% 경로를
+                            전화로 불러 주는 것은 현장에서 통하지 않는다.
+                        -->
+                        <TextBlock Text="문제 기록" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <Button Content="로그 폴더 열기"
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource ButtonSecondary}"
+                                Command="{Binding OpenLogFolderCommand}" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
 
         <Grid Grid.Row="2" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
