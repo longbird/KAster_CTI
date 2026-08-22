@@ -81,14 +81,14 @@ public partial class MainWindow : Window
 
         // SIP 스레드에서 올라온다. UI 스레드로 옮기지 않으면 창 전환이 조용히 멈춘다.
         runtime.Phone.CallStatusChanged += (_, status) =>
-            Dispatcher.Invoke(() => softphone.OnSoftphoneCallStatusChanged(status));
+            Dispatcher.Invoke(() => softphone.Dial.OnSoftphoneCallStatusChanged(status));
         runtime.Phone.RegistrationStatusChanged += (_, status) =>
             Dispatcher.Invoke(() => softphone.OnRegistrationStatusChanged(status));
 
         // 이미 등록이 끝난 뒤에 붙을 수도 있다. 현재 값을 한 번 밀어 넣는다.
         softphone.OnRegistrationStatusChanged(runtime.Phone.Status);
         runtime.Events.HandlerFailed += (_, ex) => App.LogError(ex);
-        softphone.SelfAnswerFailed += (_, ex) => App.LogError(ex);
+        softphone.Dial.SelfAnswerFailed += (_, ex) => App.LogError(ex);
         softphone.Diagnostic += (_, message) => App.Log(message);
         runtime.NonCallEvent += (_, evt) => softphone.Apply(evt);
         softphone.SignOutRequested += async (_, _) => await SignOutAsync();
@@ -115,11 +115,11 @@ public partial class MainWindow : Window
         {
             // 큐가 물어보는 호와 이미 울리고 있는 호는 누를 것이 다르다.
             // 전자는 수락/거절, 후자는 받기/거절이다.
-            WindowMode.Ringing when softphone.HasOffer => new OfferView { DataContext = softphone },
+            WindowMode.Ringing when softphone.Offer.HasOffer => new OfferView { DataContext = softphone },
             WindowMode.Ringing => new RingingView { DataContext = softphone },
-            WindowMode.Settings when softphone.IsViewingHistory
+            WindowMode.Settings when softphone.History.IsViewingHistory
                 => new HistoryView { DataContext = softphone },
-            WindowMode.Transferring when softphone.IsChoosingTransferTarget
+            WindowMode.Transferring when softphone.Transfer.IsChoosingTransferTarget
                 => new TransferView { DataContext = softphone },
             WindowMode.Talking or WindowMode.Transferring or WindowMode.AfterCall
                 => new TalkingView { DataContext = softphone },

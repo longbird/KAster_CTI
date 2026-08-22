@@ -62,7 +62,7 @@
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Visible" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsKeypadOpen}" Value="True">
+                        <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
                             <Setter Property="Visibility" Value="Collapsed" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -121,25 +121,25 @@
                 <Style TargetType="UniformGrid">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsKeypadOpen}" Value="True">
+                        <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
                             <Setter Property="Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </UniformGrid.Style>
 
-            <Button Content="1" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="1" />
-            <Button Content="2" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="2" />
-            <Button Content="3" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="3" />
-            <Button Content="4" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="4" />
-            <Button Content="5" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="5" />
-            <Button Content="6" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="6" />
-            <Button Content="7" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="7" />
-            <Button Content="8" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="8" />
-            <Button Content="9" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="9" />
-            <Button Content="*" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="*" />
-            <Button Content="0" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="0" />
-            <Button Content="#" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding SendDigitCommand}" CommandParameter="#" />
+            <Button Content="1" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="1" />
+            <Button Content="2" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="2" />
+            <Button Content="3" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="3" />
+            <Button Content="4" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="4" />
+            <Button Content="5" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="5" />
+            <Button Content="6" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="6" />
+            <Button Content="7" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="7" />
+            <Button Content="8" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="8" />
+            <Button Content="9" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="9" />
+            <Button Content="*" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="*" />
+            <Button Content="0" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="0" />
+            <Button Content="#" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="#" />
         </UniformGrid>
 
         <!--
@@ -156,15 +156,15 @@
 
             <Button Grid.Column="0" Content="돌려주기"
                     Style="{StaticResource ButtonSecondary}"
-                    Command="{Binding StartTransferCommand}" />
+                    Command="{Binding Transfer.StartTransferCommand}" />
 
             <Button Grid.Column="2" Content="키패드"
-                    Command="{Binding ToggleKeypadCommand}">
+                    Command="{Binding Keypad.ToggleKeypadCommand}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding ShowsKeypad}" Value="True">
+                            <DataTrigger Binding="{Binding Keypad.ShowsKeypad}" Value="True">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                         </Style.Triggers>

@@ -19,7 +19,7 @@
                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                     <Setter Property="Text" Value="수신 전화" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsOutboundCall}" Value="True">
+                        <DataTrigger Binding="{Binding Dial.IsOutboundCall}" Value="True">
                             <Setter Property="Text" Value="발신 중 — 전화기를 받으면 연결됩니다" />
                             <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
                         </DataTrigger>
@@ -85,7 +85,7 @@
                     <Style TargetType="Button" BasedOn="{StaticResource ButtonDanger}">
                         <Setter Property="Content" Value="거절" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsOutboundCall}" Value="True">
+                            <DataTrigger Binding="{Binding Dial.IsOutboundCall}" Value="True">
                                 <Setter Property="Content" Value="취소" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -101,7 +101,7 @@
                     <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
                         <Setter Property="Visibility" Value="Visible" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsOutboundCall}" Value="True">
+                            <DataTrigger Binding="{Binding Dial.IsOutboundCall}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed" />
                             </DataTrigger>
                         </Style.Triggers>

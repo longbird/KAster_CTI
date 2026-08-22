@@ -36,7 +36,7 @@
                            TextTrimming="CharacterEllipsis"
                            HorizontalAlignment="Center" />
 
-                <TextBlock Text="{Binding OfferPhoneNumber}"
+                <TextBlock Text="{Binding Offer.OfferPhoneNumber}"
                            Style="{StaticResource TextBody}"
                            FontSize="{StaticResource FontSizeNumber}"
                            FontWeight="SemiBold"
@@ -70,12 +70,12 @@
 
             <Button Grid.Column="0" Content="거절"
                     Style="{StaticResource ButtonDanger}"
-                    Command="{Binding RejectOfferCommand}" />
+                    Command="{Binding Offer.RejectOfferCommand}" />
 
             <Button Grid.Column="2" Content="수락"
                     Style="{StaticResource ButtonPrimary}"
                     IsDefault="True"
-                    Command="{Binding AcceptOfferCommand}" />
+                    Command="{Binding Offer.AcceptOfferCommand}" />
         </Grid>
     </Grid>
 </UserControl>

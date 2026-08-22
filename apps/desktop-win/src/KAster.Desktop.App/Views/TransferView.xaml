@@ -20,10 +20,10 @@
 
         <TextBox Grid.Row="1" Margin="0,8,0,0"
                  Style="{StaticResource FieldInput}"
-                 Text="{Binding TransferFilter, UpdateSourceTrigger=PropertyChanged}" />
+                 Text="{Binding Transfer.TransferFilter, UpdateSourceTrigger=PropertyChanged}" />
 
         <ItemsControl Grid.Row="2" Margin="0,10,0,0"
-                      ItemsSource="{Binding TransferTargets}">
+                      ItemsSource="{Binding Transfer.TransferTargets}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <!-- 못 받는 상대는 아예 누를 수 없다. 넘기면 통화가 끊어진다. -->
@@ -32,7 +32,7 @@
                             IsEnabled="{Binding CanTakeCall}"
                             ToolTip="{Binding StatusText}"
                             Style="{StaticResource ButtonSecondary}"
-                            Command="{Binding DataContext.TransferToCommand,
+                            Command="{Binding DataContext.Transfer.TransferToCommand,
                                               RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Extension}">
                         <Grid>
@@ -83,17 +83,17 @@
                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                     <Setter Property="Visibility" Value="Visible" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding TransferTargetsHidden}" Value="0">
+                        <DataTrigger Binding="{Binding Transfer.TransferTargetsHidden}" Value="0">
                             <Setter Property="Visibility" Value="Collapsed" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </TextBlock.Style>
-            <Run Text="이름이나 내선을 입력해 좁히세요 (" /><Run Text="{Binding TransferTargetsHidden, Mode=OneWay}" /><Run Text="명 더 있음)" />
+            <Run Text="이름이나 내선을 입력해 좁히세요 (" /><Run Text="{Binding Transfer.TransferTargetsHidden, Mode=OneWay}" /><Run Text="명 더 있음)" />
         </TextBlock>
 
         <Button Grid.Row="4" Margin="0,10,0,0" Content="취소"
                 Style="{StaticResource ButtonSecondary}"
-                Command="{Binding CancelTransferCommand}" />
+                Command="{Binding Transfer.CancelTransferCommand}" />
     </Grid>
 </UserControl>
