@@ -5,19 +5,21 @@ import { EventsModule } from '../events/events.module';
 import { AmiModule } from '../ami/ami.module';
 import { CustomersModule } from '../customers/customers.module';
 import { QueuesModule } from '../queues/queues.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 import { RecordingPipelineModule } from '../recording-pipeline/recording-pipeline.module';
 import { CallsController } from './calls.controller';
 import { ClientCallCommandsController } from './client-call-commands.controller';
 import { CallsService } from './calls.service';
 import { SessionEngineService } from './session-engine.service';
 import { AgentStateService } from './agent-state.service';
+import { AgentQueuePauseService } from './agent-queue-pause.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { TransferDetectorService } from './transfer-detector.service';
 import { AgentOfferService } from './agent-offer.service';
 import { AgentOfferController, AgentOfferInternalController } from './agent-offer.controller';
 
 @Module({
-  imports: [EventsModule, QueuesModule, CustomersModule, RecordingPipelineModule, forwardRef(() => AmiModule)],
+  imports: [EventsModule, QueuesModule, CustomersModule, RecordingPipelineModule, RealtimeModule, forwardRef(() => AmiModule)],
   controllers: [
     CallsController,
     ClientCallCommandsController,
@@ -29,6 +31,7 @@ import { AgentOfferController, AgentOfferInternalController } from './agent-offe
     AgentOfferService,
     SessionEngineService,
     AgentStateService,
+    AgentQueuePauseService,
     AsteriskManagerService,
     TransferDetectorService,
     MenuPermissionService,
@@ -39,6 +42,7 @@ import { AgentOfferController, AgentOfferInternalController } from './agent-offe
     AgentOfferService,
     SessionEngineService,
     AgentStateService,
+    AgentQueuePauseService,
     AsteriskManagerService,
     TransferDetectorService,
   ],

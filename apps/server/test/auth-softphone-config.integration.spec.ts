@@ -5,6 +5,7 @@ import { AuthService } from '../src/modules/auth/auth.service';
 import { CallsService } from '../src/modules/calls/calls.service';
 import { EventBusService } from '../src/modules/events/event-bus.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
+import { AgentStateService } from '../src/modules/calls/agent-state.service';
 import { RedisService } from '../src/modules/redis/redis.service';
 
 describe('AuthService softphone config', () => {
@@ -108,6 +109,10 @@ describe('AuthService softphone config', () => {
         { provide: EventBusService, useValue: { publish: jest.fn() } },
         { provide: QueuesService, useValue: { getSummary: jest.fn().mockResolvedValue({ data: { queues: [] } }) } },
         { provide: RedisService, useValue: { getClient: () => redisClient } },
+        {
+          provide: AgentStateService,
+          useValue: { changeStatus: jest.fn(), markLoggedOut: jest.fn() },
+        },
       ],
     }).compile();
 

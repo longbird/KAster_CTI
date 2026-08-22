@@ -169,7 +169,12 @@ describe('AgentsService listForTenant', () => {
     });
   });
 
-  it('DND 설정은 상담원 내선을 모든 큐에서 pause 처리하고 현재 상태를 BREAK 로 기록한다', async () => {
+  /**
+   * 큐 멤버는 `Local/{내선}@agent-offer` 다. 여기서 보내던 `PJSIP/{내선}` QueuePause 는
+   * 대상을 못 찾고 매번 실패했고, 바로 뒤의 changeStatus 가 정규 경로로 다시 걸어 주는
+   * 바람에 실패가 가려져 있었다. pause 는 changeStatus 한 경로로만 나가야 한다.
+   */
+  it('DND 설정은 큐 pause 를 상태 변경 경로에 맡기고 현재 상태를 BREAK 로 기록한다', async () => {
     prisma.agents.findFirst.mockResolvedValue({
       agentId: 'agent-1',
       tenantId: 'tenant-1',
@@ -184,12 +189,7 @@ describe('AgentsService listForTenant', () => {
 
     const result = await service.setDndMode('tenant-1', 'agent-1', true);
 
-    expect(ami.sendAction).toHaveBeenCalledWith({
-      Action: 'QueuePause',
-      Interface: 'PJSIP/1001',
-      Paused: 'true',
-      Reason: 'DND',
-    });
+    expect(ami.sendAction).not.toHaveBeenCalled();
     expect(agentStateService.changeStatus).toHaveBeenCalledWith('agent-1', 'BREAK', 'DND');
     expect(result).toEqual({
       success: true,

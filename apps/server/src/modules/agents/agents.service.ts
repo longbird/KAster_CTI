@@ -148,13 +148,10 @@ export class AgentsService {
       throw new BadRequestException('상담원 내선이 설정되어 있지 않습니다.');
     }
 
-    this.ami.sendAction({
-      Action: 'QueuePause',
-      Interface: `PJSIP/${agent.extension}`,
-      Paused: enabled ? 'true' : 'false',
-      Reason: enabled ? 'DND' : 'DND_CLEAR',
-    });
-
+    // 큐 pause 는 changeStatus 한 경로로만 나간다. 여기서 보내던 QueuePause 는
+    // 인터페이스를 `PJSIP/{내선}` 로 적어 대상을 못 찾고 매번 실패했다 —
+    // 큐 멤버는 `Local/{내선}@agent-offer` 이고, 뒤따르는 changeStatus 가
+    // 정규 경로로 다시 걸어 주는 바람에 실패가 가려져 있었다.
     const status = await this.agentStateService.changeStatus(
       agentId,
       enabled ? 'BREAK' : 'AVAILABLE',

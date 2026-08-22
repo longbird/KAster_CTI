@@ -4,12 +4,9 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../common/prisma.service';
+import { AgentStateService } from '../calls/agent-state.service';
 import { CallsService } from '../calls/calls.service';
-import { EventBusService } from '../events/event-bus.service';
-import { QueuesService } from '../queues/queues.service';
-import { toRealtimeQueueSummary } from '../queues/realtime-queue-summary.util';
 import { RedisService } from '../redis/redis.service';
-import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { LoginDto } from './login.dto';
 
 // share 69de045b: access 는 짧게, refresh 는 길게. refresh token 은 평문 저장 금지
@@ -75,9 +72,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly callsService: CallsService,
-    private readonly eventBus: EventBusService,
-    private readonly queuesService: QueuesService,
     private readonly redis: RedisService,
+    private readonly agentState: AgentStateService,
   ) {}
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
@@ -107,30 +103,12 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    // 기존 열린 상태 종료 후 AVAILABLE 설정
-    await this.prisma.agentStatusHistory.updateMany({
-      where: { agentId: agent.agentId, endedAt: null },
-      data: { endedAt: new Date() },
-    });
-    await this.prisma.agentStatusHistory.create({
-      data: {
-        tenantId: agent.tenantId,
-        agentId: agent.agentId,
-        statusCode: 'AVAILABLE' as any,
-        startedAt: new Date(),
-      },
-    });
-
-    await this.eventBus.publish(REALTIME_EVENTS.AGENT_STATUS_CHANGED, {
-      agentId: agent.agentId,
-      statusCode: 'AVAILABLE',
-      reasonCode: null,
-    });
-    const queueSummary = await this.queuesService.getSummary(agent.tenantId);
-    await this.eventBus.publish(
-      REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
-      toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
-    );
+    // 기존 열린 상태 종료 후 AVAILABLE 설정.
+    // 상태 행을 여기서 직접 쓰면 큐 pause 를 건너뛴다 — 이석한 채로 로그아웃한
+    // 상담원이 재로그인해도 큐에서 빠진 채 남는다. 상태 변경은 한 경로로만 나간다.
+    // 이 시점에는 아직 앱 WS 가 붙기 전이라 큐는 정지 상태로 시작하고,
+    // 소켓이 붙는 순간 presence 변경이 다시 풀어 준다.
+    await this.agentState.changeStatus(agent.agentId, 'AVAILABLE');
 
     const refreshToken = await this.issueRefreshToken(agent.agentId, agent.tenantId, meta);
     const accessToken = this.signAccessToken(agent, {
@@ -227,15 +205,9 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
     if (row?.agentId) {
-      await this.prisma.agentStatusHistory.updateMany({
-        where: { agentId: row.agentId, endedAt: null },
-        data: { endedAt: new Date() },
-      });
-      const queueSummary = await this.queuesService.getSummary(row.tenantId);
-      await this.eventBus.publish(
-        REALTIME_EVENTS.QUEUE_SUMMARY_UPDATED,
-        toRealtimeQueueSummary(queueSummary.data?.queues ?? []),
-      );
+      // 상태 행만 닫고 끝내면 큐 멤버는 그대로 남는다. 로그아웃한 자리로 전화가
+      // 넘어가면 발신자는 아무도 없는 내선에서 벨만 듣는다.
+      await this.agentState.markLoggedOut(row.agentId);
     }
     return { success: true, data: { loggedOut: true }, error: null };
   }
@@ -245,6 +217,9 @@ export class AuthService {
       where: { agentId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    // 세션을 전부 끊는 것도 로그아웃이다. 토큰만 revoke 하고 끝내면 큐 멤버가
+    // 그대로 남아 아무도 없는 내선으로 전화가 계속 넘어간다.
+    await this.agentState.markLoggedOut(agentId);
     return { success: true, data: { loggedOut: true }, error: null };
   }
 

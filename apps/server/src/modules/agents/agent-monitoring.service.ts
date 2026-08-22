@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { QUEUE_PAUSING_STATUS_CODES } from '../calls/agent-availability.util';
 
 export type AgentHealthSummary = {
   available: number;
@@ -17,10 +18,9 @@ export class AgentMonitoringService {
   async getSummary(tenantId?: string): Promise<AgentHealthSummary> {
     const whereBase = tenantId ? { tenantId } : {};
 
-    const pausedStatuses = [
-      'BREAK', 'MEAL', 'TRAINING',
-      'SYSTEM_PAUSED', 'MANUAL_PAUSED', 'AFTER_CALL_WORK',
-    ];
+    // 목록을 여기 따로 적어 두면 화면의 "일시정지" 와 실제 큐 pause 가 갈린다.
+    // 판정은 agent-availability.util 한 곳에서만 나온다.
+    const pausedStatuses = [...QUEUE_PAUSING_STATUS_CODES];
 
     const [available, talking, ringing, paused, loggedIn] = await Promise.all([
       this.prisma.agentStatusHistory.count({
