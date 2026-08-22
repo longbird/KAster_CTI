@@ -155,6 +155,41 @@ public sealed class CtiServerClient
             new { transferType = "blind", target, fromExtension },
             ct);
 
+    /// <summary>
+    /// 협의 통화를 연다. attended 전환의 첫 단계다 — 상대에게 먼저 사정을 말하고 넘긴다.
+    /// 내 내선은 서버가 토큰에서 꺼내므로 보내지 않는다.
+    ///
+    /// <b>이것을 먼저 부르지 않으면</b> 완료도 취소도 서버가 400 으로 막는다. 열린 협의가
+    /// 있어야만 닫을 것이 있기 때문이다.
+    /// </summary>
+    public Task<CommandAck> StartConsultationAsync(string callId, string target, CancellationToken ct)
+        => PostAsync<CommandAck>(
+            $"calls/{Uri.EscapeDataString(callId)}/consultation",
+            new { target },
+            ct);
+
+    /// <summary>
+    /// 협의를 끝내고 두 사람을 붙인 뒤 빠진다. 본문이 없다 — 무엇을 완료할지는 서버가 안다.
+    ///
+    /// 접수됐다고 넘어간 것은 아니다. 서버는 feature code 를 DTMF 로 넣을 뿐이고,
+    /// 실제 완료는 뒤따라오는 <c>AttendedTransfer</c> 이벤트로 판정된다.
+    /// </summary>
+    public Task<CommandAck> CompleteAttendedTransferAsync(string callId, CancellationToken ct)
+        => PostAsync<CommandAck>(
+            $"calls/{Uri.EscapeDataString(callId)}/transfer/attended/complete",
+            new { },
+            ct);
+
+    /// <summary>
+    /// 협의를 접고 원 통화로 돌아간다. 실제 복귀는 PBX 의 atxferabort 설정에 달려 있어
+    /// 서버도 성공 여부를 모른다.
+    /// </summary>
+    public Task<CommandAck> CancelAttendedTransferAsync(string callId, CancellationToken ct)
+        => PostAsync<CommandAck>(
+            $"calls/{Uri.EscapeDataString(callId)}/transfer/attended/cancel",
+            new { },
+            ct);
+
     public Task<CommandAck> HangupAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/hangup", new { }, ct);
 

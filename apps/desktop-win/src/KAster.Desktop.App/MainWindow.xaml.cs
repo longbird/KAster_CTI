@@ -136,7 +136,9 @@ public partial class MainWindow : Window
             WindowMode.Ringing => new RingingView { DataContext = softphone },
             WindowMode.Settings when softphone.History.IsViewingHistory
                 => new HistoryView { DataContext = softphone },
-            WindowMode.Transferring when softphone.Transfer.IsChoosingTransferTarget
+            // 대상을 고르는 중이든 협의를 걸어 둔 중이든 같은 화면이다. 협의 중에 통화 화면으로
+            // 되돌리면 연결과 취소를 누를 자리가 사라진다.
+            WindowMode.Transferring when softphone.Transfer.IsTransferScreenOpen
                 => new TransferView { DataContext = softphone },
             WindowMode.Talking or WindowMode.Transferring or WindowMode.AfterCall
                 => new TalkingView { DataContext = softphone },

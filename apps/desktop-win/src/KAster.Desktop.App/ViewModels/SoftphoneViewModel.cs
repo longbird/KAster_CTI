@@ -95,7 +95,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 순서가 있다. 돌려주기는 당겨받기가 훑어 온 통화 목록을 받고, 이력의 "다시 걸기" 는
         // 발신 칸에 번호를 넣는다. 받는 쪽이 먼저 서 있어야 한다.
         Offer = new OfferViewModel(store, server, Notify, Track);
-        Transfer = new TransferViewModel(store, server, agent.Extension, Notify, Track);
+        Transfer = new TransferViewModel(store, server, agent.Extension, now, Notify, Track);
         Keypad = new KeypadViewModel(phone, server, useSoftphone, CurrentCallId, Notify, Track);
         Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree);
         Waiting = new WaitingCallsViewModel(
@@ -378,6 +378,9 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
 
         Waiting.Tick();
+
+        // 협의 전환의 연결·취소도 같은 사정이다 — 답이 없으면 스스로 기다림을 끝낸다.
+        Transfer.Tick();
 
         // PBX 가 feature code 를 안 먹으면 아무 이벤트도 오지 않는다. 서버는 그것을 모른다.
         // 기다림을 스스로 끝내지 않으면 버튼이 잠긴 채 남아 다시 시도할 방법이 없어진다.

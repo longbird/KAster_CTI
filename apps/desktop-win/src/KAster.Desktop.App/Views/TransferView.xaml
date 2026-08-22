@@ -6,6 +6,9 @@
     <!--
         돌려줄 상대를 고른다. 사람이 많아도 창이 늘어나면 안 되므로 보여 주는 수를
         고정하고, 나머지는 검색으로 좁힌다. 가린 인원은 숨기지 말고 숫자로 알린다.
+
+        협의 전환도 같은 화면이다 — 대상을 고른 뒤 협의 중 표시가 목록 자리를 그대로 받는다.
+        행을 늘리지 않는다: 목록과 협의 표시가 같은 * 행을 쓰고, 아래 버튼도 같은 행을 나눠 쓴다.
     -->
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -16,66 +19,149 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="누구에게 돌려줄까요?" Style="{StaticResource TextCaption}" />
+        <TextBlock Grid.Row="0" Text="누구에게 돌려줄까요?">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Transfer.IsChoosingTransferTarget}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
 
         <TextBox Grid.Row="1" Margin="0,8,0,0"
-                 Style="{StaticResource FieldInput}"
-                 Text="{Binding Transfer.TransferFilter, UpdateSourceTrigger=PropertyChanged}" />
+                 Text="{Binding Transfer.TransferFilter, UpdateSourceTrigger=PropertyChanged}">
+            <TextBox.Style>
+                <Style TargetType="TextBox" BasedOn="{StaticResource FieldInput}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Transfer.IsChoosingTransferTarget}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBox.Style>
+        </TextBox>
 
         <ItemsControl Grid.Row="2" Margin="0,10,0,0"
                       ItemsSource="{Binding Transfer.TransferTargets}">
+            <ItemsControl.Style>
+                <Style TargetType="ItemsControl">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Transfer.IsChoosingTransferTarget}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ItemsControl.Style>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <!-- 못 받는 상대는 아예 누를 수 없다. 넘기면 통화가 끊어진다. -->
-                    <Button Margin="0,0,0,6"
-                            HorizontalContentAlignment="Stretch"
-                            IsEnabled="{Binding CanTakeCall}"
-                            ToolTip="{Binding StatusText}"
-                            Style="{StaticResource ButtonSecondary}"
-                            Command="{Binding DataContext.Transfer.TransferToCommand,
-                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Extension}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                    <!--
+                        한 사람에 두 가지 방법이 있다. 왼쪽은 바로 넘기기, 오른쪽은 먼저 사정을
+                        말하고 넘기기. 같은 줄에 나란히 두므로 사람이 늘어도 행 수는 그대로다.
+                    -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="6" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Left">
-                                <TextBlock Text="{Binding AgentName}"
-                                           FontWeight="SemiBold"
-                                           HorizontalAlignment="Left"
-                                           TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Extension}"
-                                           HorizontalAlignment="Left"
-                                           Style="{StaticResource TextCaption}" />
-                            </StackPanel>
+                        <!-- 못 받는 상대는 아예 누를 수 없다. 넘기면 통화가 끊어진다. -->
+                        <Button Grid.Column="0"
+                                HorizontalContentAlignment="Stretch"
+                                IsEnabled="{Binding CanTakeCall}"
+                                ToolTip="{Binding StatusText}"
+                                Style="{StaticResource ButtonSecondary}"
+                                Command="{Binding DataContext.Transfer.TransferToCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                CommandParameter="{Binding Extension}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
 
-                            <!--
-                                지금 받을 수 있는지. 모르고 돌려주면 통화가 허공으로 가고
-                                발신자는 그 사이 기다리다 끊는다.
-                            -->
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding StatusText}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Right">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-                                        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding CanTakeCall}" Value="True">
-                                                <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
-                                                <Setter Property="FontWeight" Value="SemiBold" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Grid>
-                    </Button>
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Left">
+                                    <TextBlock Text="{Binding AgentName}"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Left"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Extension}"
+                                               HorizontalAlignment="Left"
+                                               Style="{StaticResource TextCaption}" />
+                                </StackPanel>
+
+                                <!--
+                                    지금 받을 수 있는지. 모르고 돌려주면 통화가 허공으로 가고
+                                    발신자는 그 사이 기다리다 끊는다.
+                                -->
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding StatusText}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Right">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CanTakeCall}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Button>
+
+                        <!-- 먼저 사정을 말하고 넘긴다. 같은 가드가 걸린다 — 못 받는 사람은 협의도 못 받는다. -->
+                        <Button Grid.Column="2" Content="협의" MinWidth="64"
+                                IsEnabled="{Binding CanTakeCall}"
+                                Style="{StaticResource ButtonSecondary}"
+                                Command="{Binding DataContext.Transfer.ConsultCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                CommandParameter="{Binding Extension}" />
+                    </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <!--
+            협의 중. 목록과 같은 행을 쓴다 — 둘 중 하나만 보인다.
+            상대가 받았는지는 서버가 알려주지 않으므로 여기에 적지 않는다. 모르는 것을
+            아는 척 적으면 상담원이 빈 자리에 대고 말한다.
+        -->
+        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Transfer.IsConsulting}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+
+            <TextBlock Text="협의 전환" Style="{StaticResource TextCaption}" />
+
+            <TextBlock Text="{Binding Transfer.ConsultTargetLabel}"
+                       Style="{StaticResource TextTitle}"
+                       Margin="0,2,0,0" />
+
+            <!-- 이 문구가 잘리면 뜻이 뒤집힌다. 남는 세로 자리를 쓰는 행이므로 접어서 다 보인다. -->
+            <TextBlock Text="{Binding Transfer.ConsultStatusText}"
+                       Margin="0,10,0,0"
+                       TextWrapping="Wrap"
+                       TextTrimming="None"
+                       Foreground="{StaticResource BrushWarning}"
+                       Style="{StaticResource TextBody}" />
+        </StackPanel>
 
         <!-- 가린 인원이 없으면 이 줄 자체가 없어야 한다. 남아 있으면 "0명 더 있음" 이 뜬다. -->
         <TextBlock Grid.Row="3" Margin="0,2,0,0">
@@ -86,6 +172,9 @@
                         <DataTrigger Binding="{Binding Transfer.TransferTargetsHidden}" Value="0">
                             <Setter Property="Visibility" Value="Collapsed" />
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding Transfer.IsChoosingTransferTarget}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </TextBlock.Style>
@@ -93,7 +182,47 @@
         </TextBlock>
 
         <Button Grid.Row="4" Margin="0,10,0,0" Content="취소"
-                Style="{StaticResource ButtonSecondary}"
-                Command="{Binding Transfer.CancelTransferCommand}" />
+                Command="{Binding Transfer.CancelTransferCommand}">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Transfer.IsChoosingTransferTarget}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
+
+        <!--
+            협의를 마무리하는 두 갈래. 취소 버튼과 같은 행을 쓴다 — 둘 중 하나만 보이므로
+            버튼이 늘어도 행은 그대로다.
+
+            문구는 뷰모델이 준다. "연결" 과 "연결 요청 중" 을 다른 말로 적어야
+            안 넘어간 통화를 넘어갔다고 읽지 않는다.
+        -->
+        <UniformGrid Grid.Row="4" Rows="1" Margin="0,10,0,0">
+            <UniformGrid.Style>
+                <Style TargetType="UniformGrid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Transfer.IsConsulting}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </UniformGrid.Style>
+
+            <Button Margin="2,0"
+                    Content="{Binding Transfer.CompleteButtonText}"
+                    Style="{StaticResource ButtonPrimary}"
+                    Command="{Binding Transfer.CompleteTransferCommand}" />
+
+            <Button Margin="2,0"
+                    Content="{Binding Transfer.CancelConsultButtonText}"
+                    Style="{StaticResource ButtonSecondary}"
+                    Command="{Binding Transfer.CancelConsultationCommand}" />
+        </UniformGrid>
     </Grid>
 </UserControl>
