@@ -38,7 +38,6 @@ import { classifyDidInboundRoute } from './branch-did-route';
 import { computeTimeSyncStatus, extractPbxTimeFromAmiFrames, unknownTimeSyncStatus } from './time-sync-status';
 import { buildSystemVersion } from './system-version';
 import {
-  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
   DEFAULT_SIP_REGISTER_PORT,
 } from '../../common/call-routing.constants';
 
@@ -2805,7 +2804,6 @@ export class AdminService {
           recordingEnabled: boolean;
           recordingChannelMode?: string | null;
           defaultMaxWaitSeconds: number;
-          agentOfferTimeoutSeconds?: number | null;
           allowDirectSipDial?: boolean | null;
           defaultSipPassword?: string | null;
           allowedOutboundCallerIds?: string | null;
@@ -2821,7 +2819,6 @@ export class AdminService {
       recordingEnabled: true,
       recordingChannelMode: 'MONO',
       defaultMaxWaitSeconds: 45,
-      agentOfferTimeoutSeconds: DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
       allowDirectSipDial: false,
       defaultSipPassword: '',
       allowedOutboundCallerIds: '',
@@ -2837,7 +2834,6 @@ export class AdminService {
         ? {
           ...row,
           recordingChannelMode: row.recordingChannelMode ?? 'MONO',
-          agentOfferTimeoutSeconds: row.agentOfferTimeoutSeconds ?? DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
           defaultSipPassword: row.defaultSipPassword ?? '',
           allowedOutboundCallerIds: row.allowedOutboundCallerIds ?? '',
           defaultOutboundCallerId: row.defaultOutboundCallerId ?? '',
@@ -2940,9 +2936,6 @@ export class AdminService {
         recordingEnabled: dto.recordingEnabled,
         recordingChannelMode,
         defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
-        // undefined 면 Prisma 가 건드리지 않는다 — 다른 설정 저장이 현장에서 맞춘
-        // 대기 시간을 조용히 기본값으로 되돌리지 않게 한다.
-        agentOfferTimeoutSeconds: dto.agentOfferTimeoutSeconds,
         allowDirectSipDial: dto.allowDirectSipDial,
         defaultSipPassword: dto.defaultSipPassword?.trim() || null,
         allowedOutboundCallerIds: serializeAllowedCallerIds(allowedOutboundCallerIds),
@@ -2955,9 +2948,6 @@ export class AdminService {
         recordingEnabled: dto.recordingEnabled,
         recordingChannelMode,
         defaultMaxWaitSeconds: dto.defaultMaxWaitSeconds,
-        // undefined 면 Prisma 가 건드리지 않는다 — 다른 설정 저장이 현장에서 맞춘
-        // 대기 시간을 조용히 기본값으로 되돌리지 않게 한다.
-        agentOfferTimeoutSeconds: dto.agentOfferTimeoutSeconds,
         allowDirectSipDial: dto.allowDirectSipDial,
         defaultSipPassword: dto.defaultSipPassword?.trim() || null,
         allowedOutboundCallerIds: serializeAllowedCallerIds(allowedOutboundCallerIds),

@@ -164,6 +164,7 @@ model queues {
   unconditionalTargetValue String?   @db.VarChar(64)
   strategy            String    @default("leastrecent") @db.VarChar(32)
   ringTimeoutSeconds  Int       @default(15)
+  agentOfferTimeoutSeconds Int  @default(10)
   retrySeconds        Int       @default(3)
   wrapupSeconds       Int       @default(30)
   maxWaitSeconds      Int       @default(45)
@@ -874,7 +875,6 @@ model tenantSystemSettings {
   recordingEnabled       Boolean  @default(true)
   recordingChannelMode   String   @default("MONO") @db.VarChar(16)
   defaultMaxWaitSeconds  Int      @default(45)
-  agentOfferTimeoutSeconds Int    @default(10)
   allowDirectSipDial     Boolean  @default(false)
   defaultSipPassword     String?  @db.Text
   allowedOutboundCallerIds String? @db.Text

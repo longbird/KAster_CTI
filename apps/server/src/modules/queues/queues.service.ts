@@ -19,6 +19,7 @@ import {
   resolveQueueStrategy,
   type DistributionMode,
 } from './distribution-mode';
+import { DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS } from '../../common/call-routing.constants';
 
 @Injectable()
 export class QueuesService {
@@ -175,6 +176,7 @@ export class QueuesService {
         strategy: true,
         maxWaitSeconds: true,
         ringTimeoutSeconds: true,
+        agentOfferTimeoutSeconds: true,
         wrapupSeconds: true,
         autopause: true,
         isActive: true,
@@ -261,6 +263,7 @@ export class QueuesService {
           unconditionalTargetValue: unconditionalTarget.unconditionalTargetValue,
           strategy: resolveQueueStrategy(distributionMode, dto.strategy),
           ringTimeoutSeconds: dto.ringTimeoutSeconds ?? 15,
+          agentOfferTimeoutSeconds: dto.agentOfferTimeoutSeconds ?? DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
           wrapupSeconds: dto.wrapupSeconds ?? 30,
           maxWaitSeconds: dto.maxWaitSeconds ?? 45,
           autopause: dto.autopause ?? true,
@@ -330,6 +333,7 @@ export class QueuesService {
             dto.strategy !== undefined && { strategy: dto.strategy }),
           ...(dto.maxWaitSeconds !== undefined && { maxWaitSeconds: dto.maxWaitSeconds }),
           ...(dto.ringTimeoutSeconds !== undefined && { ringTimeoutSeconds: dto.ringTimeoutSeconds }),
+          ...(dto.agentOfferTimeoutSeconds !== undefined && { agentOfferTimeoutSeconds: dto.agentOfferTimeoutSeconds }),
           ...(dto.wrapupSeconds !== undefined && { wrapupSeconds: dto.wrapupSeconds }),
           ...(dto.autopause !== undefined && { autopause: dto.autopause }),
           updatedAt: new Date(),
@@ -345,6 +349,7 @@ export class QueuesService {
           strategy: true,
           maxWaitSeconds: true,
           ringTimeoutSeconds: true,
+          agentOfferTimeoutSeconds: true,
           wrapupSeconds: true,
           autopause: true,
           isActive: true,
@@ -462,6 +467,7 @@ export class QueuesService {
           queueDisplayName: DEFAULT_DISTRIBUTION_RULE_DISPLAY_NAME,
           strategy: 'leastrecent',
           ringTimeoutSeconds: 15,
+          agentOfferTimeoutSeconds: DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
           wrapupSeconds: 30,
           maxWaitSeconds: 45,
           autopause: true,

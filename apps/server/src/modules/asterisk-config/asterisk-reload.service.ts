@@ -22,7 +22,6 @@ import {
   validateRenderedConfFiles,
 } from './asterisk-config-validation';
 import {
-  clampAgentOfferTimeoutSeconds,
   DEFAULT_SIP_REGISTER_PORT,
 } from '../../common/call-routing.constants';
 import { buildDefaultMohWav } from './default-moh';
@@ -903,7 +902,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       holidayRules,
       blocklistEntries,
       sipRegisterPort,
-      agentOfferTimeoutSeconds,
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
@@ -922,6 +920,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       holidayRules,
       blocklistEntries,
       recordingChannelMode,
+      // 제안 대기 시간은 호분배룰마다 다르다. 큐 진입에서 채널에 실어야
+      // 상담원을 부르는 `agent-offer` 까지 그 값이 따라간다.
+      queueOfferTimeouts: rawQueues.map((q) => ({
+        queueName: q.queueName,
+        agentOfferTimeoutSeconds: (q as { agentOfferTimeoutSeconds?: number | null }).agentOfferTimeoutSeconds,
+      })),
     });
     const promptMohClasses = this.buildPromptMohClasses(dids, soundsDir);
     const extensionsAgent = renderAgentDialplan({
@@ -946,7 +950,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       outboundCallerIdRules,
       speedDials,
       featureCodes,
-      offerTimeoutSeconds: agentOfferTimeoutSeconds,
     });
     const queuesContent = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -1011,7 +1014,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       holidayRules,
       blocklistEntries,
       sipRegisterPort,
-      agentOfferTimeoutSeconds,
       allowDirectSipDial,
       allowedOutboundCallerIds,
       defaultOutboundCallerId,
@@ -1030,6 +1032,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       holidayRules,
       blocklistEntries,
       recordingChannelMode,
+      // 제안 대기 시간은 호분배룰마다 다르다. 큐 진입에서 채널에 실어야
+      // 상담원을 부르는 `agent-offer` 까지 그 값이 따라간다.
+      queueOfferTimeouts: rawQueues.map((q) => ({
+        queueName: q.queueName,
+        agentOfferTimeoutSeconds: (q as { agentOfferTimeoutSeconds?: number | null }).agentOfferTimeoutSeconds,
+      })),
     });
     const promptMohClasses = this.buildPromptMohClasses(dids, this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom'));
     const extensionsAgent = renderAgentDialplan({
@@ -1054,7 +1062,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       outboundCallerIdRules,
       speedDials,
       featureCodes,
-      offerTimeoutSeconds: agentOfferTimeoutSeconds,
     });
     const queues = renderQueuesConf(
       rawQueues.map((q) => ({
@@ -1367,7 +1374,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           defaultOutboundCallerId: true,
           sipRegisterPort: true,
           recordingChannelMode: true,
-          agentOfferTimeoutSeconds: true,
         },
       } as any),
     ]);
@@ -1379,7 +1385,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           defaultOutboundCallerId?: string | null;
           sipRegisterPort?: number | null;
           recordingChannelMode?: string | null;
-          agentOfferTimeoutSeconds?: number | null;
         }
       | null;
     const defaultSipPassword = settings?.defaultSipPassword ?? null;
@@ -1407,8 +1412,6 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       speedDials,
       featureCodes,
       sipRegisterPort: typedSettings?.sipRegisterPort ?? DEFAULT_SIP_REGISTER_PORT,
-      // DB 값이 범위 밖이어도(마이그레이션 이전 행, DB 직접 수정) 여기서 깎아 둔다.
-      agentOfferTimeoutSeconds: clampAgentOfferTimeoutSeconds(typedSettings?.agentOfferTimeoutSeconds),
       recordingChannelMode: normalizeRecordingChannelMode(typedSettings?.recordingChannelMode),
       allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),

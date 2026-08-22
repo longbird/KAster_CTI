@@ -834,4 +834,71 @@ describe('renderDialplan', () => {
       ivrMenus: [{ id: 'm4', name: 'ValidMenu', welcomePrompt: null, menuPrompt: null, timeoutSecs: 0, entries: [{ id: 'e4', digit: '1', label: 'X', queueName: 'q', tenantId: 't1', menuId: 'm4' }] }],
     })).toThrow('invalid timeoutSecs');
   });
+
+  /**
+   * 제안 대기 시간은 호분배룰(큐)마다 다르다. 상담원을 부르는 `agent-offer` context 는 모든 큐가
+   * 함께 쓰므로 거기에는 어느 큐인지가 없다 — 값이 호를 따라가야 한다.
+   */
+  describe('agent-offer-timeout', () => {
+    const offerContext = (queues: Array<{ queueName: string; agentOfferTimeoutSeconds?: number | null }>) => {
+      const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [], queueOfferTimeouts: queues });
+      return extensionsQueue.slice(extensionsQueue.indexOf('[agent-offer-timeout]'));
+    };
+
+    it('큐마다 다른 대기 시간을 심는다', () => {
+      const rendered = offerContext([
+        { queueName: 'sales', agentOfferTimeoutSeconds: 7 },
+        { queueName: 'support', agentOfferTimeoutSeconds: 20 },
+      ]);
+
+      expect(rendered).toContain('exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=7)');
+      expect(rendered).toContain('exten => support,1,Set(__KASTER_OFFER_TIMEOUT=20)');
+    });
+
+    /**
+     * 밑줄 두 개가 이 기능의 전부다. 큐가 상담원을 부를 때 만드는 `Local/{내선}@agent-offer`
+     * 채널은 발신자 채널에서 <b>상속되는 변수만</b> 물려받는다. 하나라도 빠뜨리면 읽는 쪽이
+     * 언제나 빈 값을 보고, 관리자가 넣은 값이 조용히 무시된다.
+     */
+    it('상속되는 변수로 심는다', () => {
+      const rendered = offerContext([{ queueName: 'sales', agentOfferTimeoutSeconds: 7 }]);
+
+      expect(rendered).toContain('Set(__KASTER_OFFER_TIMEOUT=');
+      expect(rendered).not.toContain('Set(KASTER_OFFER_TIMEOUT=');
+    });
+
+    /** 등록되지 않은 큐로 들어와도 다이얼플랜이 멈추지 않아야 한다. */
+    it('모르는 큐는 그냥 돌아간다', () => {
+      expect(offerContext([])).toContain('exten => _.,1,Return()');
+    });
+
+    /**
+     * DB 에는 범위 밖 값이 들어올 수 있다 — 마이그레이션 이전 행, DB 직접 수정.
+     * 그 값이 그대로 나가면 AGI 가 롱폴 검증(1~60초)에 걸려 400 을 받고,
+     * AGI 는 실패하면 ACCEPT 로 연다 — 전 상담원이 묻지도 않고 자동 수락된다.
+     */
+    it('상한을 넘는 값은 상한으로 깎는다', () => {
+      expect(offerContext([{ queueName: 'sales', agentOfferTimeoutSeconds: 900 }]))
+        .toContain('exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=60)');
+    });
+
+    it('하한보다 짧은 값은 하한으로 올린다', () => {
+      expect(offerContext([{ queueName: 'sales', agentOfferTimeoutSeconds: 0 }]))
+        .toContain('exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=1)');
+    });
+
+    it('값이 없으면 기본값으로 심는다', () => {
+      expect(offerContext([{ queueName: 'sales', agentOfferTimeoutSeconds: null }]))
+        .toContain('exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=10)');
+    });
+
+    it('큐 진입에서 값을 심고, 못 심었으면 기본값으로 채운다', () => {
+      const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [] });
+
+      expect(extensionsQueue).toContain('Gosub(agent-offer-timeout,${QUEUE_NAME},1)');
+      expect(extensionsQueue).toContain(
+        'ExecIf($["${LEN(${KASTER_OFFER_TIMEOUT})}"="0"]?Set(__KASTER_OFFER_TIMEOUT=10))',
+      );
+    });
+  });
 });

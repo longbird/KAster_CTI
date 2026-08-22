@@ -1,8 +1,7 @@
 import { renderAgentDialplan } from './agent-dialplan.renderer';
 import {
+  AGENT_OFFER_TIMEOUT_VARIABLE,
   DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
-  MAX_AGENT_OFFER_TIMEOUT_SECONDS,
-  MIN_AGENT_OFFER_TIMEOUT_SECONDS,
 } from '../../../common/call-routing.constants';
 
 const OFFER_INPUT = {
@@ -25,7 +24,7 @@ describe('renderAgentDialplan - agent-offer', () => {
     expect(rendered).toContain('[agent-offer]');
     // 이름만 적으면 Asterisk 가 agi-bin 에서 찾는데 이 배포엔 그 디렉터리가 없다.
     // 못 찾아도 조용히 실패하고 fail-open 이라 확인 없이 다 통과한다.
-    expect(rendered).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,${EXTEN},10)');
+    expect(rendered).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,${EXTEN},');
     expect(rendered).toContain('Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
   });
 
@@ -70,40 +69,40 @@ describe('renderAgentDialplan - agent-offer', () => {
     expect(offerBlock).toContain('Set(__REC_FILE=');
   });
 
-  it('제안 타임아웃을 현장에 맞게 바꿀 수 있다', () => {
-    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 7 });
+  /**
+   * 대기 시간은 호분배룰(큐)마다 다르므로 여기에 박을 수 없다 — 이 context 는 모든 큐가 함께 쓴다.
+   * 값은 큐 진입에서 채널에 실려 여기까지 따라온다 (`dialplan.renderer` 의 agent-offer-timeout).
+   */
+  it('대기 시간은 박아 두지 않고 호를 따라온 값을 쓴다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
 
-    expect(rendered).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,${EXTEN},7)');
+    expect(rendered).toContain(
+      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},\${${AGENT_OFFER_TIMEOUT_VARIABLE}})`,
+    );
   });
 
   /**
-   * DB 에는 범위 밖 값이 들어올 수 있다 — 마이그레이션 이전 행, DB 직접 수정.
-   * 그 값을 그대로 dialplan 에 박으면 AGI 가 롱폴 DTO 검증(1~60초)에 걸려 400 을 받고,
-   * AGI 는 예외를 만나면 ACCEPT 로 fail-open 한다 — 전 상담원이 묻지도 않고 자동 수락된다.
+   * 큐를 거치지 않고 이 context 로 들어오는 길이 있다(직접 Dial, 시험 호출). 그때 인자가 비면
+   * AGI 가 롱폴 검증에 걸려 400 을 받고, AGI 는 실패하면 ACCEPT 로 연다 —
+   * 전 상담원이 묻지도 않고 자동 수락된다.
    */
-  it('상한을 넘는 대기 시간은 상한으로 깎아서 내보낸다', () => {
-    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 900 });
+  it('따라온 값이 없으면 AGI 를 부르기 전에 기본값으로 채운다', () => {
+    const rendered = renderAgentDialplan(OFFER_INPUT);
+    const offerBlock = rendered.slice(rendered.indexOf('[agent-offer]'));
 
-    expect(rendered).toContain(
-      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},${MAX_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    const guard = offerBlock.indexOf(
+      `Set(${AGENT_OFFER_TIMEOUT_VARIABLE}=${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    );
+    expect(guard).toBeGreaterThan(-1);
+
+    // 채우는 줄이 AGI 보다 뒤에 있으면 아무 소용이 없다.
+    expect(guard).toBeLessThan(
+      offerBlock.indexOf('AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi'),
     );
   });
 
-  it('하한보다 짧은 대기 시간은 하한으로 올려서 내보낸다', () => {
-    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: 0 });
-
-    expect(rendered).toContain(
-      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},${MIN_AGENT_OFFER_TIMEOUT_SECONDS})`,
-    );
-  });
-
-  it('숫자가 아닌 대기 시간이 오면 기본값으로 되돌린다', () => {
-    const rendered = renderAgentDialplan({ ...OFFER_INPUT, offerTimeoutSeconds: Number.NaN });
-
-    expect(rendered).toContain(
-      `AGI(/var/lib/asterisk/sounds/custom/kaster-agent-offer.agi,\${EXTEN},${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS})`,
-    );
-  });
+  // 범위 밖 값을 깎는 일은 이제 큐별로 값을 심는 쪽이 한다 — dialplan.renderer.spec 의
+  // agent-offer-timeout 테스트를 본다.
 });
 
 describe('renderAgentDialplan', () => {

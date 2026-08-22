@@ -40,6 +40,7 @@ import {
   type DraftQueueMember,
   type QueueMemberAgent,
 } from './queueMemberGroups';
+import { AGENT_OFFER_TIMEOUT_MAX_SECONDS, AGENT_OFFER_TIMEOUT_MIN_SECONDS } from './agentOfferTimeout';
 
 export interface QueueRow {
   queueId: string;
@@ -52,6 +53,7 @@ export interface QueueRow {
   strategy?: string;
   maxWaitSeconds?: number;
   ringTimeoutSeconds?: number;
+  agentOfferTimeoutSeconds?: number;
   wrapupSeconds?: number;
   autopause?: boolean;
   overflowRules?: Array<{
@@ -158,6 +160,7 @@ export function QueueEditModal({
     strategy?: string;
     maxWaitSeconds?: number;
     ringTimeoutSeconds?: number;
+  agentOfferTimeoutSeconds?: number;
     wrapupSeconds?: number;
     autopause?: boolean;
   }>();
@@ -188,6 +191,7 @@ export function QueueEditModal({
         strategy: queue.strategy,
         maxWaitSeconds: queue.maxWaitSeconds,
         ringTimeoutSeconds: queue.ringTimeoutSeconds,
+        agentOfferTimeoutSeconds: queue.agentOfferTimeoutSeconds,
         wrapupSeconds: queue.wrapupSeconds,
         autopause: queue.autopause,
         overflowEnabled: !!firstOverflowRule,
@@ -520,6 +524,18 @@ export function QueueEditModal({
               </Form.Item>
               <Form.Item label="링 타임아웃(초)" name="ringTimeoutSeconds" style={{ marginBottom: 0 }}>
                 <InputNumber min={5} max={120} style={{ width: '100%' }} disabled={!canEditSettings} />
+              </Form.Item>
+              <Form.Item
+                label="수락 대기시간(초)"
+                name="agentOfferTimeoutSeconds"
+                tooltip={'전화가 배정되면 상담원 화면에 "받으시겠습니까" 가 뜹니다. 이 시간 안에 받지 않으면 다음 상담원에게 넘어가고, 그동안 발신자는 대기음을 계속 듣습니다.'}
+                style={{ marginBottom: 0 }}
+              >
+                <InputNumber
+                  min={AGENT_OFFER_TIMEOUT_MIN_SECONDS}
+                  max={AGENT_OFFER_TIMEOUT_MAX_SECONDS}
+                  style={{ width: '100%' }} disabled={!canEditSettings}
+                />
               </Form.Item>
               <Form.Item label="후처리 시간(초)" name="wrapupSeconds" style={{ marginBottom: 0 }}>
                 <InputNumber min={0} max={600} style={{ width: '100%' }} disabled={!canEditSettings} />

@@ -40,6 +40,7 @@ import {
   type DraftQueueMember,
   type QueueMemberAgent,
 } from './queueMemberGroups';
+import { AGENT_OFFER_TIMEOUT_MAX_SECONDS, AGENT_OFFER_TIMEOUT_MIN_SECONDS } from './agentOfferTimeout';
 
 interface Props {
   open: boolean;
@@ -92,6 +93,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
     overflowTargetValue?: string;
     strategy?: string;
     ringTimeoutSeconds?: number;
+    agentOfferTimeoutSeconds?: number;
     wrapupSeconds?: number;
     maxWaitSeconds?: number;
     autopause?: boolean;
@@ -321,6 +323,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
           unconditionalTargetType: 'AGENT',
           strategy: 'leastrecent',
           ringTimeoutSeconds: 15,
+          agentOfferTimeoutSeconds: 10,
           wrapupSeconds: 30,
           maxWaitSeconds: 45,
           autopause: true,
@@ -384,6 +387,18 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
               ) : null}
               <Form.Item label="링 타임아웃(초)" name="ringTimeoutSeconds" style={{ marginBottom: 0 }}>
                 <InputNumber min={5} max={120} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item
+                label="수락 대기시간(초)"
+                name="agentOfferTimeoutSeconds"
+                tooltip={'전화가 배정되면 상담원 화면에 "받으시겠습니까" 가 뜹니다. 이 시간 안에 받지 않으면 다음 상담원에게 넘어가고, 그동안 발신자는 대기음을 계속 듣습니다.'}
+                style={{ marginBottom: 0 }}
+              >
+                <InputNumber
+                  min={AGENT_OFFER_TIMEOUT_MIN_SECONDS}
+                  max={AGENT_OFFER_TIMEOUT_MAX_SECONDS}
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
               <Form.Item label="Auto Pause" name="autopause" valuePropName="checked" style={{ marginBottom: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', height: 40 }}>

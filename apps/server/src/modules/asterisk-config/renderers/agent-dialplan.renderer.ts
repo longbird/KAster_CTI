@@ -10,7 +10,8 @@ import {
 import {
   AGENT_OFFER_AGI_PATH,
   AGENT_OFFER_CONTEXT,
-  clampAgentOfferTimeoutSeconds,
+  AGENT_OFFER_TIMEOUT_VARIABLE,
+  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
 } from '../../../common/call-routing.constants';
 import {
   getMixMonitorOptions,
@@ -85,12 +86,6 @@ export interface AgentDialplanInput {
   trunks: AgentDialplanTrunkInput[];
   trunkGroups?: AgentDialplanTrunkGroupInput[];
   agents: AgentDialplanAgentInput[];
-  /**
-   * 상담원이 호를 수락/거절할 때까지 기다리는 시간(초).
-   * 짧으면 상담원이 놓치고, 길면 발신자가 이유 없이 기다린다.
-   * 범위 밖 값은 렌더 직전에 깎는다 (`clampAgentOfferTimeoutSeconds`).
-   */
-  offerTimeoutSeconds?: number;
   speedDials?: AgentDialplanSpeedDialInput[];
   /**
    * 기능코드 registry. HANDSET_DIAL 성격인 것만 렌더링한다.
@@ -501,7 +496,6 @@ function renderPreBridgeAgentBranch(
  */
 function renderAgentOffer(
   agents: AgentDialplanAgentInput[],
-  timeoutSeconds: number,
   recordingChannelMode: RecordingChannelMode,
 ): string {
   const offerFields = 'Extension: ${EXTEN},Caller: ${CALLERID(num)},Linkedid: ${CHANNEL(linkedid)}';
@@ -517,7 +511,14 @@ function renderAgentOffer(
     // 녹취를 쓰려 하고 그 통화 녹취가 통째로 사라진다.
     ...buildRecordFileLines(recordingChannelMode),
     ` same => n,UserEvent(KasterAgentOffer,Stage: offered,${offerFields})`,
-    ` same => n,AGI(${AGENT_OFFER_AGI_PATH},\${EXTEN},${timeoutSeconds})`,
+    // 대기 시간은 호분배룰(큐)마다 다르다. 그 값은 큐 진입에서 채널에 실려 여기까지 따라온다 —
+    // 이 context 는 모든 큐가 함께 쓰므로 여기에는 어느 큐인지가 없다.
+    //
+    // 그래도 빈 값을 대비한다. 큐를 거치지 않고 이 context 로 들어오는 길(직접 Dial, 시험 호출)이
+    // 있고, 그때 인자가 비면 AGI 가 롱폴 검증에 걸려 400 을 받는다 — AGI 는 실패하면 ACCEPT 로
+    // 열므로 전 상담원이 묻지도 않고 자동 수락된다.
+    ` same => n,ExecIf($["\${LEN(\${${AGENT_OFFER_TIMEOUT_VARIABLE}})}"="0"]?Set(${AGENT_OFFER_TIMEOUT_VARIABLE}=${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}))`,
+    ` same => n,AGI(${AGENT_OFFER_AGI_PATH},\${EXTEN},\${${AGENT_OFFER_TIMEOUT_VARIABLE}})`,
     ` same => n,UserEvent(KasterAgentOffer,Stage: result,Result: \${KASTER_OFFER_RESULT},${offerFields})`,
     // 명시적인 거절만 거절로 본다. AGI 가 아예 못 돌면 이 변수는 빈 문자열인데,
     // 그걸 거절로 보면 모든 상담원이 통과되고 아무도 전화를 못 받는다 — 콜센터가 통째로 멈춘다.
@@ -609,13 +610,7 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
       ),
     ),
     fromQueue,
-    renderAgentOffer(
-      input.agents,
-      // 범위 밖 값을 그대로 박으면 AGI 가 롱폴 검증에 걸려 400 을 받고, AGI 는 실패하면
-      // ACCEPT 로 fail-open 한다 — 전 상담원이 묻지도 않고 자동 수락된다.
-      clampAgentOfferTimeoutSeconds(input.offerTimeoutSeconds),
-      recordingChannelMode,
-    ),
+    renderAgentOffer(input.agents, recordingChannelMode),
     sipHeaderHook,
     renderPreBridgeDispatcher(input.agents),
     ...input.agents.map((agent) => renderPreBridgeAgentBranch(agent, recordingChannelMode)),

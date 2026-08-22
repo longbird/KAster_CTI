@@ -72,5 +72,16 @@ export function clampAgentOfferTimeoutSeconds(value: number | null | undefined):
  */
 export const AGENT_OFFER_CONTEXT = 'agent-offer';
 
+/**
+ * 큐별 제안 대기 시간을 채널에 심는 sub-context, 그리고 그 값이 담기는 채널 변수.
+ *
+ * 두 렌더러가 이 이름을 나눠 쓴다 — `dialplan.renderer` 가 큐 진입에서 심고,
+ * `agent-dialplan.renderer` 가 상담원을 부르기 직전에 읽는다. 이름이 갈리면 읽는 쪽이
+ * 언제나 빈 값을 보게 되고, 그러면 관리자가 호분배룰에 넣은 값이 **조용히 무시된다**
+ * (폴백이 있어 통화는 정상으로 보이므로 아무도 눈치채지 못한다).
+ */
+export const AGENT_OFFER_TIMEOUT_CONTEXT = 'agent-offer-timeout';
+export const AGENT_OFFER_TIMEOUT_VARIABLE = 'KASTER_OFFER_TIMEOUT';
+
 export const AGENT_OFFER_AGI_NAME = 'kaster-agent-offer.agi';
 export const AGENT_OFFER_AGI_PATH = `/var/lib/asterisk/sounds/custom/${AGENT_OFFER_AGI_NAME}`;

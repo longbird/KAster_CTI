@@ -1,5 +1,10 @@
 import { assertNoNewlines, toSlug } from './renderer-utils';
 import {
+  AGENT_OFFER_TIMEOUT_CONTEXT,
+  clampAgentOfferTimeoutSeconds,
+  DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS,
+} from '../../../common/call-routing.constants';
+import {
   getRecordingFileExtension,
   normalizeRecordingChannelMode,
   RecordingChannelMode,
@@ -131,6 +136,11 @@ export interface DialplanInput {
   recordingChannelMode?: RecordingChannelMode;
   forwardingRules?: ForwardingRuleInput[];
   queueOverflowRules?: QueueOverflowRuleInput[];
+  /**
+   * 큐별 제안 대기 시간. 값이 호를 따라가야 해서 여기서 심는다 —
+   * `agent-offer` context 는 모든 큐가 함께 쓰므로 거기에는 큐가 무엇인지가 없다.
+   */
+  queueOfferTimeouts?: QueueOfferTimeoutInput[];
   blocklistEntries?: BlocklistEntryInput[];
   holidayRules?: HolidayRuleInput[];
 }
@@ -154,6 +164,11 @@ export interface ForwardingRuleInput {
   daysOfWeek: string | null;
   scheduleJson?: string | null;
   enabled: boolean;
+}
+
+export interface QueueOfferTimeoutInput {
+  queueName: string;
+  agentOfferTimeoutSeconds?: number | null;
 }
 
 export interface QueueOverflowRuleInput {
@@ -404,6 +419,31 @@ function renderQueueOverflowTimeoutContext(queueOverflowRules: QueueOverflowRule
     assertNoNewlines(rule.queueName, 'queueOverflow.queueName');
     lines.push(
       `exten => ${rule.queueName},1,Set(__QUEUE_TIMEOUT_SECS=${normalizeQueueOverflowWaitSeconds(rule)})`,
+      ' same => n,Return()',
+    );
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * 큐별 제안 대기 시간을 채널에 심는다.
+ *
+ * `__` 로 두는 것이 요점이다. 큐가 상담원을 부를 때 만드는 `Local/{내선}@agent-offer` 채널은
+ * 발신자 채널에서 <b>상속되는 변수만</b> 물려받는다. 이 값을 읽는 쪽이 바로 그 채널이라
+ * 하나라도 밑줄을 빠뜨리면 대기 시간이 조용히 기본값으로 돌아간다.
+ * (같은 길로 `__REC_FILE` 이 넘어가 녹취 경로가 정해진다.)
+ */
+function renderAgentOfferTimeoutContext(queues: QueueOfferTimeoutInput[]): string {
+  const lines = [
+    `[${AGENT_OFFER_TIMEOUT_CONTEXT}]`,
+    'exten => _.,1,Return()',
+  ];
+
+  for (const queue of queues) {
+    assertNoNewlines(queue.queueName, 'queueOfferTimeout.queueName');
+    lines.push(
+      `exten => ${queue.queueName},1,Set(__KASTER_OFFER_TIMEOUT=${clampAgentOfferTimeoutSeconds(queue.agentOfferTimeoutSeconds)})`,
       ' same => n,Return()',
     );
   }
@@ -1338,6 +1378,10 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     ' same => n,ExecIf($["${LEN(${QUEUE_NAME})}"="0"]?Set(__QUEUE_NAME=${EXTEN}))',
     ' same => n,NoOp(Queue Entry / ${QUEUE_NAME} / ${CHANNEL(linkedid)})',
     ' same => n,Gosub(queue-overflow-timeout,${QUEUE_NAME},1)',
+    ` same => n,Gosub(${AGENT_OFFER_TIMEOUT_CONTEXT},\${QUEUE_NAME},1)`,
+    // 큐에 값이 없거나 sub-context 를 못 타면 여기서 채운다. 빈 값을 그대로 흘리면 AGI 인자가
+    // 비고, AGI 는 인자를 못 읽으면 기본값으로 떨어지긴 하지만 그 판단이 두 곳으로 갈린다.
+    ` same => n,ExecIf($["\${LEN(\${KASTER_OFFER_TIMEOUT})}"="0"]?Set(__KASTER_OFFER_TIMEOUT=${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS}))`,
     ` same => n,ExecIf($["\${LEN(\${QUEUE_TIMEOUT_SECS})}"="0"]?Set(__QUEUE_TIMEOUT_SECS=${DEFAULT_QUEUE_TIMEOUT_SECONDS}))`,
     ' same => n,ExecIf($["${LEN(${QUEUE_PROMPT_MOH_CLASS})}"!="0" & "${QUEUE_PROMPT_KEEP_IN_QUEUE}"="1" & "${QUEUE_PROMPT_PRESTARTED}"!="1"]?Set(CHANNEL(musicclass)=${QUEUE_PROMPT_MOH_CLASS}))',
     ' same => n,ExecIf($["${SMART_FORWARD_ENABLED}"="1"]?Set(__QUEUE_READY_COUNT=${QUEUE_MEMBER(${QUEUE_NAME},ready)}))',
@@ -1365,7 +1409,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     ' same => n,Hangup()',
   ].join('\n');
 
-  const extensionsQueue = [queueEntry, renderQueueOverflowTimeoutContext(queueOverflowRules), renderQueueOverflowContext(queueOverflowRules), renderOptOutContexts(), ...input.ivrMenus
+  const extensionsQueue = [queueEntry, renderQueueOverflowTimeoutContext(queueOverflowRules), renderAgentOfferTimeoutContext(input.queueOfferTimeouts ?? []), renderQueueOverflowContext(queueOverflowRules), renderOptOutContexts(), ...input.ivrMenus
     .filter((m) => m.entries.length > 0)
     .map(renderIvrMenu), ...smartArsContexts, buildDynamicDispatchLines().join('\n')]
     .join('\n\n');

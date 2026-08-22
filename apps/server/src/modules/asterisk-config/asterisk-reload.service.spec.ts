@@ -394,10 +394,21 @@ describe('AsteriskReloadService 상담원 제안 대기 시간', () => {
       asteriskBlocklistEntry: { findMany: jest.fn().mockResolvedValue([]) },
       tenantHolidayRules: { findMany: jest.fn().mockResolvedValue([]) },
       asteriskPrompt: { findMany: jest.fn().mockResolvedValue([]) },
-      queues: { findMany: jest.fn().mockResolvedValue([]) },
-      tenantSystemSettings: {
-        findUnique: jest.fn().mockResolvedValue({ agentOfferTimeoutSeconds }),
+      queues: {
+        findMany: jest.fn().mockResolvedValue([{
+          queueId: 'q-1',
+          queueName: 'sales',
+          strategy: 'ringall',
+          ringTimeoutSeconds: 15,
+          agentOfferTimeoutSeconds,
+          retrySeconds: 3,
+          wrapupSeconds: 30,
+          maxWaitSeconds: 45,
+          autopause: false,
+          members: [],
+        }]),
       },
+      tenantSystemSettings: { findUnique: jest.fn().mockResolvedValue({}) },
       outboundCallerIdRules: { findMany: jest.fn().mockResolvedValue([]) },
     } as any;
   }
@@ -412,12 +423,12 @@ describe('AsteriskReloadService 상담원 제안 대기 시간', () => {
     );
   }
 
-  it('미리보기가 테넌트에 저장된 대기 시간을 dialplan 에 넣는다', async () => {
+  it('미리보기가 호분배룰에 저장된 대기 시간을 dialplan 에 넣는다', async () => {
     const service = buildService(buildPrisma(25));
 
     const preview = await service.previewConfFiles('tenant-1');
 
-    expect(preview.extensionsAgent).toContain('kaster-agent-offer.agi,${EXTEN},25)');
+    expect(preview.extensionsQueue).toContain('exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=25)');
   });
 
   /**
@@ -446,18 +457,18 @@ describe('AsteriskReloadService 상담원 제안 대기 시간', () => {
       for (const spy of spies) spy.mockRestore();
     }
 
-    const agentConf = [...written.entries()]
-      .find(([filePath]) => filePath.endsWith('extensions_agent.conf'))?.[1];
-    expect(agentConf).toContain('kaster-agent-offer.agi,${EXTEN},25)');
+    const queueConf = [...written.entries()]
+      .find(([filePath]) => filePath.endsWith('extensions_queue.conf'))?.[1];
+    expect(queueConf).toContain('exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=25)');
   });
 
-  it('테넌트 설정이 없으면 기본값으로 렌더한다', async () => {
+  it('큐에 값이 없으면 기본값으로 렌더한다', async () => {
     const service = buildService(buildPrisma(null));
 
     const preview = await service.previewConfFiles('tenant-1');
 
-    expect(preview.extensionsAgent).toContain(
-      `kaster-agent-offer.agi,\${EXTEN},${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS})`,
+    expect(preview.extensionsQueue).toContain(
+      `exten => sales,1,Set(__KASTER_OFFER_TIMEOUT=${DEFAULT_AGENT_OFFER_TIMEOUT_SECONDS})`,
     );
   });
 });
