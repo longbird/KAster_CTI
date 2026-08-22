@@ -35,16 +35,22 @@ export class AgentOfferInternalController {
   async wait(
     @Headers('x-kaster-internal-secret') secretHeader: string | undefined,
     @Body() dto: AgentOfferWaitDto,
+    @Req() req: any,
   ) {
     this.assertInternalSecret(secretHeader);
 
-    const decision = await this.offers.waitForDecision({
-      tenantId: dto.tenantId ?? DEFAULT_TENANT_ID,
-      linkedid: dto.linkedid,
-      extension: dto.extension,
-      caller: dto.caller ?? null,
-      timeoutSeconds: dto.timeoutSeconds,
-    });
+    const decision = await this.offers.waitForDecision(
+      {
+        tenantId: dto.tenantId ?? DEFAULT_TENANT_ID,
+        linkedid: dto.linkedid,
+        extension: dto.extension,
+        caller: dto.caller ?? null,
+        timeoutSeconds: dto.timeoutSeconds,
+      },
+      // 다른 상담원이 먼저 받으면 PBX 가 진 쪽 Local 채널을 끊는다. 서버에는 이 연결이
+      // 끊기는 것만 보이므로, 여기서 안 잡으면 끝난 전화의 수락 버튼이 타임아웃까지 남는다.
+      (abandon) => req.on('close', abandon),
+    );
 
     return { decision };
   }

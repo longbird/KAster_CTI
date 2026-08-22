@@ -4,7 +4,7 @@ export const UNCONDITIONAL_TARGET_TYPES = ['AGENT', 'QUEUE', 'EXTERNAL_NUMBER'] 
 export type UnconditionalTargetType = (typeof UNCONDITIONAL_TARGET_TYPES)[number];
 
 /** DISTRIBUTE 모드에서 허용되는 PBX 분배 전략. */
-const ADVANCED_QUEUE_STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random'] as const;
+const ADVANCED_QUEUE_STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'ringall'] as const;
 
 export function isDistributionMode(value: unknown): value is DistributionMode {
   return DISTRIBUTION_MODES.includes(value as DistributionMode);

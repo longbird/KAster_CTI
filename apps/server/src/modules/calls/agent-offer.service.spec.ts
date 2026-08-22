@@ -109,6 +109,69 @@ describe('AgentOfferService', () => {
     expect(publish).not.toHaveBeenCalledWith(AGENT_OFFER_CLOSED_EVENT, expect.anything(), expect.anything());
   });
 
+  /**
+   * 다른 상담원이 먼저 받으면 Asterisk 가 진 쪽 Local 채널을 끊는다. 그러면 AGI 의 롱폴 연결만
+   * 끊길 뿐이라, 이걸 잡지 않으면 진 상담원 화면에 이미 끝난 전화의 수락 버튼이 타임아웃까지 남는다.
+   */
+  it('롱폴 연결이 끊기면 제안을 닫는다', async () => {
+    const { service, publish } = makeService();
+
+    let abandon = () => {};
+    const pending = service.waitForDecision(REQUEST, (hook) => { abandon = hook; });
+    await Promise.resolve();
+
+    abandon();
+
+    await expect(pending).resolves.toBe('ABANDONED');
+    expect(publish).toHaveBeenCalledWith(
+      AGENT_OFFER_CLOSED_EVENT,
+      expect.objectContaining({ extension: '1001', decision: 'ABANDONED' }),
+      'tenant-1',
+    );
+    expect(service.isPending(REQUEST.linkedid, REQUEST.extension)).toBe(false);
+  });
+
+  /**
+   * 정상 응답 뒤에도 연결은 닫힌다. 그때까지 중단으로 처리하면 이미 수락된 제안을
+   * 한 번 더 닫아, 다음 통화의 같은 제안을 엉뚱하게 내린다.
+   */
+  it('정상 응답 뒤에 오는 연결 종료는 무시한다', async () => {
+    const { service, publish } = makeService();
+
+    let abandon = () => {};
+    const pending = service.waitForDecision(REQUEST, (hook) => { abandon = hook; });
+    await Promise.resolve();
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+    await pending;
+
+    publish.mockClear();
+    abandon();
+
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  /**
+   * AGI 가 재시도로 같은 제안을 다시 걸 수 있다. 앞선 연결이 끊겼다고 제안을 닫으면
+   * 지금 기다리고 있는 재시도까지 같이 죽는다.
+   */
+  it('재시도가 넘겨받은 제안은 앞선 연결이 끊겨도 살려 둔다', async () => {
+    const { service } = makeService();
+
+    let abandonFirst = () => {};
+    service.waitForDecision(REQUEST, (hook) => { abandonFirst = hook; });
+    await Promise.resolve();
+
+    const retry = service.waitForDecision(REQUEST, () => {});
+    await Promise.resolve();
+
+    abandonFirst();
+
+    expect(service.isPending(REQUEST.linkedid, REQUEST.extension)).toBe(true);
+
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+    await expect(retry).resolves.toBe('ACCEPT');
+  });
+
   it('기다리는 제안이 없으면 그렇다고 답한다', () => {
     const { service } = makeService();
 

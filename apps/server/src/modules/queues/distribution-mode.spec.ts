@@ -17,6 +17,11 @@ describe('resolveQueueStrategy', () => {
     expect(resolveQueueStrategy('DISTRIBUTE', 'rrmemory')).toBe('rrmemory');
   });
 
+  // 동시 호출은 Local 멤버를 한꺼번에 울려 먼저 수락한 상담원이 가져간다.
+  it('DISTRIBUTE 는 동시 호출(ringall) 도 그대로 내보낸다', () => {
+    expect(resolveQueueStrategy('DISTRIBUTE', 'ringall')).toBe('ringall');
+  });
+
   it('DISTRIBUTE 에 전략이 없으면 leastrecent 를 기본값으로 사용한다', () => {
     expect(resolveQueueStrategy('DISTRIBUTE')).toBe('leastrecent');
   });

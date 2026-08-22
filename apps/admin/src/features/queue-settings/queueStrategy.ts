@@ -4,6 +4,7 @@ export const QUEUE_STRATEGY_OPTIONS = [
   { value: 'fewestcalls', label: '최소 응대한 상담원 우선' },
   { value: 'random', label: '무작위 분배' },
   { value: 'linear', label: '고정 순서 분배' },
+  { value: 'ringall', label: '동시 호출(먼저 받는 상담원)' },
 ];
 
 const STRATEGY_LABEL_MAP = Object.fromEntries(

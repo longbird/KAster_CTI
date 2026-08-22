@@ -15,7 +15,7 @@ import { Type } from 'class-transformer';
 import { QueueOverflowRuleDto } from './queue-overflow-rule.dto';
 import { QueueMemberItemDto } from './set-queue-members.dto';
 
-const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear'] as const;
+const STRATEGIES = ['rrmemory', 'leastrecent', 'fewestcalls', 'random', 'linear', 'ringall'] as const;
 const DISTRIBUTION_MODES = ['SEQUENTIAL', 'DISTRIBUTE', 'UNCONDITIONAL'] as const;
 const UNCONDITIONAL_TARGET_TYPES = ['AGENT', 'QUEUE', 'EXTERNAL_NUMBER'] as const;
 
