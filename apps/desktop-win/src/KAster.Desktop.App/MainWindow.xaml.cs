@@ -117,6 +117,8 @@ public partial class MainWindow : Window
             // 전자는 수락/거절, 후자는 받기/거절이다.
             WindowMode.Ringing when softphone.HasOffer => new OfferView { DataContext = softphone },
             WindowMode.Ringing => new RingingView { DataContext = softphone },
+            WindowMode.Transferring when softphone.IsChoosingTransferTarget
+                => new TransferView { DataContext = softphone },
             WindowMode.Talking or WindowMode.Transferring or WindowMode.AfterCall
                 => new TalkingView { DataContext = softphone },
             _ => new IdleView { DataContext = softphone },

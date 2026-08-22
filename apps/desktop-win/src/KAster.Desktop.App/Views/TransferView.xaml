@@ -1,0 +1,66 @@
+<UserControl x:Class="KAster.Desktop.App.Views.TransferView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BrushBackground}">
+
+    <!--
+        돌려줄 상대를 고른다. 사람이 많아도 창이 늘어나면 안 되므로 보여 주는 수를
+        고정하고, 나머지는 검색으로 좁힌다. 가린 인원은 숨기지 말고 숫자로 알린다.
+    -->
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="누구에게 돌려줄까요?" Style="{StaticResource TextCaption}" />
+
+        <TextBox Grid.Row="1" Margin="0,8,0,0"
+                 Style="{StaticResource FieldInput}"
+                 Text="{Binding TransferFilter, UpdateSourceTrigger=PropertyChanged}" />
+
+        <ItemsControl Grid.Row="2" Margin="0,10,0,0"
+                      ItemsSource="{Binding TransferTargets}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Margin="0,0,0,6"
+                            HorizontalContentAlignment="Stretch"
+                            Style="{StaticResource ButtonSecondary}"
+                            Command="{Binding DataContext.TransferToCommand,
+                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding Extension}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding AgentName}"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Extension}"
+                                       Style="{StaticResource TextCaption}" />
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- 가린 인원이 없으면 이 줄 자체가 없어야 한다. 남아 있으면 "0명 더 있음" 이 뜬다. -->
+        <TextBlock Grid.Row="3" Margin="0,2,0,0">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding TransferTargetsHidden}" Value="0">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+            <Run Text="이름이나 내선을 입력해 좁히세요 (" /><Run Text="{Binding TransferTargetsHidden, Mode=OneWay}" /><Run Text="명 더 있음)" />
+        </TextBlock>
+
+        <Button Grid.Row="4" Margin="0,10,0,0" Content="취소"
+                Style="{StaticResource ButtonSecondary}"
+                Command="{Binding CancelTransferCommand}" />
+    </Grid>
+</UserControl>

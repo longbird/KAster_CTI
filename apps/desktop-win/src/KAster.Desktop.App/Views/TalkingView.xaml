@@ -11,6 +11,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!--
@@ -103,7 +104,12 @@
                     Command="{Binding HangupCommand}" />
         </Grid>
 
-        <TextBlock Grid.Row="4" Height="20" Margin="0,8,0,0"
+        <!-- 돌려주기는 통화 중에만 뜻이 있다. 대기 중에는 커맨드가 닫혀 있다. -->
+        <Button Grid.Row="4" Margin="0,8,0,0" Content="돌려주기"
+                Style="{StaticResource ButtonSecondary}"
+                Command="{Binding StartTransferCommand}" />
+
+        <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0"
                    Text="{Binding NoticeMessage}"
                    Foreground="{StaticResource BrushWarning}"
                    Style="{StaticResource TextCaption}" />

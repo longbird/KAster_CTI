@@ -649,6 +649,81 @@ public class SoftphoneViewModelTests
         Assert.False(vm.HasOffer);
     }
 
+    /// <summary>
+    /// 돌려주기는 통화 중에만 뜻이 있다. 대기 중에 눌리면 아무 통화도 없이
+    /// 대상 선택 화면이 떠서 상담원이 헤맨다.
+    /// </summary>
+    [Fact]
+    public void Transfer_is_only_offered_while_on_a_call()
+    {
+        var (vm, store, _, _) = Build();
+        Assert.False(vm.StartTransferCommand.CanExecute(null));
+
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        Assert.True(vm.StartTransferCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Transfer_targets_are_colleagues_not_myself()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+
+        vm.StartTransferCommand.Execute(null);
+
+        Assert.True(vm.IsChoosingTransferTarget);
+        Assert.Contains(vm.TransferTargets, t => t.Extension == "1002");
+        Assert.DoesNotContain(vm.TransferTargets, t => t.Extension == "1001");
+    }
+
+    /// <summary>사람이 많으면 창에 다 들어가지 않는다. 창에 스크롤을 만들지 않는다.</summary>
+    [Fact]
+    public async Task Typing_narrows_the_transfer_list()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.StartTransferCommand.Execute(null);
+
+        vm.TransferFilter = "1002";
+
+        Assert.All(vm.TransferTargets, t => Assert.Contains("1002", t.Extension));
+    }
+
+    [Fact]
+    public async Task Transferring_sends_the_target_and_my_own_extension()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.StartTransferCommand.Execute(null);
+        stub.Enqueue(HttpStatusCode.OK, AckJson);
+
+        await vm.TransferToAsync("1002");
+
+        var last = stub.Requests[^1];
+        Assert.Equal("/api/v1/calls/c-1/transfer", last.RequestUri!.AbsolutePath);
+        Assert.Contains("\"transferType\":\"blind\"", stub.Bodies[^1]);
+        Assert.Contains("\"target\":\"1002\"", stub.Bodies[^1]);
+        Assert.Contains("\"fromExtension\":\"1001\"", stub.Bodies[^1]);
+    }
+
+    [Fact]
+    public async Task Cancelling_the_target_pick_goes_back_to_the_call()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        vm.StartTransferCommand.Execute(null);
+
+        vm.CancelTransferCommand.Execute(null);
+
+        Assert.False(vm.IsChoosingTransferTarget);
+        Assert.Equal(WindowMode.Talking, vm.WindowMode);
+    }
+
     private static int DirectoryLookups(StubHttpHandler stub)
         => stub.Requests.Count(r => r.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal));
 

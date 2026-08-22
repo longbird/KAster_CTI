@@ -32,6 +32,9 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     private WindowMode _windowMode = WindowMode.Idle;
     private CallOffer? _offer;
+    private IReadOnlyList<AgentDirectoryEntry> _directory = Array.Empty<AgentDirectoryEntry>();
+    private bool _isChoosingTransferTarget;
+    private string _transferFilter = string.Empty;
     private string _customerName = string.Empty;
     private string _branchName = string.Empty;
     private string _calledNumber = string.Empty;
@@ -136,6 +139,9 @@ public sealed class SoftphoneViewModel : ObservableObject
             () => SettingsRequested?.Invoke(this, EventArgs.Empty),
             () => IsFree);
         PickupCommand = new RelayCommand<WaitingCall>(call => _pendingWork = PickupAsync(call));
+        StartTransferCommand = new RelayCommand(BeginTransfer, () => _store.Current is not null);
+        CancelTransferCommand = new RelayCommand(EndTransfer);
+        TransferToCommand = new RelayCommand<string>(target => _pendingWork = TransferToAsync(target));
         AcceptOfferCommand = new RelayCommand(() => _pendingWork = RespondToOfferAsync(accept: true), () => HasOffer);
         RejectOfferCommand = new RelayCommand(() => _pendingWork = RespondToOfferAsync(accept: false), () => HasOffer);
 
@@ -594,6 +600,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         var directory = await Send(() => _server.GetAgentDirectoryAsync(ct));
         if (directory is not null)
         {
+            _directory = directory;
             _knownExtensions = directory
                 .Select(entry => entry.Extension?.Trim())
                 .Where(extension => !string.IsNullOrEmpty(extension))
@@ -735,6 +742,98 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 제안이 뜨면 창이 그것부터 보여야 한다. 내려가면 원래 통화 상태로 돌아간다.
         if (offer is not null) WindowMode = WindowMode.Ringing;
         else OnCurrentCallChanged(_store.Current);
+    }
+
+    /// <summary>
+    /// 돌려줄 상대를 고르는 중인가. 통화 화면 대신 대상 목록이 보인다.
+    /// </summary>
+    public bool IsChoosingTransferTarget
+    {
+        get => _isChoosingTransferTarget;
+        private set
+        {
+            if (!Set(ref _isChoosingTransferTarget, value)) return;
+            Raise(nameof(TransferTargets));
+        }
+    }
+
+    /// <summary>
+    /// 이름이나 내선으로 좁힌다. 사람이 많으면 창에 다 들어가지 않는데,
+    /// 창에 스크롤을 만들지 않는 것이 이 앱의 제약이다.
+    /// </summary>
+    public string TransferFilter
+    {
+        get => _transferFilter;
+        set
+        {
+            if (!Set(ref _transferFilter, value)) return;
+            Raise(nameof(TransferTargets));
+            Raise(nameof(TransferTargetsHidden));
+        }
+    }
+
+    /// <summary>돌려줄 수 있는 상대. 자기 자신은 뺀다 — 자기에게 돌려주는 것은 뜻이 없다.</summary>
+    public IReadOnlyList<AgentDirectoryEntry> TransferTargets => MatchingTargets().Take(MaxTransferTargetsShown).ToArray();
+
+    /// <summary>창에 못 담아 가린 인원. 숨기지 말고 숫자로 알린다.</summary>
+    public int TransferTargetsHidden => Math.Max(0, MatchingTargets().Count() - MaxTransferTargetsShown);
+
+    public RelayCommand StartTransferCommand { get; }
+
+    public RelayCommand CancelTransferCommand { get; }
+
+    public RelayCommand<string> TransferToCommand { get; }
+
+    /// <summary>
+    /// 고른 상대에게 통화를 넘긴다. blind — 협의 없이 바로 넘어간다.
+    /// 성공하면 이 통화는 우리 손을 떠나므로 화면도 통화 상태를 따라 돌아간다.
+    /// </summary>
+    public async Task TransferToAsync(string? target)
+    {
+        var callId = CurrentCallId();
+        var extension = target?.Trim();
+        if (callId is null || string.IsNullOrEmpty(extension)) return;
+
+        EndTransfer();
+
+        try
+        {
+            await _server.TransferAsync(callId, extension, _agent.Extension, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            NoticeMessage = $"돌려주지 못했습니다: {ex.Message}";
+        }
+    }
+
+    private const int MaxTransferTargetsShown = 5;
+
+    private IEnumerable<AgentDirectoryEntry> MatchingTargets()
+    {
+        var mine = _agent.Extension?.Trim() ?? string.Empty;
+        var needle = _transferFilter.Trim();
+
+        return _directory
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Extension))
+            .Where(entry => !string.Equals(entry.Extension.Trim(), mine, StringComparison.Ordinal))
+            .Where(entry => needle.Length == 0
+                || entry.Extension.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || entry.AgentName.Contains(needle, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void BeginTransfer()
+    {
+        TransferFilter = string.Empty;
+        IsChoosingTransferTarget = true;
+        WindowMode = WindowMode.Transferring;
+    }
+
+    private void EndTransfer()
+    {
+        if (!IsChoosingTransferTarget) return;
+
+        IsChoosingTransferTarget = false;
+        OnCurrentCallChanged(_store.Current);
     }
 
     public bool IsDialing

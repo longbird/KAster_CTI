@@ -113,6 +113,20 @@ public sealed class CtiServerClient
     public Task<CommandAck> AnswerAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/answer", new { }, ct);
 
+    /// <summary>
+    /// 통화를 다른 내선으로 넘긴다. blind — 협의 없이 바로 넘어간다.
+    /// 서버는 상담원 leg 를 찾아 transfer-target 으로 점프시킨다.
+    /// </summary>
+    public Task<CommandAck> TransferAsync(
+        string callId,
+        string target,
+        string fromExtension,
+        CancellationToken ct)
+        => PostAsync<CommandAck>(
+            $"calls/{Uri.EscapeDataString(callId)}/transfer",
+            new { transferType = "blind", target, fromExtension },
+            ct);
+
     public Task<CommandAck> HangupAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/hangup", new { }, ct);
 
