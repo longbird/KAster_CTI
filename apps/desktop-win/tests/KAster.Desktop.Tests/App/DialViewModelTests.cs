@@ -169,8 +169,8 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
 
         await vm.Dial.DialAsync();
 
-        Assert.Equal("/api/v1/client/call-commands/originate", stub.Requests[2].RequestUri!.AbsolutePath);
-        Assert.Contains("\"phoneNumber\":\"01011112222\"", stub.Bodies[2]);
+        Assert.Equal("/api/v1/client/call-commands/originate", stub.Requests[^1].RequestUri!.AbsolutePath);
+        Assert.Contains("\"phoneNumber\":\"01011112222\"", stub.Bodies[^1]);
     }
 
     /// <summary>내선은 외부 발신 규칙에 걸려 거부된다. 목록에 있는 내선이면 내선 경로로 보낸다.</summary>
@@ -184,8 +184,8 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
 
         await vm.Dial.DialAsync();
 
-        Assert.Equal("/api/v1/calls/originate/internal", stub.Requests[2].RequestUri!.AbsolutePath);
-        Assert.Contains("\"targetExtension\":\"1002\"", stub.Bodies[2]);
+        Assert.Equal("/api/v1/calls/originate/internal", stub.Requests[^1].RequestUri!.AbsolutePath);
+        Assert.Contains("\"targetExtension\":\"1002\"", stub.Bodies[^1]);
     }
 
     /// <summary>
@@ -206,7 +206,7 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
 
         await vm.Dial.DialAsync();
 
-        Assert.Equal("/api/v1/client/call-commands/originate", stub.Requests[2].RequestUri!.AbsolutePath);
+        Assert.Equal("/api/v1/client/call-commands/originate", stub.Requests[^1].RequestUri!.AbsolutePath);
     }
 
     [Fact]
@@ -230,7 +230,7 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
 
         await vm.Dial.DialAsync();
 
-        Assert.Contains("\"callerId\":\"0215881588\"", stub.Bodies[2]);
+        Assert.Contains("\"callerId\":\"0215881588\"", stub.Bodies[^1]);
     }
 
     /// <summary>발신번호는 외부 발신에만 쓴다. 내선 통화에 실어 보내면 서버가 모르는 필드가 된다.</summary>
@@ -244,7 +244,7 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
 
         await vm.Dial.DialAsync();
 
-        Assert.DoesNotContain("callerId", stub.Bodies[2]);
+        Assert.DoesNotContain("callerId", stub.Bodies[^1]);
     }
 
     /// <summary>내선을 누르는 동안 발신번호 칸이 떠 있으면 헷갈린다. 외부 번호일 때만 보인다.</summary>
@@ -271,7 +271,7 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
           "canOriginateExternal":false,"canOriginateInternal":true,
           "outboundDialOptions":{"allowedCallerIds":[],"defaultCallerId":null},
           "disabledReasons":["허용된 발신번호가 설정되어 있지 않습니다."]},"error":null}
-        """);
+        """).Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
 
         vm.Dial.DialNumber = "01011112222";
@@ -287,6 +287,7 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
         var (vm, _, _, stub) = Build();
         const string Failure = """{"success":false,"data":null,"error":{"code":"X","message":"서버 오류"}}""";
         stub.Enqueue(HttpStatusCode.InternalServerError, Failure)
+            .Enqueue(HttpStatusCode.InternalServerError, Failure)
             .Enqueue(HttpStatusCode.InternalServerError, Failure);
 
         await vm.LoadDialSetupAsync();
@@ -319,7 +320,7 @@ public class DialViewModelTests : SoftphoneViewModelTestBase
 
         await vm.Dial.DialAsync();
 
-        Assert.Contains("\"phoneNumber\":\"01012345678\"", stub.Bodies[2]);
+        Assert.Contains("\"phoneNumber\":\"01012345678\"", stub.Bodies[^1]);
     }
 
     [Fact]

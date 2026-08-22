@@ -46,6 +46,17 @@ public sealed class SoftphoneViewModel : ObservableObject
     private AgentStatusCode _agentStatus = AgentStatusCode.Available;
     private bool _isPhoneRegistered;
     private bool _isSipPasswordVisible;
+    private bool _canHold;
+    private bool _isOnHold;
+
+    /// <summary>
+    /// 보류 요청의 답을 기다리는 기한. 서버는 feature code 를 DTMF 로 넣을 뿐이라
+    /// PBX 가 그것을 먹었는지 <b>모른다</b> — 아무 이벤트도 안 오는 경우가 있다.
+    /// 기한이 없으면 화면이 영원히 "요청 중" 으로 남는다.
+    /// </summary>
+    private DateTimeOffset? _holdRequestDeadline;
+
+    private const int HoldRequestTimeoutSeconds = 5;
 
     /// <summary>
     /// 다음 실기기 등록 확인 시각. 등록 전에는 자주, 등록된 뒤에는 드물게 본다.
@@ -85,7 +96,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 발신 칸에 번호를 넣는다. 받는 쪽이 먼저 서 있어야 한다.
         Offer = new OfferViewModel(store, server, Notify, Track);
         Transfer = new TransferViewModel(store, server, agent.Extension, Notify, Track);
-        Keypad = new KeypadViewModel(phone, useSoftphone, Track);
+        Keypad = new KeypadViewModel(phone, server, useSoftphone, CurrentCallId, Notify, Track);
         Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree);
         Waiting = new WaitingCallsViewModel(
             server, now, Notify, Note, Track, () => IsFree, Transfer.UseActiveCalls);
@@ -114,6 +125,12 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         HangupCommand = new RelayCommand(() => _ = HangupAsync(), () => WindowMode is WindowMode.Ringing or WindowMode.Talking);
         ToggleMuteCommand = new RelayCommand(() => _ = ToggleMuteAsync(), () => WindowMode == WindowMode.Talking);
+
+        // 앞선 요청의 답을 기다리는 동안에는 다시 누를 수 없다. 보류와 해제가 엇갈려 나가면
+        // 어느 쪽이 마지막에 먹었는지 알 수 없게 된다.
+        ToggleHoldCommand = new RelayCommand(
+            () => _ = ToggleHoldAsync(),
+            () => CanHold && WindowMode == WindowMode.Talking && !IsHoldRequestPending);
         ToggleAvailabilityCommand = new RelayCommand(
             () => _ = ChangeStatusAsync(IsAvailable ? AgentStatusCode.Break : AgentStatusCode.Available),
             () => IsFree);
@@ -152,6 +169,8 @@ public sealed class SoftphoneViewModel : ObservableObject
     public RelayCommand HangupCommand { get; }
 
     public RelayCommand ToggleMuteCommand { get; }
+
+    public RelayCommand ToggleHoldCommand { get; }
 
     public RelayCommand ToggleAvailabilityCommand { get; }
 
@@ -209,6 +228,7 @@ public sealed class SoftphoneViewModel : ObservableObject
             AnswerCommand.RaiseCanExecuteChanged();
             HangupCommand.RaiseCanExecuteChanged();
             ToggleMuteCommand.RaiseCanExecuteChanged();
+            ToggleHoldCommand.RaiseCanExecuteChanged();
             Dial.DialCommand.RaiseCanExecuteChanged();
             ToggleAvailabilityCommand.RaiseCanExecuteChanged();
             SignOutCommand.RaiseCanExecuteChanged();
@@ -281,6 +301,51 @@ public sealed class SoftphoneViewModel : ObservableObject
         private set => Set(ref _isMuted, value);
     }
 
+    /// <summary>
+    /// 이 PBX 가 보류를 받아 주는가. feature code 가 없으면 서버가 400 을 던지므로
+    /// 버튼을 눌러 보고 실패하는 대신 <b>버튼 자체를 만들지 않는다</b>.
+    /// </summary>
+    public bool CanHold
+    {
+        get => _canHold;
+        private set
+        {
+            if (!Set(ref _canHold, value)) return;
+            ToggleHoldCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    /// 지금 보류 중인가. 근거는 <b>서버가 보내 준 세션 상태</b> 하나뿐이다 —
+    /// 우리가 명령을 보냈다는 사실은 보류가 걸렸다는 뜻이 아니다.
+    /// </summary>
+    public bool IsOnHold
+    {
+        get => _isOnHold;
+        private set
+        {
+            if (!Set(ref _isOnHold, value)) return;
+
+            // 기다리던 답이 이것이다. 상태가 실제로 움직였으니 요청은 끝났다.
+            ClearHoldRequest();
+            Raise(nameof(HoldButtonText));
+        }
+    }
+
+    /// <summary>명령은 나갔는데 아직 상태 변화를 못 본 상태.</summary>
+    public bool IsHoldRequestPending
+    {
+        get => _holdRequestDeadline is not null;
+    }
+
+    /// <summary>
+    /// 보류 버튼의 문구. 요청 중이라는 것과 보류가 걸렸다는 것을 다른 말로 적는다 —
+    /// 같은 말로 적으면 안 걸린 보류를 걸렸다고 읽게 된다.
+    /// </summary>
+    public string HoldButtonText => IsHoldRequestPending
+        ? (IsOnHold ? "해제 요청 중" : "보류 요청 중")
+        : IsOnHold ? "보류 해제" : "보류";
+
     public bool IsConnected
     {
         get => _isConnected;
@@ -313,6 +378,14 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
 
         Waiting.Tick();
+
+        // PBX 가 feature code 를 안 먹으면 아무 이벤트도 오지 않는다. 서버는 그것을 모른다.
+        // 기다림을 스스로 끝내지 않으면 버튼이 잠긴 채 남아 다시 시도할 방법이 없어진다.
+        if (_holdRequestDeadline is { } due && _now() >= due)
+        {
+            ClearHoldRequest();
+            NoticeMessage = "보류 요청에 PBX 가 응답하지 않았다.";
+        }
 
         var answeredAt = _store.Current?.Server?.AnsweredAt;
         if (answeredAt is null)
@@ -494,6 +567,43 @@ public sealed class SoftphoneViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 보류를 걸거나 푼다. <b>화면은 여기서 바뀌지 않는다</b> — 서버는 feature code 를 DTMF 로
+    /// 흘려보낼 뿐이고 PBX 가 그것을 먹었는지 모른다. 지금 "보류 중" 으로 바꾸면 안 걸린 보류를
+    /// 걸렸다고 말하게 되고, 상담원은 고객이 듣고 있는 줄 모른 채 옆 사람과 이야기한다.
+    /// 화면은 뒤따라오는 <c>HOLD</c> 세션 상태를 보고서야 바뀐다.
+    /// </summary>
+    public async Task ToggleHoldAsync(CancellationToken ct = default)
+    {
+        var callId = CurrentCallId();
+        if (callId is null || !CanHold) return;
+
+        var resuming = IsOnHold;
+        _holdRequestDeadline = _now().AddSeconds(HoldRequestTimeoutSeconds);
+        Raise(nameof(IsHoldRequestPending));
+        Raise(nameof(HoldButtonText));
+        ToggleHoldCommand.RaiseCanExecuteChanged();
+        Note($"{(resuming ? "보류 해제" : "보류")} 요청 {callId}");
+
+        var ack = await Send(() => resuming
+            ? _server.ResumeAsync(callId, ct)
+            : _server.HoldAsync(callId, ct));
+
+        // 접수 자체가 안 됐으면 기다릴 이유가 없다. 사유는 Send 가 이미 화면에 올렸다.
+        if (ack is null) ClearHoldRequest();
+    }
+
+    /// <summary>기다림을 끝낸다. 보류 상태 자체는 서버가 정하므로 여기서 건드리지 않는다.</summary>
+    private void ClearHoldRequest()
+    {
+        if (_holdRequestDeadline is null) return;
+
+        _holdRequestDeadline = null;
+        Raise(nameof(IsHoldRequestPending));
+        Raise(nameof(HoldButtonText));
+        ToggleHoldCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
     /// 로그인 직후 한 번. 내선 목록과 발신번호를 받아 <b>나눠 준다</b>.
     /// 같은 내선 목록을 세 곳이 쓰므로(돌려줄 대상·내선 판별·실기기 등록 확인) 한 번만 물어본다.
     /// 실패해도 앱은 그대로 돈다 — 발신만 못 하고 수신·통화는 영향이 없다.
@@ -511,6 +621,24 @@ public sealed class SoftphoneViewModel : ObservableObject
         Waiting.StartLooking();
 
         await Dial.LoadCallerIdsAsync(ct);
+        await LoadCallControlCapabilitiesAsync(ct);
+    }
+
+    /// <summary>
+    /// 이 PBX 가 보류를 받아 주는지 로그인 직후에 한 번 물어본다. 통화마다 바뀌는 값이 아니다.
+    /// <b>조용히</b> 실패한다 — 못 물어봤으면 버튼을 안 보이는 쪽으로 두면 되고,
+    /// 로그인 직후 화면에 오류를 띄울 일이 아니다.
+    /// </summary>
+    private async Task LoadCallControlCapabilitiesAsync(CancellationToken ct)
+    {
+        try
+        {
+            CanHold = (await _server.GetCallControlCapabilitiesAsync(ct)).HoldEnabled;
+        }
+        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
+        {
+            CanHold = false;
+        }
     }
 
     /// <summary>
@@ -636,12 +764,19 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 서버가 실제 음소거 상태를 알려주면 그 값을 따른다.
         if (server?.IsMuted is { } muted) IsMuted = muted;
 
+        // 보류 여부의 근거는 이 상태뿐이다. 우리가 명령을 보냈는지는 여기에 끼어들지 않는다.
+        IsOnHold = server?.SessionStatus == SessionStatus.Hold;
+        Keypad.OnCallChanged();
+
         // 통화가 끝난 뒤에 메모를 저장하므로, 어느 통화였는지 지금 붙잡아 둔다.
         if (server is not null && WindowMode != WindowMode.Idle) _memoCallId = server.CallId;
 
         if (WindowMode == WindowMode.Idle)
         {
             IsMuted = false;
+
+            // 통화가 없어졌으면 답을 기다릴 대상도 없다.
+            ClearHoldRequest();
             CallDurationText = "00:00";
             Dial.ClearOutboundMark();
             _ = FileMemoAsync();

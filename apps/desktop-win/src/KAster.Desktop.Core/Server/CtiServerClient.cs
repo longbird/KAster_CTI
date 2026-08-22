@@ -94,6 +94,20 @@ public sealed class CtiServerClient
     }
 
     /// <summary>
+    /// 이 PBX 가 통화 중에 받아 주는 제어. <b>발신 권한과 다른 경로다</b> —
+    /// <c>me/call-capabilities</c> 에는 이 블록이 없고 <c>me/session</c> 에만 있다.
+    ///
+    /// 블록이 통째로 없는 현장을 대비해 기본값(전부 불가)으로 떨어진다. 없는 기능의 버튼을
+    /// 열어 두면 상담원이 통화 중에 눌러 보고 나서야 400 을 받는다.
+    /// </summary>
+    public async Task<CallControlCapabilities> GetCallControlCapabilitiesAsync(CancellationToken ct)
+    {
+        using var response = await _http.GetAsync("me/session", ct);
+        var session = await EnvelopeReader.ReadAsync<SessionControlResponse>(response, ct);
+        return session.CallControlCapabilities ?? new CallControlCapabilities();
+    }
+
+    /// <summary>
     /// 상담 메모. 서버는 후처리 코드와 같은 표에 넣으므로 상담원 id 와 종류를 함께 받는다.
     /// <c>acw</c> 는 통화 후 작성이라는 뜻이다.
     /// </summary>
@@ -144,6 +158,24 @@ public sealed class CtiServerClient
     public Task<CommandAck> HangupAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/hangup", new { }, ct);
 
+    /// <summary>
+    /// 통화를 보류한다. 본문이 없다 — 파라미터는 통화 하나뿐이다.
+    /// 접수됐다고 보류가 걸린 것은 아니다. 서버는 feature code 를 DTMF 로 넣을 뿐이고,
+    /// 실제 상태는 뒤따라오는 <c>Hold</c> 이벤트로 판정된다.
+    /// </summary>
+    public Task<CommandAck> HoldAsync(string callId, CancellationToken ct)
+        => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/hold", new { }, ct);
+
+    public Task<CommandAck> ResumeAsync(string callId, CancellationToken ct)
+        => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/resume", new { }, ct);
+
+    /// <summary>
+    /// 통화 중 키 입력. <b>실기기 상담원 전용 경로다</b> — 소프트폰은 자기 SIP 다이얼로그로 직접 보낸다.
+    /// 서버가 상담원 leg 에 AMI PlayDTMF 로 넣는다. <c>0-9 * #</c> 만, 최대 32자리.
+    /// </summary>
+    public Task<CommandAck> SendDtmfAsync(string callId, string digits, CancellationToken ct)
+        => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/dtmf", new { digits }, ct);
+
     public Task<CommandAck> MuteAsync(string callId, bool muted, CancellationToken ct)
         => PostAsync<CommandAck>(
             $"calls/{Uri.EscapeDataString(callId)}/mute",
@@ -167,5 +199,14 @@ public sealed class CtiServerClient
     {
         using var response = await _http.PostAsJsonAsync(path, body, JsonDefaults.Options, ct);
         return await EnvelopeReader.ReadAsync<T>(response, ct);
+    }
+
+    /// <summary>
+    /// <c>me/session</c> 응답에서 우리가 읽는 부분만. 세션 전체를 형으로 받지 않는 이유는
+    /// 이 조회의 목적이 버튼을 열지 말지 하나뿐이기 때문이다 — 다른 블록이 바뀌어도 여기서 깨지면 안 된다.
+    /// </summary>
+    private sealed record SessionControlResponse
+    {
+        public CallControlCapabilities? CallControlCapabilities { get; init; }
     }
 }

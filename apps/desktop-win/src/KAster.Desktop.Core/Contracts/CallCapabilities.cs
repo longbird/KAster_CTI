@@ -54,3 +54,20 @@ public sealed record CallCapabilities
     /// <summary>못 거는 이유. 상담원에게 그대로 보여 준다.</summary>
     public IReadOnlyList<string> DisabledReasons { get; init; } = Array.Empty<string>();
 }
+
+/// <summary>
+/// 통화 중에 이 PBX 가 실제로 받아 주는 제어. 보류는 표준 AMI 액션이 아니라 feature code 를
+/// DTMF 로 흘려보내는 방식이라, 관리자가 코드를 넣어 두지 않은 현장에서는 서버가 400 을 던진다.
+/// 그런 곳에서는 버튼을 눌러 보고 실패하는 대신 <b>버튼 자체를 만들지 않는다</b>.
+///
+/// 원천은 <c>GET /me/session</c> 의 <c>callControlCapabilities</c> 다. 발신 권한을 주는
+/// <c>me/call-capabilities</c> 에는 이 블록이 없다.
+/// </summary>
+public sealed record CallControlCapabilities
+{
+    /// <summary>hold 와 resume feature code 가 <b>둘 다</b> 있을 때만 서버가 켠다.</summary>
+    public bool HoldEnabled { get; init; }
+
+    /// <summary><c>feature_code</c> 또는 <c>disabled</c>.</summary>
+    public string HoldMode { get; init; } = "disabled";
+}

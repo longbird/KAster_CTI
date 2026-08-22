@@ -203,6 +203,72 @@ public class CtiServerClientTests
         Assert.Equal(AgentStatusCode.AfterCallWork, change.StatusCode);
     }
 
+    /// <summary>보류와 해제는 서로 다른 경로다. 본문은 없다 — 파라미터가 통화 하나뿐이다.</summary>
+    [Fact]
+    public async Task Hold_and_resume_are_two_paths_with_no_body()
+    {
+        var stub = new StubHttpHandler()
+            .Enqueue(HttpStatusCode.OK, AckJson)
+            .Enqueue(HttpStatusCode.OK, AckJson);
+        var client = Build(stub);
+
+        var held = await client.HoldAsync("c-1", CancellationToken.None);
+        await client.ResumeAsync("c-1", CancellationToken.None);
+
+        Assert.Equal("calls/c-1/hold", PathOf(stub.Requests[0]));
+        Assert.Equal("calls/c-1/resume", PathOf(stub.Requests[1]));
+        Assert.True(held.Accepted);
+    }
+
+    [Fact]
+    public async Task Dtmf_carries_the_digits_the_agent_pressed()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, AckJson);
+
+        var ack = await Build(stub).SendDtmfAsync("c-1", "5#", CancellationToken.None);
+
+        Assert.Equal("calls/c-1/dtmf", PathOf(stub.Requests[0]));
+        Assert.Contains("\"digits\":\"5#\"", stub.Bodies[0]);
+        Assert.True(ack.Accepted);
+    }
+
+    /// <summary>
+    /// 보류 가능 여부는 <c>me/call-capabilities</c> 가 아니라 <c>me/session</c> 이 내려준다.
+    /// 발신 권한 쪽에는 이 필드가 없다.
+    /// </summary>
+    [Fact]
+    public async Task Call_control_capabilities_come_from_the_session()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":{
+          "agent":{"agentId":"a-1","agentName":"김상담","extension":"1001","role":"agent"},
+          "callControlCapabilities":{"muteEnabled":true,"holdEnabled":true,"holdMode":"feature_code"}},
+        "error":null}
+        """);
+
+        var control = await Build(stub).GetCallControlCapabilitiesAsync(CancellationToken.None);
+
+        Assert.Equal("me/session", PathOf(stub.Requests[0]));
+        Assert.True(control.HoldEnabled);
+        Assert.Equal("feature_code", control.HoldMode);
+    }
+
+    /// <summary>
+    /// 현장 서버가 이 블록을 아직 안 내려줄 수 있다. 그때는 못 하는 쪽으로 읽어야 한다 —
+    /// 없는 기능의 버튼을 열어 두면 눌렀을 때 400 이 돌아온다.
+    /// </summary>
+    [Fact]
+    public async Task A_session_without_the_control_block_reads_as_no_hold()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, """
+        {"success":true,"data":{"agent":{"agentId":"a-1","extension":"1001"}},"error":null}
+        """);
+
+        var control = await Build(stub).GetCallControlCapabilitiesAsync(CancellationToken.None);
+
+        Assert.False(control.HoldEnabled);
+    }
+
     [Fact]
     public async Task A_failed_envelope_becomes_an_exception_carrying_the_server_message()
     {

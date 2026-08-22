@@ -560,7 +560,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
           {"agentId":"a-1","agentName":"김상담","extension":"1001",
            "sipRegistration":{"registered":true,"registrationStatus":"Avail","contactUri":"sip:1001@x","userAgent":"Yealink"}}
         ],"error":null}
-        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
 
         await vm.LoadDialSetupAsync();
 
@@ -580,7 +581,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
           {"agentId":"a-1","agentName":"김상담","extension":"1001",
            "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}
         ],"error":null}
-        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
 
         await vm.LoadDialSetupAsync();
 
@@ -599,7 +601,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
           {"agentId":"a-1","agentName":"김상담","extension":"1001",
            "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}
         ],"error":null}
-        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
 
         await vm.LoadDialSetupAsync();
 
@@ -618,7 +621,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         stub.Enqueue(HttpStatusCode.OK, """
         {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
          "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}],"error":null}
-        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
 
         await vm.LoadDialSetupAsync();
 
@@ -637,7 +641,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         stub.Enqueue(HttpStatusCode.OK, """
         {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
          "sipRegistration":{"registered":true,"registrationStatus":"Avail"}}],"error":null}
-        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
 
         await vm.LoadDialSetupAsync();
 
@@ -679,7 +684,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         stub.Enqueue(HttpStatusCode.OK, """
         {"success":true,"data":[{"agentId":"a-1","agentName":"김상담","extension":"1001",
          "sipRegistration":{"registered":false,"registrationStatus":"UNREGISTERED"}}],"error":null}
-        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        """).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
 
         await vm.LoadDialSetupAsync();
 
@@ -705,7 +711,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task A_desk_phone_that_registers_later_is_noticed_without_asking()
     {
         var (vm, _, _, stub) = Build(useSoftphone: false);
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
         Assert.False(vm.IsPhoneRegistered);
 
@@ -726,7 +733,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task The_recheck_does_not_run_every_second()
     {
         var (vm, _, _, stub) = Build(useSoftphone: false);
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
 
         stub.RespondWith(_ => StubHttpHandler.Json(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}"""));
@@ -742,7 +750,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task Once_registered_the_recheck_slows_down()
     {
         var (vm, _, _, stub) = Build(useSoftphone: false);
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
         Assert.True(vm.IsPhoneRegistered);
 
@@ -766,7 +775,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task Softphone_mode_never_polls_for_a_desk_phone()
     {
         var (vm, _, _, stub) = Build(useSoftphone: true);
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
 
         stub.RespondWith(_ => StubHttpHandler.Json(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}"""));
@@ -782,7 +792,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task The_agent_can_ask_for_a_recheck_right_away()
     {
         var (vm, _, _, stub) = Build(useSoftphone: false);
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
 
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
@@ -796,7 +807,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task A_failed_recheck_stays_quiet()
     {
         var (vm, _, _, stub) = Build(useSoftphone: false);
-        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
 
         stub.RespondWith(_ => StubHttpHandler.Json(

@@ -116,9 +116,9 @@
         </Grid>
 
         <!-- 키패드. 메모와 같은 행을 쓴다 — 둘 중 하나만 보인다. -->
-        <UniformGrid Grid.Row="2" Margin="0,12" Columns="3" Rows="4">
-            <UniformGrid.Style>
-                <Style TargetType="UniformGrid">
+        <Grid Grid.Row="2" Margin="0,12">
+            <Grid.Style>
+                <Style TargetType="Grid">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
@@ -126,7 +126,21 @@
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
-            </UniformGrid.Style>
+            </Grid.Style>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <!-- 남는 자리는 키패드가 먹는다. 한 줄짜리 표시가 늘어나면 창이 넘친다. -->
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- 실제로 나간 자리. ARS 안에서는 무엇이 들어갔는지가 다음 행동을 정한다. -->
+            <TextBlock Grid.Row="0"
+                       Text="{Binding Keypad.EnteredDigits}"
+                       Style="{StaticResource TextBody}"
+                       FontWeight="SemiBold"
+                       Margin="2,0,2,6" />
+
+            <UniformGrid Grid.Row="1" Columns="3" Rows="4">
 
             <Button Content="1" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="1" />
             <Button Content="2" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="2" />
@@ -140,25 +154,43 @@
             <Button Content="*" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="*" />
             <Button Content="0" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="0" />
             <Button Content="#" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="#" />
-        </UniformGrid>
+            </UniformGrid>
+        </Grid>
 
         <!--
-            돌려주기와 키패드. 키패드는 소프트폰 모드에서만 뜻이 있다 — 실기기는
-            전화기의 키패드가 진짜라, 화면에 띄우면 눌러도 아무 데도 안 가는데
-            상담원은 눌렀다고 믿는다.
-        -->
-        <Grid Grid.Row="4" Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+            돌려주기 · 보류 · 키패드.
 
-            <Button Grid.Column="0" Content="돌려주기"
+            UniformGrid 에 Columns 를 주지 않는 이유는 <b>숨긴 버튼이 자리를 남기지 않게</b> 하기 위해서다 —
+            보류 feature code 가 없는 현장에서는 그 버튼이 아예 없고, 남은 둘이 폭을 나눠 가진다.
+            행을 늘리지 않으므로 창 높이도 그대로다.
+        -->
+        <UniformGrid Grid.Row="4" Rows="1" Margin="0,8,0,0">
+            <Button Content="돌려주기" Margin="2,0"
                     Style="{StaticResource ButtonSecondary}"
                     Command="{Binding Transfer.StartTransferCommand}" />
 
-            <Button Grid.Column="2" Content="키패드"
+            <!-- 보류 중일 때와 요청만 나간 때를 다른 문구로 적는다. 같은 말이면 안 걸린 보류를 걸렸다고 읽는다. -->
+            <Button Margin="2,0"
+                    Content="{Binding HoldButtonText}"
+                    Command="{Binding ToggleHoldCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <!-- 이 PBX 가 보류를 받아 줄 때만 버튼을 만든다. 없으면 눌러도 400 이다. -->
+                            <DataTrigger Binding="{Binding CanHold}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsOnHold}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource BrushWarning}" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button Content="키패드" Margin="2,0"
                     Command="{Binding Keypad.ToggleKeypadCommand}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
@@ -171,7 +203,7 @@
                     </Style>
                 </Button.Style>
             </Button>
-        </Grid>
+        </UniformGrid>
 
         <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0"
                    Text="{Binding NoticeMessage}"

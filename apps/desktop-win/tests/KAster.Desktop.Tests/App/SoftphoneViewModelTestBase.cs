@@ -95,6 +95,18 @@ public abstract class SoftphoneViewModelTestBase
       "disabledReasons":[]},"error":null}
     """;
 
+    /// <summary>
+    /// <c>me/session</c> 의 통화 제어 가능 여부. hold/resume feature code 가 둘 다 있을 때만
+    /// 서버가 <c>holdEnabled</c> 를 켠다.
+    /// </summary>
+    protected static string ControlCapabilitiesJson(bool holdEnabled) => $$$"""
+    {"success":true,"data":{
+      "agent":{"agentId":"a-1","agentName":"김상담","extension":"1001","role":"agent"},
+      "callControlCapabilities":{"muteEnabled":true,"answerEnabled":true,
+        "holdEnabled":{{{(holdEnabled ? "true" : "false")}}},
+        "holdMode":"{{{(holdEnabled ? "feature_code" : "disabled")}}}"}},"error":null}
+    """;
+
     protected (SoftphoneViewModel Vm, CallStateStore Store, FakeSoftphone Phone, StubHttpHandler Stub) Build(
         bool useSoftphone = true,
         bool withSipConfig = true)
@@ -124,9 +136,14 @@ public abstract class SoftphoneViewModelTestBase
     protected static int DirectoryLookups(StubHttpHandler stub)
         => stub.Requests.Count(r => r.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal));
 
-    protected static async Task<StubHttpHandler> Ready(SoftphoneViewModel vm, StubHttpHandler stub)
+    protected static async Task<StubHttpHandler> Ready(
+        SoftphoneViewModel vm,
+        StubHttpHandler stub,
+        bool holdEnabled = false)
     {
-        stub.Enqueue(HttpStatusCode.OK, DirectoryJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson);
+        stub.Enqueue(HttpStatusCode.OK, DirectoryJson)
+            .Enqueue(HttpStatusCode.OK, CapabilitiesJson)
+            .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(holdEnabled));
         await vm.LoadDialSetupAsync();
         return stub;
     }
