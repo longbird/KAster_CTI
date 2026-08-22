@@ -17,9 +17,13 @@ public sealed class OfferViewModel : ObservableObject
     private readonly CtiServerClient _server;
     private readonly Action<string?> _notify;
     private readonly Action<Task> _track;
+    private readonly Action<string> _note;
     private readonly Func<DateTimeOffset> _now;
 
     private CallOffer? _offer;
+
+    /// <summary>이 제안이 화면에 뜬 시각. 몇 초 서 있었는지를 로그에 남기는 데 쓴다.</summary>
+    private DateTimeOffset? _shownAt;
 
     /// <summary>이 시각이 지나면 서버가 다음 상담원에게 넘긴다. 대기 시간을 안 내려주면 없다.</summary>
     private DateTimeOffset? _deadline;
@@ -30,17 +34,23 @@ public sealed class OfferViewModel : ObservableObject
     /// 남은 시간 계산용 시계. 테스트가 시간을 밀 수 있어야 한다.
     /// 안 넘기면 실제 시계를 쓴다 — 통화 화면이 쓰는 값과 같다.
     /// </param>
+    /// <param name="note">
+    /// 통화 흐름 기록. 제안이 언제 떴고 언제 내려갔는지를 남긴다 —
+    /// "옆자리는 남아 있는데 내 것만 일찍 꺼졌다" 는 신고를 화면 캡처 없이 가르는 유일한 단서다.
+    /// </param>
     public OfferViewModel(
         CallStateStore store,
         CtiServerClient server,
         Action<string?> notify,
         Action<Task> track,
+        Action<string> note,
         Func<DateTimeOffset>? now = null)
     {
         _store = store;
         _server = server;
         _notify = notify;
         _track = track;
+        _note = note;
         _now = now ?? (() => DateTimeOffset.UtcNow);
 
         AcceptOfferCommand = new RelayCommand(() => _track(RespondToOfferAsync(accept: true)), () => HasOffer);
@@ -122,6 +132,12 @@ public sealed class OfferViewModel : ObservableObject
 
     private void OnOfferChanged(CallOffer? offer)
     {
+        // 내려간 제안의 값은 덮어쓰기 전에 챙긴다. 남은 시간은 마지막으로 화면에 뜬 값이라,
+        // 여기서 다시 계산하면 상담원이 실제로 본 숫자가 아니게 된다.
+        var previous = _offer;
+        var previousShownAt = _shownAt;
+        var previousRemaining = _secondsRemaining;
+
         _offer = offer;
 
         // 서버가 제안마다 대기 시간을 내려준다. 기준은 서버 시각이 아니라 이 화면에 뜬 시각이다 —
@@ -138,6 +154,18 @@ public sealed class OfferViewModel : ObservableObject
         Raise(nameof(CountdownText));
         AcceptOfferCommand.RaiseCanExecuteChanged();
         RejectOfferCommand.RaiseCanExecuteChanged();
+
+        if (offer is not null)
+        {
+            _shownAt = _now();
+            _note($"제안 표시 offerId={offer.OfferId} 발신={offer.Caller} 대기={offer.TimeoutSeconds}초");
+        }
+        else if (previous is not null)
+        {
+            var stood = previousShownAt is { } at ? (int)Math.Round((_now() - at).TotalSeconds) : -1;
+            _shownAt = null;
+            _note($"제안 내림 offerId={previous.OfferId} 표시={stood}초 남음표시={previousRemaining}초");
+        }
 
         Changed?.Invoke(this, offer);
     }

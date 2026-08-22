@@ -45,6 +45,9 @@ interface PendingOffer {
    */
   resolvers: Set<OfferResolver>;
   timer: ReturnType<typeof setTimeout>;
+
+  /** 열린 시각. 닫힘 로그의 경과 시간이 여기서 나온다. */
+  openedAt: number;
 }
 
 /**
@@ -146,7 +149,8 @@ export class AgentOfferService implements OnModuleInit {
 
     const decision = new Promise<AgentOfferDecision>((resolve) => {
       const timer = setTimeout(() => this.settle(offerId, 'TIMEOUT'), request.timeoutSeconds * 1000);
-      this.pending.set(offerId, { resolvers: new Set([resolve]), timer });
+      this.pending.set(offerId, { resolvers: new Set([resolve]), timer, openedAt: Date.now() });
+      this.logger.log(`offer ${offerId} opened timeout=${request.timeoutSeconds}s`);
       onAbort?.(() => this.dropWaiter(offerId, resolve));
     });
 
@@ -201,6 +205,7 @@ export class AgentOfferService implements OnModuleInit {
     // 결정은 자기 노드에도 되돌아온다. 먼저 지우고 풀어야 두 번 처리되지 않는다.
     this.pending.delete(offerId);
     clearTimeout(offer.timer);
+    this.logger.log(`offer ${offerId} closed ${decision} after ${Date.now() - offer.openedAt}ms`);
     for (const resolve of offer.resolvers) resolve(decision);
   }
 }

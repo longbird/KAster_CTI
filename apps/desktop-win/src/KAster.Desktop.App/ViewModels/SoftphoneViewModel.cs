@@ -93,7 +93,7 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         // 순서가 있다. 돌려주기는 당겨받기가 훑어 온 통화 목록을 받고, 이력의 "다시 걸기" 는
         // 발신 칸에 번호를 넣는다. 받는 쪽이 먼저 서 있어야 한다.
-        Offer = new OfferViewModel(store, server, Notify, Track);
+        Offer = new OfferViewModel(store, server, Notify, Track, Note, now);
         Transfer = new TransferViewModel(store, server, agent.Extension, now, Notify, Track, _preferences);
         Keypad = new KeypadViewModel(phone, server, useSoftphone, CurrentCallId, Notify, Track);
         Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree, _preferences);

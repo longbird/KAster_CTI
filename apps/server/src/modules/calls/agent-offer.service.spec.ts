@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   AGENT_OFFER_CLOSED_EVENT,
   AGENT_OFFER_DECIDED_EVENT,
@@ -289,5 +290,39 @@ describe('AgentOfferService', () => {
       expect.objectContaining({ decision: 'REJECT' }),
       'tenant-1',
     );
+  });
+});
+
+/**
+ * 현장에서 "한 자리는 남아 있는데 다른 자리는 일찍 꺼졌다" 는 신고가 들어와도,
+ * 지금까지는 서버가 제안에 대해 아무 시각도 남기지 않아 확인할 방법이 없었다.
+ * 자리마다 언제 열리고 언제·왜 닫혔는지가 로그에 있어야 그 신고를 가른다.
+ */
+describe('AgentOfferService 진단 로그', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('제안이 열린 시각과 닫힌 이유·경과를 남긴다', async () => {
+    jest.useFakeTimers();
+    const logs: string[] = [];
+    const spy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation((message: unknown) => { logs.push(String(message)); });
+
+    try {
+      const { service } = makeService();
+      const pending = service.waitForDecision(REQUEST);
+      await Promise.resolve();
+
+      expect(logs).toContainEqual(expect.stringContaining('1787355742.21:1001 opened timeout=10s'));
+
+      jest.advanceTimersByTime(10_000);
+      await pending;
+
+      expect(logs).toContainEqual(
+        expect.stringMatching(/1787355742\.21:1001 closed TIMEOUT after 10000ms/),
+      );
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
