@@ -59,6 +59,22 @@ describe('renderDialplan', () => {
     expect(failure).not.toContain('ss-noservice');
   });
 
+  /**
+   * 큐에 들어가면 곧바로 대기음이 시작된다. 발신자 입장에서는 자기 선택이 접수된
+   * 것인지 알 수 없고, 음악만 나오니 잘못 걸린 줄 알고 끊는다.
+   * 상담원 연결 선택뿐 아니라 큐로 바로 들어오는 DID 도 같은 자리를 지나므로
+   * 여기 한 곳에 두면 경로를 빠뜨릴 일이 없다.
+   */
+  it('대기음 전에 연결 중이라고 알린다', () => {
+    const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [] });
+    const entry = extensionsQueue.slice(0, extensionsQueue.indexOf('[queue-exit]'));
+    const connecting = entry.indexOf('Playback(/var/lib/asterisk/sounds/custom/queue_connecting)');
+    const queueApp = entry.indexOf('Queue(${QUEUE_NAME}');
+
+    expect(connecting).toBeGreaterThan(-1);
+    expect(connecting).toBeLessThan(queueApp);
+  });
+
   it('renders inbound-main context', () => {
     const { extensionsInbound } = renderDialplan({ dids: [], ivrMenus: [] });
     expect(extensionsInbound).toContain('[inbound-main]');

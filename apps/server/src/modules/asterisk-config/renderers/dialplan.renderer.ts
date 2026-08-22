@@ -14,6 +14,7 @@ const OPT_OUT_GUARDED_DIGIT_AGI_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-gu
 // 그것을 들려주면 안내가 틀렸을 뿐 아니라 무슨 일이 일어난 것인지 알 수 없다.
 const BLOCKED_ANI_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}blocked_ani`;
 const OPT_OUT_FAILED_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}optout_failed`;
+const QUEUE_CONNECTING_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}queue_connecting`;
 const SMART_ARS_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-smart-ars-hook.sh`;
 const OPT_OUT_MODE_SOURCE_TYPE: Record<OptOutMode, string> = {
   IMMEDIATE_OPT_OUT: 'OPT_OUT_080_IMMEDIATE',
@@ -1348,6 +1349,11 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
     // "Error in extension logic (missing '}')" 가 찍히면서 CDR userfield 가 통째로 빈다.
     // 녹취 경로와 linkedid 를 CDR 로 역추적하는 경로가 조용히 끊긴다.
     ' same => n,Set(CDR(userfield)=linkedid=${CHANNEL(linkedid)}\\;queue=${QUEUE_NAME}\\;rec=${REC_FILE})',
+    // 큐에 들어가면 곧바로 대기음이 시작된다. 발신자 입장에서는 자기 선택이 접수된
+    // 것인지 알 수 없고, 음악만 나오니 잘못 걸린 줄 알고 끊는다.
+    // 상담원 연결 선택뿐 아니라 큐로 바로 들어오는 DID 도 이 자리를 지나므로,
+    // 여기 한 곳에 두면 경로를 빠뜨릴 일이 없다.
+    ` same => n,Playback(${QUEUE_CONNECTING_PROMPT})`,
     ' same => n,Queue(${QUEUE_NAME},tT,,,${QUEUE_TIMEOUT_SECS},,,agent-pre-bridge)',
     ' same => n,NoOp(Queue Result: ${QUEUESTATUS})',
     ' same => n,Goto(queue-exit,s,1)',
