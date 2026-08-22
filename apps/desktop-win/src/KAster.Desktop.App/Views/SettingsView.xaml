@@ -85,6 +85,16 @@
                               FontFamily="{StaticResource FontUi}"
                               FontSize="{StaticResource FontSizeBody}" />
                 </StackPanel>
+
+                <!--
+                    앱이 조용히 멈추면 로그 파일이 유일한 단서다. 상담원에게 %LOCALAPPDATA% 경로를
+                    전화로 불러 주는 것은 현장에서 통하지 않는다.
+                -->
+                <TextBlock Text="문제 기록" Style="{StaticResource TextCaption}" Margin="0,16,0,4" />
+                <Button Content="로그 폴더 열기"
+                        HorizontalAlignment="Left"
+                        Style="{StaticResource ButtonSecondary}"
+                        Command="{Binding OpenLogFolderCommand}" />
             </StackPanel>
         </Border>
 

@@ -49,10 +49,20 @@ public partial class MainWindow : Window
     private readonly TokenVault _tokens;
     private readonly WindowModeService _windowMode;
     private readonly SubWindowService _subWindows;
+    private readonly TrayIconService _tray;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private SoftphoneRuntime? _runtime;
     private SoftphoneViewModel? _softphone;
+
+    /// <summary>
+    /// 전역 핫키. 창 핸들이 생긴 뒤라야 등록할 수 있어 생성자가 아니라 로그인 뒤에 세운다 —
+    /// 어차피 로그인 전에는 받을 전화도 끊을 통화도 없다.
+    /// </summary>
+    private GlobalHotkeyService? _hotkeys;
+
+    /// <summary>1초 타이머의 순번. 수신 중 아이콘 깜빡임의 위상이 여기서 나온다.</summary>
+    private long _tick;
 
     public MainWindow()
     {
@@ -63,16 +73,94 @@ public partial class MainWindow : Window
         _windowMode = new WindowModeService(this);
         _subWindows = new SubWindowService(this);
 
+        // 트레이에서 창을 부르는 것은 상담원이 스스로 누른 경로다. 종료는 창을 닫는 것과 같은 길을 쓴다 —
+        // 여기서만 따로 정리하면 어느 한쪽에 빠진 것이 생긴다.
+        _tray = new TrayIconService(new TrayIconArt(), () => WindowAttention.Restore(this), Close);
+
         _timer.Tick += (_, _) =>
         {
             _softphone?.Tick();
 
             // 제안 남은 시간. 매번 시계로 다시 계산하므로 통화 화면 쪽에서 또 밀어도 결과가 같다.
             _softphone?.Offer.Tick();
+
+            // 트레이는 같은 값을 다시 받으면 아무 일도 하지 않는다. 매초 밀어도 된다.
+            // 수신 중일 때만 이 틱 번호가 아이콘을 번갈아 칠한다 — 창을 안 보고 있어도 눈에 걸린다.
+            _tray.Show(TrayBlink.For(CurrentTrayState(), _tick++));
         };
 
         ShowLogin();
-        Closed += async (_, _) => await ShutdownAsync();
+        _tray.Show(CurrentTrayState());
+
+        // 창을 닫으면 <b>앱이 끝난다</b>. 트레이가 생겼다고 X 를 최소화로 바꾸지 않았다 —
+        // 서버는 앱이 붙어 있는지로 큐 배정을 정하므로(파동 1), 트레이로 내려간 앱은 상담원이
+        // 껐다고 생각한 뒤에도 큐에 남아 빈 자리로 전화를 받는다. 고객은 아무도 없는 자리에서
+        // 벨소리만 듣는다.
+        //
+        // 창이 가려져 전화를 놓치는 문제는 창을 숨기는 쪽이 아니라 알리는 쪽(풍선·깜빡임)으로 푼다.
+        //
+        // 트레이는 창 하나에 딸린 것이라 창이 사라질 때만 내린다. 로그아웃은 같은 창에서 이어지므로
+        // ShutdownAsync 안에서 내리면 로그인 화면으로 돌아온 뒤 아이콘이 없어진다.
+        Closed += async (_, _) =>
+        {
+            await ShutdownAsync();
+            _hotkeys?.Dispose();
+            _tray.Dispose();
+        };
+    }
+
+    /// <summary>
+    /// 지금 트레이가 말해야 하는 것. 로그인 전에는 붙을 서버도 전화기도 없으므로 "서버 끊김" 이다 —
+    /// 그 상태로 전화가 오지 않는 것은 사실이다.
+    /// </summary>
+    private TrayState CurrentTrayState()
+        => _softphone is null
+            ? new TrayState(TrayStatus.Disconnected, "PBX 상담원 · 로그인 전")
+            : TrayPresentation.For(
+                _softphone.IsConnected,
+                _softphone.DeskPhone.IsPhoneRegistered,
+                _softphone.WindowMode,
+                _softphone.AgentStatus,
+                _softphone.AgentName,
+                _softphone.Extension);
+
+    /// <summary>
+    /// 상담원이 지금 알아채야 하는 것. 창이 앞에 있으면 아무것도 하지 않는다 —
+    /// 이미 그 화면에 제안이 떠 있고, 그 위에 풍선을 얹으면 소음만 는다.
+    ///
+    /// <b>가려진 창과 내려 둔 창은 반드시 알림을 받는다.</b> 풍선은 창과 무관하게 트레이가 띄우고,
+    /// 깜빡임은 작업 표시줄 단추에 걸리므로 최소화 상태에서도 그대로 보인다.
+    /// 어느 쪽도 창을 앞으로 끌어내지 않는다.
+    /// </summary>
+    private void RaiseAttention(Alert alert)
+    {
+        var channels = AlertDelivery.For(IsActive, WindowState == WindowState.Minimized);
+
+        if (channels.HasFlag(AlertChannel.Balloon)) _tray.Balloon(alert);
+        if (channels.HasFlag(AlertChannel.Flash)) WindowAttention.Flash(this);
+    }
+
+    /// <summary>
+    /// 전역 핫키를 건다. <b>등록 실패는 반드시 화면에 올린다</b> — 다른 프로그램이 먼저 잡은
+    /// 조합이면 눌러도 아무 일이 없는데, 말하지 않으면 상담원은 되는 줄 알고 계속 누른다.
+    /// </summary>
+    private void StartHotkeys(SoftphoneViewModel softphone)
+    {
+        // 재로그인마다 새로 걸면 핸들러가 쌓여 한 번 누른 핫키가 여러 번 나간다.
+        if (_hotkeys is null)
+        {
+            _hotkeys = new GlobalHotkeyService(this);
+            _hotkeys.Pressed += (_, action) => _softphone?.Invoke(action);
+        }
+
+        var settings = new JsonSettingsStore<HotkeySettings>(AppPaths.Hotkeys).Load(new HotkeySettings());
+        var failures = _hotkeys.Apply(HotkeyPlan.For(settings));
+
+        if (HotkeyNotice.For(failures) is { } notice)
+        {
+            softphone.ShowNotice(notice);
+            App.Log($"핫키 등록 실패: {notice}");
+        }
     }
 
     private void ShowLogin()
@@ -121,13 +209,14 @@ public partial class MainWindow : Window
         runtime.Phone.CallStatusChanged += (_, status) =>
             Dispatcher.Invoke(() => softphone.Dial.OnSoftphoneCallStatusChanged(status));
         runtime.Phone.RegistrationStatusChanged += (_, status) =>
-            Dispatcher.Invoke(() => softphone.OnRegistrationStatusChanged(status));
+            Dispatcher.Invoke(() => softphone.DeskPhone.OnRegistrationStatusChanged(status));
 
         // 이미 등록이 끝난 뒤에 붙을 수도 있다. 현재 값을 한 번 밀어 넣는다.
-        softphone.OnRegistrationStatusChanged(runtime.Phone.Status);
+        softphone.DeskPhone.OnRegistrationStatusChanged(runtime.Phone.Status);
         runtime.Events.HandlerFailed += (_, ex) => App.LogError(ex);
         softphone.Dial.SelfAnswerFailed += (_, ex) => App.LogError(ex);
         softphone.Diagnostic += (_, message) => App.Log(message);
+        softphone.AttentionRequested += (_, alert) => RaiseAttention(alert);
         runtime.NonCallEvent += (_, evt) => softphone.Apply(evt);
         softphone.SignOutRequested += async (_, _) => await SignOutAsync();
 
@@ -142,6 +231,7 @@ public partial class MainWindow : Window
         _softphone = softphone;
 
         ApplyMode(WindowMode.Idle, softphone);
+        StartHotkeys(softphone);
         _timer.Start();
 
         await runtime.StartAsync();
@@ -237,6 +327,8 @@ public partial class MainWindow : Window
                 new WasapiDeviceEnumerator(),
                 useSoftphone);
 
+            vm.FolderRequested += (_, path) => OpenFolder(path);
+
             vm.Closed += (_, _) =>
             {
                 // 저장된 주소를 곧바로 다시 읽는다. 다음 로그인이 새 주소로 나가야 한다.
@@ -248,6 +340,26 @@ public partial class MainWindow : Window
 
             return new SettingsView { DataContext = vm };
         });
+    }
+
+    /// <summary>
+    /// 폴더를 탐색기로 연다. 아직 아무것도 안 남은 자리일 수 있으므로 먼저 만든다 —
+    /// 없는 경로를 넘기면 탐색기가 "찾을 수 없다" 만 띄우고 상담원은 자기가 잘못한 줄 안다.
+    /// </summary>
+    private static void OpenFolder(string path)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(path);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            App.LogError(ex);
+        }
     }
 
     private async void SignOut() => await SignOutAsync();
@@ -278,7 +390,11 @@ public partial class MainWindow : Window
         _subWindows.CloseAll();
 
         _timer.Stop();
+
+        // 로그아웃하면 누를 통화가 없다. 남겨 두면 로그인 화면에서 누른 핫키가 조용히 사라진다.
+        _hotkeys?.Clear();
         _softphone = null;
+        _tray.Show(CurrentTrayState());
 
         if (_runtime is not null)
         {

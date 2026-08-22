@@ -48,6 +48,15 @@ public static class AppPaths
     /// <summary>다음 로그인 때 채워 둘 아이디·내선. 비밀번호는 들어가지 않는다.</summary>
     public static string SavedLogin => Path.Combine(Root, "login.json");
 
+    /// <summary>전역 핫키 조합. 고르는 화면은 아직 없고 기본값이 쓰인다.</summary>
+    public static string Hotkeys => Path.Combine(Root, "hotkeys.json");
+
+    /// <summary>통화 흐름 기록. "전화가 안 걸린다" 는 신고를 화면 캡처 대신 이걸로 가른다.</summary>
+    public static string CallLog => Path.Combine(Root, "call.log");
+
+    /// <summary>잡히지 않은 예외. 앱이 조용히 멈췄을 때 유일한 단서다.</summary>
+    public static string ErrorLog => Path.Combine(Root, "error.log");
+
     /// <summary>
     /// 읽은 공지. 서버에 남길 길이 없어(상담원에게 읽음 처리 경로가 403) 이 PC 안에만 둔다.
     /// </summary>

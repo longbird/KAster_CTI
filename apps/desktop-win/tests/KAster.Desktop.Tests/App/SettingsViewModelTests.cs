@@ -172,4 +172,20 @@ public class SettingsViewModelTests
 
         Assert.True(vm.ServerUrlChanged);
     }
+
+    /// <summary>
+    /// 앱이 조용히 멈추면 로그 파일이 유일한 단서인데, 상담원은 %LOCALAPPDATA% 를 찾아갈 방법이 없다.
+    /// 전화로 경로를 불러 주는 대신 여는 길을 화면에 둔다.
+    /// </summary>
+    [Fact]
+    public void The_agent_can_be_taken_to_the_log_folder()
+    {
+        var vm = Build();
+        string? asked = null;
+        vm.FolderRequested += (_, path) => asked = path;
+
+        vm.OpenLogFolderCommand.Execute(null);
+
+        Assert.Equal(AppPaths.Root, asked);
+    }
 }

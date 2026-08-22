@@ -61,14 +61,14 @@
                             CornerRadius="{StaticResource RadiusChip}"
                             HorizontalAlignment="Right"
                             Background="{StaticResource BrushSurfaceMuted}">
-                        <TextBlock Text="{Binding PhoneStatusText}"
+                        <TextBlock Text="{Binding DeskPhone.PhoneStatusText}"
                                    TextWrapping="Wrap"
                                    MaxWidth="230">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                                     <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsPhoneRegistered}" Value="True">
+                                        <DataTrigger Binding="{Binding DeskPhone.IsPhoneRegistered}" Value="True">
                                             <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -192,7 +192,7 @@
                                 <DataTrigger Binding="{Binding Dial.IsDialing}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
-                                <DataTrigger Binding="{Binding ShowsDeskPhoneSetup}" Value="True">
+                                <DataTrigger Binding="{Binding DeskPhone.ShowsDeskPhoneSetup}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -356,7 +356,7 @@
                         <Style TargetType="StackPanel">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding ShowsDeskPhoneSetup}" Value="True">
+                                <DataTrigger Binding="{Binding DeskPhone.ShowsDeskPhoneSetup}" Value="True">
                                     <Setter Property="Visibility" Value="Visible" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -380,7 +380,7 @@
                                 Foreground="{StaticResource BrushAccent}"
                                 FontFamily="{StaticResource FontUi}"
                                 FontSize="{StaticResource FontSizeCaption}"
-                                Command="{Binding RecheckDeskPhoneCommand}" />
+                                Command="{Binding DeskPhone.RecheckDeskPhoneCommand}" />
                     </Grid>
 
                     <Grid>
@@ -397,19 +397,19 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="서버" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
-                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SipServerAddress, Mode=OneWay}"
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DeskPhone.SipServerAddress, Mode=OneWay}"
                                  Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="계정" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
-                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SipUsername, Mode=OneWay}"
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DeskPhone.SipUsername, Mode=OneWay}"
                                  Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="도메인" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
-                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SipDomain, Mode=OneWay}"
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DeskPhone.SipDomain, Mode=OneWay}"
                                  Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
 
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="전송" Style="{StaticResource TextCaption}" Margin="0,0,10,5" />
-                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SipTransport, Mode=OneWay}"
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding DeskPhone.SipTransport, Mode=OneWay}"
                                  Style="{StaticResource FieldReadOnly}" Margin="0,0,0,5" />
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="비밀번호" Style="{StaticResource TextCaption}" Margin="0,0,10,0" />
@@ -420,7 +420,7 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- 자리 화면은 지나가는 사람에게 그대로 보인다. 넣을 때만 펼친다. -->
-                            <TextBox Grid.Column="0" Text="{Binding SipPasswordDisplay, Mode=OneWay}"
+                            <TextBox Grid.Column="0" Text="{Binding DeskPhone.SipPasswordDisplay, Mode=OneWay}"
                                      Style="{StaticResource FieldReadOnly}" />
 
                             <Button Grid.Column="1" Padding="6,0" BorderThickness="0"
@@ -428,12 +428,12 @@
                                     Foreground="{StaticResource BrushAccent}"
                                     FontFamily="{StaticResource FontUi}"
                                     FontSize="{StaticResource FontSizeCaption}"
-                                    Command="{Binding ToggleSipPasswordCommand}">
+                                    Command="{Binding DeskPhone.ToggleSipPasswordCommand}">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Content" Value="보기" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsSipPasswordVisible}" Value="True">
+                                            <DataTrigger Binding="{Binding DeskPhone.IsSipPasswordVisible}" Value="True">
                                                 <Setter Property="Content" Value="가리기" />
                                             </DataTrigger>
                                         </Style.Triggers>

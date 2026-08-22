@@ -57,13 +57,27 @@ public sealed class SettingsViewModel : ObservableObject
 
         SaveCommand = new RelayCommand(Save, () => ServerUrlError is null);
         CloseCommand = new RelayCommand(() => Closed?.Invoke(this, EventArgs.Empty));
+        OpenLogFolderCommand = new RelayCommand(
+            () => FolderRequested?.Invoke(this, AppPaths.Root));
     }
 
     public event EventHandler? Closed;
 
+    /// <summary>
+    /// 이 폴더를 열어 달라. 탐색기를 띄우는 것은 조립 지점이 한다 — 뷰모델이 프로세스를 띄우면
+    /// 테스트가 상담원 PC 에서 창을 연다.
+    /// </summary>
+    public event EventHandler<string>? FolderRequested;
+
     public RelayCommand SaveCommand { get; }
 
     public RelayCommand CloseCommand { get; }
+
+    /// <summary>
+    /// 진단 로그가 놓인 자리를 연다. 앱이 조용히 멈추면 그 파일이 유일한 단서인데,
+    /// 상담원에게 <c>%LOCALAPPDATA%</c> 를 전화로 불러 주는 것은 현장에서 통하지 않는다.
+    /// </summary>
+    public RelayCommand OpenLogFolderCommand { get; }
 
     /// <summary>실기기 모드에는 우리 오디오가 없다. 고를 것을 보여 주면 안 고른 줄 알고 헤맨다.</summary>
     public bool ShowsAudioDevices { get; }

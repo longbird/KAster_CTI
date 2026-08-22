@@ -362,15 +362,15 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         vm.OnConnectionStateChanged(CtiConnectionState.Connected);
         Assert.True(vm.IsConnected);
-        Assert.False(vm.IsPhoneRegistered);
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
 
-        vm.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Registered));
-        Assert.True(vm.IsPhoneRegistered);
-        Assert.Equal("전화 준비됨", vm.PhoneStatusText);
+        vm.DeskPhone.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Registered));
+        Assert.True(vm.DeskPhone.IsPhoneRegistered);
+        Assert.Equal("전화 준비됨", vm.DeskPhone.PhoneStatusText);
 
-        vm.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Failed, "403 Forbidden"));
-        Assert.False(vm.IsPhoneRegistered);
-        Assert.Contains("403", vm.PhoneStatusText);
+        vm.DeskPhone.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Failed, "403 Forbidden"));
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
+        Assert.Contains("403", vm.DeskPhone.PhoneStatusText);
     }
 
     [Theory]
@@ -380,10 +380,10 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     {
         var (vm, _, _, _) = Build();
 
-        vm.OnRegistrationStatusChanged(new RegistrationStatus(state));
+        vm.DeskPhone.OnRegistrationStatusChanged(new RegistrationStatus(state));
 
-        Assert.Equal(expected, vm.PhoneStatusText);
-        Assert.False(vm.IsPhoneRegistered);
+        Assert.Equal(expected, vm.DeskPhone.PhoneStatusText);
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
     }
 
     /// <summary>
@@ -547,8 +547,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     {
         var (vm, _, _, _) = Build(useSoftphone: false);
 
-        Assert.Equal("전화기 확인 중", vm.PhoneStatusText);
-        Assert.False(vm.IsPhoneRegistered);
+        Assert.Equal("전화기 확인 중", vm.DeskPhone.PhoneStatusText);
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
     }
 
     [Fact]
@@ -565,8 +565,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         await vm.LoadDialSetupAsync();
 
-        Assert.True(vm.IsPhoneRegistered);
-        Assert.Equal("전화기 준비됨", vm.PhoneStatusText);
+        Assert.True(vm.DeskPhone.IsPhoneRegistered);
+        Assert.Equal("전화기 준비됨", vm.DeskPhone.PhoneStatusText);
     }
 
     /// <summary>
@@ -586,8 +586,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         await vm.LoadDialSetupAsync();
 
-        Assert.False(vm.IsPhoneRegistered);
-        Assert.Contains("등록되지", vm.PhoneStatusText);
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
+        Assert.Contains("등록되지", vm.DeskPhone.PhoneStatusText);
     }
 
     /// <summary>소프트폰 모드에서는 서버가 보내 준 남의 등록 상태가 우리 표시를 건드리면 안 된다.</summary>
@@ -595,7 +595,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     public async Task In_softphone_mode_the_directory_does_not_touch_the_phone_status()
     {
         var (vm, _, _, stub) = Build(useSoftphone: true);
-        vm.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Registered));
+        vm.DeskPhone.OnRegistrationStatusChanged(new RegistrationStatus(RegistrationState.Registered));
         stub.Enqueue(HttpStatusCode.OK, """
         {"success":true,"data":[
           {"agentId":"a-1","agentName":"김상담","extension":"1001",
@@ -606,8 +606,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         await vm.LoadDialSetupAsync();
 
-        Assert.True(vm.IsPhoneRegistered);
-        Assert.Equal("전화 준비됨", vm.PhoneStatusText);
+        Assert.True(vm.DeskPhone.IsPhoneRegistered);
+        Assert.Equal("전화 준비됨", vm.DeskPhone.PhoneStatusText);
     }
 
     /// <summary>
@@ -626,11 +626,11 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         await vm.LoadDialSetupAsync();
 
-        Assert.True(vm.ShowsDeskPhoneSetup);
-        Assert.Equal("49.247.46.86:48950", vm.SipServerAddress);
-        Assert.Equal("1001", vm.SipUsername);
-        Assert.Equal("pbx.local", vm.SipDomain);
-        Assert.Equal("UDP", vm.SipTransport);
+        Assert.True(vm.DeskPhone.ShowsDeskPhoneSetup);
+        Assert.Equal("49.247.46.86:48950", vm.DeskPhone.SipServerAddress);
+        Assert.Equal("1001", vm.DeskPhone.SipUsername);
+        Assert.Equal("pbx.local", vm.DeskPhone.SipDomain);
+        Assert.Equal("UDP", vm.DeskPhone.SipTransport);
     }
 
     /// <summary>등록이 끝나면 그 안내는 자리를 비켜야 한다.</summary>
@@ -646,7 +646,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         await vm.LoadDialSetupAsync();
 
-        Assert.False(vm.ShowsDeskPhoneSetup);
+        Assert.False(vm.DeskPhone.ShowsDeskPhoneSetup);
     }
 
     /// <summary>소프트폰 모드에는 책상 전화기가 없다.</summary>
@@ -655,7 +655,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     {
         var (vm, _, _, _) = Build(useSoftphone: true);
 
-        Assert.False(vm.ShowsDeskPhoneSetup);
+        Assert.False(vm.DeskPhone.ShowsDeskPhoneSetup);
     }
 
     /// <summary>
@@ -667,13 +667,13 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     {
         var (vm, _, _, _) = Build(useSoftphone: false);
 
-        Assert.Equal("••••••••", vm.SipPasswordDisplay);
-        Assert.False(vm.IsSipPasswordVisible);
+        Assert.Equal("••••••••", vm.DeskPhone.SipPasswordDisplay);
+        Assert.False(vm.DeskPhone.IsSipPasswordVisible);
 
-        vm.ToggleSipPasswordCommand.Execute(null);
+        vm.DeskPhone.ToggleSipPasswordCommand.Execute(null);
 
-        Assert.True(vm.IsSipPasswordVisible);
-        Assert.Equal("s3cret-pw", vm.SipPasswordDisplay);
+        Assert.True(vm.DeskPhone.IsSipPasswordVisible);
+        Assert.Equal("s3cret-pw", vm.DeskPhone.SipPasswordDisplay);
     }
 
     /// <summary>서버가 SIP 정보를 안 내려주는 현장이 있다. 빈 칸을 보여 주면 더 헷갈린다.</summary>
@@ -689,8 +689,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
 
         await vm.LoadDialSetupAsync();
 
-        Assert.False(vm.ShowsDeskPhoneSetup);
-        Assert.Contains("등록되지", vm.PhoneStatusText);
+        Assert.False(vm.DeskPhone.ShowsDeskPhoneSetup);
+        Assert.Contains("등록되지", vm.DeskPhone.PhoneStatusText);
     }
 
     private const string DeskPhoneJson = """
@@ -714,7 +714,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
             .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
-        Assert.False(vm.IsPhoneRegistered);
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
 
         // 전화기가 등록됐다. 대기 콜 조회도 같은 Tick 에서 도므로 경로로 응답한다.
         stub.RespondWith(request => request.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal)
@@ -724,8 +724,8 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         vm.Tick();
         await vm.PendingWork;
 
-        Assert.True(vm.IsPhoneRegistered);
-        Assert.False(vm.ShowsDeskPhoneSetup);
+        Assert.True(vm.DeskPhone.IsPhoneRegistered);
+        Assert.False(vm.DeskPhone.ShowsDeskPhoneSetup);
     }
 
     /// <summary>확인이 1초마다 나가면 서버를 쓸데없이 두드린다.</summary>
@@ -753,7 +753,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson).Enqueue(HttpStatusCode.OK, CapabilitiesJson)
             .Enqueue(HttpStatusCode.OK, ControlCapabilitiesJson(false));
         await vm.LoadDialSetupAsync();
-        Assert.True(vm.IsPhoneRegistered);
+        Assert.True(vm.DeskPhone.IsPhoneRegistered);
 
         stub.RespondWith(request => request.RequestUri!.AbsolutePath.EndsWith("/agents", StringComparison.Ordinal)
             ? StubHttpHandler.Json(HttpStatusCode.OK, DeskPhoneReadyJson)
@@ -797,9 +797,9 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         await vm.LoadDialSetupAsync();
 
         stub.Enqueue(HttpStatusCode.OK, DeskPhoneReadyJson);
-        await vm.RecheckDeskPhoneAsync();
+        await vm.DeskPhone.RecheckDeskPhoneAsync();
 
-        Assert.True(vm.IsPhoneRegistered);
+        Assert.True(vm.DeskPhone.IsPhoneRegistered);
     }
 
     /// <summary>확인이 실패했다고 화면에 오류를 계속 띄우면 안 된다. 조용히 다음 차례를 기다린다.</summary>
@@ -819,7 +819,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         await vm.PendingWork;
 
         Assert.Null(vm.NoticeMessage);
-        Assert.False(vm.IsPhoneRegistered);
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
     }
 
     /// <summary>

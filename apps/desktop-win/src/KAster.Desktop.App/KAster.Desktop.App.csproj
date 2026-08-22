@@ -1,5 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    WinForms 를 켜면 SDK 가 System.Windows.Forms 와 System.Drawing 을 전역 using 으로 깐다.
+    그러면 화면 코드비하인드의 UserControl·Color·Brush 가 WPF 쪽과 이름이 겹쳐 전부 모호해진다.
+    트레이 한 곳 때문에 화면 12개를 고칠 이유가 없다 — 전역에서 빼고 트레이 파일만 별칭으로 부른다.
+  -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\KAster.Desktop.Softphone\KAster.Desktop.Softphone.csproj" />
     <ProjectReference Include="..\KAster.Desktop.Core\KAster.Desktop.Core.csproj" />
@@ -11,6 +21,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+
+    <!--
+      트레이 아이콘 때문이다. WPF 에는 트레이 API 가 없고, 셸의 Shell_NotifyIcon 을 직접 부르면
+      아이콘 생명주기·풍선 알림·컨텍스트 메뉴를 전부 손으로 만들어야 한다.
+      WinForms 의 NotifyIcon 이 그것을 이미 들고 있고, 두 UI 프레임워크는 한 프로젝트에서 같이 켜도 된다.
+    -->
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
 </Project>

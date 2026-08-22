@@ -1,12 +1,24 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using KAster.Desktop.App.Services;
+using KAster.Desktop.Core.Diagnostics;
 
 namespace KAster.Desktop.App;
 
 public partial class App : Application
 {
+    /// <summary>
+    /// 두 파일 모두 <see cref="AppPaths.Root"/> 아래에 놓인다 — 한 PC 에 상담원이 둘 있으면
+    /// 프로필마다 자리가 갈려야 한다. 크기 상한도 여기서 온다.
+    ///
+    /// 여기 남는 것은 통화 흐름과 예외뿐이다. <b>비밀번호·토큰·누른 자릿수는 들어가지 않는다</b> —
+    /// SIP 비밀번호는 화면에만 있고, 토큰은 HTTP 헤더와 소켓 auth 로만 나가며,
+    /// 키패드 자릿수를 남기는 자리는 없다.
+    /// </summary>
+    private static readonly RollingLogFile CallLog = new(AppPaths.CallLog);
+
+    private static readonly RollingLogFile ErrorLog = new(AppPaths.ErrorLog);
+
     /// <summary>
     /// 잡히지 않은 예외를 파일로 남긴다. 상담원 PC 에서 앱이 조용히 멈추면 이 파일이 유일한 단서다.
     /// </summary>
@@ -32,34 +44,12 @@ public partial class App : Application
     /// 요청이 나갔는지, PBX 가 되걸었는지, 어디서 끊겼는지가 여기 남는다.
     /// </summary>
     public static void Log(string message)
-    {
-        try
-        {
-            Directory.CreateDirectory(AppPaths.Root);
-            File.AppendAllText(
-                Path.Combine(AppPaths.Root, "call.log"),
-                $"{DateTimeOffset.Now:HH:mm:ss.fff} {message}{Environment.NewLine}");
-        }
-        catch (IOException)
-        {
-            // 기록을 못 남겨도 통화는 계속 간다.
-        }
-    }
+        => CallLog.Append($"{DateTimeOffset.Now:HH:mm:ss.fff} {message}");
 
     public static void LogError(Exception? ex)
     {
         if (ex is null) return;
 
-        try
-        {
-            Directory.CreateDirectory(AppPaths.Root);
-            File.AppendAllText(
-                Path.Combine(AppPaths.Root, "error.log"),
-                $"{DateTimeOffset.Now:O} {ex}{Environment.NewLine}{Environment.NewLine}");
-        }
-        catch (IOException)
-        {
-            // 로그를 못 써도 앱은 계속 간다.
-        }
+        ErrorLog.Append($"{DateTimeOffset.Now:O} {ex}{Environment.NewLine}");
     }
 }

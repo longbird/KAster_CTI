@@ -28,12 +28,9 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     /// <summary>
     /// 소프트폰으로 통화하는지. false 면 <b>실기기 모드</b> — 책상 전화기가 소리를 맡고
-    /// 이 앱은 통화 제어만 한다. 그때 우리 SIP 등록 상태를 보여 주면 거짓말이 된다.
+    /// 이 앱은 통화 제어만 한다. 받기·끊기·음소거가 나가는 길이 그래서 갈린다.
     /// </summary>
     private readonly bool _useSoftphone;
-
-    /// <summary>서버가 내려준 SIP 계정. 실기기 모드에서는 책상 전화기에 넣을 값이 된다.</summary>
-    private readonly SoftphoneConfig? _sipConfig;
 
     private WindowMode _windowMode = WindowMode.Idle;
     private string _customerName = string.Empty;
@@ -45,8 +42,6 @@ public sealed class SoftphoneViewModel : ObservableObject
     private bool _isMuted;
     private bool _isConnected;
     private AgentStatusCode _agentStatus = AgentStatusCode.Available;
-    private bool _isPhoneRegistered;
-    private bool _isSipPasswordVisible;
     private bool _canHold;
     private bool _isOnHold;
 
@@ -59,15 +54,8 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     private const int HoldRequestTimeoutSeconds = 5;
 
-    /// <summary>
-    /// 다음 실기기 등록 확인 시각. 등록 전에는 자주, 등록된 뒤에는 드물게 본다.
-    /// 로그인 직후의 첫 조회가 끝나기 전에는 돌지 않는다.
-    /// </summary>
-    private DateTimeOffset _nextDeskPhoneCheck = DateTimeOffset.MaxValue;
-
     /// <summary>진행 중인 뒷작업. 테스트가 기다릴 수 있게 내보낸다.</summary>
     private Task _pendingWork = Task.CompletedTask;
-    private string _phoneStatusText;
     private string _memoText = string.Empty;
 
     /// <summary>메모를 붙일 통화. 통화가 끝난 뒤에 저장하므로 그때는 현재 통화가 이미 없다.</summary>
@@ -89,10 +77,11 @@ public sealed class SoftphoneViewModel : ObservableObject
         _agent = agent;
         _now = now;
         _useSoftphone = useSoftphone;
-        _sipConfig = sipConfig;
-        _phoneStatusText = useSoftphone ? "전화 꺼짐" : "전화기 확인 중";
 
         _store.CurrentCallChanged += (_, call) => OnCurrentCallChanged(call);
+
+        // 이 자리의 전화기가 살아 있는가. 통화 제어가 아니라 장치 상태라 따로 나가 있다.
+        DeskPhone = new DeskPhoneViewModel(server, agent.Extension, now, useSoftphone, sipConfig, Note, Track);
 
         // 순서가 있다. 돌려주기는 당겨받기가 훑어 온 통화 목록을 받고, 이력의 "다시 걸기" 는
         // 발신 칸에 번호를 넣는다. 받는 쪽이 먼저 서 있어야 한다.
@@ -124,9 +113,17 @@ public sealed class SoftphoneViewModel : ObservableObject
         Customer.Closed += (_, _) => InfoWindowDismissed?.Invoke(this, InfoWindow.CustomerInfo);
 
         // 제안이 뜨면 창이 그것부터 보여야 한다. 내려가면 원래 통화 상태로 돌아간다.
+        //
+        // 창을 앞으로 끌어내지는 않는다. 상담원이 가려 둔 창이 스스로 튀어나와 하던 작업을
+        // 덮으면 알리는 것이 아니라 뺏는 것이다 — 대신 알릴 것이 생겼다고만 올린다.
         Offer.Changed += (_, offer) =>
         {
-            if (offer is not null) WindowMode = WindowMode.Ringing;
+            if (offer is not null)
+            {
+                WindowMode = WindowMode.Ringing;
+                AttentionRequested?.Invoke(
+                    this, OfferAlert.For(Offer.OfferPhoneNumber, Offer.CountdownText));
+            }
             else OnCurrentCallChanged(_store.Current);
         };
 
@@ -157,12 +154,13 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         // 통화 중 로그아웃은 막는다. 고객이 끊긴 줄 모른 채 남는다.
         SignOutCommand = new RelayCommand(() => SignOutRequested?.Invoke(this, EventArgs.Empty), () => IsFree);
-        ToggleSipPasswordCommand = new RelayCommand(() => IsSipPasswordVisible = !IsSipPasswordVisible);
-        RecheckDeskPhoneCommand = new RelayCommand(() => _pendingWork = RecheckDeskPhoneAsync());
         OpenSettingsCommand = new RelayCommand(
             () => SettingsRequested?.Invoke(this, EventArgs.Empty),
             () => IsFree);
     }
+
+    /// <summary>이 자리의 전화기가 살아 있는가. 실기기면 등록 안내도 여기가 든다.</summary>
+    public DeskPhoneViewModel DeskPhone { get; }
 
     /// <summary>큐가 넘기기 전에 물어보는 호.</summary>
     public OfferViewModel Offer { get; }
@@ -197,6 +195,12 @@ public sealed class SoftphoneViewModel : ObservableObject
     public event EventHandler<WindowMode>? WindowModeRequested;
 
     /// <summary>
+    /// 상담원이 지금 알아채야 하는 것이 생겼다. 창이 다른 프로그램에 가려져 있으면 이것이
+    /// 유일한 창구다. <b>어떻게</b> 알릴지는 조립 지점이 정한다 — 화면은 무엇을 적을지만 안다.
+    /// </summary>
+    public event EventHandler<Alert>? AttentionRequested;
+
+    /// <summary>
     /// 읽기 전용 화면을 서브 창으로 띄워 달라. 창을 만드는 일은 조립 지점이 한다 —
     /// 이 코드베이스에서 창을 만지는 곳은 <c>MainWindow</c> 하나뿐이다.
     /// </summary>
@@ -217,10 +221,6 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public RelayCommand SignOutCommand { get; }
 
-    public RelayCommand ToggleSipPasswordCommand { get; }
-
-    public RelayCommand RecheckDeskPhoneCommand { get; }
-
     public RelayCommand OpenSettingsCommand { get; }
 
     /// <summary>설정 화면을 여는 것은 조립 지점이 한다. 화면은 요청만 한다.</summary>
@@ -235,6 +235,32 @@ public sealed class SoftphoneViewModel : ObservableObject
     private void Track(Task work) => _pendingWork = work;
 
     private void Notify(string? message) => NoticeMessage = message;
+
+    /// <summary>
+    /// 화면 밖(트레이·핫키 같은 조립 지점)에서 올라온 알림. 상담원이 알림을 찾는 자리는
+    /// 하나여야 한다 — 조립 지점이 자기만 아는 곳에 적으면 그것은 아무도 못 본다.
+    /// </summary>
+    public void ShowNotice(string message) => Notify(message);
+
+    /// <summary>
+    /// 전역 핫키가 부른 동작. <b>화면의 버튼과 같은 것을 누른다</b> — 제안이 떠 있으면 받기·끊기는
+    /// 그 제안에 대한 수락·거절이고, 그것이 지금 화면에 뜬 두 버튼이다. 다르게 동작하면
+    /// 눈으로 본 것과 손으로 누른 결과가 어긋난다.
+    ///
+    /// 누를 수 없는 버튼은 핫키로도 못 누른다. 창을 안 보고 누르는 길이라 더욱 그렇다 —
+    /// 대기 중에 끊기가 나가면 아무 통화도 없는데 서버에 명령이 간다.
+    /// </summary>
+    public void Invoke(HotkeyAction action)
+    {
+        RelayCommand command = action switch
+        {
+            HotkeyAction.Answer => Offer.HasOffer ? Offer.AcceptOfferCommand : AnswerCommand,
+            HotkeyAction.Hangup => Offer.HasOffer ? Offer.RejectOfferCommand : HangupCommand,
+            _ => ToggleMuteCommand,
+        };
+
+        if (command.CanExecute(null)) command.Execute(null);
+    }
 
     /// <summary>
     /// 훑어 온 진행 중인 통화를 그것을 쓰는 화면들에 나눠 준다. 누가 통화 중인지 판단하는 근거가
@@ -431,14 +457,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 순서가 바뀌면 같은 Tick 안에서 기다리게 되는 작업이 달라진다.
         Dial.Tick();
 
-        // 상담원이 전화기에 값을 넣는 동안 화면이 그대로면, 등록이 끝났는데도 뭘 잘못한 줄 안다.
-        if (!_useSoftphone && _now() >= _nextDeskPhoneCheck)
-        {
-            // 응답이 늦어도 매 초 다시 나가지 않도록 먼저 미뤄 둔다.
-            _nextDeskPhoneCheck = _now().AddSeconds(5);
-            _pendingWork = RecheckDeskPhoneAsync();
-        }
-
+        DeskPhone.Tick();
         Waiting.Tick();
 
         // 협의 전환의 연결·취소도 같은 사정이다 — 답이 없으면 스스로 기다림을 끝낸다.
@@ -502,98 +521,8 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
     }
 
-    // ---- 실기기 등록 안내 ----------------------------------------------------
-    //
-    // 전화기가 등록돼 있지 않으면 전화를 한 통도 못 받는다. 그 자리에서 필요한 것은
-    // "대기 중" 안내가 아니라 전화기에 넣을 값이다.
-
-    /// <summary>실기기 모드인데 아직 등록이 안 됐고, 넣을 값을 서버가 내려준 경우.</summary>
-    public bool ShowsDeskPhoneSetup
-        => !_useSoftphone && !IsPhoneRegistered && _sipConfig is not null && SipServerAddress.Length > 0;
-
-    public string SipServerAddress => _sipConfig?.SipServer?.Trim() ?? string.Empty;
-
-    public string SipUsername
-    {
-        get
-        {
-            var name = _sipConfig?.AuthorizationUsername?.Trim();
-            return string.IsNullOrEmpty(name) ? _agent.Extension : name;
-        }
-    }
-
-    /// <summary>전화기의 "도메인" 또는 "SIP 영역" 칸에 넣는 값. <c>sip:1001@pbx.local</c> 의 뒷부분이다.</summary>
-    public string SipDomain
-    {
-        get
-        {
-            var uri = _sipConfig?.SipUri;
-            if (string.IsNullOrWhiteSpace(uri)) return string.Empty;
-
-            var at = uri.IndexOf('@');
-            return at < 0 ? string.Empty : uri[(at + 1)..].Trim();
-        }
-    }
-
-    public string SipTransport => (_sipConfig?.Transport ?? "udp").Trim().ToUpperInvariant();
-
-    /// <summary>
-    /// 비밀번호는 기본으로 가린다. 상담원 자리 화면은 지나가는 사람에게 그대로 보인다.
-    /// 전화기에 넣을 때만 펼친다.
-    /// </summary>
-    public bool IsSipPasswordVisible
-    {
-        get => _isSipPasswordVisible;
-        private set
-        {
-            if (!Set(ref _isSipPasswordVisible, value)) return;
-            Raise(nameof(SipPasswordDisplay));
-        }
-    }
-
-    public string SipPasswordDisplay
-        => IsSipPasswordVisible ? _sipConfig?.AuthorizationPassword ?? string.Empty : "••••••••";
-
     public void OnConnectionStateChanged(CtiConnectionState state)
         => IsConnected = state == CtiConnectionState.Connected;
-
-    /// <summary>
-    /// PBX 에 전화기가 등록돼 있는지. <b>서버 연결과 다른 것이다.</b>
-    /// 웹소켓이 붙어 있어도 SIP 등록이 죽으면 전화는 한 통도 오지 않는다.
-    /// 그때 화면이 "연결됨" 하나만 보여 주면 상담원은 원인을 알 수 없다.
-    /// </summary>
-    public bool IsPhoneRegistered
-    {
-        get => _isPhoneRegistered;
-        private set
-        {
-            if (!Set(ref _isPhoneRegistered, value)) return;
-            Raise(nameof(ShowsDeskPhoneSetup));
-        }
-    }
-
-    public string PhoneStatusText
-    {
-        get => _phoneStatusText;
-        private set => Set(ref _phoneStatusText, value);
-    }
-
-    public void OnRegistrationStatusChanged(RegistrationStatus status)
-    {
-        // 실기기 모드에서는 우리가 등록하지 않는다. 우리 상태를 보여 주면 거짓말이다.
-        if (!_useSoftphone) return;
-
-        IsPhoneRegistered = status.State == RegistrationState.Registered;
-        PhoneStatusText = status.State switch
-        {
-            RegistrationState.Registered => "전화 준비됨",
-            RegistrationState.Registering => "전화 등록 중",
-            RegistrationState.Failed => string.IsNullOrWhiteSpace(status.Reason)
-                ? "전화 등록 실패"
-                : $"전화 등록 실패: {status.Reason}",
-            _ => "전화 꺼짐",
-        };
-    }
 
     public async Task AnswerAsync(CancellationToken ct = default)
     {
@@ -695,7 +624,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             Transfer.UseDirectory(directory);
             Dial.UseDirectory(directory);
-            ApplyDeskPhoneRegistration(directory);
+            DeskPhone.ApplyDirectory(directory);
         }
 
         Waiting.StartLooking();
@@ -728,59 +657,6 @@ public sealed class SoftphoneViewModel : ObservableObject
     public event EventHandler<string>? Diagnostic;
 
     private void Note(string message) => Diagnostic?.Invoke(this, message);
-
-    /// <summary>
-    /// 등록 상태를 다시 확인한다. <b>조용히</b> 실패한다 — 주기 확인이 실패했다고
-    /// 화면에 오류를 계속 띄우면 통화 알림이 묻힌다.
-    /// </summary>
-    public async Task RecheckDeskPhoneAsync(CancellationToken ct = default)
-    {
-        if (_useSoftphone) return;
-
-        try
-        {
-            ApplyDeskPhoneRegistration(await _server.GetAgentDirectoryAsync(ct));
-        }
-        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
-        {
-            // 다음 차례에 다시 본다.
-        }
-    }
-
-    /// <summary>
-    /// 등록 전에는 5초, 등록된 뒤에는 30초. 값을 넣는 동안에는 바로 반응해야 하고,
-    /// 붙은 뒤에는 죽는 것만 알면 된다.
-    /// </summary>
-    private void ScheduleNextDeskPhoneCheck()
-        => _nextDeskPhoneCheck = _now().AddSeconds(IsPhoneRegistered ? 30 : 5);
-
-    /// <summary>
-    /// 실기기 모드에서 내 내선의 전화기가 PBX 에 등록돼 있는지 확인해 화면에 올린다.
-    /// 등록돼 있지 않으면 전화가 한 통도 오지 않는다 — 로그인 직후에 말해 줘야 한다.
-    /// </summary>
-    private void ApplyDeskPhoneRegistration(IReadOnlyList<AgentDirectoryEntry> directory)
-    {
-        if (_useSoftphone) return;
-
-        var mine = directory.FirstOrDefault(entry =>
-            string.Equals(entry.Extension?.Trim(), _agent.Extension, StringComparison.Ordinal));
-
-        if (mine is null)
-        {
-            IsPhoneRegistered = false;
-            PhoneStatusText = $"내선 {_agent.Extension} 을 찾을 수 없다";
-            ScheduleNextDeskPhoneCheck();
-            return;
-        }
-
-        IsPhoneRegistered = mine.SipRegistration?.Registered ?? false;
-        ScheduleNextDeskPhoneCheck();
-
-        PhoneStatusText = IsPhoneRegistered
-            ? "전화기 준비됨"
-            : $"전화기가 등록되지 않았다 ({mine.SipRegistration?.RegistrationStatus ?? "UNREGISTERED"})";
-        Note($"실기기 등록 확인 내선={_agent.Extension} 등록={IsPhoneRegistered}");
-    }
 
     /// <summary>
     /// 메모를 통화에 붙인다. 빈 메모는 보내지 않는다 — 통화마다 빈 줄이 쌓인다.
