@@ -72,7 +72,7 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
 
         Server = new CtiServerClient(new HttpClient(RefreshHandler) { BaseAddress = settings.BaseUri });
         Events = new CtiEventClient(settings.BaseUri, () => tokens.Load()?.AccessToken);
-        Calls = new CallStateStore(agent.AgentId, () => DateTimeOffset.UtcNow);
+        Calls = new CallStateStore(agent.AgentId, () => DateTimeOffset.UtcNow, null, agent.Extension);
         Phone = new SipSoftphoneClient(CreateAudio);
         Softphone = softphone;
 

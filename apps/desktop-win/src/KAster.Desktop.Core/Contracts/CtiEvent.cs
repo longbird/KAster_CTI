@@ -57,8 +57,25 @@ public sealed record QueueSummaryItem
     public int LongestWaitSeconds { get; init; }
 }
 
+/// <summary>수락하면 전화기가 연결된다. 안 누르면 시간이 지나 다음 상담원에게 넘어간다.</summary>
+public sealed record CallOfferedEvent(CallOffer Offer) : CtiEvent
+{
+    public override string Name => CtiEventNames.CallOffered;
+}
+
+/// <summary>
+/// 제안이 끝났다. 다른 상담원이 받았거나 시간이 지났다.
+/// 안 내리면 이미 끝난 통화의 수락 버튼이 남아 상담원이 그걸 누르게 된다.
+/// </summary>
+public sealed record CallOfferClosedEvent(string OfferId, string Extension, string Decision) : CtiEvent
+{
+    public override string Name => CtiEventNames.CallOfferClosed;
+}
+
 public static class CtiEventNames
 {
+    public const string CallOffered = "agent.offer";
+    public const string CallOfferClosed = "agent.offer.closed";
     public const string CallCreated = "call.created";
     public const string CallUpdated = "call.updated";
     public const string CallEnded = "call.ended";
@@ -76,5 +93,7 @@ public static class CtiEventNames
         AgentStatusChanged,
         QueueSummaryUpdated,
         AnnouncementPushed,
+        CallOffered,
+        CallOfferClosed,
     };
 }

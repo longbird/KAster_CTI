@@ -113,6 +113,9 @@ public partial class MainWindow : Window
     {
         Host.Content = mode switch
         {
+            // 큐가 물어보는 호와 이미 울리고 있는 호는 누를 것이 다르다.
+            // 전자는 수락/거절, 후자는 받기/거절이다.
+            WindowMode.Ringing when softphone.HasOffer => new OfferView { DataContext = softphone },
             WindowMode.Ringing => new RingingView { DataContext = softphone },
             WindowMode.Talking or WindowMode.Transferring or WindowMode.AfterCall
                 => new TalkingView { DataContext = softphone },

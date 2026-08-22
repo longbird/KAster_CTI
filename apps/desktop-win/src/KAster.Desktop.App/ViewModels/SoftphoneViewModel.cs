@@ -31,6 +31,7 @@ public sealed class SoftphoneViewModel : ObservableObject
     private readonly SoftphoneConfig? _sipConfig;
 
     private WindowMode _windowMode = WindowMode.Idle;
+    private CallOffer? _offer;
     private string _customerName = string.Empty;
     private string _branchName = string.Empty;
     private string _calledNumber = string.Empty;
@@ -114,6 +115,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         _phoneStatusText = useSoftphone ? "전화 꺼짐" : "전화기 확인 중";
 
         _store.CurrentCallChanged += (_, call) => OnCurrentCallChanged(call);
+        _store.OfferChanged += (_, offer) => OnOfferChanged(offer);
 
         // 내가 건 전화에 "받기" 는 뜻이 없다. 소프트폰이면 알아서 받고, 실기기면 수화기를 든다.
         AnswerCommand = new RelayCommand(
@@ -134,6 +136,8 @@ public sealed class SoftphoneViewModel : ObservableObject
             () => SettingsRequested?.Invoke(this, EventArgs.Empty),
             () => IsFree);
         PickupCommand = new RelayCommand<WaitingCall>(call => _pendingWork = PickupAsync(call));
+        AcceptOfferCommand = new RelayCommand(() => _pendingWork = RespondToOfferAsync(accept: true), () => HasOffer);
+        RejectOfferCommand = new RelayCommand(() => _pendingWork = RespondToOfferAsync(accept: false), () => HasOffer);
 
         // 화면에서 문자열로 넘긴다. 뷰가 enum 을 알 필요가 없다.
         SetWaitingLayoutCommand = new RelayCommand<string>(name =>
@@ -679,6 +683,60 @@ public sealed class SoftphoneViewModel : ObservableObject
     private bool IsSelfAnswering => _selfAnswerUntil is { } until && _now() <= until;
 
     /// <summary>발신 요청을 보내고 PBX 가 되걸어 주기를 기다리는 중.</summary>
+    /// <summary>
+    /// 큐가 물어보는 호가 떠 있는가. 수락해야 전화기가 연결되고, 그 전까지 고객은
+    /// 큐에서 대기음을 듣고 있다.
+    /// </summary>
+    public bool HasOffer => _offer is not null;
+
+    /// <summary>제안된 고객 번호. 발신번호 표시제한이면 "번호 없음".</summary>
+    public string OfferPhoneNumber
+    {
+        get
+        {
+            var shown = PhoneNumberFormat.ForDisplay(_offer?.Caller);
+            return shown.Length > 0 ? shown : "번호 없음";
+        }
+    }
+
+    public RelayCommand AcceptOfferCommand { get; }
+
+    public RelayCommand RejectOfferCommand { get; }
+
+    /// <summary>
+    /// 수락하거나 거절한다. 응답을 서버가 받든 못 받든 화면에서는 내린다 —
+    /// 누른 뒤에도 버튼이 남아 있으면 상담원이 다시 누른다.
+    /// </summary>
+    public async Task RespondToOfferAsync(bool accept)
+    {
+        var offer = _offer;
+        if (offer is null) return;
+
+        _store.DismissOffer();
+
+        try
+        {
+            await _server.RespondToOfferAsync(offer.Linkedid, offer.Extension, accept, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            NoticeMessage = $"응답을 보내지 못했습니다: {ex.Message}";
+        }
+    }
+
+    private void OnOfferChanged(CallOffer? offer)
+    {
+        _offer = offer;
+        Raise(nameof(HasOffer));
+        Raise(nameof(OfferPhoneNumber));
+        AcceptOfferCommand.RaiseCanExecuteChanged();
+        RejectOfferCommand.RaiseCanExecuteChanged();
+
+        // 제안이 뜨면 창이 그것부터 보여야 한다. 내려가면 원래 통화 상태로 돌아간다.
+        if (offer is not null) WindowMode = WindowMode.Ringing;
+        else OnCurrentCallChanged(_store.Current);
+    }
+
     public bool IsDialing
     {
         get => _isDialing;

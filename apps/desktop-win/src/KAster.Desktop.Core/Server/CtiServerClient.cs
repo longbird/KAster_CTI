@@ -96,6 +96,20 @@ public sealed class CtiServerClient
     public Task<CommandAck> PickupAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/pickup", new { }, ct);
 
+    /// <summary>
+    /// 큐가 물어본 호에 답한다. 수락하면 전화기가 연결되고, 거절하면 다음 상담원에게 넘어간다.
+    /// 답하지 않으면 서버가 정해진 시간 뒤에 알아서 넘긴다.
+    /// </summary>
+    public Task<CommandAck> RespondToOfferAsync(
+        string linkedid,
+        string extension,
+        bool accept,
+        CancellationToken ct)
+        => PostAsync<CommandAck>(
+            "client/call-commands/offer/decision",
+            new { linkedid, extension, decision = accept ? "ACCEPT" : "REJECT" },
+            ct);
+
     public Task<CommandAck> AnswerAsync(string callId, CancellationToken ct)
         => PostAsync<CommandAck>($"calls/{Uri.EscapeDataString(callId)}/answer", new { }, ct);
 

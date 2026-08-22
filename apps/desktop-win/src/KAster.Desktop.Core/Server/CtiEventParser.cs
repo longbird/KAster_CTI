@@ -24,6 +24,8 @@ public static class CtiEventParser
                 CtiEventNames.QueueSummaryUpdated =>
                     new QueueSummaryUpdatedEvent(Require<List<QueueSummaryItem>>(json)),
                 CtiEventNames.AnnouncementPushed => ToAnnouncement(Require<AnnouncementPayload>(json)),
+                CtiEventNames.CallOffered => new CallOfferedEvent(Require<CallOffer>(json)),
+                CtiEventNames.CallOfferClosed => ToOfferClosed(Require<OfferClosedPayload>(json)),
                 _ => null,
             };
         }
@@ -42,6 +44,16 @@ public static class CtiEventParser
 
     private static CtiEvent ToAnnouncement(AnnouncementPayload payload)
         => new AnnouncementPushedEvent(payload.AnnouncementId, payload.Title, payload.Body, payload.Action);
+
+    private static CtiEvent ToOfferClosed(OfferClosedPayload payload)
+        => new CallOfferClosedEvent(payload.OfferId, payload.Extension, payload.Decision);
+
+    private sealed record OfferClosedPayload
+    {
+        public string OfferId { get; init; } = string.Empty;
+        public string Extension { get; init; } = string.Empty;
+        public string Decision { get; init; } = string.Empty;
+    }
 
     private sealed record ScreenPopPayload
     {

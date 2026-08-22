@@ -40,6 +40,7 @@ public sealed class CallStateStore
     private static readonly TimeSpan DefaultPairingWindow = TimeSpan.FromSeconds(5);
 
     private readonly string _agentId;
+    private readonly string _extension;
     private readonly Func<DateTimeOffset> _now;
     private readonly TimeSpan _pairingWindow;
     private readonly object _gate = new();
@@ -50,16 +51,26 @@ public sealed class CallStateStore
     private bool _paired;
     private DateTimeOffset? _expectOutboundUntil;
 
-    public CallStateStore(string agentId, Func<DateTimeOffset> now, TimeSpan? pairingWindow = null)
+    public CallStateStore(
+        string agentId,
+        Func<DateTimeOffset> now,
+        TimeSpan? pairingWindow = null,
+        string extension = "")
     {
         _agentId = agentId;
+        _extension = extension.Trim();
         _now = now;
         _pairingWindow = pairingWindow ?? DefaultPairingWindow;
     }
 
     public event EventHandler<CurrentCall?>? CurrentCallChanged;
 
+    /// <summary>큐가 물어보는 호. 없으면 null.</summary>
+    public event EventHandler<CallOffer?>? OfferChanged;
+
     public CurrentCall? Current { get; private set; }
+
+    public CallOffer? CurrentOffer { get; private set; }
 
     public void Apply(CtiEvent evt)
     {
@@ -77,7 +88,50 @@ public sealed class CallStateStore
             case ScreenPopEvent pop:
                 AttachCustomer(pop);
                 break;
+            case CallOfferedEvent offered:
+                SetOffer(offered.Offer);
+                break;
+            case CallOfferClosedEvent closed:
+                ClearOffer(closed.OfferId);
+                break;
         }
+    }
+
+    /// <summary>
+    /// 제안은 테넌트 전체로 뿌려진다. 내 내선이 아니면 화면에 띄우지 않는다 —
+    /// 띄우면 옆자리로 간 호를 대신 받아 버린다.
+    /// </summary>
+    private void SetOffer(CallOffer offer)
+    {
+        if (_extension.Length > 0 && !string.Equals(offer.Extension.Trim(), _extension, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        CurrentOffer = offer;
+        OfferChanged?.Invoke(this, offer);
+    }
+
+    /// <summary>
+    /// 끝난 제안만 내린다. 다음 제안이 이미 떠 있는데 앞 제안의 종료가 늦게 오면,
+    /// 그걸로 화면을 지워 상담원이 새 호를 못 보게 된다.
+    /// </summary>
+    private void ClearOffer(string offerId)
+    {
+        if (CurrentOffer is null) return;
+        if (!string.Equals(CurrentOffer.OfferId, offerId, StringComparison.Ordinal)) return;
+
+        CurrentOffer = null;
+        OfferChanged?.Invoke(this, null);
+    }
+
+    /// <summary>제안을 수락하거나 거절해서 더 볼 일이 없다.</summary>
+    public void DismissOffer()
+    {
+        if (CurrentOffer is null) return;
+
+        CurrentOffer = null;
+        OfferChanged?.Invoke(this, null);
     }
 
     /// <summary>
