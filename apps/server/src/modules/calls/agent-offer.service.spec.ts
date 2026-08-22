@@ -326,3 +326,40 @@ describe('AgentOfferService 진단 로그', () => {
     }
   });
 });
+
+/**
+ * 실제로 난 사고(2026-08-22 23:03). 고객이 큐에서 기다리다 끊었는데도 두 자리의
+ * "받으시겠습니까?" 창이 **8초 더** 떠 있었다. 진 쪽 Local 채널은 이미 끊겼지만 AGI 는
+ * `urlopen()` 안에 막혀 있어 롱폴 연결이 살아 있고, 그래서 서버는 대기 시간을 다 채운
+ * 뒤에야 TIMEOUT 으로 닫았다.
+ *
+ * PBX 신호를 기다릴 일이 아니다 — **호가 끝났다는 사실은 우리가 이미 알고 있다.**
+ * 그 사이 상담원이 수락을 누르면 이미 없는 전화를 받는다.
+ */
+describe('AgentOfferService 호 종료', () => {
+  it('고객이 끊으면 그 호로 물어본 제안을 모두 닫는다', async () => {
+    const { service } = makeService();
+
+    const first = service.waitForDecision(REQUEST);
+    const second = service.waitForDecision({ ...REQUEST, extension: '1002' });
+    await Promise.resolve();
+
+    await service.notifyCallEnded('tenant-1', REQUEST.linkedid);
+
+    await expect(first).resolves.toBe('ABANDONED');
+    await expect(second).resolves.toBe('ABANDONED');
+  });
+
+  it('다른 호의 제안은 건드리지 않는다', async () => {
+    const { service } = makeService();
+
+    const other = service.waitForDecision({ ...REQUEST, linkedid: '1787355742.99' });
+    await Promise.resolve();
+
+    await service.notifyCallEnded('tenant-1', REQUEST.linkedid);
+
+    expect(service.isPending('1787355742.99', '1001')).toBe(true);
+    await service.submitDecision({ ...REQUEST, linkedid: '1787355742.99', decision: 'ACCEPT' });
+    await expect(other).resolves.toBe('ACCEPT');
+  });
+});

@@ -79,6 +79,7 @@ describe('SessionEngineService outbound originate tracking', () => {
       prisma as any,
       redis as any,
       { handle: jest.fn() } as any,
+      { notifyCallEnded: jest.fn() } as any,
     );
 
     service.registerPendingOriginate({
@@ -147,7 +148,7 @@ describe('SessionEngineService dedupe / replay', () => {
       })),
     };
     const redis = { getClient: () => client };
-    const service = new SessionEngineService(prisma as any, redis as any, { handle: jest.fn() } as any);
+    const service = new SessionEngineService(prisma as any, redis as any, { handle: jest.fn() } as any, { notifyCallEnded: jest.fn() } as any);
     return { service, set, del, prisma, sessionCreate };
   }
 

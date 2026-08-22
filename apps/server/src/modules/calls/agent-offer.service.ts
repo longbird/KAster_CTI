@@ -8,6 +8,9 @@ export const AGENT_OFFER_EVENT = 'agent.offer';
 export const AGENT_OFFER_CLOSED_EVENT = 'agent.offer.closed';
 export const AGENT_OFFER_DECIDED_EVENT = 'agent.offer.decided';
 
+/** 호가 끝났다. 그 호로 물어봐 둔 제안은 어느 노드에 떠 있든 전부 의미가 없다. */
+export const AGENT_OFFER_CALL_ENDED_EVENT = 'agent.offer.call-ended';
+
 export interface AgentOfferRequest {
   tenantId: string;
   linkedid: string;
@@ -65,6 +68,12 @@ export class AgentOfferService implements OnModuleInit {
 
   onModuleInit() {
     this.eventBus.subscribe((event, payload) => {
+      if (event === AGENT_OFFER_CALL_ENDED_EVENT) {
+        const { linkedid } = (payload ?? {}) as { linkedid?: string };
+        if (linkedid) this.abandonCall(linkedid);
+        return;
+      }
+
       if (event !== AGENT_OFFER_DECIDED_EVENT) return;
 
       const { offerId, decision } = (payload ?? {}) as { offerId?: string; decision?: AgentOfferDecision };
@@ -91,12 +100,29 @@ export class AgentOfferService implements OnModuleInit {
 
     const prefix = `${acceptedOfferId.slice(0, separator)}:`;
 
-    for (const offerId of [...this.pending.keys()]) {
+    for (const offerId of this.offersOfCall(prefix)) {
       if (offerId === acceptedOfferId) continue;
-      if (!offerId.startsWith(prefix)) continue;
 
       this.settle(offerId, 'ABANDONED');
     }
+  }
+
+  /**
+   * 이 호로 물어봐 둔 제안을 전부 닫는다. 고객이 큐에서 기다리다 끊었을 때 부른다.
+   *
+   * PBX 가 진 채널을 끊어도 AGI 는 `urlopen()` 안에 막혀 있어 롱폴 연결은 살아 있다.
+   * 그래서 "연결이 끊겼다" 는 신호는 오지 않고, 그냥 두면 이미 끊긴 전화의 수락 버튼이
+   * 대기 시간을 다 채울 때까지 남는다. 그 사이 누르면 없는 전화를 받는다.
+   */
+  private abandonCall(linkedid: string) {
+    for (const offerId of this.offersOfCall(`${linkedid}:`)) {
+      this.settle(offerId, 'ABANDONED');
+    }
+  }
+
+  /** 한 호에 딸린 제안들. settle 이 map 을 지우므로 미리 떠서 돌린다. */
+  private offersOfCall(prefix: string): string[] {
+    return [...this.pending.keys()].filter((offerId) => offerId.startsWith(prefix));
   }
 
   /**
@@ -174,6 +200,14 @@ export class AgentOfferService implements OnModuleInit {
       offerId,
       decision: input.decision,
     }, input.tenantId);
+  }
+
+  /**
+   * 호가 끝났다고 알린다. 제안을 기다리는 노드가 AMI 를 읽는 노드와 다를 수 있으므로
+   * 결정과 같은 길(Redis Pub/Sub)로 보낸다.
+   */
+  async notifyCallEnded(tenantId: string, linkedid: string): Promise<void> {
+    await this.eventBus.publish(AGENT_OFFER_CALL_ENDED_EVENT, { linkedid }, tenantId);
   }
 
   /** 이 노드가 그 제안을 기다리고 있는지. 컨트롤러가 없는 제안을 거르는 데 쓴다. */

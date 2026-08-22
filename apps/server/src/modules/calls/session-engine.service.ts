@@ -7,6 +7,7 @@ import { normalizePhone } from '../customers/customers.service';
 import { REALTIME_EVENTS } from '../realtime/realtime-events';
 import { TransferDetectorService } from './transfer-detector.service';
 import { classifyLeg, getAgentExtensionFromChannel, getChannelEndpointName, hangupEndsCall } from './call-leg.util';
+import { AgentOfferService } from './agent-offer.service';
 
 // conv 44 SESSION_PRECEDENCE: 역순 도착 이벤트로 인한 상태 역행 차단.
 // 숫자가 클수록 "더 진행된" 상태. 현재 상태가 이보다 같거나 높으면 새 이벤트의
@@ -91,6 +92,7 @@ export class SessionEngineService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly transferDetector: TransferDetectorService,
+    private readonly offers: AgentOfferService,
   ) {}
 
   private async resolveCustomerId(
@@ -376,6 +378,10 @@ export class SessionEngineService {
         // 시작과 동시에 ENDED 로 닫힌다.
         if (hangupEndsCall(event.raw?.Channel)) {
           await this.finalizeHangup(linkedid, event.tenantId);
+
+          // 고객이 큐에서 기다리다 끊었으면 상담원 화면의 "받으시겠습니까?" 도 같이 내려야 한다.
+          // AGI 는 `urlopen()` 안에 막혀 있어 롱폴이 끊기지 않으므로 PBX 쪽 신호로는 알 수 없다.
+          await this.offers.notifyCallEnded(event.tenantId, linkedid);
         }
         break;
       case 'AgentComplete': {
