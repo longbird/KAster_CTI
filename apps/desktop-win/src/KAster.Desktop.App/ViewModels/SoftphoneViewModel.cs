@@ -809,6 +809,18 @@ public sealed class SoftphoneViewModel : ObservableObject
         var extension = target?.Trim();
         if (callId is null || string.IsNullOrEmpty(extension)) return;
 
+        // 못 받는 상대에게 넘기면 통화가 그대로 끊어진다. 발신자는 아무 설명 없이 끊기고
+        // 상담원은 넘겼다고 믿는다. 화면에서 버튼을 닫아 두지만, 목록을 띄운 뒤 상대가
+        // 전화를 받았을 수도 있으므로 보내기 직전에 한 번 더 본다.
+        var chosen = TransferTargets.FirstOrDefault(t => t.Extension == extension);
+        if (chosen is null || !chosen.CanTakeCall)
+        {
+            NoticeMessage = chosen is null
+                ? $"{extension} 은(는) 돌려줄 수 있는 내선이 아닙니다."
+                : $"{extension} {chosen.AgentName} 은(는) 지금 받을 수 없습니다 ({chosen.StatusText}).";
+            return;
+        }
+
         EndTransfer();
 
         try

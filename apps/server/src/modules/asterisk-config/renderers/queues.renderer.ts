@@ -37,7 +37,17 @@ export function renderQueuesConf(queues: QueueInput[]): string {
     lines.push(`retry=${q.retrySeconds}`);
     lines.push(`wrapuptime=${q.wrapupSeconds}`);
     lines.push('maxlen=0');
-    lines.push(`autopause=${q.autopause ? 'yes' : 'no'}`);
+    // 관리자가 켜 두었더라도 끈다.
+    //
+    // 호를 넘기기 전에 상담원에게 물어보는 구조에서는 "시간 초과" 가 정상 결과다.
+    // 잠깐 자리를 비웠거나 다른 일을 보던 10초일 뿐인데, Asterisk 는 그것을 "안 받았다"
+    // 로 보고 상담원을 큐에서 빼 버린다. 그 이석은 앱에 보이지 않으므로 화면에는
+    // 여전히 "대기" 로 남고, 아무도 눈치채지 못한 채 그 자리로 전화가 오지 않는다.
+    // (2026-08-22: 실제로 이 상태가 되어 발신자에게 대기음만 계속 나갔다.)
+    //
+    // 자리 비움은 상담원이 앱에서 누르는 이석으로만 정한다 — 그래야 화면과 PBX 가
+    // 같은 것을 말한다. 이 설정은 물어보는 구조가 생기기 전에 만들어졌다.
+    lines.push('autopause=no');
 
     const sorted = [...q.members].sort(
       (a, b) => a.memberOrder - b.memberOrder || a.penalty - b.penalty,

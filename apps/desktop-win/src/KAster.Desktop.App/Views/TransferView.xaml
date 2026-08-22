@@ -26,8 +26,10 @@
                       ItemsSource="{Binding TransferTargets}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
+                    <!-- 못 받는 상대는 아예 누를 수 없다. 넘기면 통화가 끊어진다. -->
                     <Button Margin="0,0,0,6"
                             HorizontalContentAlignment="Stretch"
+                            IsEnabled="{Binding CanTakeCall}"
                             ToolTip="{Binding StatusText}"
                             Style="{StaticResource ButtonSecondary}"
                             Command="{Binding DataContext.TransferToCommand,

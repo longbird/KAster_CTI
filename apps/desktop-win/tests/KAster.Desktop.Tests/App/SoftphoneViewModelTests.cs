@@ -715,7 +715,9 @@ public class SoftphoneViewModelTests
         var (vm, store, _, stub) = Build();
         await Ready(vm, stub);
         store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        stub.Enqueue(HttpStatusCode.OK, DirectoryJson);
         vm.StartTransferCommand.Execute(null);
+        await vm.PendingWork;
         stub.Enqueue(HttpStatusCode.OK, AckJson);
 
         await vm.TransferToAsync("1002");
@@ -889,10 +891,50 @@ public class SoftphoneViewModelTests
         var before = DirectoryLookups(stub);
         stub.Enqueue(HttpStatusCode.OK, DirectoryJson);
 
+        stub.Enqueue(HttpStatusCode.OK, DirectoryJson);
         vm.StartTransferCommand.Execute(null);
         await vm.PendingWork;
 
         Assert.Equal(before + 1, DirectoryLookups(stub));
+    }
+
+    /// <summary>
+    /// 못 받는 상대에게 넘기면 통화가 그대로 끊어진다. 발신자는 아무 설명 없이 끊기고,
+    /// 상담원은 넘겼다고 믿는다. 보여 주기만 해서는 부족하고 막아야 한다.
+    /// </summary>
+    [Fact]
+    public async Task Transferring_to_someone_who_cannot_answer_is_refused()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        stub.Enqueue(HttpStatusCode.OK, DirectoryJson);
+        vm.StartTransferCommand.Execute(null);
+        await vm.PendingWork;
+        var before = stub.Requests.Count;
+
+        await vm.TransferToAsync("1003");
+
+        Assert.Equal(before, stub.Requests.Count);
+        Assert.Contains("1003", vm.NoticeMessage);
+        Assert.True(vm.IsChoosingTransferTarget);
+    }
+
+    /// <summary>목록에 없는 내선으로는 넘기지 않는다. 오타 하나로 통화가 끊어진다.</summary>
+    [Fact]
+    public async Task Transferring_to_an_unknown_extension_is_refused()
+    {
+        var (vm, store, _, stub) = Build();
+        await Ready(vm, stub);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        stub.Enqueue(HttpStatusCode.OK, DirectoryJson);
+        vm.StartTransferCommand.Execute(null);
+        await vm.PendingWork;
+        var before = stub.Requests.Count;
+
+        await vm.TransferToAsync("9999");
+
+        Assert.Equal(before, stub.Requests.Count);
     }
 
     /// <summary>받을 수 있는 사람이 위로 온다. 목록이 잘려도 쓸 수 있는 쪽이 남는다.</summary>
