@@ -37,6 +37,28 @@ describe('renderDialplan', () => {
     expect(extensionsQueue).not.toContain('Playback(custom/queue_timeout)');
   });
 
+  /**
+   * ss-noservice 는 Asterisk 가 기본 제공하는 영어 안내다("The number you have dialed
+   * is not in service"). 수신 거부를 등록해 둔 한국 고객이 자기 번호로 전화를 걸었을 때
+   * 영어로 "없는 번호" 안내를 듣게 된다 — 안내가 틀렸을 뿐 아니라 무슨 일이 일어난
+   * 것인지 알 수 없다.
+   */
+  it('수신 거부된 번호에게 한국어로 이유를 알린다', () => {
+    const { extensionsInbound } = renderDialplan({ dids: [], ivrMenus: [] });
+    const blocked = extensionsInbound.slice(extensionsInbound.indexOf('[blocked-ani]'));
+
+    expect(blocked).toContain('Playback(/var/lib/asterisk/sounds/custom/blocked_ani)');
+    expect(blocked).not.toContain('ss-noservice');
+  });
+
+  it('수신 거부 등록이 실패했을 때도 한국어로 알린다', () => {
+    const { extensionsQueue } = renderDialplan({ dids: [], ivrMenus: [] });
+    const failure = extensionsQueue.slice(extensionsQueue.indexOf('[080-optout-failure]'));
+
+    expect(failure).toContain('Playback(/var/lib/asterisk/sounds/custom/optout_failed)');
+    expect(failure).not.toContain('ss-noservice');
+  });
+
   it('renders inbound-main context', () => {
     const { extensionsInbound } = renderDialplan({ dids: [], ivrMenus: [] });
     expect(extensionsInbound).toContain('[inbound-main]');
@@ -245,7 +267,7 @@ describe('renderDialplan', () => {
     expect(extensionsQueue).toContain('exten => reenter,1,NoOp(Restart smart opt-out number entry)\n same => n,Goto(080-optout-smart-input,s,read)');
     expect(extensionsQueue).toContain('Set(__OPT_OUT_RESULT_PROMPT=${IF($["${OPT_OUT_MODE}"="SMART_OPT_OUT"]?${OPT_OUT_SMART_FINAL_PROMPT}:${OPT_OUT_COMPLETION_PROMPT})})');
     expect(extensionsQueue).toContain('NoOp(080 Opt-Out Failure / ACTION=${OPT_OUT_SELECTED_ACTION} / STATUS=${SYSTEMSTATUS})');
-    expect(extensionsQueue).toContain('Playback(ss-noservice)');
+    expect(extensionsQueue).toContain('Playback(/var/lib/asterisk/sounds/custom/optout_failed)');
   });
 
   it('renders branch Smart ARS runtime route with all configured action types', () => {
@@ -717,7 +739,7 @@ describe('renderDialplan', () => {
     });
     expect(extensionsInbound).toContain('GotoIf($["${CALLERID(num)}"="08012345678"]?blocked-ani,s,1)');
     expect(extensionsInbound).toContain('[blocked-ani]');
-    expect(extensionsInbound).toContain('Playback(ss-noservice)');
+    expect(extensionsInbound).toContain('Playback(/var/lib/asterisk/sounds/custom/blocked_ani)');
   });
 
   it('renders prefix blocklist check before DID routing', () => {

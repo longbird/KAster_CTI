@@ -9,6 +9,11 @@ const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
 const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
 const OPT_OUT_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-opt-out-hook.sh`;
 const OPT_OUT_GUARDED_DIGIT_AGI_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-guarded-digit.agi`;
+
+// ss-noservice 는 Asterisk 가 기본 제공하는 영어 안내다("not in service"). 한국 고객에게
+// 그것을 들려주면 안내가 틀렸을 뿐 아니라 무슨 일이 일어난 것인지 알 수 없다.
+const BLOCKED_ANI_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}blocked_ani`;
+const OPT_OUT_FAILED_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}optout_failed`;
 const SMART_ARS_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-smart-ars-hook.sh`;
 const OPT_OUT_MODE_SOURCE_TYPE: Record<OptOutMode, string> = {
   IMMEDIATE_OPT_OUT: 'OPT_OUT_080_IMMEDIATE',
@@ -1284,7 +1289,7 @@ function renderOptOutContexts(): string {
     '',
     '[080-optout-failure]',
     'exten => s,1,NoOp(080 Opt-Out Failure / ACTION=${OPT_OUT_SELECTED_ACTION} / STATUS=${SYSTEMSTATUS})',
-    ' same => n,Playback(ss-noservice)',
+    ` same => n,Playback(${OPT_OUT_FAILED_PROMPT})`,
     ' same => n,Hangup()',
   ].join('\n');
 }
@@ -1317,7 +1322,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
   const blockedAniContext = [
     '[blocked-ani]',
     'exten => s,1,NoOp(Blocked ANI ${CALLERID(num)})',
-    ' same => n,Playback(ss-noservice)',
+    ` same => n,Playback(${BLOCKED_ANI_PROMPT})`,
     ' same => n,Hangup()',
   ].join('\n');
 
