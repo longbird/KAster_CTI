@@ -28,6 +28,7 @@ const PARTIALLY_GATED = ['agents.controller.ts'];
 const INTENTIONALLY_OPEN: Record<string, string> = {
   'calls.controller.ts': '제1원칙 — 진행 중인 통화 제어는 모든 모드에서 허용',
   'client-call-commands.controller.ts': '제1원칙 — 클라이언트 발신 명령',
+  'agent-offer.controller.ts': '제1원칙 — 걸려온 호의 수락/거절은 통화 제어다. 막으면 전화를 못 받는다',
   'auth.controller.ts': 'allowNewLogin 은 별도 축이며 강제 여부가 운영 판단 사항 (runbook 6장)',
   'customers.controller.ts': '고객 업무 데이터이지 설정이 아니다',
   'agent-updates.controller.ts': '데스크톱 앱 런타임 경로(세션·다운로드·리포트)',

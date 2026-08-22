@@ -13,12 +13,20 @@ import { SessionEngineService } from './session-engine.service';
 import { AgentStateService } from './agent-state.service';
 import { AsteriskManagerService } from './asterisk-manager.service';
 import { TransferDetectorService } from './transfer-detector.service';
+import { AgentOfferService } from './agent-offer.service';
+import { AgentOfferController, AgentOfferInternalController } from './agent-offer.controller';
 
 @Module({
   imports: [EventsModule, QueuesModule, CustomersModule, RecordingPipelineModule, forwardRef(() => AmiModule)],
-  controllers: [CallsController, ClientCallCommandsController],
+  controllers: [
+    CallsController,
+    ClientCallCommandsController,
+    AgentOfferController,
+    AgentOfferInternalController,
+  ],
   providers: [
     CallsService,
+    AgentOfferService,
     SessionEngineService,
     AgentStateService,
     AsteriskManagerService,
@@ -28,6 +36,7 @@ import { TransferDetectorService } from './transfer-detector.service';
   ],
   exports: [
     CallsService,
+    AgentOfferService,
     SessionEngineService,
     AgentStateService,
     AsteriskManagerService,
