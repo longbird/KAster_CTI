@@ -62,12 +62,44 @@
                           FontFamily="{StaticResource FontUi}"
                           FontSize="{StaticResource FontSizeCaption}" />
 
-                <!-- 오류 자리를 항상 잡아 두면 메시지가 떴다 사라질 때 아래 버튼이 흔들리지 않는다. -->
-                <TextBlock Height="34"
-                           Text="{Binding ErrorMessage}"
-                           Foreground="{StaticResource BrushDanger}"
-                           Style="{StaticResource TextCaption}"
-                           TextTrimming="CharacterEllipsis" />
+                <!--
+                    지난번에 켜 뒀으면 비밀번호를 묻지 않고 그대로 들어간다.
+                    저장되는 것은 "그렇게 해도 된다" 는 표시뿐이고, 되살리는 재료는 금고에 이미 있는
+                    refresh token 이다 — 비밀번호는 여전히 어디에도 남지 않는다.
+                -->
+                <CheckBox Content="자동 로그인"
+                          Margin="0,0,0,8"
+                          IsChecked="{Binding AutoSignIn}"
+                          Foreground="{StaticResource BrushTextMuted}"
+                          FontFamily="{StaticResource FontUi}"
+                          FontSize="{StaticResource FontSizeCaption}" />
+
+                <!--
+                    오류 자리를 항상 잡아 두면 메시지가 떴다 사라질 때 아래 버튼이 흔들리지 않는다.
+                    되살리는 중이라는 안내도 이 한 자리를 같이 쓴다 — 줄을 새로 만들면 창이 세로로
+                    자라고, 이 창은 스크롤이 생기면 안 된다.
+                -->
+                <Grid Height="34">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="{StaticResource BrushDanger}"
+                               Style="{StaticResource TextCaption}"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock Text="이전 로그인으로 접속 중…"
+                               Foreground="{StaticResource BrushTextMuted}"
+                               TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsResuming}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
                 <Button Content="로그인"
                         Style="{StaticResource ButtonPrimary}"
                         Command="{Binding SignInCommand}"

@@ -191,6 +191,13 @@ public partial class MainWindow : Window
 
         _windowMode.Request(WindowMode.Idle);
         Host.Content = new LoginView { DataContext = vm };
+
+        // 화면을 먼저 세운 뒤에 되살린다. 되살아나면 SignedIn 이 통화 화면으로 갈아 끼우고,
+        // 안 되면 지금 세워 둔 이 화면에서 평소처럼 받는다.
+        //
+        // 로그아웃으로 온 경우에는 금고가 비어 있어 아무 일도 일어나지 않는다 — 자리를 넘긴 뒤
+        // 다음 사람이 앞사람 계정으로 들어가지 않게 하는 것이 그 빈 금고다.
+        _ = vm.TryResumeAsync();
     }
 
     private async Task StartRuntimeAsync(LoginResult login, bool useSoftphone)

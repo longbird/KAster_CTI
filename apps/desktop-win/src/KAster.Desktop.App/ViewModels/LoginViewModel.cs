@@ -21,6 +21,8 @@ public sealed class LoginViewModel : ObservableObject
     private bool _isBusy;
     private bool _rememberMe;
     private bool _useSoftphone;
+    private bool _autoSignIn;
+    private bool _isResuming;
 
     public LoginViewModel(AuthClient auth, ITokenStore tokens, ISavedLoginStore savedLogin)
     {
@@ -34,6 +36,7 @@ public sealed class LoginViewModel : ObservableObject
 
         // 모드는 자리의 성질이라 "아이디 저장" 과 무관하게 이어진다.
         _useSoftphone = saved.UseSoftphone;
+        _autoSignIn = saved.AutoSignIn;
 
         if (!saved.Remember) return;
 
@@ -103,12 +106,77 @@ public sealed class LoginViewModel : ObservableObject
         set => Set(ref _useSoftphone, value);
     }
 
+    /// <summary>
+    /// 다음에 켤 때 지난 세션으로 그냥 들어갈지. <b>비밀번호는 저장하지 않는다</b> —
+    /// 금고에 이미 있는 refresh token 으로 되살릴 뿐이다.
+    /// </summary>
+    public bool AutoSignIn
+    {
+        get => _autoSignIn;
+        set => Set(ref _autoSignIn, value);
+    }
+
+    /// <summary>지난 세션을 되살리는 중. 이때 빈 로그인 칸을 보여 주면 상담원이 비밀번호를 치기 시작한다.</summary>
+    public bool IsResuming
+    {
+        get => _isResuming;
+        private set { if (Set(ref _isResuming, value)) OnFormChanged(); }
+    }
+
+    /// <summary>
+    /// 지난 세션을 되살린다. 앱이 켜질 때 <b>한 번</b> 부른다.
+    ///
+    /// 되살리는 재료는 금고의 refresh token 이다. 비밀번호를 어디에도 두지 않는 이유가 여기 있다 —
+    /// 이 토큰은 DPAPI 로 이 Windows 계정에만 풀리고, 쓰는 순간 서버가 회수하며 새 것으로 바꾼다.
+    /// 파일을 통째로 훔쳐 가도 다른 PC 에서는 열리지 않고, 열렸다면 그건 이미 그 계정을 쥔 것이다.
+    ///
+    /// <b>실패는 조용히 넘긴다.</b> 토큰이 만료됐거나 관리자가 회수한 것은 상담원이 뭘 잘못한 게
+    /// 아니므로 빨간 오류를 띄울 일이 아니다. 다만 못 쓰는 토큰은 지운다 — 남겨 두면 켤 때마다
+    /// 실패하는 요청을 한 번씩 더 보낸다.
+    /// </summary>
+    /// <returns>되살렸으면 true. false 면 평소처럼 로그인 화면에서 받는다.</returns>
+    public async Task<bool> TryResumeAsync(CancellationToken ct = default)
+    {
+        if (!_autoSignIn || IsBusy || IsResuming) return false;
+
+        var refreshToken = _tokens.Load()?.RefreshToken;
+        if (string.IsNullOrWhiteSpace(refreshToken)) return false;
+
+        IsResuming = true;
+        ErrorMessage = null;
+
+        try
+        {
+            var result = await _auth.RefreshAsync(refreshToken, ct);
+            _tokens.Save(result.Tokens);
+            SignedIn?.Invoke(this, result);
+            return true;
+        }
+        catch (CtiServerException)
+        {
+            // 서버가 이 토큰을 거절했다. 다시 쓸 일이 없다.
+            _tokens.Clear();
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            // 서버에 못 닿은 것뿐이다. 토큰은 멀쩡하므로 남겨 둔다 — 지우면 잠깐 끊긴 것 때문에
+            // 상담원이 비밀번호를 다시 쳐야 한다.
+            return false;
+        }
+        finally
+        {
+            IsResuming = false;
+        }
+    }
+
     /// <summary>지난번 값이 이미 채워져 있어 비밀번호만 치면 되는 상태.</summary>
     public bool NeedsPasswordOnly =>
         !string.IsNullOrWhiteSpace(_loginId) && !string.IsNullOrWhiteSpace(_extension);
 
     public bool CanSignIn =>
         !IsBusy &&
+        !IsResuming &&
         !string.IsNullOrWhiteSpace(_loginId) &&
         !string.IsNullOrWhiteSpace(_password) &&
         !string.IsNullOrWhiteSpace(_extension);
@@ -134,7 +202,10 @@ public sealed class LoginViewModel : ObservableObject
                     LoginId = _loginId.Trim(),
                     Extension = _extension.Trim(),
                     UseSoftphone = UseSoftphone,
+                    AutoSignIn = AutoSignIn,
                 }
+                // 체크를 풀었으면 자동 로그인도 같이 꺼진다. 공용 PC 에서 아이디는 안 남기면서
+                // 세션만 되살아나면, 다음 사람이 앞사람 계정으로 그냥 들어간다.
                 : new SavedLogin { UseSoftphone = UseSoftphone });
 
             Password = string.Empty;

@@ -40,6 +40,131 @@ public class LoginViewModelTests
         return vm;
     }
 
+    /// <summary>
+    /// 자동 로그인. <b>비밀번호는 여기에도 없다</b> — 금고의 refresh token 으로 되살린다.
+    /// </summary>
+    [Fact]
+    public async Task Resumes_the_last_session_without_a_password()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, SuccessJson);
+        var tokens = new FakeTokenStore(new TokenPair("old-at", "old-rt"));
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
+
+        var vm = Build(stub, tokens, saved);
+        LoginResult? signedIn = null;
+        vm.SignedIn += (_, r) => signedIn = r;
+
+        Assert.True(await vm.TryResumeAsync());
+
+        Assert.NotNull(signedIn);
+        Assert.Equal("/api/v1/auth/refresh", stub.Requests[^1].RequestUri!.AbsolutePath);
+        Assert.Contains("\"refreshToken\":\"old-rt\"", stub.Bodies[^1]);
+
+        // 회전한 새 토큰을 넣어 둬야 다음에 켤 때도 들어간다.
+        Assert.Equal("rt", tokens.Load()!.RefreshToken);
+        Assert.False(vm.IsResuming);
+    }
+
+    /// <summary>꺼 뒀으면 금고에 토큰이 있어도 묻는다. 상담원이 정한 것이 이긴다.</summary>
+    [Fact]
+    public async Task Without_the_option_it_still_asks()
+    {
+        var stub = new StubHttpHandler();
+        var vm = Build(stub, new FakeTokenStore(new TokenPair("at", "rt")), new MemoryStore());
+
+        Assert.False(await vm.TryResumeAsync());
+        Assert.Empty(stub.Requests);
+    }
+
+    /// <summary>
+    /// 로그아웃하면 금고가 빈다. 그 상태로 되살리려 들면 자리를 넘긴 뒤 다음 사람이
+    /// 앞사람 계정으로 들어간다.
+    /// </summary>
+    [Fact]
+    public async Task With_an_empty_vault_there_is_nothing_to_resume()
+    {
+        var stub = new StubHttpHandler();
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
+
+        var vm = Build(stub, new FakeTokenStore(null), saved);
+
+        Assert.False(await vm.TryResumeAsync());
+        Assert.Empty(stub.Requests);
+    }
+
+    /// <summary>
+    /// 서버가 토큰을 거절했다. 오류를 띄울 일이 아니라 평소처럼 받으면 된다.
+    /// 다만 못 쓰는 토큰은 지운다 — 남기면 켤 때마다 실패하는 요청을 한 번씩 더 보낸다.
+    /// </summary>
+    [Fact]
+    public async Task A_rejected_token_is_dropped_and_the_form_stays_quiet()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.Unauthorized, """{"success":false,"data":null,"error":{"message":"expired"}}""");
+        var tokens = new FakeTokenStore(new TokenPair("at", "rt"));
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
+
+        var vm = Build(stub, tokens, saved);
+
+        Assert.False(await vm.TryResumeAsync());
+        Assert.Null(tokens.Load());
+        Assert.False(vm.HasError);
+        Assert.False(vm.IsResuming);
+    }
+
+    /// <summary>
+    /// 서버에 못 닿은 것뿐이면 토큰을 남긴다. 잠깐 끊긴 것 때문에 비밀번호를 다시 치게 하면 안 된다.
+    /// </summary>
+    [Fact]
+    public async Task An_unreachable_server_keeps_the_token_for_next_time()
+    {
+        var stub = new StubHttpHandler().RespondWith(_ => throw new HttpRequestException("서버 없음"));
+        var tokens = new FakeTokenStore(new TokenPair("at", "rt"));
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
+
+        var vm = Build(stub, tokens, saved);
+
+        Assert.False(await vm.TryResumeAsync());
+        Assert.Equal("rt", tokens.Load()!.RefreshToken);
+    }
+
+    /// <summary>
+    /// "아이디·내선 저장" 을 풀면 자동 로그인도 같이 꺼진다. 공용 PC 에서 아이디는 안 남기면서
+    /// 세션만 되살아나면 다음 사람이 앞사람 계정으로 그냥 들어간다.
+    /// </summary>
+    [Fact]
+    public async Task Unchecking_remember_turns_auto_sign_in_off_too()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, SuccessJson);
+        var saved = new MemoryStore();
+        var vm = Filled(stub, new FakeTokenStore(null), saved);
+        vm.RememberMe = false;
+        vm.AutoSignIn = true;
+
+        await vm.SignInAsync();
+
+        Assert.False(saved.Load().AutoSignIn);
+    }
+
+    /// <summary>켜 두고 로그인하면 그 선택이 남아 다음에 켤 때 쓰인다.</summary>
+    [Fact]
+    public async Task The_choice_survives_to_the_next_launch()
+    {
+        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, SuccessJson);
+        var saved = new MemoryStore();
+        var vm = Filled(stub, new FakeTokenStore(null), saved);
+        vm.RememberMe = true;
+        vm.AutoSignIn = true;
+
+        await vm.SignInAsync();
+
+        Assert.True(saved.Load().AutoSignIn);
+        Assert.True(Build(stub, new FakeTokenStore(null), saved).AutoSignIn);
+    }
+
     [Fact]
     public void Cannot_sign_in_until_every_field_is_filled()
     {

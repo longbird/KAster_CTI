@@ -17,6 +17,18 @@ public sealed record SavedLogin
     /// 자리에 전화기가 있는지 없는지는 잘 바뀌지 않으므로 "아이디 저장" 과 무관하게 기억한다.
     /// </summary>
     public bool UseSoftphone { get; init; }
+
+    /// <summary>
+    /// 다음에 앱을 켤 때 지난 세션으로 그냥 들어갈지.
+    ///
+    /// <b>이 값이 켜져도 비밀번호는 저장되지 않는다.</b> 복구에 쓰는 것은 금고에 이미 들어 있는
+    /// refresh token 이며, 그것은 DPAPI 로 이 Windows 계정에만 풀리게 묶여 있다. 그래서 이 파일이
+    /// 평문이어도 여기 적힌 것은 "그렇게 해도 된다" 는 표시뿐이고, 들고 갈 수 있는 비밀이 아니다.
+    ///
+    /// 로그아웃하면 금고가 비므로 이 값과 무관하게 다시 물어본다 — 자리를 넘긴 뒤에
+    /// 다음 사람이 앞사람 계정으로 들어가면 안 된다.
+    /// </summary>
+    public bool AutoSignIn { get; init; }
 }
 
 /// <summary>
