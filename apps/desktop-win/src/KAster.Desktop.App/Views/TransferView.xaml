@@ -32,11 +32,14 @@
                             Command="{Binding DataContext.TransferToCommand,
                                               RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Extension}">
-                        <StackPanel>
+                        <!-- 버튼 스타일의 가운데 정렬이 내려오면 이름이 가운데로 몰린다. -->
+                        <StackPanel HorizontalAlignment="Left">
                             <TextBlock Text="{Binding AgentName}"
                                        FontWeight="SemiBold"
+                                       HorizontalAlignment="Left"
                                        TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="{Binding Extension}"
+                                       HorizontalAlignment="Left"
                                        Style="{StaticResource TextCaption}" />
                         </StackPanel>
                     </Button>

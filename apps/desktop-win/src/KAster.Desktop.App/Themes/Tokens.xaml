@@ -123,13 +123,22 @@
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Height" Value="38" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Face"
                             Background="{TemplateBinding Background}"
                             CornerRadius="{StaticResource RadiusControl}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <!--
+                            버튼이 지정한 정렬을 따른다. 여기서 Center 로 못박아 두면
+                            목록 줄처럼 내용을 좌우로 벌려야 하는 버튼에서 글자가 가운데로
+                            몰리고, 버튼 쪽에서 무엇을 지정해도 바뀌지 않는다.
+                            기본값은 그대로 가운데다 (ButtonPrimary 가 Center 로 둔다).
+                        -->
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
