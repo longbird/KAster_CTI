@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #216e9f; } a:hover { color: #14557d; }
+    .win { width: 440px; height: 560px; overflow: hidden; box-sizing: border-box;
+           font-family: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", sans-serif;
+           font-size: 14px; display: flex; flex-direction: column; }
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div class="win" style="background: #eef3f7; color: #17202a; padding: 16px; gap: 12px">
+
+  <div style="background: #ffffff; border: 1px solid #cbd5df; border-radius: 8px; padding: 16px;
+              display: flex; justify-content: space-between; align-items: flex-start">
+    <div>
+      <div style="font-weight: 600">홍길동</div>
+      <div style="font-size: 12px; color: #64748b; margin-top: 2px">내선 1001 · 소프트폰</div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px">
+      <div style="border: 1px solid #cbd5df; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: #1f7a4c">서버 연결됨</div>
+      <div style="border: 1px solid #cbd5df; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: #64748b">전화기 등록됨</div>
+    </div>
+  </div>
+
+  <div style="flex: 1; background: #ffffff; border: 1px solid #cbd5df; border-radius: 8px; padding: 16px;
+              display: flex; flex-direction: column; min-height: 0">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+      <div>
+        <div style="font-size: 12px; color: #64748b">근무 상태</div>
+        <div style="font-weight: 600; margin-top: 2px">대기</div>
+      </div>
+      <div style="display: flex; gap: 6px">
+        <div style="background: #f6f8fa; border-radius: 4px; padding: 8px 10px; font-size: 12px">상담원</div>
+        <div style="background: #f6f8fa; border-radius: 4px; padding: 8px 10px; font-size: 12px">큐 현황</div>
+        <div style="background: #f6f8fa; border-radius: 4px; padding: 8px 10px; font-size: 12px">공지</div>
+      </div>
+      <div style="background: #216e9f; color: #fff; border-radius: 4px; padding: 9px 14px; font-size: 14px; font-weight: 600">자리비움</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0">
+      <div style="font-size: 20px; font-weight: 600">대기 중</div>
+      <div style="width: 100%; margin-top: 14px">
+        <div style="font-size: 12px; color: #64748b; margin-bottom: 6px">당겨받을 전화 2건</div>
+        <div style="background: #f6f8fa; border-radius: 4px; padding: 10px; margin-bottom: 4px">
+          <div style="font-weight: 600" class="num">010-3462-3453</div>
+          <div style="font-size: 12px; color: #64748b">기본 · 대표번호</div>
+        </div>
+        <div style="background: #f6f8fa; border-radius: 4px; padding: 10px">
+          <div style="font-weight: 600" class="num">02-1588-0000</div>
+          <div style="font-size: 12px; color: #64748b">기본 · 대표번호</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 12px">
+      <div style="font-size: 12px; color: #64748b; margin-bottom: 6px">전화 걸기</div>
+      <div style="display: flex; gap: 6px">
+        <div style="flex: 1; height: 34px; border: 1px solid #cbd5df; border-radius: 4px; background: #fff;
+                    display: flex; align-items: center; padding: 0 10px; color: #9ba8b6">번호 입력</div>
+        <div style="height: 34px; background: #216e9f; color: #fff; border-radius: 4px; padding: 0 16px;
+                    display: flex; align-items: center; font-weight: 600">걸기</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size: 12px; color: #64748b">실기기 등록 확인 내선=1001</div>
+</div>
+</x-dc>
+</body>
+</html>

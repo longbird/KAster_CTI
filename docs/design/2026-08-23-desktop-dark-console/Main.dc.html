@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #4ea3dd; } a:hover { color: #7cbde8; }
+    .win { width: 440px; height: 560px; overflow: hidden; box-sizing: border-box;
+           font-family: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", sans-serif;
+           font-size: 14px; display: flex; flex-direction: column; }
+    .num { font-variant-numeric: tabular-nums; }
+    .row { background: #1a202a; border: 1px solid #2a3240; border-radius: 6px; padding: 10px 12px;
+           display: flex; align-items: center; gap: 10px; }
+  </style>
+</helmet>
+
+<div class="win" style="background: #12161d; color: #e6ecf3">
+
+  <div style="height: 44px; flex: none; background: #1a202a; border-bottom: 1px solid #2a3240;
+              display: flex; align-items: center; padding: 0 16px; gap: 10px">
+    <div style="font-weight: 600">홍길동</div>
+    <div style="font-size: 12px; color: #8896a8" class="num">1001</div>
+    <div style="flex: 1"></div>
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8896a8">
+      <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="#35c48c"/></svg><span>서버</span>
+      <span style="width: 1px; height: 12px; background: #2a3240; margin: 0 2px"></span>
+      <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="#35c48c"/></svg><span>전화기</span>
+    </div>
+    <div style="width: 1px; height: 16px; background: #2a3240"></div>
+    <div style="display: flex; gap: 2px">
+      <div style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8896a8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19"/><circle cx="10" cy="8" r="3.2"/><path d="M20 19v-1.5a3.5 3.5 0 0 0-2.6-3.4"/></svg>
+      </div>
+      <div style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8896a8" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
+      </div>
+      <div style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; position: relative">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8896a8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a5 5 0 0 0-5 5v3.5L5.5 15h13L17 12.5V9a5 5 0 0 0-5-5Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+        <span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 999px; background: #ff6b6b"></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: none; background: #1a202a; border-bottom: 1px solid #2a3240; padding: 12px 16px;
+              display: flex; align-items: center; gap: 12px">
+    <div style="width: 3px; align-self: stretch; background: #35c48c; border-radius: 999px"></div>
+    <div style="flex: 1">
+      <div style="font-size: 11px; letter-spacing: .04em; color: #8896a8">근무 상태</div>
+      <div style="font-size: 18px; font-weight: 600; margin-top: 1px; color: #35c48c">대기</div>
+    </div>
+    <div style="height: 32px; border: 1px solid #37414f; border-radius: 4px; padding: 0 14px; background: #222a35;
+                display: flex; align-items: center; font-size: 13px">자리비움</div>
+  </div>
+
+  <div style="flex: 1; min-height: 0; padding: 12px 16px 0; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px">
+      <div style="font-size: 12px; font-weight: 600">대기 중인 전화</div>
+      <div style="font-size: 12px; color: #8896a8" class="num">4건</div>
+      <div style="flex: 1"></div>
+      <div style="font-size: 12px; color: #8896a8">가장 오래 <span class="num">1:24</span></div>
+    </div>
+
+    <!-- 목록만 스크롤한다. 건수가 늘어도 창은 자라지 않는다. -->
+    <div style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px">
+      <div class="row">
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 600" class="num">010-3462-3453</div>
+          <div style="font-size: 12px; color: #8896a8; margin-top: 1px">기본 · 대표번호</div>
+        </div>
+        <div class="num" style="font-size: 12px; color: #e0a83a; font-weight: 600">1:24</div>
+        <div style="height: 28px; background: #4ea3dd; color: #0d1218; border-radius: 4px; padding: 0 12px;
+                    display: flex; align-items: center; font-size: 12px; font-weight: 700">받기</div>
+      </div>
+      <div class="row">
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 600" class="num">02-1588-0000</div>
+          <div style="font-size: 12px; color: #8896a8; margin-top: 1px">기본 · 대표번호</div>
+        </div>
+        <div class="num" style="font-size: 12px; color: #8896a8; font-weight: 600">0:41</div>
+        <div style="height: 28px; border: 1px solid #37414f; border-radius: 4px; padding: 0 12px;
+                    display: flex; align-items: center; font-size: 12px; font-weight: 600">받기</div>
+      </div>
+      <div class="row">
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 600" class="num">010-7788-1200</div>
+          <div style="font-size: 12px; color: #8896a8; margin-top: 1px">VIP · 직통</div>
+        </div>
+        <div class="num" style="font-size: 12px; color: #8896a8; font-weight: 600">0:18</div>
+        <div style="height: 28px; border: 1px solid #37414f; border-radius: 4px; padding: 0 12px;
+                    display: flex; align-items: center; font-size: 12px; font-weight: 600">받기</div>
+      </div>
+      <div class="row">
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 600" class="num">031-405-9911</div>
+          <div style="font-size: 12px; color: #8896a8; margin-top: 1px">기본 · 대표번호</div>
+        </div>
+        <div class="num" style="font-size: 12px; color: #8896a8; font-weight: 600">0:04</div>
+        <div style="height: 28px; border: 1px solid #37414f; border-radius: 4px; padding: 0 12px;
+                    display: flex; align-items: center; font-size: 12px; font-weight: 600">받기</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: none; background: #1a202a; border-top: 1px solid #2a3240; padding: 12px 16px">
+    <div style="display: flex; gap: 6px; align-items: center">
+      <div style="flex: 1; height: 34px; border: 1px solid #37414f; border-radius: 4px; background: #222a35;
+                  display: flex; align-items: center; padding: 0 10px; gap: 8px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6d7d91" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 4h3l1.5 4-2 1.5a11 11 0 0 0 5.5 5.5L16 13l4 1.5v3a2 2 0 0 1-2.2 2A15.5 15.5 0 0 1 4 6.2 2 2 0 0 1 6.5 4Z"/></svg>
+        <span style="color: #6d7d91; font-size: 13px">번호 또는 내선</span>
+      </div>
+      <div style="height: 34px; background: #4ea3dd; color: #0d1218; border-radius: 4px; padding: 0 18px;
+                  display: flex; align-items: center; font-weight: 700; font-size: 13px">걸기</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: #8896a8">
+      <span>발신번호</span><span class="num" style="color: #e6ecf3">070-5234-6380</span>
+      <span style="flex: 1"></span><span>업데이트 있음</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

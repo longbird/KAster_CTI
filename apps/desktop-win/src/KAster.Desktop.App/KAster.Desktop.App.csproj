@@ -28,6 +28,12 @@
       WinForms 의 NotifyIcon 이 그것을 이미 들고 있고, 두 UI 프레임워크는 한 프로젝트에서 같이 켜도 된다.
     -->
     <UseWindowsForms>true</UseWindowsForms>
+
+    <!--
+      실행 파일 아이콘. 지금까지 없어서 작업 표시줄과 탐색기에 .NET 기본 아이콘이 떴다.
+      창 아이콘도 WPF 가 이 값을 따라가므로 따로 지정하지 않는다.
+    -->
+    <ApplicationIcon>Assets\kaster-agent.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

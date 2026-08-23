@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #4ea3dd; } a:hover { color: #6cb6e6; }
+    .sheet { width: 940px; height: 700px; box-sizing: border-box; overflow: hidden;
+             font-family: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", sans-serif;
+             background: #12161d; color: #e6ecf3; padding: 22px;
+             display: flex; flex-direction: column; gap: 14px; }
+    .cap { font-size: 12px; color: #8896a8; }
+    .head { display: grid; grid-template-columns: 34px 78px 190px 60px 46px 92px 92px 1fr;
+            align-items: center; gap: 12px; padding: 0 14px 8px;
+            font-size: 11px; letter-spacing: .04em; color: #8896a8; }
+    .row { display: grid; grid-template-columns: 34px 78px 190px 60px 46px 92px 92px 1fr;
+           align-items: center; gap: 12px; padding: 9px 14px;
+           background: #1a202a; border: 1px solid #2a3240; border-radius: 8px; }
+    .row.best { border-color: #35c48c; }
+    .no { font-size: 15px; font-weight: 700; color: #8896a8; text-align: center; }
+    .row.best .no { color: #35c48c; }
+    .name { font-size: 14px; font-weight: 600; }
+    .hex { font-size: 12px; color: #8896a8; font-variant-numeric: tabular-nums; }
+    .bar { border-radius: 5px; padding: 7px 10px; display: flex; align-items: center; gap: 10px; }
+    .note { font-size: 12px; color: #8896a8; }
+    .ok { color: #35c48c; }
+    .bad { color: #ff6b6b; }
+  </style>
+</helmet>
+
+<div class="sheet">
+
+  <div>
+    <div style="font-size: 17px; font-weight: 600">앱 아이콘 &mdash; 색 고르기</div>
+    <div class="cap" style="margin-top: 3px">
+      헤드셋 실루엣은 고정. 오른쪽 두 칸이 실제 판정 자리다 &mdash; 작업 표시줄 16px 에서 밝은 배경과 어두운 배경 양쪽에 살아남아야 한다.
+    </div>
+  </div>
+
+  <div class="head">
+    <div></div><div>96px</div><div>색</div><div>48</div><div>32</div>
+    <div>16 · 밝은 표시줄</div><div>16 · 어두운 표시줄</div><div></div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 7px">
+
+    <!-- 1 브랜드 파랑 -->
+    <div class="row">
+      <div class="no">1</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#216e9f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">브랜드 파랑</div><div class="hex">#216e9f &middot; 지금 쓰는 색</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#216e9f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#216e9f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#fff"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#fff"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#216e9f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#216e9f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note"><span class="ok">양쪽 통과.</span> 지금 UI 색과 같아 익숙하다</div>
+    </div>
+
+    <!-- 2 남색 -->
+    <div class="row best">
+      <div class="no">2</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#1e3a5f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">남색 <span style="color: #35c48c; font-size: 11px; font-weight: 600">추천</span></div><div class="hex">#1e3a5f</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#1e3a5f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#1e3a5f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#fff"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#fff"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#1e3a5f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#1e3a5f"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note"><span class="ok">양쪽 통과.</span> 다크 UI 와 톤이 맞고 흰 헤드셋 대비가 가장 세다</div>
+    </div>
+
+    <!-- 3 청록 -->
+    <div class="row">
+      <div class="no">3</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#0f766e"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">청록</div><div class="hex">#0f766e</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#0f766e"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#0f766e"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#fff"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#fff"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#0f766e"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#0f766e"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note"><span class="ok">양쪽 통과.</span> 파란 앱이 많은 표시줄에서 가장 잘 구분된다</div>
+    </div>
+
+    <!-- 4 밝은 파랑 -->
+    <div class="row">
+      <div class="no">4</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#4ea3dd"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#0d1218" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#0d1218"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#0d1218"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#0d1218" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">밝은 파랑</div><div class="hex">#4ea3dd &middot; 다크 UI 액센트</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#4ea3dd"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#0d1218" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#0d1218"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#0d1218"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#0d1218" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#4ea3dd"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#0d1218" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#0d1218"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#0d1218"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#4ea3dd"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#0d1218" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#0d1218"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#0d1218"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#4ea3dd"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#0d1218" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#0d1218"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#0d1218"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note">어두운 표시줄에서는 잘 뜨지만 <span class="bad">밝은 표시줄에서 힘이 빠진다</span></div>
+    </div>
+
+    <!-- 5 인디고 -->
+    <div class="row">
+      <div class="no">5</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#4338ca"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">인디고</div><div class="hex">#4338ca</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#4338ca"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#4338ca"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#fff"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#fff"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#4338ca"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#4338ca"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note">눈에 띄지만 지금 UI 의 파랑과 <span class="bad">계열이 달라 따로 논다</span></div>
+    </div>
+
+    <!-- 6 초록 -->
+    <div class="row">
+      <div class="no">6</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#1f7a4c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">초록</div><div class="hex">#1f7a4c</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#1f7a4c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#1f7a4c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#fff"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#fff"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#1f7a4c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#1f7a4c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note"><span class="bad">초록은 UI 에서 "대기" 를 뜻한다.</span> 아이콘까지 초록이면 상태색과 섞인다</div>
+    </div>
+
+    <!-- 7 주황 -->
+    <div class="row">
+      <div class="no">7</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#c2410c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">주황</div><div class="hex">#c2410c</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#c2410c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#fff"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#fff"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#c2410c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#fff"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#fff"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#c2410c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#c2410c"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#fff"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note">가장 눈에 띈다. 다만 UI 의 <span class="bad">경고색과 가까워 헷갈릴 수 있다</span></div>
+    </div>
+
+    <!-- 8 흑연 -->
+    <div class="row">
+      <div class="no">8</div>
+      <svg width="56" height="56" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#222a35"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#4ea3dd" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#4ea3dd"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#4ea3dd"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#4ea3dd" stroke-width="6" stroke-linecap="round"/></svg>
+      <div><div class="name">흑연 + 파랑</div><div class="hex">#222a35</div></div>
+      <svg width="40" height="40" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#222a35"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#4ea3dd" stroke-width="7" stroke-linecap="round"/><rect x="18" y="50" width="16" height="24" rx="7" fill="#4ea3dd"/><rect x="62" y="50" width="16" height="24" rx="7" fill="#4ea3dd"/><path d="M70 74v3a7 7 0 0 1-7 7h-9" fill="none" stroke="#4ea3dd" stroke-width="6" stroke-linecap="round"/></svg>
+      <svg width="32" height="32" viewBox="0 0 96 96"><rect width="96" height="96" rx="19" fill="#222a35"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#4ea3dd" stroke-width="8" stroke-linecap="round"/><rect x="17" y="50" width="17" height="25" rx="8" fill="#4ea3dd"/><rect x="62" y="50" width="17" height="25" rx="8" fill="#4ea3dd"/></svg>
+      <div class="bar" style="background: #eef3f7">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#222a35"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#4ea3dd" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#4ea3dd"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#4ea3dd"/></svg>
+        <span style="font-size: 11px; color: #64748b">상담원</span>
+      </div>
+      <div class="bar" style="background: #1c1c1c">
+        <svg width="16" height="16" viewBox="0 0 96 96"><rect width="96" height="96" rx="18" fill="#222a35"/><path d="M26 54v-6a22 22 0 0 1 44 0v6" fill="none" stroke="#4ea3dd" stroke-width="9" stroke-linecap="round"/><rect x="17" y="49" width="18" height="26" rx="8" fill="#4ea3dd"/><rect x="61" y="49" width="18" height="26" rx="8" fill="#4ea3dd"/></svg>
+        <span style="font-size: 11px; color: #9aa4b0">상담원</span>
+      </div>
+      <div class="note"><span class="bad">어두운 표시줄에서 배경에 먹힌다.</span> 타일이 사라지고 헤드셋만 뜬다</div>
+    </div>
+  </div>
+
+  <div class="cap" style="margin-top: 2px">
+    번호로 골라 주시면 그 색으로 <span style="color: #e6ecf3">256 / 48 / 32 / 16</span> 다중 해상도 <span style="color: #e6ecf3">.ico</span> 를 만들어
+    실행 파일과 트레이에 넣습니다. 크기를 줄이면 획을 굵히고 부품을 뺍니다 &mdash; 48 아래로는 마이크 붐, 32 아래로는 헤드밴드 곡선.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

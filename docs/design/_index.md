@@ -24,6 +24,7 @@
 | [`2026-08-02-sip-invite-abuse-defense-design.md`](2026-08-02-sip-invite-abuse-defense-design.md) |
 | [`2026-08-07-external-cti-api-guide.md`](2026-08-07-external-cti-api-guide.md) |
 | [`2026-08-20-csharp-desktop-client-design.md`](2026-08-20-csharp-desktop-client-design.md) |
+| [`2026-08-23-desktop-dark-console-design.md`](2026-08-23-desktop-dark-console-design.md) |
 | [`admin-agent-gap-audit.md`](admin-agent-gap-audit.md) |
 | [`admin-permissions-policy.md`](admin-permissions-policy.md) |
 | [`agent-desktop-internal-code-signing.md`](agent-desktop-internal-code-signing.md) |
