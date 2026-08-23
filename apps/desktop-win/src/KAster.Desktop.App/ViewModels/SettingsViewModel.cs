@@ -208,10 +208,8 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (Set(ref _closeToTray, value)) GeneralNotice = null; }
     }
 
-    public IReadOnlyList<AppTheme> Themes { get; } = new[]
-    {
-        AppTheme.System, AppTheme.Light, AppTheme.Dark,
-    };
+    /// <summary>한글 이름이 붙은 목록. 값을 그대로 보여 주면 화면에 영어가 뜬다.</summary>
+    public IReadOnlyList<Choice<AppTheme>> Themes => SettingsChoices.Themes;
 
     /// <summary>색 테마. 저장을 누르면 그 자리에서 바뀐다 — 껐다 켜야 보이면 고르기가 어렵다.</summary>
     public AppTheme Theme
@@ -220,10 +218,7 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (Set(ref _theme, value)) GeneralNotice = null; }
     }
 
-    public IReadOnlyList<RingTonePreset> RingTones { get; } = new[]
-    {
-        RingTonePreset.Classic, RingTonePreset.Soft, RingTonePreset.Urgent, RingTonePreset.Silent,
-    };
+    public IReadOnlyList<Choice<RingTonePreset>> RingTones => SettingsChoices.RingTones;
 
     public RingTonePreset RingTone
     {

@@ -337,10 +337,10 @@
                     <StackPanel>
                         <TextBlock Text="색 테마" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
                         <ComboBox ItemsSource="{Binding Themes}"
-                                  SelectedItem="{Binding Theme}"
-                                  Padding="{StaticResource PadControl}"
-                                  FontFamily="{StaticResource FontUi}"
-                                  FontSize="{StaticResource FontSizeBody}" />
+                                  DisplayMemberPath="Label"
+                                  SelectedValuePath="Value"
+                                  SelectedValue="{Binding Theme}"
+                                  Padding="{StaticResource PadControl}" />
                         <TextBlock Style="{StaticResource TextCaption}"
                                    TextWrapping="Wrap"
                                    Margin="0,4,0,16"
@@ -366,7 +366,9 @@
 
                         <TextBlock Text="벨소리" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
                         <ComboBox ItemsSource="{Binding RingTones}"
-                                  SelectedItem="{Binding RingTone}"
+                                  DisplayMemberPath="Label"
+                                  SelectedValuePath="Value"
+                                  SelectedValue="{Binding RingTone}"
                                   Padding="{StaticResource PadControl}" />
                         <TextBlock Style="{StaticResource TextCaption}"
                                    TextWrapping="Wrap"

@@ -102,6 +102,10 @@ public sealed class SubWindowService
         // 화면 쪽 DynamicResource 와 같은 것을 코드에서 하는 방법이다.
         window.SetResourceReference(Window.BackgroundProperty, "BrushBackground");
 
+        // 글자색도 참조로 건다. 스타일을 안 붙인 TextBlock 은 창에서 물려받는데,
+        // 창이 안 정하면 WPF 기본인 <b>검정</b>이라 어두운 테마에서 안 보인다.
+        window.SetResourceReference(Window.ForegroundProperty, "BrushText");
+
         WindowTitleBar.Follow(window, _palette());
 
         var at = SubWindowPlacement.For(
