@@ -11,6 +11,9 @@ public sealed class SubWindowLedger<TWindow>
 
     public int Count => _open.Count;
 
+    /// <summary>지금 열려 있는 창들. 테마가 바뀌면 이미 뜬 창에도 적용해야 한다.</summary>
+    public IEnumerable<TWindow> Open => _open.Values.ToArray();
+
     /// <summary>
     /// 없으면 만들고, 있으면 그 창을 앞으로 가져온다. 두 번 만들면 뒤엣것만 갱신되고
     /// 앞엣것은 옛 값을 든 채 화면에 남는다.

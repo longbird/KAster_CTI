@@ -115,7 +115,7 @@ public partial class MainWindow : Window
         _settings = new JsonSettingsStore<AppSettings>(AppPaths.Settings).Load(new AppSettings());
         _tokens = new TokenVault(AppPaths.TokenVault);
         _windowMode = new WindowModeService(this);
-        _subWindows = new SubWindowService(this);
+        _subWindows = new SubWindowService(this, () => _theme?.Current ?? ThemePalette.Light);
 
         // 트레이에서 창을 부르는 것은 상담원이 스스로 누른 경로다. 종료는 창을 닫는 것과 같은 길을 쓴다 —
         // 여기서만 따로 정리하면 어느 한쪽에 빠진 것이 생긴다.
@@ -133,10 +133,13 @@ public partial class MainWindow : Window
             _trayArt.Invalidate();
             _tray.Show(CurrentTrayState());
 
+            WindowTitleBar.Follow(this, palette);
+            _subWindows.FollowTheme(palette);
             LogTheme(palette);
         };
 
         _theme.Apply(_general.Load().Sane().Theme);
+        WindowTitleBar.Follow(this, _theme.Current);
 
         // 시작할 때도 한 줄 남긴다. 저장된 테마가 App.xaml 의 기본과 같으면 위 이벤트가
         // 안 오는데, 그때도 "지금 무슨 테마인지" 는 신고를 가르는 데 필요하다.

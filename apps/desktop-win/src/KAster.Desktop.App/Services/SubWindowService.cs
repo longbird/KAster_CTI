@@ -27,9 +27,25 @@ public sealed class SubWindowService
     private readonly Window _owner;
     private readonly SubWindowLedger<Window> _ledger = new();
 
-    public SubWindowService(Window owner) => _owner = owner;
+    /// <param name="palette">지금 테마. 새로 여는 창의 제목 표시줄 색을 여기서 가져온다.</param>
+    public SubWindowService(Window owner, Func<ThemePalette>? palette = null)
+    {
+        _owner = owner;
+        _palette = palette ?? (() => ThemePalette.Light);
+    }
+
+    private readonly Func<ThemePalette> _palette;
 
     public int OpenCount => _ledger.Count;
+
+    /// <summary>
+    /// 이미 열려 있는 창들에 테마를 다시 입힌다. 배경은 리소스를 물고 있어 저절로 따라오지만,
+    /// 제목 표시줄은 창마다 윈도우에 따로 알려 줘야 한다.
+    /// </summary>
+    public void FollowTheme(ThemePalette palette)
+    {
+        foreach (var window in _ledger.Open) WindowTitleBar.Follow(window, palette);
+    }
 
     /// <summary>이미 열려 있으면 그 창을 앞으로 가져오고, 없으면 만든다.</summary>
     /// <param name="createContent">
@@ -79,9 +95,14 @@ public sealed class SubWindowService
             MinHeight = spec.MinHeight,
         };
 
-        // 테마는 App.xaml 이 앱 레벨에 머지해 둔 Tokens.xaml 에서 그대로 온다.
+        // 글꼴은 테마와 무관하므로 한 번 집어 오면 된다.
         if (_owner.TryFindResource("FontUi") is FontFamily font) window.FontFamily = font;
-        if (_owner.TryFindResource("BrushBackground") is Brush background) window.Background = background;
+
+        // 배경은 <b>참조로</b> 건다. 값을 한 번 집어 오면 테마를 바꿔도 이 창만 옛 색으로 남는다 —
+        // 화면 쪽 DynamicResource 와 같은 것을 코드에서 하는 방법이다.
+        window.SetResourceReference(Window.BackgroundProperty, "BrushBackground");
+
+        WindowTitleBar.Follow(window, _palette());
 
         var at = SubWindowPlacement.For(
             CurrentWorkArea(), CurrentOwnerBounds(), spec.Width, spec.Height, _ledger.Count);
