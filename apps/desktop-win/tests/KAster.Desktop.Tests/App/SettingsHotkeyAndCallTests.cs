@@ -22,7 +22,8 @@ public class SettingsHotkeyAndCallTests
     private static SettingsViewModel Build(
         ISettingsStore<HotkeySettings>? hotkeys = null,
         ISettingsStore<CallPreferences>? calls = null,
-        Func<HotkeySettings, IReadOnlyList<string>>? apply = null)
+        Func<HotkeySettings, IReadOnlyList<string>>? apply = null,
+        ISettingsStore<TransferHotkeySettings>? transferHotkeys = null)
         => new(
             new MemoryStore<AppSettings>(new AppSettings()),
             new MemoryStore<AudioDeviceSelection>(new AudioDeviceSelection()),
@@ -30,6 +31,7 @@ public class SettingsHotkeyAndCallTests
             useSoftphone: true,
             hotkeys ?? new MemoryStore<HotkeySettings>(new HotkeySettings()),
             calls ?? new MemoryStore<CallPreferences>(new CallPreferences()),
+            transferHotkeys ?? new MemoryStore<TransferHotkeySettings>(new TransferHotkeySettings()),
             apply ?? (_ => Array.Empty<string>()));
 
     [Fact]

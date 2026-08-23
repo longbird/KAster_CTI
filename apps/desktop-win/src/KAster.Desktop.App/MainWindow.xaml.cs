@@ -1,6 +1,8 @@
 using System.Net.Http;
 using System.Runtime.Versioning;
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using KAster.Desktop.App.Services;
 using KAster.Desktop.App.ViewModels;
@@ -76,6 +78,13 @@ public partial class MainWindow : Window
     private readonly HandoffStatusBoard _handoffs = new();
 
     private readonly DesktopBridgeServer _bridge;
+
+    /// <summary>
+    /// 통화 중 1~9 에 걸어 둔 전환 대상. 창이 읽으므로 창이 들고 있다 —
+    /// 설정 화면에서 고치면 다음에 창이 다시 읽는다.
+    /// </summary>
+    private readonly ISettingsStore<TransferHotkeySettings> _transferHotkeys =
+        new JsonSettingsStore<TransferHotkeySettings>(AppPaths.TransferHotkeys);
 
     /// <summary>1초 타이머의 순번. 수신 중 아이콘 깜빡임의 위상이 여기서 나온다.</summary>
     private long _tick;
@@ -398,6 +407,7 @@ public partial class MainWindow : Window
                     ? new JsonSettingsStore<HotkeySettings>(AppPaths.Hotkeys, new HotkeySettings())
                     : null,
                 new JsonSettingsStore<CallPreferences>(AppPaths.CallPreferences, new CallPreferences()),
+                signedIn ? _transferHotkeys : null,
                 signedIn ? ApplyHotkeys : null,
                 _update,
                 ProtocolRegistration.IsRegistered(AppRelease.ExecutablePath),
@@ -533,6 +543,41 @@ public partial class MainWindow : Window
 
         // 자리에 앉았다. 이걸 적어야 웹 화면이 기다림을 끝낸다.
         _handoffs.Mark(request.HandoffToken, HandoffStatus.Connected);
+    }
+
+    /// <summary>
+    /// 통화 중 숫자 키를 미리 정해 둔 자리로 넘기는 지시로 읽는다.
+    ///
+    /// 글자를 치고 있는 칸에서는 가로채지 않는다 — 번호를 적다가 1 을 눌렀는데 전화가
+    /// 넘어가면 손쓸 방법이 없다. 걸어 두지 않은 숫자는 아무 일도 하지 않는다.
+    /// </summary>
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (_softphone is not { } softphone) return;
+
+        var digit = e.Key switch
+        {
+            >= Key.D1 and <= Key.D9 => e.Key - Key.D0,
+            >= Key.NumPad1 and <= Key.NumPad9 => e.Key - Key.NumPad0,
+            _ => 0,
+        };
+        if (digit == 0) return;
+
+        var slot = TransferHotkeys.Resolve(
+            _transferHotkeys.Load().Sane().Slots,
+            digit,
+            softphone.WindowMode,
+            typingInATextBox: Keyboard.FocusedElement is TextBoxBase,
+            modifierHeld: Keyboard.Modifiers != ModifierKeys.None);
+
+        if (slot is null) return;
+
+        e.Handled = true;
+        App.Log($"전환 핫키 {slot.Slot} → {slot.DisplayName} ({slot.Mode})");
+
+        _ = slot.Mode == TransferHotkeyMode.Attended
+            ? softphone.Transfer.ConsultAsync(slot.Target)
+            : softphone.Transfer.TransferToAsync(slot.Target);
     }
 
     /// <summary>

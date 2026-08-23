@@ -51,6 +51,9 @@ public static class AppPaths
     /// <summary>전역 핫키 조합. 설정 화면의 핫키 탭이 여기에 쓴다.</summary>
     public static string Hotkeys => Path.Combine(Root, "hotkeys.json");
 
+    /// <summary>통화 중 1~9 에 걸어 둔 전환 대상. 전역 핫키와 성질이 달라 따로 둔다.</summary>
+    public static string TransferHotkeys => Path.Combine(Root, "transfer-hotkeys.json");
+
     /// <summary>현장마다 다른 통화 동작 (자동응답 대기 · PBX 응답 대기).</summary>
     public static string CallPreferences => Path.Combine(Root, "call-preferences.json");
 

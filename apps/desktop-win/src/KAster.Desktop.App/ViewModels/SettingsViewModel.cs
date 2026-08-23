@@ -66,6 +66,7 @@ public sealed class SettingsViewModel : ObservableObject
         bool useSoftphone,
         ISettingsStore<HotkeySettings>? hotkeys = null,
         ISettingsStore<CallPreferences>? callPreferences = null,
+        ISettingsStore<TransferHotkeySettings>? transferHotkeys = null,
         Func<HotkeySettings, IReadOnlyList<string>>? applyHotkeys = null,
         UpdateViewModel? update = null,
         bool protocolRegistered = true,
@@ -75,6 +76,7 @@ public sealed class SettingsViewModel : ObservableObject
         _devices = devices;
         _hotkeys = hotkeys;
         _callPreferences = callPreferences;
+        TransferHotkeys = transferHotkeys is null ? null : new TransferHotkeyEditorViewModel(transferHotkeys);
         _applyHotkeys = applyHotkeys;
         _repairProtocol = repairProtocol;
         Update = update;
@@ -147,6 +149,11 @@ public sealed class SettingsViewModel : ObservableObject
     public bool ShowsAudioDevices { get; }
 
     public bool ShowsHotkeys => _hotkeys is not null;
+
+    /// <summary>통화 중 1~9 편집기. 저장소를 안 넘기면 null 이라 탭이 접힌다.</summary>
+    public TransferHotkeyEditorViewModel? TransferHotkeys { get; }
+
+    public bool ShowsTransferHotkeys => TransferHotkeys is not null;
 
     public bool ShowsCallPreferences => _callPreferences is not null;
 
@@ -272,6 +279,11 @@ public sealed class SettingsViewModel : ObservableObject
         });
 
         _callPreferences?.Save(ReadCallPreferences().Sane());
+
+        // 전환 대상이 전화번호가 아니면 여기서 멈춘다. 그대로 저장하면 통화 중에 눌렀을 때
+        // 아무 데도 안 걸리고, 상담원은 키가 고장 난 줄 안다.
+        TransferHotkeys?.Save();
+        if (TransferHotkeys?.Error is not null) return;
 
         // 등록이 거부돼도 적은 것은 저장한다. 안 그러면 고치려고 처음부터 다시 타야 한다.
         var combos = ReadHotkeys();

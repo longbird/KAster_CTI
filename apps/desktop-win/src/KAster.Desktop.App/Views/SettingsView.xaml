@@ -176,6 +176,86 @@
                 </Border>
             </TabItem>
 
+            <!-- 전환 -->
+            <TabItem Header="전환">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource TabHeader}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowsTransferHotkeys}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
+
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,8"
+                                   Text="통화 중에 숫자 키를 누르면 여기 적어 둔 자리로 넘깁니다. 번호를 적고 있는 칸에서는 먹지 않습니다. 빈 칸은 걸지 않습니다." />
+
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="96" />
+                                <ColumnDefinition Width="52" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="1" Text="이름" Style="{StaticResource TextCaption}" />
+                            <TextBlock Grid.Column="2" Text="대상" Style="{StaticResource TextCaption}" Margin="6,0,0,0" />
+                            <TextBlock Grid.Column="3" Text="협의" Style="{StaticResource TextCaption}" Margin="6,0,0,0" />
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding TransferHotkeys.Rows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="96" />
+                                            <ColumnDefinition Width="52" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Slot}"
+                                                   Style="{StaticResource TextBody}"
+                                                   VerticalAlignment="Center" />
+
+                                        <TextBox Grid.Column="1"
+                                                 Style="{StaticResource FieldInput}"
+                                                 Margin="0"
+                                                 Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" />
+
+                                        <TextBox Grid.Column="2"
+                                                 Style="{StaticResource FieldInput}"
+                                                 Margin="6,0,0,0"
+                                                 Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}" />
+
+                                        <CheckBox Grid.Column="3"
+                                                  Margin="12,0,0,0"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding IsAttended}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="협의를 끄면 상대와 통화하지 않고 바로 넘깁니다"
+                                   Style="{StaticResource TextCaption}"
+                                   Margin="0,6,0,0" />
+
+                        <TextBlock Text="{Binding TransferHotkeys.Error}" Style="{StaticResource ErrorLine}" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
             <!-- 통화 -->
             <TabItem Header="통화">
                 <TabItem.Style>
