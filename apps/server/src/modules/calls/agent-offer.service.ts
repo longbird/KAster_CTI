@@ -38,6 +38,12 @@ export function agentOfferId(linkedid: string, extension: string): string {
   return `${linkedid}:${extension}`;
 }
 
+/**
+ * 답이 난 자리를 얼마나 기억할지. 종료 이벤트를 놓친 호가 영영 쌓이지 않게 하는 한도이며,
+ * `SessionRecoverySweeperService` 가 열린 세션을 강제 종료하는 10분과 같은 기준이다.
+ */
+const ANSWERED_RETENTION_MS = 10 * 60 * 1000;
+
 type OfferResolver = (decision: AgentOfferDecision) => void;
 
 interface PendingOffer {
@@ -63,6 +69,14 @@ interface PendingOffer {
 export class AgentOfferService implements OnModuleInit {
   private readonly logger = new Logger(AgentOfferService.name);
   private readonly pending = new Map<string, PendingOffer>();
+
+  /**
+   * 이미 물어보고 답이 난 자리. 큐가 `retry` 뒤에 같은 자리를 다시 불러도 화면에 또 띄우지 않는다.
+   *
+   * 호가 끝나면 <see cref="abandonCall"/> 가 지운다. 종료 이벤트를 놓친 호가 남을 수 있어
+   * 오래된 것은 기록할 때 함께 버린다.
+   */
+  private readonly answered = new Map<string, { decision: AgentOfferDecision; at: number }>();
 
   constructor(private readonly eventBus: EventBusService) {}
 
@@ -115,9 +129,27 @@ export class AgentOfferService implements OnModuleInit {
    * 대기 시간을 다 채울 때까지 남는다. 그 사이 누르면 없는 전화를 받는다.
    */
   private abandonCall(linkedid: string) {
-    for (const offerId of this.offersOfCall(`${linkedid}:`)) {
+    const prefix = `${linkedid}:`;
+
+    for (const offerId of this.offersOfCall(prefix)) {
       this.settle(offerId, 'ABANDONED');
     }
+
+    // 끝난 호는 다시 물어볼 일이 없으므로 기억도 함께 버린다.
+    for (const offerId of [...this.answered.keys()]) {
+      if (offerId.startsWith(prefix)) this.answered.delete(offerId);
+    }
+  }
+
+  /** 답이 난 자리를 적어 둔다. 종료 이벤트를 놓친 호가 쌓이지 않게 오래된 것은 같이 버린다. */
+  private remember(offerId: string, decision: AgentOfferDecision) {
+    const now = Date.now();
+
+    for (const [key, entry] of this.answered) {
+      if (now - entry.at > ANSWERED_RETENTION_MS) this.answered.delete(key);
+    }
+
+    this.answered.set(offerId, { decision, at: now });
   }
 
   /** 한 호에 딸린 제안들. settle 이 map 을 지우므로 미리 떠서 돌린다. */
@@ -137,6 +169,15 @@ export class AgentOfferService implements OnModuleInit {
     onAbort?: AgentOfferAbortHook,
   ): Promise<AgentOfferDecision> {
     const offerId = agentOfferId(request.linkedid, request.extension);
+
+    // 한 호는 한 자리에 한 번만 묻는다. 그 뒤로 이 호는 대기 목록에만 보이고, 받을 사람은
+    // 거기서 당겨받는다. 다시 띄우면 고객이 끊을 때까지 화면이 꺼졌다 켜졌다를 되풀이한다.
+    const remembered = this.answered.get(offerId);
+    if (remembered && remembered.decision !== 'ACCEPT') {
+      this.logger.log(`offer ${offerId} already ${remembered.decision}, not re-offering`);
+      return remembered.decision;
+    }
+
     const result = await this.enqueue(offerId, request, onAbort);
 
     // 다른 상담원이 받았든 시간이 지났든, 화면에 뜬 제안은 사라져야 한다.
@@ -240,6 +281,7 @@ export class AgentOfferService implements OnModuleInit {
     this.pending.delete(offerId);
     clearTimeout(offer.timer);
     this.logger.log(`offer ${offerId} closed ${decision} after ${Date.now() - offer.openedAt}ms`);
+    this.remember(offerId, decision);
     for (const resolve of offer.resolvers) resolve(decision);
   }
 }

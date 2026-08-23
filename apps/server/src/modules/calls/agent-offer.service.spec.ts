@@ -363,3 +363,90 @@ describe('AgentOfferService 호 종료', () => {
     await expect(other).resolves.toBe('ACCEPT');
   });
 });
+
+/**
+ * 큐는 아무도 안 받으면 `retry` 만큼 쉬었다가 같은 자리를 다시 부른다. 그대로 두면
+ * 상담원 화면에 "받으시겠습니까?" 가 꺼졌다 켜졌다를 고객이 끊을 때까지 되풀이한다.
+ *
+ * 한 호는 한 자리에 **한 번만** 묻는다. 그 뒤로 그 호는 대기 목록에만 보이고,
+ * 받을 사람은 거기서 당겨받는다.
+ */
+describe('AgentOfferService 재요청', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('같은 호를 같은 자리에 다시 물어보지 않고 앞 결정을 그대로 돌려준다', async () => {
+    jest.useFakeTimers();
+    const { service, publish } = makeService();
+
+    const first = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+    jest.advanceTimersByTime(10_000);
+    await expect(first).resolves.toBe('TIMEOUT');
+
+    publish.mockClear();
+    await expect(service.waitForDecision(REQUEST)).resolves.toBe('TIMEOUT');
+
+    expect(publish).not.toHaveBeenCalledWith(AGENT_OFFER_EVENT, expect.anything(), expect.anything());
+  });
+
+  it('다른 자리는 그대로 물어본다', async () => {
+    jest.useFakeTimers();
+    const { service, publish } = makeService();
+
+    const first = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+    jest.advanceTimersByTime(10_000);
+    await first;
+
+    publish.mockClear();
+    service.waitForDecision({ ...REQUEST, extension: '1002' });
+    await Promise.resolve();
+
+    expect(publish).toHaveBeenCalledWith(
+      AGENT_OFFER_EVENT,
+      expect.objectContaining({ extension: '1002' }),
+      'tenant-1',
+    );
+
+    // 열어 둔 제안의 타이머를 남기지 않는다.
+    await service.notifyCallEnded('tenant-1', REQUEST.linkedid);
+  });
+
+  /** 받은 자리는 막지 않는다. 기억을 근거로 수락을 되풀이하면 없는 전화를 다시 연결한다. */
+  it('수락했던 자리는 기억으로 막지 않는다', async () => {
+    const { service, publish } = makeService();
+
+    const first = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+    await service.submitDecision({ ...REQUEST, decision: 'ACCEPT' });
+    await first;
+
+    publish.mockClear();
+    service.waitForDecision(REQUEST);
+    await Promise.resolve();
+
+    expect(publish).toHaveBeenCalledWith(AGENT_OFFER_EVENT, expect.anything(), 'tenant-1');
+
+    await service.notifyCallEnded('tenant-1', REQUEST.linkedid);
+  });
+
+  it('호가 끝나면 그 호에 대한 기억도 지운다', async () => {
+    jest.useFakeTimers();
+    const { service, publish } = makeService();
+
+    const first = service.waitForDecision(REQUEST);
+    await Promise.resolve();
+    jest.advanceTimersByTime(10_000);
+    await first;
+
+    await service.notifyCallEnded('tenant-1', REQUEST.linkedid);
+
+    publish.mockClear();
+    service.waitForDecision(REQUEST);
+    await Promise.resolve();
+
+    expect(publish).toHaveBeenCalledWith(AGENT_OFFER_EVENT, expect.anything(), 'tenant-1');
+
+    await service.notifyCallEnded('tenant-1', REQUEST.linkedid);
+  });
+});
