@@ -12,6 +12,10 @@ namespace KAster.Desktop.Tests.App;
 /// </summary>
 public class AutoCallActionWiringTests : SoftphoneViewModelTestBase
 {
+    /// <summary>통화를 제어하는 요청만 센다. 주기 조회는 여기서 볼 것이 아니다.</summary>
+    private static int Commands(StubHttpHandler stub) => stub.Requests
+        .Count(r => r.RequestUri!.AbsolutePath.Contains("call-commands", StringComparison.Ordinal));
+
     [Fact]
     public async Task An_auto_hangup_is_sent_once()
     {
@@ -47,10 +51,12 @@ public class AutoCallActionWiringTests : SoftphoneViewModelTestBase
 
         store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
 
-        var before = stub.Requests.Count;
+        // 대기 목록 조회는 통화 중에도 돈다. 그건 자동 동작이 아니므로 세지 않는다.
+        var before = Commands(stub);
         _now = _now.AddMinutes(5);
+        stub.Enqueue(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}""");
         vm.Tick();
 
-        Assert.Equal(before, stub.Requests.Count);
+        Assert.Equal(before, Commands(stub));
     }
 }

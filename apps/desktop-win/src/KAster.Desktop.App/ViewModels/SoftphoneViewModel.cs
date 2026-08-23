@@ -124,6 +124,10 @@ public sealed class SoftphoneViewModel : ObservableObject
         //
         // 창을 앞으로 끌어내지는 않는다. 상담원이 가려 둔 창이 스스로 튀어나와 하던 작업을
         // 덮으면 알리는 것이 아니라 뺏는 것이다 — 대신 알릴 것이 생겼다고만 올린다.
+        // 큐에 새 전화가 들어왔다. 알릴지는 상담원의 상태가 정한다 —
+        // 자리를 비운 사람에게 울리는 알림은 소음이고, 소음이 쌓이면 진짜 알림도 무시하게 된다.
+        Waiting.Looked += (_, look) => OnQueueLooked(look);
+
         Offer.Changed += (_, offer) =>
         {
             RechooseView(() =>
@@ -217,6 +221,9 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// 유일한 창구다. <b>어떻게</b> 알릴지는 조립 지점이 정한다 — 화면은 무엇을 적을지만 안다.
     /// </summary>
     public event EventHandler<Alert>? AttentionRequested;
+
+    /// <summary>알려 둔 것이 끝났다. 띄워 둔 알림을 내린다.</summary>
+    public event EventHandler? AttentionDismissed;
 
     /// <summary>
     /// 읽기 전용 화면을 서브 창으로 띄워 달라. 창을 만드는 일은 조립 지점이 한다 —
@@ -503,6 +510,9 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// <summary>통화가 끝나면 자리비움으로 바꿔야 한다. 트레이로 내려갈 때 통화 중이었다는 뜻이다.</summary>
     private bool _awayWhenFree;
 
+    /// <summary>지금 알림을 띄워 둔 대기 통화. 이것들이 다 끝나면 알림을 내린다.</summary>
+    private HashSet<string> _alertedWaiting = new(StringComparer.Ordinal);
+
     /// <summary>1초마다 불린다. 통화 시간은 서버가 준 <c>answeredAt</c> 기준으로 다시 계산한다.</summary>
     public void Tick()
     {
@@ -742,6 +752,28 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// 같은 명령이 쏟아지고, 서버는 그것을 사람이 연타한 것과 구분하지 못한다.
     /// </summary>
     /// <summary>
+    /// 큐를 한 번 훑었다. 알릴 것이 생겼으면 알리고, <b>알려 둔 것이 끝났으면 내린다.</b>
+    ///
+    /// 남이 받았든 당겨갔든 고객이 끊었든, 그 전화는 더 이상 기다리지 않는다. 알림을 그대로
+    /// 두면 알림 센터에 지난 전화가 쌓이고, 상담원은 그걸 보고 지금도 기다리는 줄 안다.
+    /// </summary>
+    private void OnQueueLooked(WaitingCallsLook look)
+    {
+        if (WaitingCallAlert.For(look.Newcomers, AgentStatus, Offer.HasOffer) is { } alert)
+        {
+            _alertedWaiting = look.Newcomers.Select(call => call.CallId).ToHashSet(StringComparer.Ordinal);
+            AttentionRequested?.Invoke(this, alert);
+            return;
+        }
+
+        if (_alertedWaiting.Count == 0) return;
+        if (look.All.Any(call => _alertedWaiting.Contains(call.CallId))) return;
+
+        _alertedWaiting.Clear();
+        AttentionDismissed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
     /// 트레이로 내려간다. 그 자리는 비어 있으므로 큐에서 빠져야 한다 — 안 빼면 상담원이
     /// 껐다고 생각한 자리로 전화가 가고, 고객은 아무도 없는 자리에서 벨소리만 듣는다.
     ///
@@ -866,7 +898,6 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             // 통화가 잡혔다. 발신 중 표시는 끝나고, 당겨받을 목록도 비운다.
             Dial.StopDialing("서버가 통화를 알려줬다");
-            Waiting.Clear();
             Tick();
         }
     }

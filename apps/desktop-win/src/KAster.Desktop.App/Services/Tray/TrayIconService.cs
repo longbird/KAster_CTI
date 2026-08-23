@@ -61,6 +61,22 @@ public sealed class TrayIconService : IDisposable
     public void Balloon(Alert alert)
         => _icon.ShowBalloonTip(BalloonMilliseconds, alert.Title, alert.Body, Forms.ToolTipIcon.Info);
 
+    /// <summary>
+    /// 띄워 둔 풍선을 내린다. 이미 끝난 전화의 알림이 알림 센터에 남아 있으면
+    /// 상담원은 그걸 보고 지금도 기다리는 줄 안다.
+    ///
+    /// <b>아이콘을 껐다 켜는 것 말고는 방법이 없다.</b> NotifyIcon 에는 풍선을 내리는 API 가
+    /// 없고, 아이콘을 다시 만들면 그 아이콘에 딸린 알림도 같이 사라진다. 그림과 툴팁은
+    /// 그대로 두므로 트레이에서 보이는 모습은 바뀌지 않는다.
+    /// </summary>
+    public void DismissBalloon()
+    {
+        if (!_icon.Visible) return;
+
+        _icon.Visible = false;
+        _icon.Visible = true;
+    }
+
     public void Dispose()
     {
         // Visible 을 안 내리면 프로세스가 죽어도 아이콘이 트레이에 남는다.

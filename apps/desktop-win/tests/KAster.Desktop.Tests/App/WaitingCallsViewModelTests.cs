@@ -54,18 +54,25 @@ public class WaitingCallsViewModelTests : SoftphoneViewModelTestBase
         Assert.Equal("/api/v1/calls/c-9/pickup", stub.Requests[1].RequestUri!.AbsolutePath);
     }
 
-    /// <summary>내 전화가 울리는 중에 남의 전화를 당기면 둘 다 놓친다.</summary>
+    /// <summary>
+    /// 통화 중이어도 대기 목록은 그대로 본다. 로그인해 있으면 어떤 상태에서도 큐를 볼 수 있어야 한다.
+    ///
+    /// 예전에는 여기서 목록을 비웠고, 그것이 "통화 중에는 못 당긴다" 를 대신하고 있었다.
+    /// 그 보호는 당기는 자리로 옮겼다 — <see cref="WaitingCallNoticeTests"/> 가 지킨다.
+    /// </summary>
     [Fact]
-    public async Task Nothing_is_listed_while_this_agent_is_on_a_call()
+    public async Task The_list_stays_while_this_agent_is_on_a_call()
     {
         var (vm, store, _, stub) = Build();
         stub.Enqueue(HttpStatusCode.OK, WaitingCallsJson);
         await vm.Waiting.RefreshWaitingCallsAsync();
         Assert.NotEmpty(vm.Waiting.WaitingCalls);
 
+        // 통화가 붙으면 화면이 다시 훑는다. 그 조회에도 답이 있어야 한다.
+        stub.Enqueue(HttpStatusCode.OK, WaitingCallsJson);
         store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
 
-        Assert.Empty(vm.Waiting.WaitingCalls);
+        Assert.NotEmpty(vm.Waiting.WaitingCalls);
     }
 
     /// <summary>

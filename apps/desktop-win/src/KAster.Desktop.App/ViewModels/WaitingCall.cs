@@ -35,3 +35,12 @@ public sealed record WaitingCall(
         }
     }
 }
+
+/// <summary>
+/// 큐를 한 번 훑은 결과.
+/// </summary>
+/// <param name="All">지금 기다리는 전체. 알림을 띄운 전화가 아직 있는지 가리는 데 쓴다.</param>
+/// <param name="Newcomers">지난번에 없던 것들. 알림을 띄울 대상이다.</param>
+public sealed record WaitingCallsLook(
+    IReadOnlyList<WaitingCall> All,
+    IReadOnlyList<WaitingCall> Newcomers);

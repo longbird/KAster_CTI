@@ -120,8 +120,30 @@ public sealed class WaitingCallsViewModel : ObservableObject
     /// <summary>로그인이 끝났다. 다음 Tick 부터 훑기 시작한다.</summary>
     public void StartLooking() => _nextWaitingLook = _now();
 
-    /// <summary>통화가 잡혔다. 당겨받을 목록은 뜻이 없어진다.</summary>
-    public void Clear() => WaitingCalls = Array.Empty<WaitingCall>();
+    /// <summary>
+    /// 큐를 한 번 훑은 결과. 새로 들어온 것만이 아니라 <b>지금 기다리는 전체</b>를 함께 넘긴다 —
+    /// 알림을 띄운 전화가 아직 기다리는지는 전체를 봐야 알 수 있고, 안 기다리면 알림을 내려야 한다.
+    ///
+    /// <b>알릴지 말지는 여기서 정하지 않는다</b> — 상담원의 상태를 아는 통화 화면이 정한다.
+    /// </summary>
+    public event EventHandler<WaitingCallsLook>? Looked;
+
+    /// <summary>
+    /// 지난번에 본 대기 통화. 같은 전화가 계속 기다린다고 5초마다 알리면 상담원이
+    /// 알림을 꺼 버리고, 그러면 진짜 알림도 못 본다.
+    /// </summary>
+    private HashSet<string> _seen = new(StringComparer.Ordinal);
+
+    private void NoticeNewcomers(IReadOnlyList<WaitingCall> pickable)
+    {
+        var now = pickable.Select(call => call.CallId).ToHashSet(StringComparer.Ordinal);
+        var newcomers = pickable.Where(call => !_seen.Contains(call.CallId)).ToArray();
+
+        // 끊겼다 다시 들어온 전화는 새 전화다. 그래서 남기지 않고 지금 것으로 갈아 끼운다.
+        _seen = now;
+
+        Looked?.Invoke(this, new WaitingCallsLook(pickable, newcomers));
+    }
 
     /// <summary>1초마다 불린다. 주기가 됐을 때만 다시 훑는다.</summary>
     public void Tick()
@@ -138,14 +160,6 @@ public sealed class WaitingCallsViewModel : ObservableObject
     /// </summary>
     public async Task RefreshWaitingCallsAsync(CancellationToken ct = default)
     {
-        // 내가 통화 중이면 볼 것도, 당길 것도 없다.
-        if (!_isFree())
-        {
-            WaitingCalls = Array.Empty<WaitingCall>();
-            WaitingCallsHidden = 0;
-            return;
-        }
-
         try
         {
             var calls = await _server.GetActiveCallsAsync(ct);
@@ -161,6 +175,8 @@ public sealed class WaitingCallsViewModel : ObservableObject
                     BranchLineOf(call)))
                 .ToArray();
 
+            NoticeNewcomers(pickable);
+
             // 창에 스크롤을 만들지 않는다. 넘치는 건수는 숨기지 말고 숫자로 알린다.
             WaitingCallsHidden = Math.Max(0, pickable.Length - MaxWaitingCallsShown);
             WaitingCalls = pickable.Take(MaxWaitingCallsShown).ToArray();
@@ -173,6 +189,16 @@ public sealed class WaitingCallsViewModel : ObservableObject
 
     public async Task PickupAsync(WaitingCall call, CancellationToken ct = default)
     {
+        // 목록은 어떤 상태에서도 본다. 다만 <b>당기는 것</b>은 손이 빈 자리만 할 수 있다 —
+        // 통화 중에 남의 전화를 당기면 지금 붙어 있는 통화와 새 통화를 함께 놓친다.
+        // 이 보호는 예전에 "통화 중이면 목록을 비운다" 로 서 있었다. 목록을 계속 보여 주게
+        // 됐으므로 보호도 여기로 옮겨 왔다.
+        if (!_isFree())
+        {
+            _notify("통화 중에는 당겨받을 수 없습니다.");
+            return;
+        }
+
         _note($"당겨받기 {call.CallId}");
         await ServerCall.SendAsync(() => _server.PickupAsync(call.CallId, ct), _notify);
     }

@@ -168,6 +168,9 @@ public class AgentDirectoryViewModelTests : SoftphoneViewModelTestBase
         Assert.False(vm.Dial.IsOutboundCall);
     }
 
+    private static int Originates(StubHttpHandler stub) => stub.Requests
+        .Count(r => r.RequestUri!.AbsolutePath.Contains("originate", StringComparison.Ordinal));
+
     /// <summary>통화 중에는 발신 자체가 열려 있지 않다. 목록에서 걸어도 마찬가지여야 한다.</summary>
     [Fact]
     public async Task Calling_from_the_list_is_refused_while_already_on_a_call()
@@ -177,14 +180,18 @@ public class AgentDirectoryViewModelTests : SoftphoneViewModelTestBase
         vm.Directory.OpenCommand.Execute(null);
         await vm.PendingWork;
 
+        // 통화가 붙으면 그 자리에서 대기 목록을 다시 훑는다. 답을 미리 넣어 둔다.
+        stub.Enqueue(HttpStatusCode.OK, """{"success":true,"data":[],"error":null}""");
         store.Apply(new KAster.Desktop.Core.Contracts.CallCreatedEvent(
             Call(KAster.Desktop.Core.Contracts.SessionStatus.Talking, _now)));
-        var before = stub.Requests.Count;
+
+        // 그 조회는 발신이 아니므로 세지 않는다.
+        var before = Originates(stub);
 
         vm.Directory.CallCommand.Execute("1002");
         await vm.PendingWork;
 
-        Assert.Equal(before, stub.Requests.Count);
+        Assert.Equal(before, Originates(stub));
     }
 
     private async Task<(KAster.Desktop.App.ViewModels.SoftphoneViewModel Vm,

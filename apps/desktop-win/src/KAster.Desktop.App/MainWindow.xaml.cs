@@ -318,6 +318,9 @@ public partial class MainWindow : Window
         softphone.Dial.SelfAnswerFailed += (_, ex) => App.LogError(ex);
         softphone.Diagnostic += (_, message) => App.Log(message);
         softphone.AttentionRequested += (_, alert) => RaiseAttention(alert);
+
+        // 알려 둔 전화가 남에게 갔거나 끝났다. 알림 센터에 지난 전화를 남겨 두지 않는다.
+        softphone.AttentionDismissed += (_, _) => _tray.DismissBalloon();
         runtime.NonCallEvent += (_, evt) => softphone.Apply(evt);
         softphone.SignOutRequested += async (_, _) => await SignOutAsync();
 
