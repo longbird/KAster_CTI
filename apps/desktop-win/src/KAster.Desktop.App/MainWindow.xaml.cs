@@ -133,12 +133,14 @@ public partial class MainWindow : Window
             _trayArt.Invalidate();
             _tray.Show(CurrentTrayState());
 
-            // 실제로 얹힌 색을 함께 남긴다. "화면이 이상하다" 는 신고에서 사전이 제대로
-            // 갈렸는지를 이 한 줄로 가른다 — 색을 못 찾으면 창은 예외 없이 그냥 검게 뜬다.
-            App.Log($"테마 {palette} · 배경 {ResolvedColour("BrushBackground")}"
-                + $" · 글자 {ResolvedColour("BrushText")}");
+            LogTheme(palette);
         };
+
         _theme.Apply(_general.Load().Sane().Theme);
+
+        // 시작할 때도 한 줄 남긴다. 저장된 테마가 App.xaml 의 기본과 같으면 위 이벤트가
+        // 안 오는데, 그때도 "지금 무슨 테마인지" 는 신고를 가르는 데 필요하다.
+        LogTheme(_theme.Current);
 
         // 웹앱이 "이 PC 에 앱이 떠 있는가" 를 여기로 확인한다. 못 열어도 앱은 그대로 돈다 —
         // 웹에서 넘기는 길만 막히고 직접 로그인과 통화는 영향이 없다.
@@ -435,6 +437,14 @@ public partial class MainWindow : Window
         if (mode == WindowMode.Ringing) StartRinging();
         else _ring.Stop();
     }
+
+    /// <summary>
+    /// 실제로 얹힌 색을 남긴다. "화면이 이상하다" 는 신고에서 사전이 제대로 갈렸는지를
+    /// 이 한 줄로 가른다 — 색을 못 찾으면 창은 예외 없이 그냥 검게 뜬다.
+    /// </summary>
+    private static void LogTheme(ThemePalette palette)
+        => App.Log($"테마 {palette} · 배경 {ResolvedColour("BrushBackground")}"
+            + $" · 글자 {ResolvedColour("BrushText")}");
 
     /// <summary>지금 얹힌 색. 못 찾으면 그렇다고 적는다 — 그 자리가 검게 뜨는 이유다.</summary>
     private static string ResolvedColour(string token)
