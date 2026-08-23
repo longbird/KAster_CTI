@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export class TestOutboundRuleDto {
   @ApiProperty({ example: '01012345678' })
@@ -9,6 +10,6 @@ export class TestOutboundRuleDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   branchId?: string;
 }

@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, ServiceUnavailableException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 function runFilter(exception: unknown) {
@@ -65,5 +66,35 @@ describe('AllExceptionsFilter 구조화된 에러 코드', () => {
 
     expect(body.error.statusCode).toBeUndefined();
     expect(body.error.code).toBe('X');
+  });
+});
+
+/**
+ * 잘못된 요청을 500 으로 돌려주면 두 가지가 함께 망가진다. 모니터링이 장애로 잡아 알람을
+ * 울리고, 로그에 스택이 쌓여 진짜 장애가 묻힌다. 사용자가 주소창에 오타를 냈을 뿐인데.
+ *
+ * Prisma 원문에는 테이블·컬럼 이름이 들어 있어 그대로 내보내지 않는다.
+ */
+describe('AllExceptionsFilter 잘못된 입력', () => {
+  const prismaError = (code: string, message: string) =>
+    new Prisma.PrismaClientKnownRequestError(message, { code, clientVersion: '5.22.0' });
+
+  it('형식이 맞지 않는 ID(P2023)는 400 이다', () => {
+    const { status, body } = runFilter(
+      prismaError('P2023', 'Inconsistent column data: Error creating UUID, invalid character'),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(body.error.code).toBe('BAD_REQUEST');
+    expect(body.error.message).not.toContain('column');
+  });
+
+  it('컬럼 길이를 넘긴 값(P2000)도 400 이다', () => {
+    const { status, body } = runFilter(
+      prismaError('P2000', "The provided value for the column is too long for the column's type"),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(body.error.message).not.toContain('column');
   });
 });

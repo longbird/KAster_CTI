@@ -6,13 +6,13 @@ import {
   IsIn,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   Matches,
   MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 import { Type } from 'class-transformer';
 
 const FORWARD_TYPES = ['EXTENSION', 'QUEUE', 'EXTERNAL_NUMBER'] as const;
@@ -42,7 +42,7 @@ class ForwardingScheduleDto {
 }
 
 export class CreateForwardingRuleDto {
-  @IsUUID()
+  @IsUuidFormat()
   didId: string;
 
   @IsIn(FORWARD_TYPES)

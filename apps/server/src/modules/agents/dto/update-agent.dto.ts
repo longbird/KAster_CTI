@@ -4,9 +4,9 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 const ROLES = ['agent', 'supervisor', 'admin'] as const;
 const EXTENSION_LOCK_MODES = ['UNLOCKED', 'OUTBOUND_LOCKED', 'FULL_LOCKED'] as const;
@@ -46,11 +46,11 @@ export class UpdateAgentDto {
   role?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   defaultQueueId?: string | null;
 
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   agentGroupId?: string | null;
 
   @IsOptional()

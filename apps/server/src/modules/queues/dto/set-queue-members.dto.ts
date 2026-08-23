@@ -2,14 +2,14 @@ import {
   IsArray,
   IsInt,
   IsOptional,
-  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 import { Type } from 'class-transformer';
 
 export class QueueMemberItemDto {
-  @IsUUID()
+  @IsUuidFormat()
   agentId: string;
 
   @IsOptional()

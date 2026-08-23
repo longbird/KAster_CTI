@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString, Matches, MaxLength, ValidateNested } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 const MATCH_TYPES = ['EXACT', 'PREFIX'] as const;
 
@@ -19,7 +20,7 @@ export class CreateBlocklistEntryDto {
   description?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   branchId?: string;
 
   @IsOptional()

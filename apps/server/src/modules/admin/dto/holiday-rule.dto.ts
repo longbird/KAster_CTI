@@ -1,10 +1,11 @@
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 const HOLIDAY_RULE_TYPES = ['DATE', 'ANNUAL', 'WORKDAY_OVERRIDE'] as const;
 
 export class CreateHolidayRuleDto {
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   branchId?: string | null;
 
   @IsString()

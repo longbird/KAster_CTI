@@ -7,16 +7,16 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export class AgentBranchCallerIdEntryDto {
   @ApiProperty()
-  @IsUUID()
+  @IsUuidFormat()
   agentId!: string;
 
   @ApiProperty({ example: '02-1234-5678' })

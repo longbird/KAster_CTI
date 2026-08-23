@@ -4,11 +4,11 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 const ROLES = ['agent', 'supervisor', 'admin'] as const;
 const EXTENSION_LOCK_MODES = ['UNLOCKED', 'OUTBOUND_LOCKED', 'FULL_LOCKED'] as const;
@@ -54,11 +54,11 @@ export class CreateAgentDto {
   role?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   defaultQueueId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   agentGroupId?: string;
 
   @IsOptional()

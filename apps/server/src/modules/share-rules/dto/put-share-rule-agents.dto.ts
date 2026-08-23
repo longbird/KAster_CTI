@@ -4,13 +4,13 @@ import {
   IsArray,
   IsInt,
   IsOptional,
-  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export class ShareRuleAgentEntryDto {
-  @IsUUID()
+  @IsUuidFormat()
   agentId!: string;
 
   @IsOptional()
@@ -20,7 +20,7 @@ export class ShareRuleAgentEntryDto {
 }
 
 export class ShareRuleAgentGroupEntryDto {
-  @IsUUID()
+  @IsUuidFormat()
   agentGroupId!: string;
 
   @IsOptional()

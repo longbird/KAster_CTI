@@ -10,6 +10,14 @@ import { Prisma } from '@prisma/client';
 
 // conv 26/36 의 글로벌 예외 필터. 모든 실패 응답을 { success:false, data:null, error }
 // 공통 envelope 으로 래핑해 프론트가 항상 같은 형태를 파싱하도록 한다.
+/**
+ * 호출자가 보낸 값이 잘못돼서 나는 Prisma 에러. 서버 장애가 아니므로 400 이다.
+ *
+ * - `P2023` 형식이 맞지 않는 값 (UUID 자리에 아무 문자열)
+ * - `P2000` 컬럼 길이를 넘긴 값
+ */
+const INVALID_INPUT_PRISMA_CODES = new Set(['P2000', 'P2023']);
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -52,6 +60,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         status = HttpStatus.NOT_FOUND;
         code = 'NOT_FOUND';
         message = 'Record not found';
+      } else if (INVALID_INPUT_PRISMA_CODES.has(exception.code)) {
+        // 서버가 고장 난 것이 아니라 요청이 잘못된 것이다. 500 으로 돌려주면 모니터링이
+        // 장애로 잡아 알람을 울리고, 로그에 스택이 쌓여 진짜 장애가 묻힌다.
+        // Prisma 원문에는 테이블·컬럼 이름이 들어 있으므로 그대로 내보내지 않는다.
+        status = HttpStatus.BAD_REQUEST;
+        code = 'BAD_REQUEST';
+        message = '요청 값의 형식이 올바르지 않습니다.';
       } else {
         code = `PRISMA_${exception.code}`;
         message = exception.message;

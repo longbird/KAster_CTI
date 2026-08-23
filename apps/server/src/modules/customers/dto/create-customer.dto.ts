@@ -1,4 +1,5 @@
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export class CreateCustomerDto {
   @IsString()
@@ -16,7 +17,7 @@ export class CreateCustomerDto {
   memo?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   shareRuleId?: string | null;
 
   @IsOptional()

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export class CreateBranchDto {
   @ApiProperty({ example: 'seoul' })
@@ -23,7 +24,7 @@ export class CreateBranchDto {
     description: 'VIP 고객 통화 시 사용할 멘트 (AsteriskPrompt FK). BlueSky Jisa.m_nMentVipCD 등가.',
   })
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   vipPromptId?: string | null;
 
   @ApiProperty({
@@ -31,7 +32,7 @@ export class CreateBranchDto {
     description: '지사 기본 공유규칙 (shareRules FK). BlueSky ShareRule 매트릭스.',
   })
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   defaultShareRuleId?: string | null;
 
   @ApiProperty({ required: false, example: true })

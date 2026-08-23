@@ -4,14 +4,14 @@ import {
   IsArray,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   Matches,
   ValidateNested,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export class ShareRuleBranchEntryDto {
-  @IsUUID()
+  @IsUuidFormat()
   branchId!: string;
 
   @IsOptional()

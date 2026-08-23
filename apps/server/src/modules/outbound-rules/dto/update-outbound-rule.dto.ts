@@ -5,16 +5,16 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 import { OUTBOUND_MATCH_TYPES, OutboundMatchTypeDto } from './create-outbound-rule.dto';
 
 export class UpdateOutboundRuleDto {
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsUUID()
+  @IsUuidFormat()
   branchId?: string | null;
 
   @ApiProperty({ required: false, enum: OUTBOUND_MATCH_TYPES })

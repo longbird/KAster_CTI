@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayUnique, IsArray, IsEnum, IsUUID } from 'class-validator';
+import { ArrayUnique, IsArray, IsEnum } from 'class-validator';
+import { IsUuidFormat } from '../../../common/decorators/is-uuid-format.decorator';
 
 export const PERMISSION_COPY_CORE_SCOPES = [
   'queueMembership',
@@ -19,7 +20,7 @@ export type PermissionCopyScope = (typeof PERMISSION_COPY_SCOPES)[number];
 
 export class CopyAgentPermissionsDto {
   @ApiProperty({ description: '권한을 복제해 올 소스 상담원' })
-  @IsUUID()
+  @IsUuidFormat()
   sourceAgentId!: string;
 
   @ApiProperty({
