@@ -6,76 +6,147 @@
     <!--
         창에 스크롤을 만들지 않는다. 세로 공간은 가운데 안내 영역 한 곳만 흡수한다(Height="*").
     -->
-    <Grid Margin="16">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 머리말: 상담원과 연결 상태 -->
-        <Border Grid.Row="0" Padding="{StaticResource PadPanel}"
+        <!--
+            신원 막대. 이름은 하루에 한 번 확인하면 되는 값이라 카드가 아니라 44px 줄로 둔다 —
+            그렇게 비운 자리를 하루 종일 보는 것들(근무 상태·대기 목록)이 쓴다.
+        -->
+        <Border Grid.Row="0" Height="44" Padding="14,0"
                 Background="{DynamicResource BrushSurface}"
                 BorderBrush="{DynamicResource BrushBorder}"
-                BorderThickness="1"
-                CornerRadius="{StaticResource RadiusPanel}">
+                BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="{Binding AgentName}" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
-                    <TextBlock Style="{StaticResource TextCaption}" Margin="0,2,0,0">
-                        <Run Text="내선 " /><Run Text="{Binding Extension, Mode=OneWay}" />
-                    </TextBlock>
-                </StackPanel>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                           Text="{Binding AgentName}"
+                           Style="{StaticResource TextBody}"
+                           FontWeight="SemiBold" />
+
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
+                           Text="{Binding Extension, Mode=OneWay}"
+                           Style="{StaticResource TextCaption}" />
 
                 <!--
-                    서버 연결과 전화 등록은 서로 다른 것이다. 하나로 합치면
-                    "연결됨" 인데 전화가 한 통도 안 오는 상태를 상담원이 알 길이 없다.
-                -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <Border Padding="10,4"
-                            CornerRadius="{StaticResource RadiusChip}"
-                            HorizontalAlignment="Right"
-                            Background="{DynamicResource BrushSurfaceMuted}">
-                        <TextBlock>
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-                                    <Setter Property="Text" Value="서버 끊김" />
-                                    <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                            <Setter Property="Text" Value="서버 연결됨" />
-                                            <Setter Property="Foreground" Value="{DynamicResource BrushSuccess}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Border>
+                    서버 연결과 전화 등록은 서로 다른 것이다. 하나로 합치면 "연결됨" 인데 전화가
+                    한 통도 안 오는 상태를 상담원이 알 길이 없다.
 
-                    <Border Padding="10,4" Margin="0,4,0,0"
-                            CornerRadius="{StaticResource RadiusChip}"
-                            HorizontalAlignment="Right"
-                            Background="{DynamicResource BrushSurfaceMuted}">
-                        <TextBlock Text="{Binding DeskPhone.PhoneStatusText}"
-                                   TextWrapping="Wrap"
-                                   MaxWidth="230">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-                                    <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding DeskPhone.IsPhoneRegistered}" Value="True">
-                                            <Setter Property="Foreground" Value="{DynamicResource BrushSuccess}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Border>
+                    막대에는 점만 두고 무슨 뜻인지는 툴팁이 말한다. 44px 안에서 긴 문장은
+                    잘리는데, 잘린 문장은 없는 것보다 나쁘다.
+                -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Ellipse Width="8" Height="8" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{DynamicResource BrushDanger}" />
+                                <Setter Property="ToolTip" Value="서버 끊김" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource BrushSuccess}" />
+                                        <Setter Property="ToolTip" Value="서버 연결됨" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="서버" Style="{StaticResource TextCaption}" Margin="5,0,0,0" VerticalAlignment="Center" />
+
+                    <Border Width="1" Height="12" Margin="9,0" VerticalAlignment="Center"
+                            Background="{DynamicResource BrushBorder}" />
+
+                    <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                             ToolTip="{Binding DeskPhone.PhoneStatusText}">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{DynamicResource BrushDanger}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DeskPhone.IsPhoneRegistered}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource BrushSuccess}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="전화기" Style="{StaticResource TextCaption}" Margin="5,0,0,0"
+                               VerticalAlignment="Center"
+                               ToolTip="{Binding DeskPhone.PhoneStatusText}" />
+                </StackPanel>
+
+                <Border Grid.Column="4" Width="1" Height="16" Margin="0,0,4,0" VerticalAlignment="Center"
+                        Background="{DynamicResource BrushBorder}" />
+
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource BarIconButton}"
+                            ToolTip="상담원 목록"
+                            Command="{Binding Directory.OpenCommand}">
+                        <Path Data="{StaticResource IconAgents}"
+                              Stroke="{DynamicResource BrushTextMuted}"
+                              StrokeThickness="1.4"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round" />
+                    </Button>
+
+                    <Button Style="{StaticResource BarIconButton}"
+                            ToolTip="큐 현황"
+                            Command="{Binding Queues.OpenCommand}">
+                        <Path Data="{StaticResource IconQueue}"
+                              Stroke="{DynamicResource BrushTextMuted}"
+                              StrokeThickness="1.4"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round" />
+                    </Button>
+
+                    <!-- 안 읽은 공지는 점으로 알린다. 44px 막대에 숫자를 넣을 자리가 없다. -->
+                    <Button Style="{StaticResource BarIconButton}"
+                            ToolTip="{Binding Announcements.EntryText}"
+                            Command="{Binding Announcements.OpenCommand}">
+                        <Grid>
+                            <Path Data="{StaticResource IconBell}"
+                                  StrokeThickness="1.4"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Stroke" Value="{DynamicResource BrushTextMuted}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Announcements.HasUnread}" Value="True">
+                                                <Setter Property="Stroke" Value="{DynamicResource BrushAccent}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+
+                            <Ellipse Width="6" Height="6"
+                                     HorizontalAlignment="Right" VerticalAlignment="Top"
+                                     Margin="0,-1,-1,0"
+                                     Fill="{DynamicResource BrushDanger}">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Announcements.HasUnread}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </Grid>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
@@ -84,7 +155,7 @@
             본문: 상태 · 대기 안내 · 발신.
             가운데 안내만 남는 공간을 흡수한다(Height="*"). 위아래는 Auto 라 창을 줄여도 밀리지 않는다.
         -->
-        <Border Grid.Row="1" Margin="0,12"
+        <Border Grid.Row="1" Margin="16,12"
                 Background="{DynamicResource BrushSurface}"
                 BorderBrush="{DynamicResource BrushBorder}"
                 BorderThickness="1"
@@ -99,14 +170,31 @@
                 <!-- 근무 상태: 자리비움일 때는 큐가 전화를 배정하지 않는다 -->
                 <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <!--
+                        색 레일. 이 창에서 가장 자주 보는 한 줄이라 글자보다 먼저 읽히는 표시를 둔다 —
+                        전화를 받는 자리인지 아닌지를 눈을 옮기지 않고 안다.
+                    -->
+                    <Border Grid.Column="0" Width="3" Margin="0,0,12,0" CornerRadius="999">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAvailable}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource BrushSuccess}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource TextCaption}" Text="근무 상태" />
-                        <TextBlock Margin="0,2,0,0" FontWeight="SemiBold">
+                        <TextBlock Margin="0,1,0,0" FontWeight="SemiBold" FontSize="18">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
                                     <Setter Property="Text" Value="자리비움" />
@@ -120,52 +208,6 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                    </StackPanel>
-
-                    <!--
-                        읽기 전용 정보 화면으로 가는 길. 전부 서브 창으로 뜨므로 이 화면은 그대로 있다.
-
-                        이 자리에 두는 이유는 <b>행이 늘지 않기 때문</b>이다 — 이 행의 높이는 옆의
-                        자리비움 버튼(38)이 이미 정하고 있어, 여기에 작은 버튼을 더 놓아도 창이 안 커진다.
-                        안 읽은 공지 수도 버튼 글자 안에 넣는다. 새 줄을 만들면 창이 스크롤된다.
-                    -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="0,0,8,0">
-                        <Button Content="상담원"
-                                Padding="6,2" BorderThickness="0" Cursor="Hand"
-                                Background="Transparent"
-                                Foreground="{DynamicResource BrushTextMuted}"
-                                FontFamily="{StaticResource FontUi}"
-                                FontSize="{StaticResource FontSizeCaption}"
-                                Command="{Binding Directory.OpenCommand}" />
-
-                        <Button Content="큐 현황"
-                                Padding="6,2" BorderThickness="0" Cursor="Hand"
-                                Background="Transparent"
-                                Foreground="{DynamicResource BrushTextMuted}"
-                                FontFamily="{StaticResource FontUi}"
-                                FontSize="{StaticResource FontSizeCaption}"
-                                Command="{Binding Queues.OpenCommand}" />
-
-                        <!-- 안 읽은 공지가 있으면 글자로 그 수를 말한다. 배지를 따로 얹지 않는다. -->
-                        <Button Content="{Binding Announcements.EntryText}"
-                                Padding="6,2" BorderThickness="0" Cursor="Hand"
-                                Background="Transparent"
-                                FontFamily="{StaticResource FontUi}"
-                                FontSize="{StaticResource FontSizeCaption}"
-                                Command="{Binding Announcements.OpenCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Announcements.HasUnread}" Value="True">
-                                            <Setter Property="Foreground" Value="{DynamicResource BrushAccent}" />
-                                            <Setter Property="FontWeight" Value="SemiBold" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
                     </StackPanel>
 
                     <Button Grid.Column="2" VerticalAlignment="Center" MinWidth="96"
@@ -526,7 +568,7 @@
         </Border>
 
         <!-- 꼬리말: 알림 자리를 고정해 두면 메시지가 떠도 위 영역이 흔들리지 않는다 -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" Margin="16,0,16,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

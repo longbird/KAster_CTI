@@ -127,9 +127,16 @@ public partial class MainWindow : Window
 
         // 저장해 둔 테마를 얹는다. 색이 바뀌면 트레이가 들고 있던 그림도 옛 색이므로 버린다 —
         // 안 버리면 화면만 밝아지고 트레이만 어두운 색으로 남는다.
+        // 시작 적용을 먼저 하고 그 다음에 구독한다. 순서를 바꾸면 시작할 때도 이벤트가 와서
+        // 같은 줄이 로그에 두 번 남는다.
         _theme = new ThemeService(Application.Current.Resources);
+        _theme.Apply(_general.Load().Sane().Theme);
+        WindowTitleBar.Follow(this, _theme.Current);
+        LogTheme(_theme.Current);
+
         _theme.Changed += (_, palette) =>
         {
+            // 색이 바뀌면 트레이가 들고 있던 그림도 옛 색이므로 버린다.
             _trayArt.Invalidate();
             _tray.Show(CurrentTrayState());
 
@@ -137,13 +144,6 @@ public partial class MainWindow : Window
             _subWindows.FollowTheme(palette);
             LogTheme(palette);
         };
-
-        _theme.Apply(_general.Load().Sane().Theme);
-        WindowTitleBar.Follow(this, _theme.Current);
-
-        // 시작할 때도 한 줄 남긴다. 저장된 테마가 App.xaml 의 기본과 같으면 위 이벤트가
-        // 안 오는데, 그때도 "지금 무슨 테마인지" 는 신고를 가르는 데 필요하다.
-        LogTheme(_theme.Current);
 
         // 웹앱이 "이 PC 에 앱이 떠 있는가" 를 여기로 확인한다. 못 열어도 앱은 그대로 돈다 —
         // 웹에서 넘기는 길만 막히고 직접 로그인과 통화는 영향이 없다.
