@@ -103,7 +103,8 @@ public partial class MainWindow : Window
     private readonly RingTonePlayer _ring = new();
 
     private readonly ISettingsStore<TransferHotkeySettings> _transferHotkeys =
-        new JsonSettingsStore<TransferHotkeySettings>(AppPaths.TransferHotkeys);
+        new JsonSettingsStore<TransferHotkeySettings>(
+            AppPaths.TransferHotkeys, new TransferHotkeySettings());
 
     /// <summary>1초 타이머의 순번. 수신 중 아이콘 깜빡임의 위상이 여기서 나온다.</summary>
     private long _tick;
@@ -112,7 +113,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        _settings = new JsonSettingsStore<AppSettings>(AppPaths.Settings).Load(new AppSettings());
+        _settings = new JsonSettingsStore<AppSettings>(AppPaths.Settings, new AppSettings()).Load();
         _tokens = new TokenVault(AppPaths.TokenVault);
         _windowMode = new WindowModeService(this);
         _subWindows = new SubWindowService(this, () => _theme?.Current ?? ThemePalette.Light);
@@ -245,7 +246,7 @@ public partial class MainWindow : Window
             _hotkeys.Pressed += (_, action) => _softphone?.Invoke(action);
         }
 
-        var settings = new JsonSettingsStore<HotkeySettings>(AppPaths.Hotkeys).Load(new HotkeySettings());
+        var settings = new JsonSettingsStore<HotkeySettings>(AppPaths.Hotkeys, new HotkeySettings()).Load();
 
         if (HotkeyNotice.For(ApplyHotkeys(settings)) is { } notice)
         {
@@ -296,7 +297,8 @@ public partial class MainWindow : Window
         // 통화 동작은 현장마다 다르다. 값이 없거나 말이 안 되면 옛 상수와 같은 기본값으로 떨어진다.
         // <b>쓸 때마다 읽는다</b> — 설정에서 바꾼 값이 다시 로그인해야 먹으면 상담원은
         // 자기가 고친 값이 안 쓰이는 줄 안다.
-        var callPreferences = new JsonSettingsStore<CallPreferences>(AppPaths.CallPreferences);
+        var callPreferences = new JsonSettingsStore<CallPreferences>(
+            AppPaths.CallPreferences, new CallPreferences());
 
         // 통화 중에는 받지 않고, 알림은 상담원이 이미 보고 있는 그 한 자리에 적는다.
         // 두 closure 가 아래에서야 채워지는 _softphone 을 보지만, 불리는 시점은 언제나 그 뒤다.
@@ -493,8 +495,8 @@ public partial class MainWindow : Window
         try
         {
             var devices = new WasapiDeviceEnumerator();
-            var chosen = new JsonSettingsStore<AudioDeviceSelection>(AppPaths.AudioDevices)
-                .Load(new AudioDeviceSelection());
+            var chosen = new JsonSettingsStore<AudioDeviceSelection>(
+                AppPaths.AudioDevices, new AudioDeviceSelection()).Load();
 
             var ringRender = new AudioDeviceController(devices).Resolve(chosen).RingRender;
 
@@ -569,7 +571,7 @@ public partial class MainWindow : Window
             vm.Closed += (_, _) =>
             {
                 // 저장된 주소를 곧바로 다시 읽는다. 다음 로그인이 새 주소로 나가야 한다.
-                _settings = new JsonSettingsStore<AppSettings>(AppPaths.Settings).Load(new AppSettings());
+                _settings = new JsonSettingsStore<AppSettings>(AppPaths.Settings, new AppSettings()).Load();
 
                 _subWindows.Close(SettingsWindow.Key);
                 leave?.Invoke();

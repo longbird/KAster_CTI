@@ -16,7 +16,7 @@ public class JsonSettingsStoreTests : IDisposable
     [Fact]
     public void Returns_the_fallback_when_no_file_exists()
     {
-        var store = new JsonSettingsStore<AudioPrefs>(Path.Combine(_dir, "audio.json"));
+        var store = new JsonSettingsStore<AudioPrefs>(Path.Combine(_dir, "audio.json"), new AudioPrefs());
 
         var loaded = store.Load(new AudioPrefs());
 
@@ -26,7 +26,7 @@ public class JsonSettingsStoreTests : IDisposable
     [Fact]
     public void Round_trips_through_disk()
     {
-        var store = new JsonSettingsStore<AudioPrefs>(Path.Combine(_dir, "audio.json"));
+        var store = new JsonSettingsStore<AudioPrefs>(Path.Combine(_dir, "audio.json"), new AudioPrefs());
 
         store.Save(new AudioPrefs { InputDeviceId = "mic-1", RingVolume = 20 });
         var loaded = store.Load(new AudioPrefs());
@@ -41,7 +41,7 @@ public class JsonSettingsStoreTests : IDisposable
         var path = Path.Combine(_dir, "audio.json");
         Directory.CreateDirectory(_dir);
         File.WriteAllText(path, "{ this is not json");
-        var store = new JsonSettingsStore<AudioPrefs>(path);
+        var store = new JsonSettingsStore<AudioPrefs>(path, new AudioPrefs());
 
         var loaded = store.Load(new AudioPrefs { RingVolume = 40 });
 

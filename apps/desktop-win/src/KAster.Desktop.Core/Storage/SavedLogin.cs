@@ -46,7 +46,7 @@ public sealed class SavedLoginStore : ISavedLoginStore
 {
     private readonly JsonSettingsStore<SavedLogin> _store;
 
-    public SavedLoginStore(string path) => _store = new JsonSettingsStore<SavedLogin>(path);
+    public SavedLoginStore(string path) => _store = new JsonSettingsStore<SavedLogin>(path, new SavedLogin());
 
     public SavedLogin Load() => _store.Load(new SavedLogin());
 

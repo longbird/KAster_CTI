@@ -49,7 +49,8 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
         _settings = settings;
         _tokens = tokens;
         _deviceController = new AudioDeviceController(_devices);
-        _deviceSelection = new JsonSettingsStore<AudioDeviceSelection>(AppPaths.AudioDevices);
+        _deviceSelection = new JsonSettingsStore<AudioDeviceSelection>(
+            AppPaths.AudioDevices, new AudioDeviceSelection());
 
         // refresh 는 회전 핸들러를 거치지 않는 별도 클라이언트로 보낸다. 아니면 자기 자신을 다시 부른다.
         var plain = new HttpClient { BaseAddress = settings.BaseUri };

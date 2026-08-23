@@ -21,12 +21,11 @@ public sealed class JsonSettingsStore<T> : ISettingsStore<T>
     private readonly string _path;
     private readonly object _gate = new();
     /// <summary>
-    /// <see cref="ISettingsStore{T}"/> 로 읽을 때 쓸 기본값. 파일이 없거나 깨졌을 때 돌려준다.
-    /// 이 생성자를 안 쓰면 <see cref="Load(T)"/> 로 그때그때 넘겨야 한다.
+    /// 파일이 없거나 깨졌을 때 돌려줄 값. <b>반드시 받는다</b> — 기본값 없이 만들 수 있게 두었더니
+    /// <see cref="ISettingsStore{T}"/> 로 읽는 자리에서 터졌고, 그 자리가 설정 화면이라 상담원에게는
+    /// "눌러도 아무 일이 없다" 로만 보였다 (2026-08-23).
     /// </summary>
-    private readonly T? _fallback;
-
-    public JsonSettingsStore(string path) => _path = path;
+    private readonly T _fallback;
 
     public JsonSettingsStore(string path, T fallback)
     {
@@ -34,10 +33,8 @@ public sealed class JsonSettingsStore<T> : ISettingsStore<T>
         _fallback = fallback;
     }
 
-    T ISettingsStore<T>.Load()
-        => _fallback is null
-            ? throw new InvalidOperationException("기본값 없이 만든 저장소는 Load(fallback) 으로 읽어야 한다")
-            : Load(_fallback);
+    /// <summary>생성자에 준 기본값으로 읽는다.</summary>
+    public T Load() => Load(_fallback);
 
     void ISettingsStore<T>.Save(T value) => Save(value);
 
