@@ -9,7 +9,7 @@
 
 | 경로 | 담는 것 | 문서 수 | 세부 목록 |
 |---|---|---:|---|
-| [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 34 | [`design/_index.md`](design/_index.md) |
+| [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 36 | [`design/_index.md`](design/_index.md) |
 | [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 51 | [`plans/_index.md`](plans/_index.md) |
 | [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 15 | [`operations/_index.md`](operations/_index.md) |
 | [`qa/`](qa/) | 검증 결과·smoke report·증적 | 53 | [`qa/_index.md`](qa/_index.md) |
@@ -29,6 +29,7 @@
 | CTI 이벤트 계약 | [`design/cti-event-contract.md`](design/cti-event-contract.md) |
 | 외부 CTI 연동 API | [`design/2026-08-07-external-cti-api-guide.md`](design/2026-08-07-external-cti-api-guide.md) |
 | C# 데스크톱 클라이언트 설계 | [`design/2026-08-20-csharp-desktop-client-design.md`](design/2026-08-20-csharp-desktop-client-design.md) |
+| C# 데스크톱 클라이언트 연동 규격 (API·이벤트) | [`design/2026-08-23-desktop-client-integration-spec.md`](design/2026-08-23-desktop-client-integration-spec.md) |
 | C# 데스크톱 클라이언트 1단계 계획 | [`plans/2026-08-20-csharp-desktop-client-phase1-plan.md`](plans/2026-08-20-csharp-desktop-client-phase1-plan.md) |
 | 현재 진행 계획 | [`plans/project-integrated-plan.md`](plans/project-integrated-plan.md) · [`plans/project-next-tasks.md`](plans/project-next-tasks.md) |
 | 운영 배포 | [`operations/production-deployment-standard.md`](operations/production-deployment-standard.md) · [`operations/deployment-runbook.md`](operations/deployment-runbook.md) |
