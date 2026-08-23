@@ -83,6 +83,16 @@ public partial class MainWindow : Window
     /// 통화 중 1~9 에 걸어 둔 전환 대상. 창이 읽으므로 창이 들고 있다 —
     /// 설정 화면에서 고치면 다음에 창이 다시 읽는다.
     /// </summary>
+    /// <summary>앱 전반의 동작. 창 모양과 소리를 정하므로 창이 들고 있다.</summary>
+    private readonly ISettingsStore<GeneralPreferences> _general =
+        new JsonSettingsStore<GeneralPreferences>(AppPaths.General, new GeneralPreferences());
+
+    /// <summary>
+    /// 전화가 왔을 때 울린다. 지금까지 이 앱은 소리를 내지 않아, 다른 창을 보고 있으면
+    /// 전화가 온 것을 몰랐다.
+    /// </summary>
+    private readonly RingTonePlayer _ring = new();
+
     private readonly ISettingsStore<TransferHotkeySettings> _transferHotkeys =
         new JsonSettingsStore<TransferHotkeySettings>(AppPaths.TransferHotkeys);
 
@@ -106,6 +116,8 @@ public partial class MainWindow : Window
         // 웹에서 넘기는 길만 막히고 직접 로그인과 통화는 영향이 없다.
         _bridge = new DesktopBridgeServer(_handoffs, note: App.Log);
         _bridge.Start();
+
+        Topmost = _general.Load().Sane().AlwaysOnTop;
 
         _timer.Tick += (_, _) =>
         {
@@ -140,6 +152,7 @@ public partial class MainWindow : Window
         {
             await ShutdownAsync();
             _hotkeys?.Dispose();
+            _ring.Dispose();
             _bridge.Dispose();
             _tray.Dispose();
         };
@@ -376,6 +389,52 @@ public partial class MainWindow : Window
         };
 
         _windowMode.Request(mode);
+
+        // 창 모양과 벨은 같은 사실("전화가 와 있다")에서 나온다. 두 곳에서 따로 정하면 어긋난다.
+        if (mode == WindowMode.Ringing) StartRinging();
+        else _ring.Stop();
+    }
+
+    /// <summary>
+    /// 벨소리 장치는 설정 · 오디오 탭에서 고른 것을 따른다. 안 골랐으면 통화 출력으로 나간다 —
+    /// 그 판정은 <see cref="AudioDeviceController"/> 가 이미 갖고 있다.
+    /// </summary>
+    private void StartRinging()
+    {
+        var preset = _general.Load().Sane().RingTone;
+        if (preset == RingTonePreset.Silent) return;
+
+        try
+        {
+            var devices = new WasapiDeviceEnumerator();
+            var chosen = new JsonSettingsStore<AudioDeviceSelection>(AppPaths.AudioDevices)
+                .Load(new AudioDeviceSelection());
+
+            var ringRender = new AudioDeviceController(devices).Resolve(chosen).RingRender;
+
+            _ring.Start(
+                ringRender is null ? null : devices.Open(ringRender.Id),
+                RingTonePattern.For(preset));
+        }
+        catch (Exception ex)
+        {
+            // 벨이 안 울려도 전화는 받아야 한다.
+            App.Log($"벨소리를 울리지 못했다: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 저장된 일반 설정을 실제로 반영한다. 시작 프로그램 등록은 정책으로 막힐 수 있으므로
+    /// 실패 사유를 돌려주고 화면이 그 자리에서 알린다.
+    /// </summary>
+    private string? ApplyGeneral(GeneralPreferences preferences)
+    {
+        Topmost = preferences.AlwaysOnTop;
+
+        return AutoStartRegistration.Apply(
+            preferences.AutoStart,
+            AppRelease.ExecutablePath,
+            Environment.GetEnvironmentVariable(AppPaths.ProfileVariable));
     }
 
     /// <summary>
@@ -408,6 +467,8 @@ public partial class MainWindow : Window
                     : null,
                 new JsonSettingsStore<CallPreferences>(AppPaths.CallPreferences, new CallPreferences()),
                 signedIn ? _transferHotkeys : null,
+                _general,
+                ApplyGeneral,
                 signedIn ? ApplyHotkeys : null,
                 _update,
                 ProtocolRegistration.IsRegistered(AppRelease.ExecutablePath),

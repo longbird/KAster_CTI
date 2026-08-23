@@ -29,10 +29,13 @@ public class SettingsHotkeyAndCallTests
             new MemoryStore<AudioDeviceSelection>(new AudioDeviceSelection()),
             Devices(),
             useSoftphone: true,
-            hotkeys ?? new MemoryStore<HotkeySettings>(new HotkeySettings()),
-            calls ?? new MemoryStore<CallPreferences>(new CallPreferences()),
-            transferHotkeys ?? new MemoryStore<TransferHotkeySettings>(new TransferHotkeySettings()),
-            apply ?? (_ => Array.Empty<string>()));
+            // 이름을 붙여 넘긴다. 자리로 넘기면 뒤에 매개변수가 하나 늘 때마다 여기가 깨진다.
+            hotkeys: hotkeys ?? new MemoryStore<HotkeySettings>(new HotkeySettings()),
+            callPreferences: calls ?? new MemoryStore<CallPreferences>(new CallPreferences()),
+            transferHotkeys: transferHotkeys
+                ?? new MemoryStore<TransferHotkeySettings>(new TransferHotkeySettings()),
+            general: new MemoryStore<GeneralPreferences>(new GeneralPreferences()),
+            applyHotkeys: apply ?? (_ => Array.Empty<string>()));
 
     [Fact]
     public void The_combinations_in_use_are_what_the_screen_opens_with()

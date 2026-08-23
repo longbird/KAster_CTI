@@ -296,6 +296,53 @@
             </TabItem>
 
             <!-- 앱: 버전 · 업데이트 · 문제 기록 -->
+            <!-- 일반 -->
+            <TabItem Header="일반">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource TabHeader}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowsGeneral}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
+
+                <Border Padding="{StaticResource PadPanel}"
+                        Background="{StaticResource BrushSurface}"
+                        BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusPanel}">
+                    <StackPanel>
+                        <CheckBox Content="윈도우에 로그인하면 함께 시작" IsChecked="{Binding AutoStart}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="자리를 나눠 쓰는 PC 라면 자리마다 따로 등록됩니다." />
+
+                        <CheckBox Content="다른 창 위에 늘 보이기"
+                                  IsChecked="{Binding AlwaysOnTop}"
+                                  Margin="0,14,0,0" />
+
+                        <TextBlock Text="벨소리" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <ComboBox ItemsSource="{Binding RingTones}"
+                                  SelectedItem="{Binding RingTone}"
+                                  Padding="{StaticResource PadControl}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="전화가 오면 이 소리로 울립니다. 나가는 장치는 오디오 탭의 벨소리 스피커를 따릅니다. 무음으로 두면 화면과 트레이 알림만 남습니다." />
+
+                        <TextBlock Text="{Binding GeneralNotice}"
+                                   Style="{StaticResource TextCaption}"
+                                   Foreground="{StaticResource BrushWarning}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
             <TabItem Header="앱" Style="{StaticResource TabHeader}">
                 <Border Padding="{StaticResource PadPanel}"
                         Background="{StaticResource BrushSurface}"

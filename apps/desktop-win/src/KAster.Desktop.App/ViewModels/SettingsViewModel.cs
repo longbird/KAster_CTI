@@ -31,6 +31,8 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly ISettingsStore<AudioDeviceSelection> _devices;
     private readonly ISettingsStore<HotkeySettings>? _hotkeys;
     private readonly ISettingsStore<CallPreferences>? _callPreferences;
+    private readonly ISettingsStore<GeneralPreferences>? _general;
+    private readonly Func<GeneralPreferences, string?>? _applyGeneral;
     private readonly Func<HotkeySettings, IReadOnlyList<string>>? _applyHotkeys;
     private readonly Func<string?>? _repairProtocol;
     private readonly string _originalUrl;
@@ -51,6 +53,11 @@ public sealed class SettingsViewModel : ObservableObject
     private string _pbxWaitSeconds = string.Empty;
     private string? _callSettingsError;
 
+    private bool _autoStart;
+    private bool _alwaysOnTop;
+    private RingTonePreset _ringTone = RingTonePreset.Classic;
+    private string? _generalNotice;
+
     private string _protocolStatusText = string.Empty;
 
     /// <param name="applyHotkeys">
@@ -67,6 +74,8 @@ public sealed class SettingsViewModel : ObservableObject
         ISettingsStore<HotkeySettings>? hotkeys = null,
         ISettingsStore<CallPreferences>? callPreferences = null,
         ISettingsStore<TransferHotkeySettings>? transferHotkeys = null,
+        ISettingsStore<GeneralPreferences>? general = null,
+        Func<GeneralPreferences, string?>? applyGeneral = null,
         Func<HotkeySettings, IReadOnlyList<string>>? applyHotkeys = null,
         UpdateViewModel? update = null,
         bool protocolRegistered = true,
@@ -77,6 +86,16 @@ public sealed class SettingsViewModel : ObservableObject
         _hotkeys = hotkeys;
         _callPreferences = callPreferences;
         TransferHotkeys = transferHotkeys is null ? null : new TransferHotkeyEditorViewModel(transferHotkeys);
+        _general = general;
+        _applyGeneral = applyGeneral;
+
+        if (general is not null)
+        {
+            var app = general.Load().Sane();
+            _autoStart = app.AutoStart;
+            _alwaysOnTop = app.AlwaysOnTop;
+            _ringTone = app.RingTone;
+        }
         _applyHotkeys = applyHotkeys;
         _repairProtocol = repairProtocol;
         Update = update;
@@ -154,6 +173,40 @@ public sealed class SettingsViewModel : ObservableObject
     public TransferHotkeyEditorViewModel? TransferHotkeys { get; }
 
     public bool ShowsTransferHotkeys => TransferHotkeys is not null;
+
+    public bool ShowsGeneral => _general is not null;
+
+    /// <summary>윈도우에 로그인하면 이 앱도 함께 뜬다.</summary>
+    public bool AutoStart
+    {
+        get => _autoStart;
+        set { if (Set(ref _autoStart, value)) GeneralNotice = null; }
+    }
+
+    /// <summary>다른 창 위에 늘 보이게 둔다. 저장을 누르기 전에 미리 보여 준다.</summary>
+    public bool AlwaysOnTop
+    {
+        get => _alwaysOnTop;
+        set { if (Set(ref _alwaysOnTop, value)) GeneralNotice = null; }
+    }
+
+    public IReadOnlyList<RingTonePreset> RingTones { get; } = new[]
+    {
+        RingTonePreset.Classic, RingTonePreset.Soft, RingTonePreset.Urgent, RingTonePreset.Silent,
+    };
+
+    public RingTonePreset RingTone
+    {
+        get => _ringTone;
+        set { if (Set(ref _ringTone, value)) GeneralNotice = null; }
+    }
+
+    /// <summary>시작 프로그램 등록처럼 <b>막힐 수 있는</b> 것의 결과. 없으면 null 이라 화면에서 접힌다.</summary>
+    public string? GeneralNotice
+    {
+        get => _generalNotice;
+        private set => Set(ref _generalNotice, value);
+    }
 
     public bool ShowsCallPreferences => _callPreferences is not null;
 
@@ -284,6 +337,22 @@ public sealed class SettingsViewModel : ObservableObject
         // 아무 데도 안 걸리고, 상담원은 키가 고장 난 줄 안다.
         TransferHotkeys?.Save();
         if (TransferHotkeys?.Error is not null) return;
+
+        if (_general is not null)
+        {
+            var app = new GeneralPreferences
+            {
+                AutoStart = _autoStart,
+                AlwaysOnTop = _alwaysOnTop,
+                RingTone = _ringTone,
+            }.Sane();
+
+            _general.Save(app);
+
+            // 정책으로 막힌 PC 가 있다. 안 된 것을 안 알리면 상담원은 되는 줄 알고 껐다 켠다.
+            GeneralNotice = _applyGeneral?.Invoke(app);
+            if (GeneralNotice is not null) return;
+        }
 
         // 등록이 거부돼도 적은 것은 저장한다. 안 그러면 고치려고 처음부터 다시 타야 한다.
         var combos = ReadHotkeys();
