@@ -69,6 +69,14 @@ public partial class MainWindow : Window
     /// </summary>
     private GlobalHotkeyService? _hotkeys;
 
+    /// <summary>
+    /// 웹에서 넘긴 세션이 이 자리에서 어떻게 됐는지. 웹앱이 브리지로 되물어 본다 —
+    /// 적어 두지 않으면 웹 화면은 연결에 성공했는데도 실패로 알린다.
+    /// </summary>
+    private readonly HandoffStatusBoard _handoffs = new();
+
+    private readonly DesktopBridgeServer _bridge;
+
     /// <summary>1초 타이머의 순번. 수신 중 아이콘 깜빡임의 위상이 여기서 나온다.</summary>
     private long _tick;
 
@@ -84,6 +92,11 @@ public partial class MainWindow : Window
         // 트레이에서 창을 부르는 것은 상담원이 스스로 누른 경로다. 종료는 창을 닫는 것과 같은 길을 쓴다 —
         // 여기서만 따로 정리하면 어느 한쪽에 빠진 것이 생긴다.
         _tray = new TrayIconService(new TrayIconArt(), () => WindowAttention.Restore(this), Close);
+
+        // 웹앱이 "이 PC 에 앱이 떠 있는가" 를 여기로 확인한다. 못 열어도 앱은 그대로 돈다 —
+        // 웹에서 넘기는 길만 막히고 직접 로그인과 통화는 영향이 없다.
+        _bridge = new DesktopBridgeServer(_handoffs, note: App.Log);
+        _bridge.Start();
 
         _timer.Tick += (_, _) =>
         {
@@ -118,6 +131,7 @@ public partial class MainWindow : Window
         {
             await ShutdownAsync();
             _hotkeys?.Dispose();
+            _bridge.Dispose();
             _tray.Dispose();
         };
     }
@@ -443,9 +457,14 @@ public partial class MainWindow : Window
 
         App.Log($"웹 로그인 요청 판정: {decision.Verdict}");
 
+        // 웹 화면이 이 결말을 기다리고 있다. 안 적으면 그쪽은 16번 물어본 끝에
+        // "자동 연결을 완료하지 못했습니다" 를 띄운다 — 여기서 무슨 일이 났든.
+        _handoffs.Mark(request.HandoffToken, HandoffStatus.Pending);
+
         switch (decision.Verdict)
         {
             case HandoffVerdict.Refuse:
+                _handoffs.Mark(request.HandoffToken, HandoffStatus.Failed(decision.Message));
                 Tell(decision.Message);
                 return;
 
@@ -453,6 +472,9 @@ public partial class MainWindow : Window
             case HandoffVerdict.AskToSwitch when MessageBox.Show(
                     this, decision.Message, "웹에서 온 로그인", MessageBoxButton.YesNo, MessageBoxImage.Question)
                 != MessageBoxResult.Yes:
+                _handoffs.Mark(
+                    request.HandoffToken,
+                    HandoffStatus.Failed("이 자리에서 계정 전환을 취소했습니다."));
                 return;
         }
 
@@ -475,7 +497,9 @@ public partial class MainWindow : Window
             App.LogError(ex);
 
             // 없음·만료·이미 씀·비활성이 서버에서 전부 같은 401 이다. 가를 근거가 없으므로 가르지 않는다.
-            Tell("웹에서 넘어온 로그인이 만료됐거나 이미 쓰였습니다. 웹에서 다시 눌러 주세요.");
+            const string expired = "웹에서 넘어온 로그인이 만료됐거나 이미 쓰였습니다. 웹에서 다시 눌러 주세요.";
+            _handoffs.Mark(request.HandoffToken, HandoffStatus.Failed(expired));
+            Tell(expired);
             return;
         }
 
@@ -506,6 +530,9 @@ public partial class MainWindow : Window
                 exchanged.Tokens,
                 new SessionSummary { Agent = exchanged.Agent, SoftphoneConfig = softphone }),
             useSoftphone);
+
+        // 자리에 앉았다. 이걸 적어야 웹 화면이 기다림을 끝낸다.
+        _handoffs.Mark(request.HandoffToken, HandoffStatus.Connected);
     }
 
     /// <summary>
