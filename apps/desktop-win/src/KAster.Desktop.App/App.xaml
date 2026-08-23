@@ -4,7 +4,14 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
+            <!--
+                색 사전이 <b>맨 앞</b>이다. ThemeService 가 이 자리(0번)를 통째로 갈아 끼워
+                테마를 바꾼다. 순서가 바뀌면 엉뚱한 사전을 갈아 끼운다.
+
+                여기 적힌 것은 시작 기본값일 뿐이고, 창이 뜨면서 설정에 저장된 테마로 바꾼다.
+            -->
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Palette.Light.xaml" />
                 <ResourceDictionary Source="Themes/Tokens.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

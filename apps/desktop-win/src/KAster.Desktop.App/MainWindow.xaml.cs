@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using KAster.Desktop.App.Services;
@@ -79,6 +80,11 @@ public partial class MainWindow : Window
 
     private readonly DesktopBridgeServer _bridge;
 
+    /// <summary>트레이 그림. 테마가 바뀌면 캐시를 버려야 해서 창이 들고 있다.</summary>
+    private readonly TrayIconArt _trayArt;
+
+    private readonly ThemeService _theme;
+
     /// <summary>트레이의 "종료" 로 끄는 중인가. 닫기를 트레이로 내리는 설정을 건너뛰는 표시다.</summary>
     private bool _quitting;
 
@@ -116,7 +122,23 @@ public partial class MainWindow : Window
         //
         // 트레이의 "종료" 는 <b>진짜 종료</b>여야 한다. 닫기를 트레이로 내리게 해 두면
         // 그 길로도 안 꺼져서 앱을 끌 방법이 사라진다.
-        _tray = new TrayIconService(new TrayIconArt(), ComeBack, () => { _quitting = true; Close(); });
+        _trayArt = new TrayIconArt();
+        _tray = new TrayIconService(_trayArt, ComeBack, () => { _quitting = true; Close(); });
+
+        // 저장해 둔 테마를 얹는다. 색이 바뀌면 트레이가 들고 있던 그림도 옛 색이므로 버린다 —
+        // 안 버리면 화면만 밝아지고 트레이만 어두운 색으로 남는다.
+        _theme = new ThemeService(Application.Current.Resources);
+        _theme.Changed += (_, palette) =>
+        {
+            _trayArt.Invalidate();
+            _tray.Show(CurrentTrayState());
+
+            // 실제로 얹힌 색을 함께 남긴다. "화면이 이상하다" 는 신고에서 사전이 제대로
+            // 갈렸는지를 이 한 줄로 가른다 — 색을 못 찾으면 창은 예외 없이 그냥 검게 뜬다.
+            App.Log($"테마 {palette} · 배경 {ResolvedColour("BrushBackground")}"
+                + $" · 글자 {ResolvedColour("BrushText")}");
+        };
+        _theme.Apply(_general.Load().Sane().Theme);
 
         // 웹앱이 "이 PC 에 앱이 떠 있는가" 를 여기로 확인한다. 못 열어도 앱은 그대로 돈다 —
         // 웹에서 넘기는 길만 막히고 직접 로그인과 통화는 영향이 없다.
@@ -414,6 +436,12 @@ public partial class MainWindow : Window
         else _ring.Stop();
     }
 
+    /// <summary>지금 얹힌 색. 못 찾으면 그렇다고 적는다 — 그 자리가 검게 뜨는 이유다.</summary>
+    private static string ResolvedColour(string token)
+        => Application.Current?.TryFindResource(token) is SolidColorBrush brush
+            ? brush.Color.ToString()
+            : "없음";
+
     /// <summary>
     /// 트레이로 내린다. <b>내려간 자리는 비어 있다</b> — 상태를 안 바꾸면 상담원이 껐다고
     /// 생각한 자리로 전화가 가고, 고객은 아무도 없는 자리에서 벨소리만 듣는다.
@@ -474,6 +502,7 @@ public partial class MainWindow : Window
     /// </summary>
     private string? ApplyGeneral(GeneralPreferences preferences)
     {
+        _theme.Apply(preferences.Theme);
         Topmost = preferences.AlwaysOnTop;
 
         // 트레이로 내리는 설정을 끄면서 창이 숨어 있으면 앱을 다시 꺼낼 길이 애매해진다.

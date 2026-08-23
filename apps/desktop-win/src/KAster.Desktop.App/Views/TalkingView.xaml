@@ -1,7 +1,7 @@
 <UserControl x:Class="KAster.Desktop.App.Views.TalkingView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{StaticResource BrushBackground}">
+             Background="{DynamicResource BrushBackground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -21,7 +21,7 @@
         <StackPanel Grid.Row="0">
             <TextBlock Text="{Binding CalledLine}"
                        Style="{StaticResource TextCaption}"
-                       Foreground="{StaticResource BrushAccent}"
+                       Foreground="{DynamicResource BrushAccent}"
                        TextTrimming="CharacterEllipsis" />
 
             <TextBlock Text="{Binding PhoneNumber}" Style="{StaticResource TextTitle}" Margin="0,2,0,0" />
@@ -54,8 +54,8 @@
         <!-- 키패드를 켜면 메모 자리를 내준다. 행을 늘리면 창이 늘어난다. -->
         <Border Grid.Row="2" Margin="0,12"
                 Padding="{StaticResource PadPanel}"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
+                Background="{DynamicResource BrushSurface}"
+                BorderBrush="{DynamicResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
             <Border.Style>
@@ -102,8 +102,8 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsMuted}" Value="True">
                                 <Setter Property="Content" Value="마이크 켜기" />
-                                <Setter Property="Background" Value="{StaticResource BrushWarning}" />
-                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
+                                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -182,8 +182,8 @@
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsOnHold}" Value="True">
-                                <Setter Property="Background" Value="{StaticResource BrushWarning}" />
-                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
+                                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -226,7 +226,7 @@
 
         <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0"
                    Text="{Binding NoticeMessage}"
-                   Foreground="{StaticResource BrushWarning}"
+                   Foreground="{DynamicResource BrushWarning}"
                    Style="{StaticResource TextCaption}" />
     </Grid>
 </UserControl>

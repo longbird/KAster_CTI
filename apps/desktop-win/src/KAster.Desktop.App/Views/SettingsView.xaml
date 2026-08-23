@@ -1,7 +1,7 @@
 <UserControl x:Class="KAster.Desktop.App.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{StaticResource BrushBackground}">
+             Background="{DynamicResource BrushBackground}">
 
     <UserControl.Resources>
         <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
@@ -9,7 +9,7 @@
         </Style>
 
         <Style x:Key="ErrorLine" TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-            <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+            <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,6,0,0" />
         </Style>
@@ -33,8 +33,8 @@
             <!-- 서버 -->
             <TabItem Header="서버" Style="{StaticResource TabHeader}">
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
@@ -53,7 +53,7 @@
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding ServerUrlChanged}" Value="True">
                                             <Setter Property="Text" Value="바뀐 주소는 다시 로그인할 때부터 쓰입니다" />
-                                            <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushWarning}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -92,8 +92,8 @@
                     </Style>
                 </TabItem.Style>
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
@@ -138,8 +138,8 @@
                     </Style>
                 </TabItem.Style>
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
@@ -169,7 +169,7 @@
                         <!-- 다른 프로그램이 먼저 잡은 조합은 눌러도 아무 일이 없다. 그 자리에서 알린다. -->
                         <TextBlock Text="{Binding HotkeyNotice}"
                                    Style="{StaticResource TextCaption}"
-                                   Foreground="{StaticResource BrushWarning}"
+                                   Foreground="{DynamicResource BrushWarning}"
                                    TextWrapping="Wrap"
                                    Margin="0,6,0,0" />
                     </StackPanel>
@@ -190,8 +190,8 @@
                 </TabItem.Style>
 
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
@@ -269,8 +269,8 @@
                     </Style>
                 </TabItem.Style>
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
@@ -330,11 +330,22 @@
                 </TabItem.Style>
 
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
+                        <TextBlock Text="색 테마" Style="{StaticResource TextCaption}" Margin="0,0,0,4" />
+                        <ComboBox ItemsSource="{Binding Themes}"
+                                  SelectedItem="{Binding Theme}"
+                                  Padding="{StaticResource PadControl}"
+                                  FontFamily="{StaticResource FontUi}"
+                                  FontSize="{StaticResource FontSizeBody}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,16"
+                                   Text="시스템을 따르면 윈도우의 밝게/어둡게 설정을 그대로 씁니다. 어두운 상담실에서는 어둡게가 눈이 덜 부십니다." />
+
                         <CheckBox Content="윈도우에 로그인하면 함께 시작" IsChecked="{Binding AutoStart}" />
                         <TextBlock Style="{StaticResource TextCaption}"
                                    TextWrapping="Wrap"
@@ -364,7 +375,7 @@
 
                         <TextBlock Text="{Binding GeneralNotice}"
                                    Style="{StaticResource TextCaption}"
-                                   Foreground="{StaticResource BrushWarning}"
+                                   Foreground="{DynamicResource BrushWarning}"
                                    TextWrapping="Wrap"
                                    Margin="0,8,0,0" />
                     </StackPanel>
@@ -373,8 +384,8 @@
 
             <TabItem Header="앱" Style="{StaticResource TabHeader}">
                 <Border Padding="{StaticResource PadPanel}"
-                        Background="{StaticResource BrushSurface}"
-                        BorderBrush="{StaticResource BrushBorder}"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusPanel}">
                     <StackPanel>
@@ -403,7 +414,7 @@
                                         <Style.Triggers>
                                             <!-- 필수 업데이트는 눈에 걸려야 한다. 그래도 앱을 끄지는 않는다. -->
                                             <DataTrigger Binding="{Binding Update.IsRequired}" Value="True">
-                                                <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
                                                 <Setter Property="FontWeight" Value="SemiBold" />
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -450,7 +461,7 @@
                                        Text="설치는 상담원이 정합니다. 받은 파일은 통화가 없을 때 실행하세요." />
 
                             <Border Height="1"
-                                    Background="{StaticResource BrushBorder}"
+                                    Background="{DynamicResource BrushBorder}"
                                     Margin="0,16,0,0" />
                         </StackPanel>
 

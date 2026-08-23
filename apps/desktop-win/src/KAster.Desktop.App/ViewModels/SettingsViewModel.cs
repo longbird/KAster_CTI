@@ -59,6 +59,7 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _autoStart;
     private bool _alwaysOnTop;
     private bool _closeToTray;
+    private AppTheme _theme = AppTheme.System;
     private RingTonePreset _ringTone = RingTonePreset.Classic;
     private string? _generalNotice;
 
@@ -99,6 +100,7 @@ public sealed class SettingsViewModel : ObservableObject
             _autoStart = app.AutoStart;
             _alwaysOnTop = app.AlwaysOnTop;
             _closeToTray = app.CloseToTray;
+            _theme = app.Theme;
             _ringTone = app.RingTone;
         }
         _applyHotkeys = applyHotkeys;
@@ -204,6 +206,18 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _closeToTray;
         set { if (Set(ref _closeToTray, value)) GeneralNotice = null; }
+    }
+
+    public IReadOnlyList<AppTheme> Themes { get; } = new[]
+    {
+        AppTheme.System, AppTheme.Light, AppTheme.Dark,
+    };
+
+    /// <summary>색 테마. 저장을 누르면 그 자리에서 바뀐다 — 껐다 켜야 보이면 고르기가 어렵다.</summary>
+    public AppTheme Theme
+    {
+        get => _theme;
+        set { if (Set(ref _theme, value)) GeneralNotice = null; }
     }
 
     public IReadOnlyList<RingTonePreset> RingTones { get; } = new[]
@@ -380,6 +394,7 @@ public sealed class SettingsViewModel : ObservableObject
                 AutoStart = _autoStart,
                 AlwaysOnTop = _alwaysOnTop,
                 CloseToTray = _closeToTray,
+                Theme = _theme,
                 RingTone = _ringTone,
             }.Sane();
 

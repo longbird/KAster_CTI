@@ -22,6 +22,12 @@ public sealed record GeneralPreferences
     public bool AlwaysOnTop { get; init; }
 
     /// <summary>
+    /// 색 테마. 기본은 윈도우를 따라간다 — 현장에 어두운 상담실과 밝은 사무실이 섞여 있고,
+    /// 어느 한쪽을 못박으면 나머지 절반이 매번 설정을 고쳐야 한다.
+    /// </summary>
+    public AppTheme Theme { get; init; } = AppTheme.System;
+
+    /// <summary>
     /// 닫기 버튼을 눌러도 끝나지 않고 트레이로 내려간다. <b>내려갈 때 자리비움으로 바뀐다.</b>
     ///
     /// 기본값은 꺼짐이다 — 지금까지 X 는 종료였고, 설정을 만들었다고 그 뜻이 조용히
@@ -35,7 +41,11 @@ public sealed record GeneralPreferences
     /// 파일을 손으로 고쳐 모르는 값이 들어와도 <b>전화가 조용히 오면 안 된다.</b>
     /// 무음은 상담원이 골랐을 때만이다.
     /// </summary>
-    public GeneralPreferences Sane() => Enum.IsDefined(RingTone)
-        ? this
-        : this with { RingTone = RingTonePreset.Classic };
+    public GeneralPreferences Sane()
+    {
+        var sane = Enum.IsDefined(RingTone) ? this : this with { RingTone = RingTonePreset.Classic };
+
+        // 모르는 테마 값이면 화면이 검은 사각형이 된다. 윈도우를 따라가는 쪽으로 접는다.
+        return Enum.IsDefined(sane.Theme) ? sane : sane with { Theme = AppTheme.System };
+    }
 }

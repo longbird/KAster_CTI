@@ -1,0 +1,42 @@
+<!--
+    어두운 테마 색 — 다크 콘솔.
+
+    상담실은 어둡고 상담원은 같은 화면을 8시간 본다. 눈부심이 줄고 상태 색이 또렷해진다.
+    설계는 docs/design/2026-08-23-desktop-dark-console-design.md 에 있다.
+
+    이 사전에는 <b>색만</b> 있다. Palette.Light.xaml 과 키가 정확히 같아야 한다 —
+    한쪽에만 있는 키는 다른 테마에서 찾지 못해 그 자리가 검은 사각형이 된다.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 바탕과 면. 면을 바탕보다 밝게 두어 카드가 떠 보이게 한다. -->
+    <SolidColorBrush x:Key="BrushBackground" Color="#12161d" />
+    <SolidColorBrush x:Key="BrushSurface" Color="#1a202a" />
+    <SolidColorBrush x:Key="BrushSurfaceMuted" Color="#161b23" />
+    <SolidColorBrush x:Key="BrushSurfaceRaised" Color="#222a35" />
+
+    <!-- 경계 -->
+    <SolidColorBrush x:Key="BrushBorder" Color="#2a3240" />
+    <SolidColorBrush x:Key="BrushBorderStrong" Color="#37414f" />
+
+    <!-- 글자 -->
+    <SolidColorBrush x:Key="BrushText" Color="#e6ecf3" />
+    <SolidColorBrush x:Key="BrushTextMuted" Color="#8896a8" />
+    <SolidColorBrush x:Key="BrushTextDim" Color="#6d7d91" />
+
+    <!--
+        강조색 위에 얹는 글자. 어두운 테마의 강조색은 밝은 파랑이라 <b>검은 글자</b>다.
+        여기에 흰색을 두면 파란 버튼의 글자가 안 읽힌다.
+    -->
+    <SolidColorBrush x:Key="BrushTextOnAccent" Color="#0d1218" />
+
+    <SolidColorBrush x:Key="BrushAccent" Color="#4ea3dd" />
+    <SolidColorBrush x:Key="BrushAccentStrong" Color="#6cb6e6" />
+
+    <!-- 상태. 어두운 바탕에서 읽히려면 밝은 테마보다 채도를 낮추고 명도를 올려야 한다. -->
+    <SolidColorBrush x:Key="BrushDanger" Color="#ff6b6b" />
+    <SolidColorBrush x:Key="BrushSuccess" Color="#35c48c" />
+    <SolidColorBrush x:Key="BrushWarning" Color="#e0a83a" />
+
+</ResourceDictionary>

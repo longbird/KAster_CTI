@@ -10,27 +10,10 @@
     <FontFamily x:Key="FontUi">Segoe UI, Malgun Gothic</FontFamily>
 
     <!-- 면 -->
-    <SolidColorBrush x:Key="BrushBackground" Color="#eef3f7" />
-    <SolidColorBrush x:Key="BrushSurface" Color="#ffffff" />
-    <SolidColorBrush x:Key="BrushSurfaceMuted" Color="#f6f8fa" />
 
     <!-- 선 -->
-    <SolidColorBrush x:Key="BrushBorder" Color="#cbd5df" />
-    <SolidColorBrush x:Key="BrushBorderStrong" Color="#9ba8b6" />
-
-    <!-- 글자 -->
-    <SolidColorBrush x:Key="BrushText" Color="#17202a" />
-    <SolidColorBrush x:Key="BrushTextMuted" Color="#64748b" />
-    <SolidColorBrush x:Key="BrushTextOnAccent" Color="#ffffff" />
 
     <!-- 주색 -->
-    <SolidColorBrush x:Key="BrushAccent" Color="#216e9f" />
-    <SolidColorBrush x:Key="BrushAccentStrong" Color="#14557d" />
-
-    <!-- 상태 -->
-    <SolidColorBrush x:Key="BrushDanger" Color="#ba2f36" />
-    <SolidColorBrush x:Key="BrushSuccess" Color="#1f7a4c" />
-    <SolidColorBrush x:Key="BrushWarning" Color="#a16207" />
 
     <!-- 반경 -->
     <CornerRadius x:Key="RadiusPanel">8</CornerRadius>
@@ -60,7 +43,7 @@
     <Style x:Key="TextBody" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushText}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
         <!-- 가변 텍스트는 한 줄 고정 + 말줄임. 줄바꿈으로 아래 요소를 밀어내면 창이 스크롤된다. -->
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         <Setter Property="TextWrapping" Value="NoWrap" />
@@ -68,7 +51,7 @@
 
     <Style x:Key="TextCaption" TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
         <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
     </Style>
 
     <Style x:Key="TextTitle" TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
@@ -79,9 +62,9 @@
     <Style x:Key="FieldInput" TargetType="TextBox">
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushText}" />
-        <Setter Property="Background" Value="{StaticResource BrushSurface}" />
-        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource PadControl}" />
         <Setter Property="Height" Value="34" />
@@ -95,7 +78,7 @@
     <Style x:Key="FieldReadOnly" TargetType="TextBox">
         <Setter Property="FontFamily" Value="Consolas, Malgun Gothic" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushText}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="0" />
@@ -106,9 +89,9 @@
     <Style x:Key="FieldPassword" TargetType="PasswordBox">
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushText}" />
-        <Setter Property="Background" Value="{StaticResource BrushSurface}" />
-        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource PadControl}" />
         <Setter Property="Height" Value="34" />
@@ -118,8 +101,8 @@
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
-        <Setter Property="Background" Value="{StaticResource BrushAccent}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
+        <Setter Property="Background" Value="{DynamicResource BrushAccent}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Height" Value="38" />
         <Setter Property="Cursor" Value="Hand" />
@@ -142,11 +125,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Face" Property="Background" Value="{StaticResource BrushAccentStrong}" />
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource BrushAccentStrong}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Face" Property="Background" Value="{StaticResource BrushBorder}" />
-                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource BrushBorder}" />
+                            <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -167,7 +150,7 @@
     <Style x:Key="TabHeader" TargetType="TabItem">
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -176,7 +159,7 @@
                             Padding="12,7"
                             Margin="0,0,2,0"
                             Background="Transparent"
-                            BorderBrush="{StaticResource BrushBorder}"
+                            BorderBrush="{DynamicResource BrushBorder}"
                             BorderThickness="0,0,0,2">
                         <ContentPresenter ContentSource="Header"
                                           HorizontalAlignment="Center"
@@ -184,11 +167,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Foreground" Value="{StaticResource BrushText}" />
+                            <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Tab" Property="BorderBrush" Value="{StaticResource BrushAccent}" />
-                            <Setter Property="Foreground" Value="{StaticResource BrushText}" />
+                            <Setter TargetName="Tab" Property="BorderBrush" Value="{DynamicResource BrushAccent}" />
+                            <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -198,12 +181,12 @@
     </Style>
 
     <Style x:Key="ButtonDanger" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
-        <Setter Property="Background" Value="{StaticResource BrushDanger}" />
+        <Setter Property="Background" Value="{DynamicResource BrushDanger}" />
     </Style>
 
     <Style x:Key="ButtonSecondary" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
-        <Setter Property="Background" Value="{StaticResource BrushSurfaceMuted}" />
-        <Setter Property="Foreground" Value="{StaticResource BrushText}" />
+        <Setter Property="Background" Value="{DynamicResource BrushSurfaceMuted}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
     </Style>
 
 </ResourceDictionary>

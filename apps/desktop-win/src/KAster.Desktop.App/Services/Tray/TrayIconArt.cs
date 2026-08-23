@@ -81,9 +81,15 @@ public sealed class TrayIconArt : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr handle);
 
-    public void Dispose()
+    /// <summary>
+    /// 그려 둔 아이콘을 버린다. 테마가 바뀌면 색 토큰이 달라지므로 캐시가 옛 색을 들고 있다 —
+    /// 안 버리면 화면만 밝아지고 트레이만 어두운 색으로 남는다.
+    /// </summary>
+    public void Invalidate()
     {
         foreach (var icon in _cache.Values) icon.Dispose();
         _cache.Clear();
     }
+
+    public void Dispose() => Invalidate();
 }

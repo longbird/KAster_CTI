@@ -1,0 +1,37 @@
+<!--
+    밝은 테마 색.
+
+    이 사전에는 <b>색만</b> 있다. 글꼴·크기·여백·스타일은 Tokens.xaml 에 있고 테마와 무관하다.
+    두 테마 사전은 키가 정확히 같아야 한다 — 한쪽에만 있는 키는 다른 테마에서 찾지 못해
+    그 자리가 검은 사각형이 된다.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 바탕과 면 -->
+    <SolidColorBrush x:Key="BrushBackground" Color="#eef3f7" />
+    <SolidColorBrush x:Key="BrushSurface" Color="#ffffff" />
+    <SolidColorBrush x:Key="BrushSurfaceMuted" Color="#f6f8fa" />
+    <SolidColorBrush x:Key="BrushSurfaceRaised" Color="#ffffff" />
+
+    <!-- 경계 -->
+    <SolidColorBrush x:Key="BrushBorder" Color="#cbd5df" />
+    <SolidColorBrush x:Key="BrushBorderStrong" Color="#9ba8b6" />
+
+    <!-- 글자 -->
+    <SolidColorBrush x:Key="BrushText" Color="#17202a" />
+    <SolidColorBrush x:Key="BrushTextMuted" Color="#64748b" />
+    <SolidColorBrush x:Key="BrushTextDim" Color="#9ba8b6" />
+
+    <!-- 강조색 위에 얹는 글자. 밝은 테마에서는 흰 글자다. -->
+    <SolidColorBrush x:Key="BrushTextOnAccent" Color="#ffffff" />
+
+    <SolidColorBrush x:Key="BrushAccent" Color="#216e9f" />
+    <SolidColorBrush x:Key="BrushAccentStrong" Color="#14557d" />
+
+    <!-- 상태 -->
+    <SolidColorBrush x:Key="BrushDanger" Color="#ba2f36" />
+    <SolidColorBrush x:Key="BrushSuccess" Color="#1f7a4c" />
+    <SolidColorBrush x:Key="BrushWarning" Color="#a16207" />
+
+</ResourceDictionary>

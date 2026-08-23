@@ -1,7 +1,7 @@
 <UserControl x:Class="KAster.Desktop.App.Views.IdleView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{StaticResource BrushBackground}">
+             Background="{DynamicResource BrushBackground}">
 
     <!--
         창에 스크롤을 만들지 않는다. 세로 공간은 가운데 안내 영역 한 곳만 흡수한다(Height="*").
@@ -15,8 +15,8 @@
 
         <!-- 머리말: 상담원과 연결 상태 -->
         <Border Grid.Row="0" Padding="{StaticResource PadPanel}"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
+                Background="{DynamicResource BrushSurface}"
+                BorderBrush="{DynamicResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
             <Grid>
@@ -40,16 +40,16 @@
                     <Border Padding="10,4"
                             CornerRadius="{StaticResource RadiusChip}"
                             HorizontalAlignment="Right"
-                            Background="{StaticResource BrushSurfaceMuted}">
+                            Background="{DynamicResource BrushSurfaceMuted}">
                         <TextBlock>
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                                     <Setter Property="Text" Value="서버 끊김" />
-                                    <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsConnected}" Value="True">
                                             <Setter Property="Text" Value="서버 연결됨" />
-                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushSuccess}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -60,16 +60,16 @@
                     <Border Padding="10,4" Margin="0,4,0,0"
                             CornerRadius="{StaticResource RadiusChip}"
                             HorizontalAlignment="Right"
-                            Background="{StaticResource BrushSurfaceMuted}">
+                            Background="{DynamicResource BrushSurfaceMuted}">
                         <TextBlock Text="{Binding DeskPhone.PhoneStatusText}"
                                    TextWrapping="Wrap"
                                    MaxWidth="230">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-                                    <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding DeskPhone.IsPhoneRegistered}" Value="True">
-                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushSuccess}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -85,8 +85,8 @@
             가운데 안내만 남는 공간을 흡수한다(Height="*"). 위아래는 Auto 라 창을 줄여도 밀리지 않는다.
         -->
         <Border Grid.Row="1" Margin="0,12"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
+                Background="{DynamicResource BrushSurface}"
+                BorderBrush="{DynamicResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
             <Grid Margin="{StaticResource PadPanel}">
@@ -110,11 +110,11 @@
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
                                     <Setter Property="Text" Value="자리비움" />
-                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushWarning}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsAvailable}" Value="True">
                                             <Setter Property="Text" Value="대기" />
-                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushSuccess}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -134,7 +134,7 @@
                         <Button Content="상담원"
                                 Padding="6,2" BorderThickness="0" Cursor="Hand"
                                 Background="Transparent"
-                                Foreground="{StaticResource BrushTextMuted}"
+                                Foreground="{DynamicResource BrushTextMuted}"
                                 FontFamily="{StaticResource FontUi}"
                                 FontSize="{StaticResource FontSizeCaption}"
                                 Command="{Binding Directory.OpenCommand}" />
@@ -142,7 +142,7 @@
                         <Button Content="큐 현황"
                                 Padding="6,2" BorderThickness="0" Cursor="Hand"
                                 Background="Transparent"
-                                Foreground="{StaticResource BrushTextMuted}"
+                                Foreground="{DynamicResource BrushTextMuted}"
                                 FontFamily="{StaticResource FontUi}"
                                 FontSize="{StaticResource FontSizeCaption}"
                                 Command="{Binding Queues.OpenCommand}" />
@@ -156,10 +156,10 @@
                                 Command="{Binding Announcements.OpenCommand}">
                             <Button.Style>
                                 <Style TargetType="Button">
-                                    <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding Announcements.HasUnread}" Value="True">
-                                            <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushAccent}" />
                                             <Setter Property="FontWeight" Value="SemiBold" />
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -242,10 +242,10 @@
                                         CommandParameter="list">
                                     <Button.Style>
                                         <Style TargetType="Button">
-                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Waiting.ShowsWaitingAsList}" Value="True">
-                                                    <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource BrushAccent}" />
                                                     <Setter Property="FontWeight" Value="SemiBold" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -262,10 +262,10 @@
                                         CommandParameter="tile">
                                     <Button.Style>
                                         <Style TargetType="Button">
-                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Waiting.ShowsWaitingAsTile}" Value="True">
-                                                    <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource BrushAccent}" />
                                                     <Setter Property="FontWeight" Value="SemiBold" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -299,7 +299,7 @@
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding Subtitle}"
                                                        FontSize="{StaticResource FontSizeCaption}"
-                                                       Foreground="{StaticResource BrushTextMuted}" />
+                                                       Foreground="{DynamicResource BrushTextMuted}" />
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -377,7 +377,7 @@
                                 Content="다시 확인"
                                 Padding="6,0" BorderThickness="0"
                                 Background="Transparent" Cursor="Hand"
-                                Foreground="{StaticResource BrushAccent}"
+                                Foreground="{DynamicResource BrushAccent}"
                                 FontFamily="{StaticResource FontUi}"
                                 FontSize="{StaticResource FontSizeCaption}"
                                 Command="{Binding DeskPhone.RecheckDeskPhoneCommand}" />
@@ -425,7 +425,7 @@
 
                             <Button Grid.Column="1" Padding="6,0" BorderThickness="0"
                                     Background="Transparent" Cursor="Hand"
-                                    Foreground="{StaticResource BrushAccent}"
+                                    Foreground="{DynamicResource BrushAccent}"
                                     FontFamily="{StaticResource FontUi}"
                                     FontSize="{StaticResource FontSizeCaption}"
                                     Command="{Binding DeskPhone.ToggleSipPasswordCommand}">
@@ -462,12 +462,12 @@
 
                     <TextBlock Text="발신 중"
                                Style="{StaticResource TextTitle}"
-                               Foreground="{StaticResource BrushAccent}"
+                               Foreground="{DynamicResource BrushAccent}"
                                HorizontalAlignment="Center" />
                     <TextBlock Text="{Binding Dial.DialingNumber}"
                                FontFamily="{StaticResource FontUi}"
                                FontSize="{StaticResource FontSizeNumber}"
-                               Foreground="{StaticResource BrushText}"
+                               Foreground="{DynamicResource BrushText}"
                                Margin="0,4,0,0"
                                HorizontalAlignment="Center" />
                     <TextBlock Text="전화기를 받으면 연결됩니다"
@@ -537,7 +537,7 @@
 
             <TextBlock Grid.Column="0" Height="20"
                        Text="{Binding NoticeMessage}"
-                       Foreground="{StaticResource BrushWarning}"
+                       Foreground="{DynamicResource BrushWarning}"
                        TextTrimming="CharacterEllipsis"
                        Style="{StaticResource TextCaption}" />
 
@@ -559,14 +559,14 @@
                 <Button.Style>
                     <Style TargetType="Button">
                         <Setter Property="Visibility" Value="Collapsed" />
-                        <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+                        <Setter Property="Foreground" Value="{DynamicResource BrushAccent}" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Update.HasUpdate}" Value="True">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
                             <!-- 필수는 눈에 더 걸려야 한다. 그래도 앱을 끄지는 않는다. -->
                             <DataTrigger Binding="{Binding Update.IsRequired}" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                <Setter Property="Foreground" Value="{DynamicResource BrushDanger}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -580,7 +580,7 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Cursor="Hand"
-                    Foreground="{StaticResource BrushTextMuted}"
+                    Foreground="{DynamicResource BrushTextMuted}"
                     FontFamily="{StaticResource FontUi}"
                     FontSize="{StaticResource FontSizeCaption}"
                     Command="{Binding History.OpenHistoryCommand}" />
@@ -592,7 +592,7 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Cursor="Hand"
-                    Foreground="{StaticResource BrushTextMuted}"
+                    Foreground="{DynamicResource BrushTextMuted}"
                     FontFamily="{StaticResource FontUi}"
                     FontSize="{StaticResource FontSizeCaption}"
                     Command="{Binding OpenSettingsCommand}" />
@@ -603,7 +603,7 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Cursor="Hand"
-                    Foreground="{StaticResource BrushTextMuted}"
+                    Foreground="{DynamicResource BrushTextMuted}"
                     FontFamily="{StaticResource FontUi}"
                     FontSize="{StaticResource FontSizeCaption}"
                     Command="{Binding SignOutCommand}" />

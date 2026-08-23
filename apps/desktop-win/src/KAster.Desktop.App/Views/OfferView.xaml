@@ -1,7 +1,7 @@
 <UserControl x:Class="KAster.Desktop.App.Views.OfferView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{StaticResource BrushBackground}">
+             Background="{DynamicResource BrushBackground}">
 
     <!--
         큐가 넘기기 전에 물어보는 호. 수락해야 전화기가 연결되고, 그 전까지 고객은
@@ -30,13 +30,13 @@
             <TextBlock Grid.Column="0"
                        Text="받으시겠습니까?"
                        Style="{StaticResource TextCaption}"
-                       Foreground="{StaticResource BrushAccent}" />
+                       Foreground="{DynamicResource BrushAccent}" />
 
             <TextBlock Grid.Column="1"
                        Text="{Binding Offer.CountdownText}"
                        Margin="8,0,0,0"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource BrushWarning}">
+                       Foreground="{DynamicResource BrushWarning}">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                         <Setter Property="Visibility" Value="Visible" />
@@ -53,15 +53,15 @@
 
         <Border Grid.Row="1" Margin="0,8,0,12"
                 Padding="{StaticResource PadPanel}"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
+                Background="{DynamicResource BrushSurface}"
+                BorderBrush="{DynamicResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
             <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="{Binding CalledLine}"
                            Style="{StaticResource TextBody}"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource BrushAccent}"
+                           Foreground="{DynamicResource BrushAccent}"
                            TextTrimming="CharacterEllipsis"
                            HorizontalAlignment="Center" />
 

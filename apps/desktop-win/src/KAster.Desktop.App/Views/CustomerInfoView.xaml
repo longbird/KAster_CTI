@@ -1,7 +1,7 @@
 <UserControl x:Class="KAster.Desktop.App.Views.CustomerInfoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{StaticResource BrushBackground}">
+             Background="{DynamicResource BrushBackground}">
 
     <!--
         지금 통화 중인 고객. 서버에 물어보지 않는다 — 상담원 역할은 고객 조회가 403 이다.
@@ -29,7 +29,7 @@
 
             <!-- 고객이 건 지사. 인사말과 안내가 지사마다 다르다. -->
             <TextBlock Text="{Binding Customer.BranchName}"
-                       Foreground="{StaticResource BrushAccent}">
+                       Foreground="{DynamicResource BrushAccent}">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                         <Setter Property="Visibility" Value="Visible" />
@@ -60,7 +60,7 @@
                 <!-- 보통 등급은 띄우지 않는다. 등급이 뜻을 가지는 것은 보통과 다를 때뿐이다. -->
                 <Border Grid.Column="1" Padding="8,2"
                         CornerRadius="{StaticResource RadiusChip}"
-                        Background="{StaticResource BrushWarning}">
+                        Background="{DynamicResource BrushWarning}">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -74,7 +74,7 @@
 
                     <TextBlock Text="{Binding Customer.Grade}"
                                Style="{StaticResource TextCaption}"
-                               Foreground="{StaticResource BrushTextOnAccent}"
+                               Foreground="{DynamicResource BrushTextOnAccent}"
                                FontWeight="SemiBold" />
                 </Border>
             </Grid>
@@ -96,8 +96,8 @@
         <!-- 메모. 남는 세로 자리를 이 한 곳만 흡수한다. -->
         <Border Grid.Row="1" Margin="0,12,0,0"
                 Padding="{StaticResource PadPanel}"
-                Background="{StaticResource BrushSurface}"
-                BorderBrush="{StaticResource BrushBorder}"
+                Background="{DynamicResource BrushSurface}"
+                BorderBrush="{DynamicResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusPanel}">
             <Border.Style>
