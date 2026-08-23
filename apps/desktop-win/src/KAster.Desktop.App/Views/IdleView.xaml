@@ -96,7 +96,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- 근무 상태: 이석 중에는 큐가 전화를 배정하지 않는다 -->
+                <!-- 근무 상태: 자리비움일 때는 큐가 전화를 배정하지 않는다 -->
                 <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -109,7 +109,7 @@
                         <TextBlock Margin="0,2,0,0" FontWeight="SemiBold">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
-                                    <Setter Property="Text" Value="이석" />
+                                    <Setter Property="Text" Value="자리비움" />
                                     <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsAvailable}" Value="True">
@@ -126,7 +126,7 @@
                         읽기 전용 정보 화면으로 가는 길. 전부 서브 창으로 뜨므로 이 화면은 그대로 있다.
 
                         이 자리에 두는 이유는 <b>행이 늘지 않기 때문</b>이다 — 이 행의 높이는 옆의
-                        이석 버튼(38)이 이미 정하고 있어, 여기에 작은 버튼을 더 놓아도 창이 안 커진다.
+                        자리비움 버튼(38)이 이미 정하고 있어, 여기에 작은 버튼을 더 놓아도 창이 안 커진다.
                         안 읽은 공지 수도 버튼 글자 안에 넣는다. 새 줄을 만들면 창이 스크롤된다.
                     -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal"
@@ -175,7 +175,7 @@
                                 <Setter Property="Content" Value="대기로" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsAvailable}" Value="True">
-                                        <Setter Property="Content" Value="이석" />
+                                        <Setter Property="Content" Value="자리비움" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

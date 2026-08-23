@@ -5,7 +5,7 @@ namespace KAster.Desktop.App.ViewModels;
 /// <summary>
 /// 통화를 돌려줄 상대 한 명.
 ///
-/// 상태를 모르고 돌려주면 통화가 허공으로 간다 — 이석 중이거나 로그아웃한 사람에게
+/// 상태를 모르고 돌려주면 통화가 허공으로 간다 — 자리비움이거나 로그아웃한 사람에게
 /// 넘기면 아무도 받지 않고, 발신자는 그 사이 기다리다 끊는다.
 /// </summary>
 public sealed record TransferTarget(
@@ -42,7 +42,7 @@ public sealed record TransferTarget(
             AgentStatusCode.Ringing => "벨 울림",
             AgentStatusCode.Talking => "통화 중",
             AgentStatusCode.AfterCallWork => "후처리",
-            AgentStatusCode.Break => "이석",
+            AgentStatusCode.Break => "자리비움",
             AgentStatusCode.Meal => "식사",
             AgentStatusCode.Training => "교육",
             AgentStatusCode.ManualPaused => "일시정지",

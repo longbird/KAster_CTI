@@ -79,6 +79,9 @@ public partial class MainWindow : Window
 
     private readonly DesktopBridgeServer _bridge;
 
+    /// <summary>트레이의 "종료" 로 끄는 중인가. 닫기를 트레이로 내리는 설정을 건너뛰는 표시다.</summary>
+    private bool _quitting;
+
     /// <summary>
     /// 통화 중 1~9 에 걸어 둔 전환 대상. 창이 읽으므로 창이 들고 있다 —
     /// 설정 화면에서 고치면 다음에 창이 다시 읽는다.
@@ -110,7 +113,10 @@ public partial class MainWindow : Window
 
         // 트레이에서 창을 부르는 것은 상담원이 스스로 누른 경로다. 종료는 창을 닫는 것과 같은 길을 쓴다 —
         // 여기서만 따로 정리하면 어느 한쪽에 빠진 것이 생긴다.
-        _tray = new TrayIconService(new TrayIconArt(), () => WindowAttention.Restore(this), Close);
+        //
+        // 트레이의 "종료" 는 <b>진짜 종료</b>여야 한다. 닫기를 트레이로 내리게 해 두면
+        // 그 길로도 안 꺼져서 앱을 끌 방법이 사라진다.
+        _tray = new TrayIconService(new TrayIconArt(), ComeBack, () => { _quitting = true; Close(); });
 
         // 웹앱이 "이 PC 에 앱이 떠 있는가" 를 여기로 확인한다. 못 열어도 앱은 그대로 돈다 —
         // 웹에서 넘기는 길만 막히고 직접 로그인과 통화는 영향이 없다.
@@ -148,6 +154,16 @@ public partial class MainWindow : Window
         //
         // 트레이는 창 하나에 딸린 것이라 창이 사라질 때만 내린다. 로그아웃은 같은 창에서 이어지므로
         // ShutdownAsync 안에서 내리면 로그인 화면으로 돌아온 뒤 아이콘이 없어진다.
+        // 닫기를 트레이로 내리는 설정이 켜져 있으면 여기서 닫힘을 접는다.
+        Closing += (_, e) =>
+        {
+            if (_quitting || _softphone is null) return;
+            if (!_general.Load().Sane().CloseToTray) return;
+
+            e.Cancel = true;
+            HideToTray();
+        };
+
         Closed += async (_, _) =>
         {
             await ShutdownAsync();
@@ -396,6 +412,32 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// 트레이로 내린다. <b>내려간 자리는 비어 있다</b> — 상태를 안 바꾸면 상담원이 껐다고
+    /// 생각한 자리로 전화가 가고, 고객은 아무도 없는 자리에서 벨소리만 듣는다.
+    ///
+    /// 그 사실을 반드시 알린다. 조용히 자리비움으로 바꾸면 상담원은 왜 전화가 안 오는지 모른다.
+    /// </summary>
+    private void HideToTray()
+    {
+        Hide();
+        _softphone?.GoAway();
+
+        _tray.Balloon(new Alert(
+            "자리비움",
+            "트레이로 내려갔습니다. 이 자리로는 전화가 배정되지 않습니다. 트레이 아이콘을 눌러 돌아오세요."));
+    }
+
+    /// <summary>
+    /// 트레이에서 창을 다시 부른다. 기다리던 자리비움은 접되, <b>대기로 되돌리지는 않는다</b> —
+    /// 창만 열어 두고 자리를 뜨는 일이 흔하다. 돌아왔다는 것은 상담원이 직접 누른다.
+    /// </summary>
+    private void ComeBack()
+    {
+        WindowAttention.Restore(this);
+        _softphone?.CameBack();
+    }
+
+    /// <summary>
     /// 벨소리 장치는 설정 · 오디오 탭에서 고른 것을 따른다. 안 골랐으면 통화 출력으로 나간다 —
     /// 그 판정은 <see cref="AudioDeviceController"/> 가 이미 갖고 있다.
     /// </summary>
@@ -430,6 +472,9 @@ public partial class MainWindow : Window
     private string? ApplyGeneral(GeneralPreferences preferences)
     {
         Topmost = preferences.AlwaysOnTop;
+
+        // 트레이로 내리는 설정을 끄면서 창이 숨어 있으면 앱을 다시 꺼낼 길이 애매해진다.
+        if (!preferences.CloseToTray && !IsVisible) Show();
 
         return AutoStartRegistration.Apply(
             preferences.AutoStart,

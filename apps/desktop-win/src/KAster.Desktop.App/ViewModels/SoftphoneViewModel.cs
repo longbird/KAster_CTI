@@ -500,6 +500,9 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// <summary>이 창 모양에서 자동 동작을 이미 했는가. 매초 다시 걸면 같은 명령이 쏟아진다.</summary>
     private bool _autoActionTaken;
 
+    /// <summary>통화가 끝나면 자리비움으로 바꿔야 한다. 트레이로 내려갈 때 통화 중이었다는 뜻이다.</summary>
+    private bool _awayWhenFree;
+
     /// <summary>1초마다 불린다. 통화 시간은 서버가 준 <c>answeredAt</c> 기준으로 다시 계산한다.</summary>
     public void Tick()
     {
@@ -553,7 +556,7 @@ public sealed class SoftphoneViewModel : ObservableObject
     {
         switch (evt)
         {
-            // 관리자가 강제로 이석시키는 경우가 있다. 내 것만 반영한다.
+            // 관리자가 강제로 자리비움으로 바꾸는 경우가 있다. 내 것만 반영한다.
             case AgentStatusChangedEvent status when status.Change.AgentId == _agent.AgentId:
                 AgentStatus = status.Change.StatusCode;
                 break;
@@ -738,8 +741,42 @@ public sealed class SoftphoneViewModel : ObservableObject
     /// 현장이 정해 둔 자동 동작. 한 창 모양에서 <b>한 번만</b> 한다 — 매초 다시 걸면
     /// 같은 명령이 쏟아지고, 서버는 그것을 사람이 연타한 것과 구분하지 못한다.
     /// </summary>
+    /// <summary>
+    /// 트레이로 내려간다. 그 자리는 비어 있으므로 큐에서 빠져야 한다 — 안 빼면 상담원이
+    /// 껐다고 생각한 자리로 전화가 가고, 고객은 아무도 없는 자리에서 벨소리만 듣는다.
+    ///
+    /// <b>통화 중이면 바로 바꾸지 않는다.</b> 붙어 있는 통화의 상태를 자리비움으로 덮으면
+    /// 그 통화가 화면에서 사라진 것처럼 보인다. 끝난 뒤에 바꾼다.
+    /// </summary>
+    public void GoAway()
+    {
+        if (IsFree)
+        {
+            _ = ChangeStatusAsync(AgentStatusCode.Break);
+            return;
+        }
+
+        _awayWhenFree = true;
+    }
+
+    /// <summary>
+    /// 창을 다시 열었다. 기다리던 자리비움을 접는다 — 앉아 있는 사람을 비운 자리로 만들면 안 된다.
+    ///
+    /// <b>스스로 대기로 바꾸지는 않는다.</b> 창만 열어 두고 자리를 뜨는 일이 흔하다.
+    /// 돌아왔다는 것은 상담원이 직접 눌러야 한다.
+    /// </summary>
+    public void CameBack() => _awayWhenFree = false;
+
     private void RunAutoCallActions()
     {
+        // 트레이로 내려갈 때 통화 중이었으면 끝난 지금 바꾼다.
+        if (_awayWhenFree && IsFree)
+        {
+            _awayWhenFree = false;
+            Note("통화가 끝나 자리비움으로 바꾼다");
+            _ = ChangeStatusAsync(AgentStatusCode.Break);
+        }
+
         if (_autoActionTaken) return;
 
         var preferences = _preferences().Sane();

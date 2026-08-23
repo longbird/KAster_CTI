@@ -58,6 +58,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     private bool _autoStart;
     private bool _alwaysOnTop;
+    private bool _closeToTray;
     private RingTonePreset _ringTone = RingTonePreset.Classic;
     private string? _generalNotice;
 
@@ -97,6 +98,7 @@ public sealed class SettingsViewModel : ObservableObject
             var app = general.Load().Sane();
             _autoStart = app.AutoStart;
             _alwaysOnTop = app.AlwaysOnTop;
+            _closeToTray = app.CloseToTray;
             _ringTone = app.RingTone;
         }
         _applyHotkeys = applyHotkeys;
@@ -195,6 +197,13 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _alwaysOnTop;
         set { if (Set(ref _alwaysOnTop, value)) GeneralNotice = null; }
+    }
+
+    /// <summary>닫기 버튼을 트레이로. 내려갈 때 자리비움으로 바뀐다.</summary>
+    public bool CloseToTray
+    {
+        get => _closeToTray;
+        set { if (Set(ref _closeToTray, value)) GeneralNotice = null; }
     }
 
     public IReadOnlyList<RingTonePreset> RingTones { get; } = new[]
@@ -370,6 +379,7 @@ public sealed class SettingsViewModel : ObservableObject
             {
                 AutoStart = _autoStart,
                 AlwaysOnTop = _alwaysOnTop,
+                CloseToTray = _closeToTray,
                 RingTone = _ringTone,
             }.Sane();
 

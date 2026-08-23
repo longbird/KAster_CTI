@@ -7,10 +7,10 @@ namespace KAster.Desktop.App.Services;
 /// 조용히 달라지면 안 된다.
 ///
 /// <para>
-/// 닫기 버튼을 트레이 최소화로 바꾸는 항목은 <b>일부러 넣지 않았다.</b> 서버는 앱이 붙어
-/// 있는지로 큐 배정을 정한다. 트레이로 내려간 앱은 상담원이 껐다고 생각한 뒤에도 큐에 남아
-/// 빈 자리로 전화를 받고, 고객은 아무도 없는 자리에서 벨소리만 듣는다. 창이 가려져 전화를
-/// 놓치는 문제는 창을 숨기는 쪽이 아니라 알리는 쪽(풍선·깜빡임·벨소리)으로 푼다.
+/// 닫기 버튼을 트레이 최소화로 바꾸는 항목(<see cref="CloseToTray"/>)은 <b>자리비움과 한 몸</b>이다.
+/// 서버는 앱이 붙어 있는지로 큐 배정을 정하므로, 상태를 안 바꾸면 상담원이 껐다고 생각한
+/// 자리로 전화가 가고 고객은 아무도 없는 자리에서 벨소리만 듣는다. 그래서 트레이로 내려갈 때
+/// 반드시 자리비움으로 바꾸고, 그 사실을 풍선으로 알린다.
 /// </para>
 /// </summary>
 public sealed record GeneralPreferences
@@ -20,6 +20,14 @@ public sealed record GeneralPreferences
 
     /// <summary>다른 창 위에 늘 보이게 둔다.</summary>
     public bool AlwaysOnTop { get; init; }
+
+    /// <summary>
+    /// 닫기 버튼을 눌러도 끝나지 않고 트레이로 내려간다. <b>내려갈 때 자리비움으로 바뀐다.</b>
+    ///
+    /// 기본값은 꺼짐이다 — 지금까지 X 는 종료였고, 설정을 만들었다고 그 뜻이 조용히
+    /// 달라지면 상담원은 껐다고 생각한 앱이 계속 도는 것을 모른다.
+    /// </summary>
+    public bool CloseToTray { get; init; }
 
     public RingTonePreset RingTone { get; init; } = RingTonePreset.Classic;
 

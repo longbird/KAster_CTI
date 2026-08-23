@@ -41,12 +41,12 @@ public class AgentDirectoryViewModelTests : SoftphoneViewModelTestBase
         Assert.Equal("대기", available.StatusText);
         Assert.True(available.CanTakeCall);
 
-        Assert.Equal("이석", Assert.Single(vm.Directory.Rows, r => r.Extension == "1003").StatusText);
+        Assert.Equal("자리비움", Assert.Single(vm.Directory.Rows, r => r.Extension == "1003").StatusText);
         Assert.Equal("로그아웃", Assert.Single(vm.Directory.Rows, r => r.Extension == "1004").StatusText);
     }
 
     /// <summary>
-    /// 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면, 이미 이석한 사람에게 전화를 건다.
+    /// 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면, 이미 자리를 비운 사람에게 전화를 건다.
     /// 열면서 다시 받는다.
     /// </summary>
     [Fact]

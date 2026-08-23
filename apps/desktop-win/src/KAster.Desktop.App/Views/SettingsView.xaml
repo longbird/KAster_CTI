@@ -345,6 +345,14 @@
                                   IsChecked="{Binding AlwaysOnTop}"
                                   Margin="0,14,0,0" />
 
+                        <CheckBox Content="닫기를 누르면 트레이로 내리기"
+                                  IsChecked="{Binding CloseToTray}"
+                                  Margin="0,14,0,0" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="트레이로 내려가면 자리비움으로 바뀌어 전화가 배정되지 않습니다. 통화 중이면 통화가 끝난 뒤에 바뀝니다. 앱을 아주 끄려면 트레이 아이콘에서 종료를 누르세요." />
+
                         <TextBlock Text="벨소리" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
                         <ComboBox ItemsSource="{Binding RingTones}"
                                   SelectedItem="{Binding RingTone}"

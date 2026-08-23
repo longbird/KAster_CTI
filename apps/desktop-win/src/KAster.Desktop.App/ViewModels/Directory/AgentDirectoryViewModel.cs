@@ -185,7 +185,7 @@ public sealed class AgentDirectoryViewModel : ObservableObject
         Opened?.Invoke(this, EventArgs.Empty);
 
         // 상태는 낡는다. 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면
-        // 이미 이석한 사람에게 전화를 건다.
+        // 이미 자리를 비운 사람에게 전화를 건다.
         _track(RefreshAsync());
     }
 

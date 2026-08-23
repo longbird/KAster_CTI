@@ -69,7 +69,7 @@ public static class TrayPresentation
     /// 그때 아이콘을 "서버 끊김" 으로 바꾸면 통화 중인 자리가 비어 보인다.
     ///
     /// 통화가 없을 때는 <b>전화를 못 받게 만드는 것</b>부터 말한다 — 서버 끊김, 그다음 전화기 등록.
-    /// 이석은 상담원이 스스로 고른 것이라 마지막이다.
+    /// 자리비움은 상담원이 스스로 고른 것이라 마지막이다.
     /// </summary>
     private static TrayStatus Resolve(
         bool isConnected,
@@ -83,8 +83,8 @@ public static class TrayPresentation
         if (!isConnected) return TrayStatus.Disconnected;
         if (!isPhoneRegistered) return TrayStatus.PhoneDown;
 
-        // 이석의 기준은 통화 화면의 <c>IsAvailable</c> 과 같아야 한다. 두 곳이 다르게 판단하면
-        // 화면은 "대기 중" 인데 트레이만 "이석" 인 자리가 생긴다.
+        // 자리비움의 기준은 통화 화면의 <c>IsAvailable</c> 과 같아야 한다. 두 곳이 다르게 판단하면
+        // 화면은 "대기 중" 인데 트레이만 "자리비움" 인 자리가 생긴다.
         return status == AgentStatusCode.Break ? TrayStatus.Break : TrayStatus.Available;
     }
 
@@ -111,7 +111,7 @@ public static class TrayPresentation
     {
         TrayStatus.Disconnected => "서버 끊김",
         TrayStatus.PhoneDown => "전화기 등록 안 됨",
-        TrayStatus.Break => "이석",
+        TrayStatus.Break => "자리비움",
         TrayStatus.Ringing => "수신 중",
         TrayStatus.Talking => "통화 중",
         _ => "대기 중",

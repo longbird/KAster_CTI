@@ -398,7 +398,7 @@ public sealed class TransferViewModel : ObservableObject
         Started?.Invoke(this, EventArgs.Empty);
 
         // 상태는 낡는다. 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면
-        // 이미 이석한 사람에게 돌려주게 된다. 열면서 다시 받는다.
+        // 이미 자리를 비운 사람에게 돌려주게 된다. 열면서 다시 받는다.
         _track(RefreshTransferTargetsAsync());
     }
 

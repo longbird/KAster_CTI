@@ -340,7 +340,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         Assert.True(vm.IsAvailable);
     }
 
-    /// <summary>통화 중에 이석으로 바꾸면 전화가 끊기는 게 아니라 다음 배정이 멈춰야 한다. 그래도 지금은 막는다.</summary>
+    /// <summary>통화 중에 자리비움으로 바꾸면 전화가 끊기는 게 아니라 다음 배정이 멈춰야 한다. 그래도 지금은 막는다.</summary>
     [Fact]
     public void Status_cannot_be_changed_while_a_call_is_in_progress()
     {
@@ -433,7 +433,7 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
     }
 
     /// <summary>
-    /// 관리자가 상담원을 강제로 이석시키면 그 상담원 화면도 바뀌어야 한다.
+    /// 관리자가 상담원을 강제로 자리비움으로 바꾸면 그 상담원 화면도 바뀌어야 한다.
     /// 서버는 <c>agent.status.changed</c> 로 알려 주는데 지금까지 화면이 버리고 있었다.
     /// </summary>
     [Fact]

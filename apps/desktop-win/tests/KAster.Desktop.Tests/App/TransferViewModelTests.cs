@@ -99,7 +99,7 @@ public class TransferViewModelTests : SoftphoneViewModelTestBase
         var byExtension = vm.Transfer.TransferTargets.ToDictionary(t => t.Extension);
 
         Assert.Equal("대기", byExtension["1002"].StatusText);
-        Assert.Equal("이석", byExtension["1003"].StatusText);
+        Assert.Equal("자리비움", byExtension["1003"].StatusText);
         Assert.Equal("로그아웃", byExtension["1004"].StatusText);
     }
 
@@ -119,7 +119,7 @@ public class TransferViewModelTests : SoftphoneViewModelTestBase
     }
 
     /// <summary>
-    /// 상태는 낡는다. 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면 이미 이석한
+    /// 상태는 낡는다. 로그인할 때 받아 둔 목록으로 "대기" 라고 보여 주면 이미 자리를 비운
     /// 사람에게 돌려주게 된다. 목록을 열 때마다 다시 받는다.
     /// </summary>
     [Fact]
