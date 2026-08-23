@@ -149,7 +149,7 @@ public sealed class LoginViewModel : ObservableObject
         {
             var result = await _auth.RefreshAsync(refreshToken, ct);
             _tokens.Save(result.Tokens);
-            SignedIn?.Invoke(this, result);
+            SignedIn?.Invoke(this, await WithSipConfigAsync(result, ct));
             return true;
         }
         catch (CtiServerException)
@@ -167,6 +167,29 @@ public sealed class LoginViewModel : ObservableObject
         finally
         {
             IsResuming = false;
+        }
+    }
+
+    /// <summary>
+    /// SIP 설정을 데스크톱 세션에서 받아 채운다.
+    ///
+    /// refresh 응답에는 SIP 비밀번호가 없다 — 웹 클라이언트도 같은 응답을 받으므로 서버가
+    /// credential 을 싣지 않는다. 그래서 자동 로그인만으로 들어가면 소프트폰 자리는 전화를
+    /// 한 통도 못 받고, 실기기 자리는 전화기에 넣을 값을 화면에서 잃는다.
+    ///
+    /// <b>못 받아도 로그인은 살린다</b> — 전화를 못 걸 뿐이고, 여기서 막으면 상담원은
+    /// 아무것도 못 한다. 사유는 소프트폰이 안 켜질 때 그 자리에서 말한다.
+    /// </summary>
+    private async Task<LoginResult> WithSipConfigAsync(LoginResult result, CancellationToken ct)
+    {
+        try
+        {
+            var session = await _auth.GetDesktopSessionAsync(result.Tokens.AccessToken, ct);
+            return result with { Session = result.Session with { SoftphoneConfig = session.SoftphoneConfig } };
+        }
+        catch (Exception ex) when (ex is CtiServerException or HttpRequestException or TaskCanceledException)
+        {
+            return result;
         }
     }
 

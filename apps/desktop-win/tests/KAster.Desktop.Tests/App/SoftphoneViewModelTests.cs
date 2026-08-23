@@ -373,6 +373,33 @@ public class SoftphoneViewModelTests : SoftphoneViewModelTestBase
         Assert.Contains("403", vm.DeskPhone.PhoneStatusText);
     }
 
+    /// <summary>
+    /// 소프트폰이 <b>아예 켜지지 않은</b> 경우. 등록이 실패한 것과 다르다 — 시도조차 못 했다.
+    /// 지금까지는 그때도 "전화 꺼짐" 만 떠서, 상담원도 우리도 전화가 안 오는 이유를 알 수 없었다
+    /// (2026-08-23 내선 1002).
+    /// </summary>
+    [Fact]
+    public void A_softphone_that_never_started_says_why()
+    {
+        var (vm, _, _, _) = Build();
+
+        vm.DeskPhone.OnSoftphoneUnavailable("서버가 SIP 주소를 내려주지 않았다");
+
+        Assert.False(vm.DeskPhone.IsPhoneRegistered);
+        Assert.Contains("SIP 주소", vm.DeskPhone.PhoneStatusText);
+    }
+
+    /// <summary>실기기 자리에는 우리 소프트폰 사정을 올리지 않는다. 올리면 거짓말이 된다.</summary>
+    [Fact]
+    public void The_desk_phone_seat_is_never_told_about_our_softphone()
+    {
+        var (vm, _, _, _) = Build(useSoftphone: false);
+
+        vm.DeskPhone.OnSoftphoneUnavailable("서버가 SIP 주소를 내려주지 않았다");
+
+        Assert.Equal("전화기 확인 중", vm.DeskPhone.PhoneStatusText);
+    }
+
     [Theory]
     [InlineData(RegistrationState.Stopped, "전화 꺼짐")]
     [InlineData(RegistrationState.Registering, "전화 등록 중")]

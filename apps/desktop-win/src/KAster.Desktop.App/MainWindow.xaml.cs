@@ -338,8 +338,21 @@ public partial class MainWindow : Window
         // SIP 스레드에서 올라온다. UI 스레드로 옮기지 않으면 창 전환이 조용히 멈춘다.
         runtime.Phone.CallStatusChanged += (_, status) =>
             Dispatcher.Invoke(() => softphone.Dial.OnSoftphoneCallStatusChanged(status));
+        // 등록 상태는 지금까지 어디에도 안 남았다. 상담원이 "전화기 오류" 라고만 말하면
+        // 우리가 볼 수 있는 것이 없었다. 같은 상태가 이어지면 적지 않는다 — 등록 갱신마다 쌓인다.
+        var lastRegistration = runtime.Phone.Status.State;
         runtime.Phone.RegistrationStatusChanged += (_, status) =>
-            Dispatcher.Invoke(() => softphone.DeskPhone.OnRegistrationStatusChanged(status));
+            Dispatcher.Invoke(() =>
+            {
+                if (status.State != lastRegistration)
+                {
+                    lastRegistration = status.State;
+                    var why = string.IsNullOrWhiteSpace(status.Reason) ? string.Empty : $" 사유={status.Reason}";
+                    App.Log($"전화 등록 {status.State}{why}");
+                }
+
+                softphone.DeskPhone.OnRegistrationStatusChanged(status);
+            });
 
         // 이미 등록이 끝난 뒤에 붙을 수도 있다. 현재 값을 한 번 밀어 넣는다.
         softphone.DeskPhone.OnRegistrationStatusChanged(runtime.Phone.Status);
@@ -369,6 +382,13 @@ public partial class MainWindow : Window
         _timer.Start();
 
         await runtime.StartAsync();
+
+        // 소프트폰 자리인데 못 켰으면 그 사유가 전부다. 여기서 안 적으면 어디에도 안 남는다.
+        if (runtime.SoftphoneStartFailure is { } cannotStart)
+        {
+            App.Log($"소프트폰을 켜지 못했다: {cannotStart}");
+            softphone.DeskPhone.OnSoftphoneUnavailable(cannotStart);
+        }
 
         // 내선 목록과 발신번호는 로그인 뒤 한 번만 받아 두면 된다.
         // 실패해도 여기서 멈추지 않는다 — 발신만 못 하고 수신·통화는 그대로 돈다.

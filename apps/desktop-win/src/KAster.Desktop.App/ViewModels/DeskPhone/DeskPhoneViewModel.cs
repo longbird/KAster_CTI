@@ -161,6 +161,20 @@ public sealed class DeskPhoneViewModel : ObservableObject
         };
     }
 
+    /// <summary>
+    /// 소프트폰을 아예 켜지 못했다. <b>등록 실패와 다르다</b> — 등록을 시도조차 못 한 것이고,
+    /// 사유는 서버가 내려준 설정에 있다. 이 말을 안 하면 화면에는 "전화 꺼짐" 만 남아
+    /// 상담원은 자기가 뭘 잘못했는지 찾다가 끝난다.
+    /// </summary>
+    public void OnSoftphoneUnavailable(string reason)
+    {
+        // 실기기 자리에서는 우리 소프트폰을 안 켜는 것이 정상이다. 올리면 거짓말이 된다.
+        if (!_useSoftphone) return;
+
+        IsPhoneRegistered = false;
+        PhoneStatusText = $"전화 못 켬: {reason}";
+    }
+
     /// <summary>1초마다 불린다. 상담원이 전화기에 값을 넣는 동안 화면이 그대로면, 등록이 끝났는데도 뭘 잘못한 줄 안다.</summary>
     public void Tick()
     {

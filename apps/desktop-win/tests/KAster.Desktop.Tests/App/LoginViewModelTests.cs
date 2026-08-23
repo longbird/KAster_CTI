@@ -17,6 +17,27 @@ public class LoginViewModelTests
     "error":null}
     """;
 
+    /// <summary>
+    /// refresh 응답. <b>SIP 비밀번호가 없다</b> — 웹 클라이언트도 같은 응답을 받으므로
+    /// 서버가 credential 을 싣지 않는다.
+    /// </summary>
+    private const string RefreshJson = """
+    {"success":true,"data":{"accessToken":"at2","refreshToken":"rt2","tokenType":"Bearer","expiresIn":900,
+    "agent":{"agentId":"a-1","agentName":"김상담","extension":"1001","role":"agent"},
+    "softphoneConfig":{"enabled":true,"sipUri":"sip:1001@pbx.local","sipServer":"pbx.local:48950",
+    "transport":"udp","authorizationUsername":"1001","displayName":"김상담"}},
+    "error":null}
+    """;
+
+    /// <summary>데스크톱 세션. SIP 비밀번호는 여기에만 실린다.</summary>
+    private const string DesktopSessionJson = """
+    {"success":true,"data":{
+    "agent":{"agentId":"a-1","agentName":"김상담","extension":"1001","role":"agent"},
+    "softphoneConfig":{"enabled":true,"sipUri":"sip:1001@pbx.local","sipServer":"pbx.local:48950",
+    "transport":"udp","authorizationUsername":"1001","authorizationPassword":"s3cret","displayName":"김상담"}},
+    "error":null}
+    """;
+
     /// <summary>디스크를 쓰지 않는 저장소. 테스트가 실제 사용자 설정 파일을 건드리면 안 된다.</summary>
     private sealed class MemoryStore : ISavedLoginStore
     {
@@ -46,7 +67,10 @@ public class LoginViewModelTests
     [Fact]
     public async Task Resumes_the_last_session_without_a_password()
     {
-        var stub = new StubHttpHandler().Enqueue(HttpStatusCode.OK, SuccessJson);
+        // 되살릴 때는 두 번 나간다 — refresh 로 토큰을, 데스크톱 세션으로 SIP 비밀번호를 받는다.
+        var stub = new StubHttpHandler()
+            .Enqueue(HttpStatusCode.OK, SuccessJson)
+            .Enqueue(HttpStatusCode.OK, DesktopSessionJson);
         var tokens = new FakeTokenStore(new TokenPair("old-at", "old-rt"));
         var saved = new MemoryStore();
         saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
@@ -58,12 +82,62 @@ public class LoginViewModelTests
         Assert.True(await vm.TryResumeAsync());
 
         Assert.NotNull(signedIn);
-        Assert.Equal("/api/v1/auth/refresh", stub.Requests[^1].RequestUri!.AbsolutePath);
-        Assert.Contains("\"refreshToken\":\"old-rt\"", stub.Bodies[^1]);
+        Assert.Equal("/api/v1/auth/refresh", stub.Requests[0].RequestUri!.AbsolutePath);
+        Assert.Contains("\"refreshToken\":\"old-rt\"", stub.Bodies[0]);
 
         // 회전한 새 토큰을 넣어 둬야 다음에 켤 때도 들어간다.
         Assert.Equal("rt", tokens.Load()!.RefreshToken);
         Assert.False(vm.IsResuming);
+    }
+
+    /// <summary>
+    /// 자동 로그인만으로도 소프트폰이 켜져야 한다.
+    ///
+    /// refresh 응답에는 SIP 비밀번호가 없어서, 그것만 들고 들어가면 소프트폰 자리는 전화를
+    /// 한 통도 받지 못했다. 실기기 자리도 전화기에 넣을 값을 화면에서 잃었다
+    /// (2026-08-23 내선 1002). 비밀번호가 실리는 데스크톱 세션을 이어서 받는다.
+    /// </summary>
+    [Fact]
+    public async Task Resuming_picks_up_the_sip_credential_the_refresh_reply_leaves_out()
+    {
+        var stub = new StubHttpHandler()
+            .Enqueue(HttpStatusCode.OK, RefreshJson)
+            .Enqueue(HttpStatusCode.OK, DesktopSessionJson);
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
+
+        var vm = Build(stub, new FakeTokenStore(new TokenPair("old-at", "old-rt")), saved);
+        LoginResult? signedIn = null;
+        vm.SignedIn += (_, r) => signedIn = r;
+
+        Assert.True(await vm.TryResumeAsync());
+
+        Assert.Equal("/api/v1/auth/desktop/session", stub.Requests[^1].RequestUri!.AbsolutePath);
+        Assert.Equal("s3cret", signedIn!.Session.SoftphoneConfig!.AuthorizationPassword);
+    }
+
+    /// <summary>
+    /// 데스크톱 세션을 못 받아도 로그인은 살린다. 전화를 못 걸 뿐이고, 로그인까지 막으면
+    /// 상담원은 아무것도 못 한다.
+    /// </summary>
+    [Fact]
+    public async Task A_missing_desktop_session_does_not_undo_the_resume()
+    {
+        var stub = new StubHttpHandler()
+            .Enqueue(HttpStatusCode.OK, RefreshJson)
+            .Enqueue(HttpStatusCode.InternalServerError, """{"success":false,"data":null,"error":{"code":"X"}}""");
+        var saved = new MemoryStore();
+        saved.Save(new SavedLogin { Remember = true, LoginId = "agent1001", Extension = "1001", AutoSignIn = true });
+
+        var tokens = new FakeTokenStore(new TokenPair("old-at", "old-rt"));
+        var vm = Build(stub, tokens, saved);
+        LoginResult? signedIn = null;
+        vm.SignedIn += (_, r) => signedIn = r;
+
+        Assert.True(await vm.TryResumeAsync());
+
+        Assert.NotNull(signedIn);
+        Assert.Equal("rt2", tokens.Load()!.RefreshToken);
     }
 
     /// <summary>꺼 뒀으면 금고에 토큰이 있어도 묻는다. 상담원이 정한 것이 이긴다.</summary>

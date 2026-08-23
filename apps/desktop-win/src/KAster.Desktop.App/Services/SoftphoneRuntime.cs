@@ -127,11 +127,21 @@ public sealed class SoftphoneRuntime : IAsyncDisposable
     {
         await ConnectEventsAsync();
 
-        if (_useSoftphone && SoftphoneOptions.TryCreate(Softphone, out var options, out _))
+        if (!_useSoftphone) return;
+
+        if (SoftphoneOptions.TryCreate(Softphone, out var options, out var reason))
         {
             Phone.Start(options!);
+            return;
         }
+
+        // 사유를 버리면 화면에는 "전화 꺼짐" 만 남는다. 소프트폰 자리인데 전화가 한 통도
+        // 안 오는 상태라 <b>가장 먼저 알아야 하는 것</b>이다 (2026-08-23 내선 1002).
+        SoftphoneStartFailure = reason ?? "알 수 없는 이유";
     }
+
+    /// <summary>소프트폰 자리인데 켜지 못한 이유. 켜졌으면 null 이다.</summary>
+    public string? SoftphoneStartFailure { get; private set; }
 
     /// <summary>연결이 끊기면 백오프를 두고 새 토큰으로 다시 붙는다.</summary>
     private async Task ConnectEventsAsync()
