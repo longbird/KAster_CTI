@@ -290,6 +290,26 @@
                                    Margin="0,4,0,0"
                                    Text="보류·협의 전환을 요청한 뒤 PBX 의 응답을 기다리는 시간입니다. 짧게 잡으면 멀쩡히 걸린 보류에도 응답이 없다고 뜹니다." />
 
+                        <TextBlock Text="자동 받기 (초)" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding AutoAnswerSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="0 이면 쓰지 않습니다. 걸려 온 전화가 이 시간 동안 울리면 자동으로 받습니다. 수락/거절을 묻는 화면에는 걸리지 않습니다." />
+
+                        <TextBlock Text="자동 끊기 (초)" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding AutoRejectSeconds, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="후처리 뒤 자동 대기 (초)" Style="{StaticResource SectionLabel}" Margin="0,16,0,4" />
+                        <TextBox Style="{StaticResource FieldInput}"
+                                 Text="{Binding AutoAvailableSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Style="{StaticResource TextCaption}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Text="0 이면 쓰지 않습니다. 통화가 끝난 뒤 이 시간이 지나면 스스로 대기 상태로 돌아갑니다." />
+
                         <TextBlock Text="{Binding CallSettingsError}" Style="{StaticResource ErrorLine}" />
                     </StackPanel>
                 </Border>

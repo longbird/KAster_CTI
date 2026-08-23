@@ -23,6 +23,23 @@ public sealed record CallPreferences
     /// </summary>
     public int PbxResponseWaitSeconds { get; init; } = 5;
 
+    /// <summary>
+    /// 0 이면 안 쓴다. 1 이상이면 그 초가 지났을 때 걸려 온 전화를 자동으로 받는다.
+    ///
+    /// <b>제안(수락/거절)에는 걸리지 않는다.</b> 그건 사람에게 묻는 자리다.
+    /// </summary>
+    public int AutoAnswerSeconds { get; init; }
+
+    /// <summary>0 이면 안 쓴다. 1 이상이면 그 초가 지났을 때 자동으로 끊는다.</summary>
+    public int AutoRejectSeconds { get; init; }
+
+    /// <summary>0 이면 안 쓴다. 후처리에 들어간 뒤 이 초가 지나면 스스로 대기로 돌아간다.</summary>
+    public int AutoAvailableAfterCallSeconds { get; init; }
+
+    public const int MaxAutoAnswerSeconds = 60;
+    public const int MaxAutoRejectSeconds = 60;
+    public const int MaxAutoAvailableAfterCallSeconds = 600;
+
     public const int MinSelfAnswerWindowSeconds = 5;
     public const int MaxSelfAnswerWindowSeconds = 180;
     public const int MinPbxResponseWaitSeconds = 2;
@@ -38,5 +55,11 @@ public sealed record CallPreferences
             SelfAnswerWindowSeconds, MinSelfAnswerWindowSeconds, MaxSelfAnswerWindowSeconds),
         PbxResponseWaitSeconds = Math.Clamp(
             PbxResponseWaitSeconds, MinPbxResponseWaitSeconds, MaxPbxResponseWaitSeconds),
+
+        // 0 은 "안 쓴다" 라 아래로 깎지 않는다. 음수만 0 으로 접는다.
+        AutoAnswerSeconds = Math.Clamp(AutoAnswerSeconds, 0, MaxAutoAnswerSeconds),
+        AutoRejectSeconds = Math.Clamp(AutoRejectSeconds, 0, MaxAutoRejectSeconds),
+        AutoAvailableAfterCallSeconds = Math.Clamp(
+            AutoAvailableAfterCallSeconds, 0, MaxAutoAvailableAfterCallSeconds),
     };
 }

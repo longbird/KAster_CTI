@@ -1,3 +1,4 @@
+using KAster.Desktop.App.Services;
 using System.Net;
 using KAster.Desktop.App.ViewModels;
 using KAster.Desktop.Core.Contracts;
@@ -111,7 +112,8 @@ public abstract class SoftphoneViewModelTestBase
     protected (SoftphoneViewModel Vm, CallStateStore Store, FakeSoftphone Phone, StubHttpHandler Stub) Build(
         bool useSoftphone = true,
         bool withSipConfig = true,
-        ISettingsStore<AnnouncementReadState>? announcementReads = null)
+        ISettingsStore<AnnouncementReadState>? announcementReads = null,
+        CallPreferences? callPreferences = null)
     {
         var stub = new StubHttpHandler();
         var store = new CallStateStore(Agent.AgentId, () => _now, null, Agent.Extension);
@@ -120,7 +122,8 @@ public abstract class SoftphoneViewModelTestBase
         return (
             new SoftphoneViewModel(
                 store, server, phone, Agent, () => _now, useSoftphone, withSipConfig ? SipConfig : null,
-                announcementReads ?? new MemoryStore<AnnouncementReadState>(new AnnouncementReadState())),
+                announcementReads ?? new MemoryStore<AnnouncementReadState>(new AnnouncementReadState()),
+                callPreferences is null ? null : () => callPreferences),
             store, phone, stub);
     }
 

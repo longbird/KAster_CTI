@@ -350,6 +350,11 @@ public sealed class SoftphoneViewModel : ObservableObject
         {
             if (!Set(ref _windowMode, value)) return;
 
+            // 자동 응답·자동 대기복귀가 "언제부터" 를 여기서 잡는다. 서버 시각이 아니라
+            // 이 화면이 그 모양이 된 시각이다 — 상담원이 보고 있는 것과 같아야 한다.
+            _modeSince = _now();
+            _autoActionTaken = false;
+
             Raise(nameof(IsRinging));
             Raise(nameof(IsTalking));
             AnswerCommand.RaiseCanExecuteChanged();
@@ -489,9 +494,17 @@ public sealed class SoftphoneViewModel : ObservableObject
         }
     }
 
+    /// <summary>지금 창 모양이 된 시각. 자동 응답·자동 대기복귀가 여기서부터 센다.</summary>
+    private DateTimeOffset _modeSince;
+
+    /// <summary>이 창 모양에서 자동 동작을 이미 했는가. 매초 다시 걸면 같은 명령이 쏟아진다.</summary>
+    private bool _autoActionTaken;
+
     /// <summary>1초마다 불린다. 통화 시간은 서버가 준 <c>answeredAt</c> 기준으로 다시 계산한다.</summary>
     public void Tick()
     {
+        RunAutoCallActions();
+
         // 순서를 지킨다. 셋 다 뒷작업을 <see cref="PendingWork"/> 한 자리에 밀어 넣으므로,
         // 순서가 바뀌면 같은 Tick 안에서 기다리게 되는 작업이 달라진다.
         Dial.Tick();
@@ -719,6 +732,39 @@ public sealed class SoftphoneViewModel : ObservableObject
         var saved = await Send(() => _server.SaveMemoAsync(callId, _agent.AgentId, text, ct));
         Note(saved is null ? $"메모 저장 실패 {callId}" : $"메모 저장 {callId}");
         if (saved is not null) MemoText = string.Empty;
+    }
+
+    /// <summary>
+    /// 현장이 정해 둔 자동 동작. 한 창 모양에서 <b>한 번만</b> 한다 — 매초 다시 걸면
+    /// 같은 명령이 쏟아지고, 서버는 그것을 사람이 연타한 것과 구분하지 못한다.
+    /// </summary>
+    private void RunAutoCallActions()
+    {
+        if (_autoActionTaken) return;
+
+        var preferences = _preferences().Sane();
+        var elapsed = _now() - _modeSince;
+
+        if (WindowMode == WindowMode.Ringing)
+        {
+            var action = AutoCallActions.WhileRinging(
+                preferences, Offer.HasOffer, Dial.IsOutboundCall, elapsed);
+
+            if (action == AutoCallAction.None) return;
+
+            _autoActionTaken = true;
+            Note($"자동 {(action == AutoCallAction.Answer ? "받기" : "끊기")} ({elapsed.TotalSeconds:0}초)");
+            _ = action == AutoCallAction.Answer ? AnswerAsync() : HangupAsync();
+            return;
+        }
+
+        if (WindowMode == WindowMode.AfterCall
+            && AutoCallActions.ShouldReturnToAvailable(preferences, elapsed))
+        {
+            _autoActionTaken = true;
+            Note($"후처리 {elapsed.TotalSeconds:0}초 뒤 자동 대기 복귀");
+            _ = ChangeStatusAsync(AgentStatusCode.Available);
+        }
     }
 
     public async Task ChangeStatusAsync(AgentStatusCode status, string? reasonCode = null, CancellationToken ct = default)

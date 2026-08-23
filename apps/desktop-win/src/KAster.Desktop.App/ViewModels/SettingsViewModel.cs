@@ -51,6 +51,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     private string _selfAnswerSeconds = string.Empty;
     private string _pbxWaitSeconds = string.Empty;
+    private string _autoAnswerSeconds = string.Empty;
+    private string _autoRejectSeconds = string.Empty;
+    private string _autoAvailableSeconds = string.Empty;
     private string? _callSettingsError;
 
     private bool _autoStart;
@@ -126,6 +129,10 @@ public sealed class SettingsViewModel : ObservableObject
             var calls = callPreferences.Load().Sane();
             _selfAnswerSeconds = calls.SelfAnswerWindowSeconds.ToString(CultureInfo.InvariantCulture);
             _pbxWaitSeconds = calls.PbxResponseWaitSeconds.ToString(CultureInfo.InvariantCulture);
+            _autoAnswerSeconds = calls.AutoAnswerSeconds.ToString(CultureInfo.InvariantCulture);
+            _autoRejectSeconds = calls.AutoRejectSeconds.ToString(CultureInfo.InvariantCulture);
+            _autoAvailableSeconds =
+                calls.AutoAvailableAfterCallSeconds.ToString(CultureInfo.InvariantCulture);
         }
 
         _protocolStatusText = protocolRegistered
@@ -311,6 +318,25 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (Set(ref _pbxWaitSeconds, value)) OnCallSettingChanged(); }
     }
 
+    /// <summary>비우거나 0 이면 안 쓴다.</summary>
+    public string AutoAnswerSeconds
+    {
+        get => _autoAnswerSeconds;
+        set { if (Set(ref _autoAnswerSeconds, value)) OnCallSettingChanged(); }
+    }
+
+    public string AutoRejectSeconds
+    {
+        get => _autoRejectSeconds;
+        set { if (Set(ref _autoRejectSeconds, value)) OnCallSettingChanged(); }
+    }
+
+    public string AutoAvailableSeconds
+    {
+        get => _autoAvailableSeconds;
+        set { if (Set(ref _autoAvailableSeconds, value)) OnCallSettingChanged(); }
+    }
+
     public string? CallSettingsError
     {
         get => _callSettingsError;
@@ -387,6 +413,11 @@ public sealed class SettingsViewModel : ObservableObject
     {
         SelfAnswerWindowSeconds = Seconds(_selfAnswerSeconds) ?? new CallPreferences().SelfAnswerWindowSeconds,
         PbxResponseWaitSeconds = Seconds(_pbxWaitSeconds) ?? new CallPreferences().PbxResponseWaitSeconds,
+
+        // 비워 두면 "안 쓴다" 다. 기본값으로 되돌리면 상담원이 끈 것이 조용히 다시 켜진다.
+        AutoAnswerSeconds = Seconds(_autoAnswerSeconds) ?? 0,
+        AutoRejectSeconds = Seconds(_autoRejectSeconds) ?? 0,
+        AutoAvailableAfterCallSeconds = Seconds(_autoAvailableSeconds) ?? 0,
     };
 
     private void OnHotkeyChanged()
@@ -412,7 +443,15 @@ public sealed class SettingsViewModel : ObservableObject
                 _pbxWaitSeconds,
                 CallPreferences.MinPbxResponseWaitSeconds,
                 CallPreferences.MaxPbxResponseWaitSeconds,
-                "PBX 응답 대기");
+                "PBX 응답 대기")
+            // 0 은 "안 쓴다" 라 아래 한도를 0 으로 둔다.
+            ?? Range(_autoAnswerSeconds, 0, CallPreferences.MaxAutoAnswerSeconds, "자동 받기")
+            ?? Range(_autoRejectSeconds, 0, CallPreferences.MaxAutoRejectSeconds, "자동 끊기")
+            ?? Range(
+                _autoAvailableSeconds,
+                0,
+                CallPreferences.MaxAutoAvailableAfterCallSeconds,
+                "후처리 뒤 자동 대기");
 
         SaveCommand.RaiseCanExecuteChanged();
     }
