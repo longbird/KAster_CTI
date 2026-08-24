@@ -150,7 +150,7 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('Goto(outbound-main-1001,${EXTEN},1)');
     expect(rendered).toContain('GotoIf($["${PJSIP_DIAL_CONTACTS(1001)}"=""]?unregistered-agent,1)');
     expect(rendered).toContain('exten => unregistered-agent,1,NoOp(Registered contact not found for agent 1001)');
-    expect(rendered).toContain('exten => _[12]XXX,1,NoOp(Internal endpoint call 1001 / ${EXTEN})');
+    expect(rendered).toContain('exten => _1XXX,1,NoOp(Internal endpoint call 1001 / ${EXTEN})');
     expect(rendered).toContain('Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
     expect(rendered).toContain('Set(CALLERID(num)=07052346380)');
     expect(rendered).toContain('Set(CALLERID(pres)=prohib)');
@@ -263,6 +263,51 @@ describe('renderAgentDialplan', () => {
     );
   });
 
+  /**
+   * 2026-08-24 현장: 내선 3301~3304 를 쓰는데 전화기끼리 걸면 단말에 "수신거부" 가 떴다.
+   * 내선 통화 패턴이 `_[12]XXX` 로 박혀 있어 3 으로 시작하는 내선은 어디에도 걸리지 않았고,
+   * `_X.` 로 떨어져 우선순위 2 가 없으니 호가 즉시 끊겼다.
+   */
+  it('1000~2999 밖의 내선도 전화기끼리 걸린다', () => {
+    const seat = (extension: string) => ({
+      extension,
+      outboundEnabled: true,
+      callerIdPrivacy: 'allowed_not_screened' as const,
+      liveRecordingEnabled: false,
+    });
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: false,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: ['1001', '2001', '3301', '3302'].map(seat),
+    });
+
+    expect(rendered).toContain('exten => _[123]XXX,1,NoOp(Internal endpoint call 3301 / ${EXTEN})');
+    expect(rendered).not.toContain('_[12]XXX');
+  });
+
+  it('외부 발신을 막아도 내선 통화는 열어 둔다', () => {
+    const rendered = renderAgentDialplan({
+      allowDirectSipDial: false,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '3301',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+      }],
+    });
+
+    // 외부는 막히고
+    expect(rendered).not.toContain('Goto(outbound-main-3301,${EXTEN},1)');
+    // 내선은 걸린다
+    expect(rendered).toContain('exten => _3XXX,1,NoOp(Internal endpoint call 3301 / ${EXTEN})');
+    expect(rendered).toContain('Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
+  });
+
   it('단축 발신은 상담원 컨텍스트에서 실제 대상번호로 라우팅한다', () => {
     const rendered = renderAgentDialplan({
       allowDirectSipDial: true,
@@ -282,11 +327,17 @@ describe('renderAgentDialplan', () => {
           paid: false,
           international: false,
         },
+      }, {
+        extension: '1002',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
       }],
       speedDials: [
         { code: '*01', targetNumber: '01012345678', displayName: '긴급 연락처', enabled: true },
         { code: '*02', targetNumber: '1002', displayName: '옆자리', enabled: true },
       ],
+      // 1002 는 실제 내선이어야 내선으로 걸린다. 대역으로 짐작하지 않는다.
     });
 
     expect(rendered).toContain('exten => *01,1,NoOp(Speed dial *01 -> 긴급 연락처)');
@@ -414,7 +465,7 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('[agent-phone-1004]');
     expect(rendered).toContain('NoOp(Outbound disabled for agent 1004: OUTBOUND_LOCKED)');
     expect(rendered).not.toContain('Goto(outbound-main-1004,${EXTEN},1)');
-    expect(rendered).toContain('exten => _[12]XXX,1,NoOp(Internal endpoint call 1004 / ${EXTEN})');
+    expect(rendered).toContain('exten => _1XXX,1,NoOp(Internal endpoint call 1004 / ${EXTEN})');
   });
 
   it('내선 잠금 FULL_LOCKED 는 외부 발신과 내부 통화를 모두 차단한다', () => {

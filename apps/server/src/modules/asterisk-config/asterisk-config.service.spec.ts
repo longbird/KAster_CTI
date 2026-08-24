@@ -326,6 +326,10 @@ describe('AsteriskConfigService blocklist import', () => {
 
   it('stores speed dial mappings and rejects conflicting codes', async () => {
     const prisma = {
+      // 단축번호 코드 충돌 검사는 실제 내선 목록을 근거로 삼는다 (대역 가정 제거, 2026-08-24).
+      agents: {
+        findMany: jest.fn().mockResolvedValue([{ extension: '1001' }, { extension: '3301' }]),
+      },
       asteriskSpeedDial: {
         create: jest.fn().mockResolvedValue({
           id: 'speed-1',
@@ -361,6 +365,12 @@ describe('AsteriskConfigService blocklist import', () => {
 
     await expect(service.createSpeedDial('tenant-1', {
       code: '0101',
+      targetNumber: '01012345678',
+    })).rejects.toThrow('speed dial code conflicts with internal or outbound dialing patterns');
+
+    // 내선 3301 이 있으므로 _[13]XXX 가 열린다. 3999 는 내선에 없어도 그 패턴이 먼저 잡아간다.
+    await expect(service.createSpeedDial('tenant-1', {
+      code: '3999',
       targetNumber: '01012345678',
     })).rejects.toThrow('speed dial code conflicts with internal or outbound dialing patterns');
   });

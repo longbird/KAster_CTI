@@ -7,6 +7,7 @@ import {
   PAID_OUTBOUND_DIALPLAN_PATTERNS,
   REPRESENTATIVE_OUTBOUND_DIALPLAN_PATTERNS,
 } from '../../../common/outbound-dial-policy.util';
+import { buildInternalExtensionPatterns, isInternalExtension } from './internal-extension-pattern';
 import {
   AGENT_OFFER_AGI_PATH,
   AGENT_OFFER_CONTEXT,
@@ -234,6 +235,7 @@ function renderAgentSpeedDialLines(
   agent: AgentDialplanAgentInput,
   allowDirectSipDial: boolean,
   speedDials: AgentDialplanSpeedDialInput[],
+  internalExtensions: string[],
 ): string[] {
   if (!allowDirectSipDial || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED' || agent.extensionLockMode === 'FULL_LOCKED') {
     return [];
@@ -250,7 +252,9 @@ function renderAgentSpeedDialLines(
         `exten => ${item.code},1,NoOp(Speed dial ${item.code} -> ${label})`,
         ...buildRegisteredEndpointGuard(agent),
       ];
-      if (/^[12]\d{3}$/.test(item.targetNumber)) {
+      // 대역이 아니라 실제 내선 목록으로 가른다. 대역을 가정하면 현장이 번호대를
+      // 바꿀 때 단축번호가 조용히 트렁크로 나간다 (2026-08-24).
+      if (isInternalExtension(item.targetNumber, internalExtensions)) {
         lines.push(` same => n,Dial(PJSIP/${item.targetNumber},20,tTU(agent-pre-bridge))`);
         lines.push(' same => n,Hangup()');
       } else {
@@ -287,6 +291,7 @@ function renderAgentFeatureCodeLines(
 function renderAgentEntryContext(
   agent: AgentDialplanAgentInput,
   allowDirectSipDial: boolean,
+  internalExtensions: string[],
   speedDials: AgentDialplanSpeedDialInput[] = [],
   featureCodes: AgentDialplanFeatureCodeInput[] = [],
 ): string {
@@ -319,14 +324,19 @@ function renderAgentEntryContext(
     lines.push(...buildAllowedOutboundEntryRoutes(agent));
   }
 
-  lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial && phoneDirectEnabled, speedDials));
+  lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial && phoneDirectEnabled, speedDials, internalExtensions));
   // 기능코드는 외부 발신 권한과 무관하다. 인바운드 전용 상담원도 당겨받기는 해야 한다.
   // FULL_LOCKED 는 위에서 이미 early return 으로 걸러졌다.
   lines.push(...renderAgentFeatureCodeLines(agent, featureCodes));
-  lines.push(`exten => _[12]XXX,1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
-  lines.push(...buildRegisteredEndpointGuard(agent));
-  lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
-  lines.push(' same => n,Hangup()');
+  // 내선 통화는 외부 발신 차단과 무관하게 항상 연다. 전화기끼리는 걸려야 한다.
+  // 패턴은 실제 내선 목록에서 만든다 — 예전에는 `_[12]XXX` 가 박혀 있어 3301 번대
+  // 현장에서 전화기끼리 걸면 어디에도 안 걸리고 끊겼다 (2026-08-24).
+  for (const pattern of buildInternalExtensionPatterns(internalExtensions)) {
+    lines.push(`exten => ${pattern},1,NoOp(Internal endpoint call ${agent.extension} / \${EXTEN})`);
+    lines.push(...buildRegisteredEndpointGuard(agent));
+    lines.push(' same => n,Dial(PJSIP/${EXTEN},20,tTU(agent-pre-bridge))');
+    lines.push(' same => n,Hangup()');
+  }
   lines.push(`exten => unregistered-agent,1,NoOp(Registered contact not found for agent ${agent.extension})`);
   lines.push(' same => n,Playback(ss-noservice)');
   lines.push(' same => n,Hangup()');
@@ -552,6 +562,8 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
   const trunkDialTarget = getOutboundTrunkDialTarget(input.trunks, input.trunkGroups);
   const speedDials = input.speedDials ?? [];
   const featureCodes = input.featureCodes ?? [];
+  // 내선 통화 패턴의 유일한 근거. 대역을 코드가 정하지 않는다.
+  const internalExtensions = input.agents.map((agent) => agent.extension);
   const allowedCallerIdText = input.allowedOutboundCallerIds.length > 0
     ? input.allowedOutboundCallerIds.join(',')
     : 'none';
@@ -599,7 +611,9 @@ export function renderAgentDialplan(input: AgentDialplanInput): string {
 
   const sections: string[] = [
     header,
-    ...input.agents.map((agent) => renderAgentEntryContext(agent, input.allowDirectSipDial, speedDials, featureCodes)),
+    ...input.agents.map((agent) =>
+      renderAgentEntryContext(agent, input.allowDirectSipDial, internalExtensions, speedDials, featureCodes),
+    ),
     ...input.agents.map((agent) =>
       renderAgentOutboundRoute(
         agent,

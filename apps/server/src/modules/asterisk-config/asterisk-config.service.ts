@@ -17,6 +17,7 @@ import { CreateForwardingRuleDto, UpdateForwardingRuleDto } from './dto/forwardi
 import { CreateIvrMenuDto, UpdateIvrMenuDto } from './dto/ivr-menu.dto';
 import { CreatePromptDto, UpdatePromptDto } from './dto/prompt.dto';
 import { CreateSpeedDialDto, UpdateSpeedDialDto } from './dto/speed-dial.dto';
+import { isShadowedByInternalPattern } from './renderers/internal-extension-pattern';
 import { UpsertFeatureCodeDto } from './dto/feature-code.dto';
 import {
   assertFeatureCodeUsable,
@@ -764,7 +765,7 @@ export class AsteriskConfigService {
   }
 
   async createSpeedDial(tenantId: string, dto: CreateSpeedDialDto) {
-    const normalized = this.normalizeSpeedDialInput(dto);
+    const normalized = await this.normalizeSpeedDialInput(tenantId, dto);
     const row = await this.prisma.asteriskSpeedDial.create({
       data: {
         tenantId,
@@ -779,7 +780,7 @@ export class AsteriskConfigService {
     await this.assertSpeedDialBelongs(tenantId, id);
     const row = await this.prisma.asteriskSpeedDial.update({
       where: { id },
-      data: this.normalizeSpeedDialInput(dto),
+      data: await this.normalizeSpeedDialInput(tenantId, dto),
     });
     this.reload.scheduleReload(tenantId);
     return row;
@@ -796,13 +797,32 @@ export class AsteriskConfigService {
     if (!row) throw new NotFoundException(`Speed dial ${id} not found`);
   }
 
-  private normalizeSpeedDialInput(dto: CreateSpeedDialDto | UpdateSpeedDialDto) {
+  /**
+   * 내선 통화 패턴에 먹히는 코드를 막는다. 대역(`[12]XXX`)을 박아두면 3301 번대를 쓰는
+   * 현장에서는 헛돌아, 눌러도 반응 없는 단축번호가 만들어진다 (2026-08-24).
+   * 판정 근거는 렌더러와 같은 실제 내선 목록이다.
+   */
+  /**
+   * 내선 통화 패턴의 근거가 되는 실제 내선 목록. 렌더러가 쓰는 것과 같은 원천이라
+   * 검사와 렌더 결과가 어긋나지 않는다.
+   */
+  private listInternalExtensions(tenantId: string): Promise<string[]> {
+    return this.prisma.agents
+      .findMany({ where: { tenantId, isActive: true }, select: { extension: true } })
+      .then((rows) => rows.map((row) => row.extension));
+  }
+
+  private async normalizeSpeedDialInput(
+    tenantId: string,
+    dto: CreateSpeedDialDto | UpdateSpeedDialDto,
+  ) {
     const code = dto.code.trim();
     const targetNumber = dto.targetNumber.replace(/[\s-]/g, '').trim();
     if (!SPEED_DIAL_CODE_PATTERN.test(code)) {
       throw new BadRequestException('code must contain 1-16 digits or *#');
     }
-    if (/^[12]\d{3}$/.test(code) || /^0\d+/.test(code)) {
+    const extensions = await this.listInternalExtensions(tenantId);
+    if (isShadowedByInternalPattern(code, extensions) || /^0\d+/.test(code)) {
       throw new BadRequestException('speed dial code conflicts with internal or outbound dialing patterns');
     }
     if (!SPEED_DIAL_TARGET_PATTERN.test(targetNumber)) {
