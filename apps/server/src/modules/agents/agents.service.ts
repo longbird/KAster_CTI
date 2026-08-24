@@ -407,7 +407,7 @@ export class AgentsService {
         ...(dto.role !== undefined && { role: dto.role }),
         ...(dto.defaultQueueId !== undefined && { defaultQueueId: dto.defaultQueueId }),
         ...(dto.agentGroupId !== undefined && { agentGroupId: dto.agentGroupId }),
-        ...(dto.sipPassword !== undefined && { sipPassword: dto.sipPassword?.trim() || null }),
+        ...(this.resolveSipPasswordChange(dto) ?? {}),
         ...(dto.settingsProfile !== undefined
           ? { settingsProfile: dto.settingsProfile as Prisma.InputJsonValue }
           : {}),
@@ -435,12 +435,28 @@ export class AgentsService {
     return { success: true, data: updated, error: null };
   }
 
+  /**
+   * SIP 비밀번호 변경분을 만든다. 바뀌는 게 없으면 null 이라 호출부가 필드를 아예 뺀다.
+   *
+   * 빈 문자열은 <b>변경 없음</b>이다. 명시적 삭제(사이트 기본값으로 되돌리기)는 null 로만 받는다.
+   * 예전 규칙 `dto.sipPassword?.trim() || null` 은 빈 문자열도 삭제로 읽었다. 상담원 편집
+   * 화면이 입력칸 없는 값까지 폼 스토어째 PATCH 로 보내는 탓에, 이름만 고쳐 저장해도 SIP
+   * 비밀번호가 조용히 지워졌고 그 결과가 내선 3304 의 등록 실패였다 (2026-08-24).
+   * 로그인 비밀번호(`dto.password`)는 처음부터 빈 값을 무시했다 — 이제 둘이 같게 동작한다.
+   */
+  private resolveSipPasswordChange(dto: UpdateAgentDto): { sipPassword: string | null } | null {
+    if (dto.sipPassword === undefined) return null;
+    if (dto.sipPassword === null) return { sipPassword: null };
+    const trimmed = dto.sipPassword.trim();
+    return trimmed ? { sipPassword: trimmed } : null;
+  }
+
   private requiresPbxAgentReload(dto: UpdateAgentDto): boolean {
     return (
       dto.agentName !== undefined ||
       dto.extension !== undefined ||
       dto.extensionDisplayName !== undefined ||
-      dto.sipPassword !== undefined
+      this.resolveSipPasswordChange(dto) !== null
     );
   }
 

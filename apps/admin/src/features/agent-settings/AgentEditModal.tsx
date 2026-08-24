@@ -5,16 +5,15 @@ import { apiClient } from '../../shared/lib/apiClient';
 import {
   AGENT_TYPE_OPTIONS,
   CLOSE_STATUS_PERMISSION_OPTIONS,
-  DEFAULT_AGENT_SETTINGS_PROFILE,
   INOUT_TYPE_OPTIONS,
   normalizeIpList,
-  normalizeAgentSettingsProfile,
   NUMBER_MASKING_OPTIONS,
   PICKUP_TYPE_OPTIONS,
   POPUP_CLOSE_READY_OPTIONS,
   READY_DELAY_OPTIONS,
   SIMPLE_USE_OPTIONS,
 } from './agentSettingProfile';
+import { buildAgentEditFormValues } from './agentEditFormValues';
 import { EXTENSION_LOCK_MODE_OPTIONS } from './extensionPolicy';
 
 export interface AgentRow {
@@ -151,20 +150,7 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
         const loaded = detailRes.data?.data?.agent ?? null;
         setDetail(loaded);
         form.resetFields();
-        form.setFieldsValue({
-          loginId: loaded?.loginId ?? agent.loginId,
-          agentName: loaded?.agentName ?? agent.agentName,
-          extension: loaded?.extension ?? agent.extension,
-          extensionDisplayName: loaded?.extensionDisplayName ?? agent.extensionDisplayName ?? '',
-          extensionLockMode: loaded?.extensionLockMode ?? agent.extensionLockMode ?? 'UNLOCKED',
-          role: loaded?.role ?? agent.role,
-          defaultQueueId: loaded?.defaultQueueId ?? agent.defaultQueueId ?? undefined,
-          agentGroupId: loaded?.agentGroupId ?? agent.agentGroupId ?? undefined,
-          isActive: loaded?.isActive ?? agent.isActive,
-          password: '',
-          sipPassword: loaded?.sipPassword ?? '',
-          settingsProfile: normalizeAgentSettingsProfile(loaded?.settingsProfile),
-        });
+        form.setFieldsValue(buildAgentEditFormValues(agent, loaded));
         setQueues((queueRes.data?.data ?? []).filter((q: QueueOption) => q.isActive !== false));
         setAgentGroups(
           (groupRes.data?.data ?? []).filter((g: AgentGroupOption) => g.isActive !== false),
@@ -173,20 +159,7 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
       .catch(() => {
         setDetail(null);
         form.resetFields();
-        form.setFieldsValue({
-          loginId: agent.loginId,
-          agentName: agent.agentName,
-          extension: agent.extension,
-          extensionDisplayName: agent.extensionDisplayName ?? '',
-          extensionLockMode: agent.extensionLockMode ?? 'UNLOCKED',
-          role: agent.role,
-          defaultQueueId: agent.defaultQueueId ?? undefined,
-          agentGroupId: agent.agentGroupId ?? undefined,
-          isActive: agent.isActive,
-          password: '',
-          sipPassword: '',
-          settingsProfile: DEFAULT_AGENT_SETTINGS_PROFILE,
-        });
+        form.setFieldsValue(buildAgentEditFormValues(agent, null));
         setQueues([]);
         setAgentGroups([]);
       });

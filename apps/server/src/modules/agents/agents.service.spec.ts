@@ -32,7 +32,10 @@ describe('AgentsService', () => {
     expect(reload.scheduleReload).toHaveBeenCalledWith('tenant-1');
   });
 
-  it('schedules an Asterisk reload when SIP password is cleared through agent settings', async () => {
+  // 삭제 신호는 null 이다. 빈 문자열은 "변경 없음" 으로 바뀌었다 — 상담원 편집 화면이
+  // 입력칸 없는 값까지 폼째 보내면서 SIP 비밀번호를 조용히 지우던 것을 막기 위해서다
+  // (2026-08-24, 내선 3304 등록 실패). 자세한 계약은 agents.service.sip-password.spec.ts 참조.
+  it('schedules an Asterisk reload when SIP password is cleared (null) through agent settings', async () => {
     const prisma = {
       agents: {
         findFirst: jest.fn().mockResolvedValueOnce({
@@ -52,7 +55,7 @@ describe('AgentsService', () => {
     const agentStateService = { changeStatus: jest.fn() } as any;
     const service = new AgentsService(prisma, reload, ami, agentStateService);
 
-    await service.update('tenant-1', 'agent-1', { sipPassword: '' });
+    await service.update('tenant-1', 'agent-1', { sipPassword: null });
 
     expect(prisma.agents.update).toHaveBeenCalledWith(
       expect.objectContaining({
