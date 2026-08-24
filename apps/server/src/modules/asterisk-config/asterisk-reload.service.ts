@@ -21,6 +21,8 @@ import {
   RenderedConfFiles,
   validateRenderedConfFiles,
 } from './asterisk-config-validation';
+import { findConfigRenderRegression } from './config-render-guard';
+import { CONFIG_OWNER_MARKER_FILENAME, decideConfigOwnership } from './config-ownership';
 import {
   DEFAULT_SIP_REGISTER_PORT,
 } from '../../common/call-routing.constants';
@@ -868,6 +870,48 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     };
   }
 
+  /**
+   * 이 노드가 conf 디렉터리의 주인인지 확인한다. 아니면 false 를 돌려 쓰기를 건너뛴다.
+   *
+   * 마커가 없으면 우리 것으로 표시한다. 표시에 실패해도 쓰기는 진행한다 — 마커는 사고를
+   * 막는 장치지, 없다고 서비스를 멈출 이유는 아니다.
+   */
+  private assertConfDirOwnership(confDir: string): boolean {
+    const markerPath = path.join(confDir, CONFIG_OWNER_MARKER_FILENAME);
+    let marker: string | null = null;
+    try {
+      marker = fs.existsSync(markerPath) ? fs.readFileSync(markerPath, 'utf8') : null;
+    } catch (err) {
+      // 마커를 못 읽으면 소유권을 판단할 수 없다. 읽기 실패로 서비스를 멈추지는 않는다.
+      this.logger.warn(`Config owner marker unreadable (${markerPath}): ${(err as Error).message}`);
+      return true;
+    }
+
+    const decision = decideConfigOwnership({
+      marker,
+      ownerId: this.config.get<string>('ASTERISK_CONF_OWNER_ID'),
+      allowSharedWrite:
+        (this.config.get<string>('ASTERISK_CONF_ALLOW_SHARED_WRITE') ?? '').trim() === 'true',
+    });
+
+    if (decision.action === 'refuse') {
+      this.logger.error(`Refusing to write Asterisk config: ${decision.reason}`);
+      return false;
+    }
+
+    if (decision.action === 'claim') {
+      try {
+        fs.writeFileSync(markerPath, `${decision.ownerId}
+`, 'utf8');
+        this.logger.log(`Claimed Asterisk conf directory: ${decision.reason}`);
+      } catch (err) {
+        this.logger.warn(`Config owner marker write failed: ${(err as Error).message}`);
+      }
+    }
+
+    return true;
+  }
+
   async writeConfFiles(tenantId: string): Promise<boolean> {
     const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
     const soundsDir = this.config.get<string>('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom');
@@ -885,6 +929,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       this.logger.warn(
         `Asterisk conf directory "${confDir}" does not exist. Skipping config file generation for tenant ${tenantId}`,
       );
+      return false;
+    }
+
+    // 같은 디렉터리를 다른 노드가 소유하면 쓰지 않는다. 컨테이너는 배포와 무관하게 재시작하고,
+    // 그때마다 자기 테넌트 기준으로 렌더링해 남의 설정을 덮어쓴다 (2026-08-24 리허설 컨테이너).
+    if (!this.assertConfDirOwnership(confDir)) {
       return false;
     }
 
@@ -983,6 +1033,18 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     this.ensureDefaultMohAsset();
     this.ensureQueueTimeoutPrompt(soundsDir);
     this.syncPromptMohAssets(promptMohClasses, soundsDir);
+
+    // 상담원이 있는데 렌더 결과에 내선이 하나도 없으면 쓰지 않는다. 낡은 설정은 통화를
+    // 이어가지만, 내선이 빠진 설정은 전화기의 등록을 끊는다.
+    const regression = findConfigRenderRegression({
+      expectedAgentCount: agents.length,
+      renderedPjsip: pjsipContent,
+      renderedAgentDialplan: extensionsAgent,
+    });
+    if (regression) {
+      this.logger.error(`Refusing to write Asterisk config for tenant ${tenantId}: ${regression}`);
+      return false;
+    }
 
     fs.writeFileSync(path.join(confDir, 'pjsip.conf'), pjsipContent, 'utf8');
     fs.writeFileSync(path.join(confDir, 'rtp.conf'), rtpContent, 'utf8');

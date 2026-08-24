@@ -472,3 +472,94 @@ describe('AsteriskReloadService 상담원 제안 대기 시간', () => {
     );
   });
 });
+
+/**
+ * 2026-08-24: 같은 /etc/asterisk 를 마운트한 리허설 컨테이너가 재시작할 때마다 자기 테넌트
+ * 기준으로 렌더링해 운영 설정을 덮어썼다. 내선 endpoint 가 사라져 전화기 등록이 끊겼고,
+ * 소유자 마커와 env 는 있었지만 런타임에서 아무도 읽지 않았다.
+ */
+describe('AsteriskReloadService conf 디렉터리 소유권', () => {
+  const { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } = require('fs');
+  const { tmpdir } = require('os');
+  const { join } = require('path');
+
+  function buildService(confDir: string, env: Record<string, string>) {
+    const config = {
+      get: jest.fn((key: string, fallback?: string) => {
+        if (key === 'ASTERISK_CONF_DIR') return confDir;
+        return key in env ? env[key] : fallback;
+      }),
+    } as any;
+    return new AsteriskReloadService(
+      {} as any,
+      config,
+      { sendAction: jest.fn(), isConnected: jest.fn().mockReturnValue(true) } as any,
+      { save: jest.fn().mockResolvedValue(undefined) } as any,
+    ) as any;
+  }
+
+  it('마커가 남의 것이면 쓰지 않는다', () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-own-'));
+    writeFileSync(join(confDir, '.kaster-cti-config-owner'), 'rehearsal-20260501\n');
+    const service = buildService(confDir, { ASTERISK_CONF_OWNER_ID: 'dev-node' });
+
+    try {
+      expect(service.assertConfDirOwnership(confDir)).toBe(false);
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+
+  it('마커가 내 것이면 쓴다', () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-own-'));
+    writeFileSync(join(confDir, '.kaster-cti-config-owner'), 'dev-node\n');
+    const service = buildService(confDir, { ASTERISK_CONF_OWNER_ID: 'dev-node' });
+
+    try {
+      expect(service.assertConfDirOwnership(confDir)).toBe(true);
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+
+  it('마커가 없으면 내 것으로 표시하고 쓴다', () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-own-'));
+    const service = buildService(confDir, { ASTERISK_CONF_OWNER_ID: 'dev-node' });
+
+    try {
+      expect(service.assertConfDirOwnership(confDir)).toBe(true);
+      expect(readFileSync(join(confDir, '.kaster-cti-config-owner'), 'utf8').trim()).toBe('dev-node');
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+
+  it('소유자 ID 를 안 준 현장은 마커와 무관하게 쓴다 — 기존 배포를 깨지 않는다', () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-own-'));
+    writeFileSync(join(confDir, '.kaster-cti-config-owner'), 'someone-else\n');
+    const service = buildService(confDir, {});
+
+    try {
+      expect(service.assertConfDirOwnership(confDir)).toBe(true);
+      // 표시도 하지 않는다. 남의 마커를 건드리지 않는다.
+      expect(readFileSync(join(confDir, '.kaster-cti-config-owner'), 'utf8').trim()).toBe('someone-else');
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+
+  it('공유 쓰기를 명시적으로 켜면 불일치라도 쓴다', () => {
+    const confDir = mkdtempSync(join(tmpdir(), 'kcti-own-'));
+    writeFileSync(join(confDir, '.kaster-cti-config-owner'), 'other-node\n');
+    const service = buildService(confDir, {
+      ASTERISK_CONF_OWNER_ID: 'dev-node',
+      ASTERISK_CONF_ALLOW_SHARED_WRITE: 'true',
+    });
+
+    try {
+      expect(service.assertConfDirOwnership(confDir)).toBe(true);
+    } finally {
+      rmSync(confDir, { recursive: true, force: true });
+    }
+  });
+});
