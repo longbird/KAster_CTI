@@ -6,6 +6,7 @@ import {
   OutboundDialPermissions,
   PAID_OUTBOUND_DIALPLAN_PATTERNS,
   REPRESENTATIVE_OUTBOUND_DIALPLAN_PATTERNS,
+  resolvePhoneDirectAllowed,
 } from '../../../common/outbound-dial-policy.util';
 import { buildInternalExtensionPatterns, isInternalExtension } from './internal-extension-pattern';
 import {
@@ -233,11 +234,11 @@ function buildOutboundDialRoute(
 
 function renderAgentSpeedDialLines(
   agent: AgentDialplanAgentInput,
-  allowDirectSipDial: boolean,
+  directDialAllowed: boolean,
   speedDials: AgentDialplanSpeedDialInput[],
   internalExtensions: string[],
 ): string[] {
-  if (!allowDirectSipDial || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED' || agent.extensionLockMode === 'FULL_LOCKED') {
+  if (!directDialAllowed || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED' || agent.extensionLockMode === 'FULL_LOCKED') {
     return [];
   }
 
@@ -290,7 +291,7 @@ function renderAgentFeatureCodeLines(
 
 function renderAgentEntryContext(
   agent: AgentDialplanAgentInput,
-  allowDirectSipDial: boolean,
+  siteAllowDirectSipDial: boolean,
   internalExtensions: string[],
   speedDials: AgentDialplanSpeedDialInput[] = [],
   featureCodes: AgentDialplanFeatureCodeInput[] = [],
@@ -310,21 +311,22 @@ function renderAgentEntryContext(
   }
 
   const permissions = normalizeOutboundDialPermissions(agent.outboundDialPermissions);
-  const phoneDirectEnabled = permissions.phoneDirect && permissions.phoneDirectAllowedIps.length > 0;
-  if (!allowDirectSipDial || !agent.outboundEnabled || !phoneDirectEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED') {
+  // 사이트 스위치는 기본값이고 상담원이 명시하면 그쪽이 이긴다. 사이트를 '차단'으로 두고
+  // 발신이 필요한 상담원만 'ALLOW' 로 여는 것이 이 설정의 사용법이다 — 권한 없는 계정이나
+  // 스푸핑으로 들어온 등록은 기본값(차단)에 걸린다.
+  const directDialAllowed = resolvePhoneDirectAllowed(permissions.phoneDirect, siteAllowDirectSipDial);
+  if (!directDialAllowed || !agent.outboundEnabled || agent.extensionLockMode === 'OUTBOUND_LOCKED') {
     if (agent.extensionLockMode === 'OUTBOUND_LOCKED') {
       lines.push(`exten => _X.,1,NoOp(Outbound disabled for agent ${agent.extension}: OUTBOUND_LOCKED)`);
-    } else if (!permissions.phoneDirect) {
-      lines.push(`exten => _X.,1,NoOp(Phone direct outbound disabled for agent ${agent.extension})`);
-    } else if (permissions.phoneDirectAllowedIps.length === 0) {
-      lines.push(`exten => _X.,1,NoOp(Phone direct outbound IP allowlist empty for agent ${agent.extension})`);
+    } else if (!directDialAllowed) {
+      lines.push(`exten => _X.,1,NoOp(Phone direct outbound disabled for agent ${agent.extension}: ${permissions.phoneDirect})`);
     }
     lines.push(...buildAllowedOutboundEntryNoOps(agent).flatMap((noOpLine) => buildOutboundNoServiceRoute(noOpLine)));
   } else {
     lines.push(...buildAllowedOutboundEntryRoutes(agent));
   }
 
-  lines.push(...renderAgentSpeedDialLines(agent, allowDirectSipDial && phoneDirectEnabled, speedDials, internalExtensions));
+  lines.push(...renderAgentSpeedDialLines(agent, directDialAllowed, speedDials, internalExtensions));
   // 기능코드는 외부 발신 권한과 무관하다. 인바운드 전용 상담원도 당겨받기는 해야 한다.
   // FULL_LOCKED 는 위에서 이미 early return 으로 걸러졌다.
   lines.push(...renderAgentFeatureCodeLines(agent, featureCodes));

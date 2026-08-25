@@ -52,7 +52,7 @@ function normalizeCallCapabilities(raw: any, fallbackOutboundDialOptions?: Agent
     canOriginateInternal: raw?.canOriginateInternal !== false,
     canUsePhoneDirect: raw?.canUsePhoneDirect === true,
     outboundDialPermissions: {
-      phoneDirect: raw?.outboundDialPermissions?.phoneDirect === true,
+      phoneDirect: raw?.canUsePhoneDirect === true,
       phoneDirectAllowedIps: Array.isArray(raw?.outboundDialPermissions?.phoneDirectAllowedIps)
         ? raw.outboundDialPermissions.phoneDirectAllowedIps.filter((item: unknown) => typeof item === 'string')
         : [],

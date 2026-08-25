@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseAllowedCallerIds } from '../../common/outbound-caller-id.util';
+import { resolvePhoneDirectAllowed } from '../../common/outbound-dial-policy.util';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiConnectionService } from '../ami/ami-connection.service';
 import { ConfigSnapshotService } from '../resilience/config-snapshot.service';
@@ -1450,6 +1451,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
         }
       | null;
     const defaultSipPassword = settings?.defaultSipPassword ?? null;
+    const siteAllowDirectSipDial = typedSettings?.allowDirectSipDial ?? false;
     const promptKeyById = new Map(prompts.map((prompt) => [prompt.id, prompt.promptKey]));
     const queueNameById = new Map(queues.map((queue) => [queue.queueId, queue.queueName]));
     const dids = didRows.map(({ branchMappings, ...did }) => ({
@@ -1475,7 +1477,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       featureCodes,
       sipRegisterPort: typedSettings?.sipRegisterPort ?? DEFAULT_SIP_REGISTER_PORT,
       recordingChannelMode: normalizeRecordingChannelMode(typedSettings?.recordingChannelMode),
-      allowDirectSipDial: typedSettings?.allowDirectSipDial ?? false,
+      allowDirectSipDial: siteAllowDirectSipDial,
       allowedOutboundCallerIds: parseAllowedCallerIds(typedSettings?.allowedOutboundCallerIds),
       defaultOutboundCallerId: typedSettings?.defaultOutboundCallerId ?? null,
       agents,
@@ -1486,6 +1488,10 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
           agentName: agent.agentName,
           extensionDisplayName: (agent as any).extensionDisplayName ?? null,
           sipPassword: agent.sipPassword || defaultSipPassword,
+          phoneDirectAllowed: resolvePhoneDirectAllowed(
+            profile.outboundDialPermissions.phoneDirect,
+            siteAllowDirectSipDial,
+          ),
           phoneDirectAllowedIps: profile.outboundDialPermissions.phoneDirectAllowedIps,
           context: `agent-phone-${agent.extension}`,
           callerIdPrivacy: (

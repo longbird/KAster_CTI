@@ -14,6 +14,12 @@ export interface AgentInput {
   agentName: string;
   extensionDisplayName?: string | null;
   sipPassword: string | null;
+  /**
+   * 전화기 직접 발신이 이 상담원에게 실제로 열려 있는가 (사이트 기본값 + 개별 정책의 결과).
+   * 아래 IP ACL 은 이 값이 true 일 때만 나간다 — ACL 은 REGISTER 까지 막기 때문에,
+   * 발신이 막힌 상담원에게 남아 있던 IP 목록이 등록을 죽이면 안 된다.
+   */
+  phoneDirectAllowed?: boolean;
   phoneDirectAllowedIps?: string[];
   context?: string;
   callerIdPrivacy?: 'allowed_not_screened' | 'prohib';
@@ -127,9 +133,11 @@ function renderAgent(agent: AgentInput): string {
   assertNoNewlines(agent.sipPassword, 'sipPassword');
   if (agent.context) assertNoNewlines(agent.context, 'context');
   if (agent.pickupGroup) assertNoNewlines(agent.pickupGroup, 'pickupGroup');
-  const phoneDirectAllowedIps = [...new Set((agent.phoneDirectAllowedIps ?? [])
-    .map((ip) => ip.trim())
-    .filter((ip) => ip && isValidIpv4Cidr(ip)))];
+  const phoneDirectAllowedIps = agent.phoneDirectAllowed === false
+    ? []
+    : [...new Set((agent.phoneDirectAllowedIps ?? [])
+      .map((ip) => ip.trim())
+      .filter((ip) => ip && isValidIpv4Cidr(ip)))];
   phoneDirectAllowedIps.forEach((ip) => assertNoNewlines(ip, 'phoneDirectAllowedIp'));
 
   const namedCallGroup = agent.pickupType && agent.pickupType !== 'NOT_USE'

@@ -7,8 +7,18 @@ export type OutboundDialNumberCategory =
   | 'INTERNATIONAL'
   | 'UNSUPPORTED';
 
+/**
+ * 전화기(SIP 단말)에서 상담원 앱을 거치지 않고 바로 거는 발신의 허용 정책.
+ *
+ * 사이트 설정(`tenantSystemSettings.allowDirectSipDial`)이 기본값이고, 상담원이
+ * `ALLOW`/`DENY` 를 명시하면 그쪽이 이긴다. `INHERIT` 는 사이트 값을 따른다.
+ * 사이트 스위치는 "권한 없는 계정이나 스푸핑으로 들어온 발신"을 한 번에 막는
+ * 킬스위치이고, 개별 `ALLOW` 는 거기에 대한 명시적 예외다.
+ */
+export type PhoneDirectPolicy = 'INHERIT' | 'ALLOW' | 'DENY';
+
 export interface OutboundDialPermissions {
-  phoneDirect: boolean;
+  phoneDirect: PhoneDirectPolicy;
   phoneDirectAllowedIps: string[];
   domestic: boolean;
   representative: boolean;
@@ -17,7 +27,7 @@ export interface OutboundDialPermissions {
 }
 
 export const DEFAULT_OUTBOUND_DIAL_PERMISSIONS: OutboundDialPermissions = {
-  phoneDirect: false,
+  phoneDirect: 'INHERIT',
   phoneDirectAllowedIps: [],
   domestic: true,
   representative: true,
@@ -55,6 +65,31 @@ function normalizeAllowedIps(input: unknown): string[] {
   return [...unique];
 }
 
+/**
+ * 저장된 값을 3상태로 읽는다.
+ *
+ * 예전에는 boolean 체크박스였다. 체크 해제(`false`)를 `INHERIT` 로 읽으면, 사이트 기본값이
+ * '허용'인 현장에서 이 코드가 배포되는 순간 <b>전 상담원의 전화기 직접 발신이 한꺼번에</b>
+ * 열린다. 그래서 예전 `false` 는 명시적 차단으로 읽는다 — 배포 자체는 아무것도 바꾸지 않고,
+ * 열고 싶은 상담원만 관리자가 골라서 연다.
+ */
+function normalizePhoneDirect(value: unknown): PhoneDirectPolicy {
+  if (value === 'ALLOW' || value === 'DENY' || value === 'INHERIT') return value;
+  if (value === true) return 'ALLOW';
+  if (value === false) return 'DENY';
+  return DEFAULT_OUTBOUND_DIAL_PERMISSIONS.phoneDirect;
+}
+
+/** 이 상담원의 전화기 직접 발신이 실제로 열리는가. */
+export function resolvePhoneDirectAllowed(
+  policy: PhoneDirectPolicy,
+  siteDefaultAllowed: boolean,
+): boolean {
+  if (policy === 'ALLOW') return true;
+  if (policy === 'DENY') return false;
+  return siteDefaultAllowed;
+}
+
 export function normalizeOutboundDialPermissions(input: unknown): OutboundDialPermissions {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { ...DEFAULT_OUTBOUND_DIAL_PERMISSIONS };
@@ -63,9 +98,7 @@ export function normalizeOutboundDialPermissions(input: unknown): OutboundDialPe
   const source = input as Partial<OutboundDialPermissions>;
   return {
     ...DEFAULT_OUTBOUND_DIAL_PERMISSIONS,
-    phoneDirect: typeof source.phoneDirect === 'boolean'
-      ? source.phoneDirect
-      : DEFAULT_OUTBOUND_DIAL_PERMISSIONS.phoneDirect,
+    phoneDirect: normalizePhoneDirect(source.phoneDirect),
     phoneDirectAllowedIps: normalizeAllowedIps(source.phoneDirectAllowedIps),
     domestic: typeof source.domestic === 'boolean' ? source.domestic : DEFAULT_OUTBOUND_DIAL_PERMISSIONS.domestic,
     representative: typeof source.representative === 'boolean'

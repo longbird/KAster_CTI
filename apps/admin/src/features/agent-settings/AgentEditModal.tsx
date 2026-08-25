@@ -1,5 +1,5 @@
 import { QuestionCircleOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, Card, Checkbox, Col, Form, Input, Modal, Row, Select, Switch, Tag, Tooltip, Typography, message } from 'antd';
+import { Button, Card, Checkbox, Col, Form, Input, Modal, Radio, Row, Select, Switch, Tag, Tooltip, Typography, message } from 'antd';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import {
@@ -404,12 +404,23 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
                     <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>
                       발신 번호 권한
                     </Typography.Text>
+                    <Form.Item
+                      label="전화기 직접 발신"
+                      name={['settingsProfile', 'outboundDialPermissions', 'phoneDirect']}
+                      extra="상담원 앱을 거치지 않고 전화기에서 바로 거는 발신입니다. '허용'/'차단'은 시스템 설정보다 우선합니다."
+                      style={{ marginBottom: 12 }}
+                    >
+                      <Radio.Group
+                        optionType="button"
+                        buttonStyle="solid"
+                        options={[
+                          { label: '시스템 설정 따름', value: 'INHERIT' },
+                          { label: '허용', value: 'ALLOW' },
+                          { label: '차단', value: 'DENY' },
+                        ]}
+                      />
+                    </Form.Item>
                     <Row gutter={[12, 8]}>
-                      <Col xs={24} sm={12}>
-                        <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'phoneDirect']} valuePropName="checked" style={{ marginBottom: 0 }}>
-                          <Checkbox>전화기 직접 발신</Checkbox>
-                        </Form.Item>
-                      </Col>
                       <Col xs={24} sm={12}>
                         <Form.Item name={['settingsProfile', 'outboundDialPermissions', 'domestic']} valuePropName="checked" style={{ marginBottom: 0 }}>
                           <Checkbox>국내 일반번호</Checkbox>
@@ -433,6 +444,7 @@ export function AgentEditModal({ agent, onClose, onSaved }: Props) {
                     </Row>
                     <Form.Item
                       label="전화기 직접 발신 허용 IP"
+                      extra="선택 사항입니다. 비우면 IP 제한 없이 발신을 허용합니다. 입력하면 그 IP 에서만 발신·등록이 되므로, 전화기의 공인 IP 를 넣어야 합니다 (내부 IP 를 넣으면 등록이 끊깁니다)."
                       name={['settingsProfile', 'outboundDialPermissions', 'phoneDirectAllowedIps']}
                       getValueProps={(value) => ({
                         value: Array.isArray(value) ? value.join('\n') : '',

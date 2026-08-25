@@ -781,6 +781,7 @@ describe('CallsService branch filter integration', () => {
     expect(result).toEqual({
       allowedCallerIds: ['07052346380', '07052346381'],
       defaultCallerId: '07052346381',
+      allowDirectSipDial: false,
     });
   });
 

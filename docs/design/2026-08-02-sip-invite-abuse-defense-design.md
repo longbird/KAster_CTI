@@ -56,9 +56,18 @@
 
 극히 일부 전화기 직접 발신 요구사항은 예외로 허용한다. 단, 다음 조건을 모두 만족해야 한다.
 
-- 상담원 `outboundDialPermissions.phoneDirect`가 `true`이다.
-- `outboundDialPermissions.phoneDirectAllowedIps`에 허용 IP 또는 CIDR이 1개 이상 등록되어 있다.
-- PBX `pjsip.conf` endpoint에 `deny=0.0.0.0/0.0.0.0`와 `permit=<허용 IP>`가 생성되어 REGISTER와 INVITE가 지정 IP에서만 들어온다.
+- 사이트 설정 `tenantSystemSettings.allowDirectSipDial` 이 기본값이고, 상담원
+  `outboundDialPermissions.phoneDirect` 가 그 기본값을 이긴다 (2026-08-25 변경).
+  - `INHERIT`(기본) — 사이트 값을 따른다
+  - `ALLOW` — 사이트가 차단이어도 이 상담원만 허용한다. 권한 없는 계정·스푸핑 발신을 사이트 기본값
+    '차단'으로 막고, 실제로 필요한 상담원만 여는 것이 의도된 사용법이다
+  - `DENY` — 사이트가 허용이어도 이 상담원은 차단한다
+  - 예전 boolean `false` 는 `DENY` 로 읽는다. 이 규칙이 배포되는 순간 아무 내선도 새로 열리지 않는다
+- `outboundDialPermissions.phoneDirectAllowedIps` 는 **선택 사항**이다. 비우면 IP 제한 없이 허용한다.
+- IP 를 등록한 경우에만 PBX `pjsip.conf` endpoint 에 `deny=0.0.0.0/0.0.0.0` 와 `permit=<허용 IP>` 가
+  생성되어 REGISTER 와 INVITE 가 지정 IP 에서만 들어온다. 이 ACL 은 REGISTER 까지 막으므로
+  **전화기의 공인 IP** 를 넣어야 하며, 직접 발신이 차단된 상담원에게는 렌더링하지 않는다
+  (남아 있던 IP 목록 하나로 등록이 끊기는 것을 막는다).
 - 다이얼플랜에서 `PJSIP_DIAL_CONTACTS(<내선>)`가 비어 있지 않은지 확인한 뒤에만 직접 발신 라우팅을 수행한다.
 
 트렁크 인입에는 이 규칙을 적용하지 않는다. 정상 통신사 인입은 내선 REGISTER 상태와 무관하며, 트렁크 `identify match`와 DID allowlist로 판단해야 한다.

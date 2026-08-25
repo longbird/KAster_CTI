@@ -10,6 +10,7 @@ import {
   extractOutboundDialPermissions,
   normalizeAllowedOutboundDialNumber,
   OutboundDialPermissions,
+  resolvePhoneDirectAllowed,
 } from '../../common/outbound-dial-policy.util';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -740,9 +741,14 @@ export class CallsService {
       select: {
         allowedOutboundCallerIds: true,
         defaultOutboundCallerId: true,
+        allowDirectSipDial: true,
       },
     } as any) as
-      | { allowedOutboundCallerIds?: string | null; defaultOutboundCallerId?: string | null }
+      | {
+          allowedOutboundCallerIds?: string | null;
+          defaultOutboundCallerId?: string | null;
+          allowDirectSipDial?: boolean | null;
+        }
       | null;
 
     const allowedCallerIds = parseAllowedCallerIds(settings?.allowedOutboundCallerIds);
@@ -771,15 +777,21 @@ export class CallsService {
       select: {
         allowedOutboundCallerIds: true,
         defaultOutboundCallerId: true,
+        allowDirectSipDial: true,
       },
     } as any) as
-      | { allowedOutboundCallerIds?: string | null; defaultOutboundCallerId?: string | null }
+      | {
+          allowedOutboundCallerIds?: string | null;
+          defaultOutboundCallerId?: string | null;
+          allowDirectSipDial?: boolean | null;
+        }
       | null;
 
     const allowedCallerIds = parseAllowedCallerIds(settings?.allowedOutboundCallerIds);
     return {
       allowedCallerIds,
       defaultCallerId: settings?.defaultOutboundCallerId ?? allowedCallerIds[0] ?? null,
+      allowDirectSipDial: settings?.allowDirectSipDial === true,
     };
   }
 
@@ -822,8 +834,10 @@ export class CallsService {
     return {
       canOriginateExternal: disabledReasons.length === 0,
       canOriginateInternal: hasExtension,
-      canUsePhoneDirect: outboundDialPermissions.phoneDirect
-        && outboundDialPermissions.phoneDirectAllowedIps.length > 0,
+      canUsePhoneDirect: resolvePhoneDirectAllowed(
+        outboundDialPermissions.phoneDirect,
+        outboundDialOptions.allowDirectSipDial,
+      ),
       outboundDialPermissions,
       outboundDialOptions,
       disabledReasons,
@@ -1797,9 +1811,14 @@ export class CallsService {
       select: {
         allowedOutboundCallerIds: true,
         defaultOutboundCallerId: true,
+        allowDirectSipDial: true,
       },
     } as any) as
-      | { allowedOutboundCallerIds?: string | null; defaultOutboundCallerId?: string | null }
+      | {
+          allowedOutboundCallerIds?: string | null;
+          defaultOutboundCallerId?: string | null;
+          allowDirectSipDial?: boolean | null;
+        }
       | null;
     const defaultCallerId = settings?.defaultOutboundCallerId?.trim();
     if (defaultCallerId) {

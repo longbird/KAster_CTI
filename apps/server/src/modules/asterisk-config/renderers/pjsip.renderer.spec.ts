@@ -113,6 +113,35 @@ describe('renderPjsip', () => {
     expect(result).not.toContain('[trunk-');
   });
 
+  describe('전화기 직접 발신 IP ACL', () => {
+    const render = (phoneDirectAllowed: boolean | undefined) => renderPjsip({
+      trunks: [],
+      agents: [{
+        extension: '1001',
+        agentName: 'Agent1',
+        sipPassword: 'sip123',
+        phoneDirectAllowed,
+        phoneDirectAllowedIps: ['203.0.113.10'],
+      }],
+    });
+
+    it('직접 발신이 열린 상담원에게는 IP 제한을 건다', () => {
+      expect(render(true)).toContain('permit=203.0.113.10');
+      expect(render(true)).toContain('deny=0.0.0.0/0.0.0.0');
+    });
+
+    it('직접 발신이 막힌 상담원에게는 IP 제한을 걸지 않는다 — ACL 은 REGISTER 도 막는다', () => {
+      // 발신이 이미 dialplan 에서 막혀 있는데 ACL 까지 걸면, 남아 있던 IP 목록 하나로
+      // 전화기가 등록조차 못 하게 된다. 그 증상은 원인 설정과 연결이 안 보인다.
+      expect(render(false)).not.toContain('permit=203.0.113.10');
+      expect(render(false)).not.toContain('deny=0.0.0.0/0.0.0.0');
+    });
+
+    it('값을 주지 않은 호출부는 예전대로 동작한다', () => {
+      expect(render(undefined)).toContain('permit=203.0.113.10');
+    });
+  });
+
   it('renders agent endpoint for agent with sipPassword', () => {
     const result = renderPjsip({
       trunks: [],

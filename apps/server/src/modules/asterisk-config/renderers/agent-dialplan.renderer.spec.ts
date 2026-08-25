@@ -125,6 +125,63 @@ describe('renderAgentDialplan', () => {
     expect(rendered).not.toContain('Goto(outbound-main-1001,${EXTEN},1)');
   });
 
+  describe('전화기 직접 발신 — 사이트 기본값 vs 상담원 개별 설정', () => {
+    const render = (siteAllow: boolean, phoneDirect: unknown, ips: string[] = []) => renderAgentDialplan({
+      allowDirectSipDial: siteAllow,
+      defaultOutboundCallerId: '07052346380',
+      allowedOutboundCallerIds: ['07052346380'],
+      trunks: [{ name: 'Carrier Main', enabled: true }],
+      agents: [{
+        extension: '1001',
+        outboundEnabled: true,
+        callerIdPrivacy: 'allowed_not_screened',
+        liveRecordingEnabled: false,
+        outboundDialPermissions: {
+          phoneDirect,
+          phoneDirectAllowedIps: ips,
+          domestic: true,
+          representative: true,
+          paid: false,
+          international: false,
+        } as any,
+      }],
+    });
+
+    const dials = (rendered: string) => rendered.includes('Goto(outbound-main-1001,${EXTEN},1)');
+
+    it('사이트가 차단이어도 상담원이 허용이면 발신한다 — 이 기능의 목적', () => {
+      expect(dials(render(false, 'ALLOW'))).toBe(true);
+    });
+
+    it('사이트가 차단이고 상담원이 상속이면 차단한다 — 권한 없는 계정·스푸핑이 걸리는 기본값', () => {
+      const rendered = render(false, 'INHERIT');
+      expect(dials(rendered)).toBe(false);
+      expect(rendered).toContain('Phone direct outbound disabled for agent 1001: INHERIT');
+    });
+
+    it('사이트가 허용이어도 상담원이 차단이면 차단한다', () => {
+      const rendered = render(true, 'DENY');
+      expect(dials(rendered)).toBe(false);
+      expect(rendered).toContain('Phone direct outbound disabled for agent 1001: DENY');
+    });
+
+    it('사이트가 허용이고 상담원이 상속이면 발신한다', () => {
+      expect(dials(render(true, 'INHERIT'))).toBe(true);
+    });
+
+    it('허용 IP 를 비워도 발신은 열린다 — IP 목록은 선택적 추가 제한이다', () => {
+      expect(dials(render(false, 'ALLOW', []))).toBe(true);
+    });
+
+    it('예전 boolean false 는 명시적 차단으로 읽어 배포가 아무것도 열지 않는다', () => {
+      expect(dials(render(true, false))).toBe(false);
+    });
+
+    it('내선 통화는 직접 발신이 막혀도 열려 있다', () => {
+      expect(render(false, 'INHERIT')).toContain('exten => _1XXX,1,NoOp(Internal endpoint call 1001 / ${EXTEN})');
+    });
+  });
+
   it('발신 허용 시 기본 발신번호와 첫 활성 트렁크로 아웃바운드를 생성한다', () => {
     const rendered = renderAgentDialplan({
       allowDirectSipDial: true,
@@ -137,7 +194,7 @@ describe('renderAgentDialplan', () => {
         callerIdPrivacy: 'prohib',
         liveRecordingEnabled: true,
         outboundDialPermissions: {
-          phoneDirect: true,
+          phoneDirect: 'ALLOW',
           phoneDirectAllowedIps: ['203.0.113.10'],
           domestic: true,
           representative: true,
@@ -182,9 +239,10 @@ describe('renderAgentDialplan', () => {
     expect(rendered).not.toContain('MixMonitor(${REC_BASE_DIR}/${REC_FILE},b)');
   });
 
-  it('전화기 직접 발신은 기본 차단하고 outbound-main 은 클라이언트 발신용으로 유지한다', () => {
+  it('사이트가 차단이면 전화기 직접 발신을 막고 outbound-main 은 클라이언트 발신용으로 유지한다', () => {
     const rendered = renderAgentDialplan({
-      allowDirectSipDial: true,
+      // 상담원이 개별 설정을 두지 않으면 사이트 값을 상속한다.
+      allowDirectSipDial: false,
       defaultOutboundCallerId: '07052346380',
       allowedOutboundCallerIds: ['07052346380'],
       trunks: [{ name: 'Carrier Main', enabled: true }],
@@ -199,7 +257,7 @@ describe('renderAgentDialplan', () => {
     expect(rendered).toContain('exten => _00.,1,NoOp(Blocked outbound dial agent 1001 / ${EXTEN})');
     expect(rendered).toContain('exten => _060XXXXXXX,1,NoOp(Blocked outbound dial outbound-main 1001 / ${EXTEN})');
     expect(rendered).not.toContain('exten => _15XXXXXX,1,NoOp(Blocked outbound dial outbound-main 1001 / ${EXTEN})');
-    expect(rendered).toContain('NoOp(Phone direct outbound disabled for agent 1001)');
+    expect(rendered).toContain('NoOp(Phone direct outbound disabled for agent 1001: INHERIT)');
     expect(rendered).not.toContain('Goto(outbound-main-1001,${EXTEN},1)');
     expect(rendered).toContain('exten => _15XXXXXX,1,NoOp(Outbound representative ${EXTEN})');
   });
@@ -216,7 +274,7 @@ describe('renderAgentDialplan', () => {
         callerIdPrivacy: 'allowed_not_screened',
         liveRecordingEnabled: false,
         outboundDialPermissions: {
-          phoneDirect: true,
+          phoneDirect: 'ALLOW',
           phoneDirectAllowedIps: ['203.0.113.10'],
           domestic: true,
           representative: false,
@@ -320,7 +378,7 @@ describe('renderAgentDialplan', () => {
         callerIdPrivacy: 'allowed_not_screened',
         liveRecordingEnabled: false,
         outboundDialPermissions: {
-          phoneDirect: true,
+          phoneDirect: 'ALLOW',
           phoneDirectAllowedIps: ['203.0.113.10'],
           domestic: true,
           representative: true,

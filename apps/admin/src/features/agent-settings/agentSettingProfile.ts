@@ -1,3 +1,9 @@
+/**
+ * 전화기 직접 발신 정책. `INHERIT` 는 시스템 설정(`SIP 전화기 직접 발신 허용`)을 따르고,
+ * `ALLOW`/`DENY` 는 시스템 설정을 무시하고 이긴다. 서버의 `PhoneDirectPolicy` 와 같은 값이다.
+ */
+export type PhoneDirectPolicy = 'INHERIT' | 'ALLOW' | 'DENY';
+
 export interface AgentSettingsProfile {
   description: string;
   inoutType: 'IN_OUTBOUND' | 'INBOUND_ONLY' | 'OUTBOUND_ONLY';
@@ -16,7 +22,7 @@ export interface AgentSettingsProfile {
   acwToReadyDelay: 'NOT_USE' | '30' | '60' | '120';
   popupCloseToReady: 'NOT_USE' | 'IMMEDIATE';
   outboundDialPermissions: {
-    phoneDirect: boolean;
+    phoneDirect: PhoneDirectPolicy;
     phoneDirectAllowedIps: string[];
     domestic: boolean;
     representative: boolean;
@@ -43,7 +49,7 @@ export const DEFAULT_AGENT_SETTINGS_PROFILE: AgentSettingsProfile = {
   acwToReadyDelay: 'NOT_USE',
   popupCloseToReady: 'NOT_USE',
   outboundDialPermissions: {
-    phoneDirect: false,
+    phoneDirect: 'INHERIT',
     phoneDirectAllowedIps: [],
     domestic: true,
     representative: true,
@@ -129,9 +135,18 @@ export function normalizeAgentSettingsProfile(input: any): AgentSettingsProfile 
     outboundDialPermissions: {
       ...DEFAULT_AGENT_SETTINGS_PROFILE.outboundDialPermissions,
       ...permissions,
+      phoneDirect: normalizePhoneDirect(permissions.phoneDirect),
       phoneDirectAllowedIps: normalizeIpList(permissions.phoneDirectAllowedIps),
     },
   };
+}
+
+/** 예전 체크박스(boolean)를 읽는다. 서버 `normalizePhoneDirect` 와 같은 규칙이다. */
+export function normalizePhoneDirect(value: unknown): PhoneDirectPolicy {
+  if (value === 'ALLOW' || value === 'DENY' || value === 'INHERIT') return value;
+  if (value === true) return 'ALLOW';
+  if (value === false) return 'DENY';
+  return 'INHERIT';
 }
 
 export function normalizeIpList(input: unknown): string[] {
