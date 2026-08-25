@@ -24,6 +24,7 @@ import { ShareRulesModule } from './modules/share-rules/share-rules.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { RecordingPipelineModule } from './modules/recording-pipeline/recording-pipeline.module';
 import { SmdrModule } from './modules/smdr/smdr.module';
+import { TrendsModule } from './modules/trends/trends.module';
 import { SipSecurityModule } from './modules/sip-security/sip-security.module';
 import { ResilienceModule } from './modules/resilience/resilience.module';
 import { RecoveryModule } from './modules/resilience/recovery.module';
@@ -55,6 +56,7 @@ import { RecoveryModule } from './modules/resilience/recovery.module';
     ShareRulesModule,
     IntegrationsModule,
     SmdrModule,
+    TrendsModule,
     RecoveryModule,
     HealthModule,
   ],
