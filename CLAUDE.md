@@ -151,6 +151,17 @@ npm run dev -- --port 5174   # vite.config 기본 포트가 5173 이라 apps/web
 npm test                     # vitest run
 npm run help:build           # scripts/build-pbx-feature-help.ts (PDF → 기능 도움말 생성)
 ```
+
+> **원격 배포용 정적 빌드는 `npm run build` 를 쓰지 않는다.** Vite 는 `VITE_*` 를 빌드 시점에
+> 번들 안으로 박아 넣어서, 로컬 `.env`(`VITE_API_BASE_URL=http://localhost:3000`, `VITE_USE_MOCK=true`)
+> 가 그대로 들어간다. 2026-08-24 에 그렇게 만든 admin 번들을 올려 관리자 화면이 통째로
+> "Network Error" 가 됐다. 반드시 아래를 쓴다 — 값을 주입하고 만들어진 번들을 되읽어 검증하며,
+> 검증에 실패하면 `dist` 를 지워 잘못된 산출물이 남지 않게 한다.
+>
+> ```bash
+> ./scripts/build-frontend-dist.sh admin   # 또는 web
+> ```
+
 - **supervisor/admin 역할만** 접근. 일반 agent 는 `ForbiddenPage` (mock 모드는 역할 체크 우회).
 - `store/useAuthStore.ts` 가 apps/web 과 **같은 localStorage 키**를 쓴다. apps/web 에서 supervisor 로 로그인해두면 자동 진입.
   분리하려면 `VITE_ACCESS_TOKEN_KEY` 로 다른 키를 지정.

@@ -92,6 +92,12 @@ cp .env.example .env   # VITE_API_BASE_URL / VITE_USE_MOCK / VITE_ACCESS_TOKEN_K
 npm install
 npm run dev -- --port 5174   # 기본 5173 은 apps/web 이 쓰므로 다른 포트
 ```
+
+> **원격 배포용 정적 빌드는 `npm run build` 를 쓰지 않는다.** Vite 는 `VITE_*` 를 빌드 시점에
+> 번들에 박아 넣어, 로컬 `.env`(`localhost:3000`, `VITE_USE_MOCK=true`)가 그대로 들어간다.
+> 2026-08-24 에 그 번들을 올려 관리자 화면이 "Network Error" 가 됐다.
+> `./scripts/build-frontend-dist.sh admin` 을 쓴다 — 값을 주입하고 번들을 되읽어 검증하며,
+> 실패하면 `dist` 를 지운다.
 - 스택: Vite 5 + React 18 + Antd 5 + react-router-dom + axios
 - **supervisor/admin 역할만** 접근 가능. 일반 agent 는 `ForbiddenPage` 로 차단됨 (mock 모드에선 역할 체크 우회)
 - `pages/RequireAuth.tsx` 가 `useAuthStore.isAuthenticated && isSupervisor` 검사 후 `RouterProvider` 렌더
