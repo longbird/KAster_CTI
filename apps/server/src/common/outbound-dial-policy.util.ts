@@ -68,14 +68,23 @@ function normalizeAllowedIps(input: unknown): string[] {
 /**
  * 저장된 값을 3상태로 읽는다.
  *
- * 예전에는 boolean 체크박스였다. 체크 해제(`false`)를 `INHERIT` 로 읽으면, 사이트 기본값이
- * '허용'인 현장에서 이 코드가 배포되는 순간 <b>전 상담원의 전화기 직접 발신이 한꺼번에</b>
- * 열린다. 그래서 예전 `false` 는 명시적 차단으로 읽는다 — 배포 자체는 아무것도 바꾸지 않고,
- * 열고 싶은 상담원만 관리자가 골라서 연다.
+ * 예전에는 boolean 체크박스였고 판정식이 `사이트 AND phoneDirect AND 허용IP있음` 이었다.
+ * 그래서 boolean 하나만 보고 옮기면 안 된다 — <b>그 값이 실제로 만들어내던 동작</b>으로 옮긴다.
+ *
+ * | 예전 저장값            | 예전 실제 동작        | 옮긴 값    |
+ * |------------------------|-----------------------|-----------|
+ * | `true` + 허용IP 있음   | 사이트 값을 따랐다    | `INHERIT` |
+ * | `true` + 허용IP 없음   | 항상 차단됐다         | `DENY`    |
+ * | `false`                | 항상 차단됐다         | `DENY`    |
+ *
+ * 2026-08-25: 이걸 `true -> ALLOW` 로 옮겼다가 운영에서 전 내선의 직접 발신이 열렸다.
+ * 현장 상담원들은 체크박스가 켜져 있었고 허용 IP 가 비어서만 막혀 있었는데, IP 를 선택
+ * 사항으로 바꾸면서 그 브레이크가 사라졌다. 체크박스는 켜져 있어도 발신을 연 적이 없으므로
+ * `ALLOW` 로 읽을 근거가 없다. 위 표대로 옮기면 이 코드의 배포는 완전한 무동작이다.
  */
-function normalizePhoneDirect(value: unknown): PhoneDirectPolicy {
+function normalizePhoneDirect(value: unknown, hasAllowedIps: boolean): PhoneDirectPolicy {
   if (value === 'ALLOW' || value === 'DENY' || value === 'INHERIT') return value;
-  if (value === true) return 'ALLOW';
+  if (value === true) return hasAllowedIps ? 'INHERIT' : 'DENY';
   if (value === false) return 'DENY';
   return DEFAULT_OUTBOUND_DIAL_PERMISSIONS.phoneDirect;
 }
@@ -96,10 +105,11 @@ export function normalizeOutboundDialPermissions(input: unknown): OutboundDialPe
   }
 
   const source = input as Partial<OutboundDialPermissions>;
+  const phoneDirectAllowedIps = normalizeAllowedIps(source.phoneDirectAllowedIps);
   return {
     ...DEFAULT_OUTBOUND_DIAL_PERMISSIONS,
-    phoneDirect: normalizePhoneDirect(source.phoneDirect),
-    phoneDirectAllowedIps: normalizeAllowedIps(source.phoneDirectAllowedIps),
+    phoneDirect: normalizePhoneDirect(source.phoneDirect, phoneDirectAllowedIps.length > 0),
+    phoneDirectAllowedIps,
     domestic: typeof source.domestic === 'boolean' ? source.domestic : DEFAULT_OUTBOUND_DIAL_PERMISSIONS.domestic,
     representative: typeof source.representative === 'boolean'
       ? source.representative

@@ -28,11 +28,47 @@ describe('outbound-dial-policy.util', () => {
   });
 
   describe('phoneDirect 3상태', () => {
-    it('예전 boolean 을 읽는다 — 체크 해제(false)는 명시적 차단이다', () => {
-      // 배포 순간 사이트 기본값이 '허용'이면 예전 상담원이 한꺼번에 열린다.
-      // 그래서 false 를 INHERIT 가 아니라 DENY 로 읽는다.
+    it('예전 boolean 은 그 값이 실제로 만들던 동작으로 옮긴다', () => {
+      // 예전 판정식은 `사이트 AND phoneDirect AND 허용IP있음` 이었다.
+      // 체크만 켜고 IP 가 비어 있던 상담원은 <b>한 번도 발신한 적이 없다</b> — DENY 다.
+      // 2026-08-25 에 이걸 ALLOW 로 옮겼다가 운영에서 전 내선이 열렸다.
+      expect(normalizeOutboundDialPermissions({ phoneDirect: true }).phoneDirect).toBe('DENY');
+      expect(normalizeOutboundDialPermissions({
+        phoneDirect: true,
+        phoneDirectAllowedIps: [],
+      }).phoneDirect).toBe('DENY');
       expect(normalizeOutboundDialPermissions({ phoneDirect: false }).phoneDirect).toBe('DENY');
-      expect(normalizeOutboundDialPermissions({ phoneDirect: true }).phoneDirect).toBe('ALLOW');
+      expect(normalizeOutboundDialPermissions({
+        phoneDirect: false,
+        phoneDirectAllowedIps: ['203.0.113.10'],
+      }).phoneDirect).toBe('DENY');
+    });
+
+    it('예전에 실제로 발신하던 상담원(체크 + 허용IP)은 사이트 값을 그대로 따른다', () => {
+      // 예전에도 사이트 스위치가 이 상담원을 좌우했다. 그 관계를 그대로 옮긴 값이 INHERIT 다.
+      expect(normalizeOutboundDialPermissions({
+        phoneDirect: true,
+        phoneDirectAllowedIps: ['203.0.113.10'],
+      }).phoneDirect).toBe('INHERIT');
+    });
+
+    it('예전 값 어디에도 ALLOW 가 나오지 않는다 — 배포가 아무 내선도 열지 않는다', () => {
+      const legacy = [
+        { phoneDirect: true },
+        { phoneDirect: false },
+        { phoneDirect: true, phoneDirectAllowedIps: [] },
+        { phoneDirect: true, phoneDirectAllowedIps: ['203.0.113.10'] },
+        { phoneDirect: false, phoneDirectAllowedIps: ['203.0.113.10'] },
+        {},
+      ];
+      for (const stored of legacy) {
+        expect(normalizeOutboundDialPermissions(stored).phoneDirect).not.toBe('ALLOW');
+      }
+    });
+
+    it('새로 저장한 3상태 값은 그대로 읽는다', () => {
+      expect(normalizeOutboundDialPermissions({ phoneDirect: 'ALLOW' }).phoneDirect).toBe('ALLOW');
+      expect(normalizeOutboundDialPermissions({ phoneDirect: 'DENY' }).phoneDirect).toBe('DENY');
     });
 
     it('알 수 없는 값과 미설정은 상속이다', () => {

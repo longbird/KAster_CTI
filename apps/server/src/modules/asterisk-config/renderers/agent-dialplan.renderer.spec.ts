@@ -173,8 +173,16 @@ describe('renderAgentDialplan', () => {
       expect(dials(render(false, 'ALLOW', []))).toBe(true);
     });
 
-    it('예전 boolean false 는 명시적 차단으로 읽어 배포가 아무것도 열지 않는다', () => {
+    it('예전 boolean 은 어떤 조합이어도 새로 열리지 않는다 — 이 배포는 무동작이다', () => {
+      // 2026-08-25 운영 사고: 현장 상담원은 체크박스가 켜져 있고 허용 IP 만 비어 있었다.
+      // `true -> ALLOW` 로 옮겼더니 배포 즉시 전 내선의 직접 발신이 열렸다.
+      expect(dials(render(true, true, []))).toBe(false);
+      expect(dials(render(false, true, []))).toBe(false);
       expect(dials(render(true, false))).toBe(false);
+      expect(dials(render(false, false))).toBe(false);
+      // 예전에 실제로 발신하던 조합(체크 + 허용IP)만 사이트 값을 따른다.
+      expect(dials(render(true, true, ['203.0.113.10']))).toBe(true);
+      expect(dials(render(false, true, ['203.0.113.10']))).toBe(false);
     });
 
     it('내선 통화는 직접 발신이 막혀도 열려 있다', () => {

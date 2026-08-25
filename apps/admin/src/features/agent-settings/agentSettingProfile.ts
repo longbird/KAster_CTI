@@ -135,16 +135,23 @@ export function normalizeAgentSettingsProfile(input: any): AgentSettingsProfile 
     outboundDialPermissions: {
       ...DEFAULT_AGENT_SETTINGS_PROFILE.outboundDialPermissions,
       ...permissions,
-      phoneDirect: normalizePhoneDirect(permissions.phoneDirect),
+      phoneDirect: normalizePhoneDirect(
+        permissions.phoneDirect,
+        normalizeIpList(permissions.phoneDirectAllowedIps).length > 0,
+      ),
       phoneDirectAllowedIps: normalizeIpList(permissions.phoneDirectAllowedIps),
     },
   };
 }
 
-/** 예전 체크박스(boolean)를 읽는다. 서버 `normalizePhoneDirect` 와 같은 규칙이다. */
-export function normalizePhoneDirect(value: unknown): PhoneDirectPolicy {
+/**
+ * 예전 체크박스(boolean)를 읽는다. 서버 `normalizePhoneDirect` 와 같은 규칙이다.
+ * 예전 판정식이 `사이트 AND phoneDirect AND 허용IP있음` 이었으므로, 체크만 켜고 IP 가
+ * 비어 있던 상담원은 한 번도 발신한 적이 없다 — `DENY` 로 옮긴다.
+ */
+export function normalizePhoneDirect(value: unknown, hasAllowedIps: boolean): PhoneDirectPolicy {
   if (value === 'ALLOW' || value === 'DENY' || value === 'INHERIT') return value;
-  if (value === true) return 'ALLOW';
+  if (value === true) return hasAllowedIps ? 'INHERIT' : 'DENY';
   if (value === false) return 'DENY';
   return 'INHERIT';
 }
