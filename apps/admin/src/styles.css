@@ -1234,3 +1234,67 @@ body {
 .mobile-row-card__actions .ant-btn {
   flex: 0 0 auto;
 }
+
+/* ── 추이 분석 차트 ─────────────────────────────────────────
+ * 색은 전부 토큰이라 다크/라이트가 같이 따라간다. 하드코딩한 흰색을 쓰면
+ * 라이트 모드에서 글자가 안 보인다 (2026-08 에 실제로 그랬다).
+ */
+.trend-chart { display: flex; flex-direction: column; gap: 6px; }
+
+.trend-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: var(--t-caption, 12px);
+  color: var(--fg-3);
+}
+
+.trend-chart-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+
+.trend-chart-legend-item i {
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.trend-chart-svg {
+  width: 100%;
+  height: 150px;
+  display: block;
+  overflow: visible;
+}
+
+.trend-chart-grid { stroke: var(--line-1); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+/* AMI 가 끊겨 리소스를 못 잰 구간. 빈 구간과 눈으로 구분시킨다. */
+.trend-chart-outage { fill: var(--accent-danger-soft); }
+
+.trend-chart-cursor {
+  stroke: var(--line-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-chart-axis {
+  position: relative;
+  height: 16px;
+  font-size: 11px;
+  color: var(--fg-4);
+}
+
+.trend-chart-axis-max {
+  position: absolute;
+  right: 0;
+  top: -158px;
+  color: var(--fg-4);
+}
+
+.trend-chart-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.trends-page { padding-bottom: 16px; }

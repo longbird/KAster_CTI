@@ -23,6 +23,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
     children: [
       { key: '/live-calls', label: '통화 현황 조회' },
       { key: '/kpi', label: '업무 현황 조회' },
+      { key: '/trends', label: '추이 분석' },
       { key: '/queues', label: '큐 현황' },
       { key: '/agents', label: '상담원 현황' },
       { key: '/monitoring/agents', label: '상담원 라이브 모니터' },

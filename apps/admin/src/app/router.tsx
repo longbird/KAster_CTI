@@ -5,6 +5,7 @@ import { ForwardingSettingsPage } from '../features/forwarding-settings/Forwardi
 import { HolidaySettingsPage } from '../features/holiday-settings/HolidaySettingsPage';
 import { LiveCallsPage } from '../features/live-calls/LiveCallsPage';
 import { KpiPage } from '../features/kpi/KpiPage';
+import { TrendsPage } from '../features/trends/components/TrendsPage';
 import { AgentGroupsPage } from '../features/agent-groups/AgentGroupsPage';
 import { AgentMonitoringPage } from '../features/agent-monitoring/AgentMonitoringPage';
 import { AgentSettingsPage } from '../features/agent-settings/AgentSettingsPage';
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: 'dashboard',            element: <AdminDashboardPage /> },
       { path: 'live-calls',           element: <LiveCallsPage /> },
       { path: 'kpi',                  element: <KpiPage /> },
+      { path: 'trends',               element: <TrendsPage /> },
       { path: 'settings/agents',      element: <AgentSettingsPage /> },
       { path: 'settings/agent-groups', element: <AgentGroupsPage /> },
       { path: 'settings/outbound-rules', element: <OutboundRulesPage /> },

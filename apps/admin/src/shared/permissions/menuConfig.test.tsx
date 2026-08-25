@@ -18,6 +18,7 @@ const BASELINE_LEAF_KEYS = [
   '/dashboard',
   '/history',
   '/kpi',
+  '/trends',
   '/live-calls',
   '/monitoring',
   '/monitoring/agents',
@@ -78,6 +79,7 @@ describe('ADMIN_MENU_CONFIG', () => {
     expect(childKeysOf('realtime')).toEqual([
       '/live-calls',
       '/kpi',
+      '/trends',
       '/queues',
       '/agents',
       '/monitoring/agents',
