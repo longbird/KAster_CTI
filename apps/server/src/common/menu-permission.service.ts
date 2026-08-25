@@ -22,6 +22,7 @@ export const MENU_KEYS = [
   'dashboard',
   'live-calls',
   'kpi',
+  'trends',
   'reports/calls',
   'reports/missed',
   'reports/recordings',

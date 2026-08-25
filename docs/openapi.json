@@ -6036,6 +6036,72 @@
           }
         ]
       }
+    },
+    "/api/v1/admin/trends": {
+      "get": {
+        "operationId": "TrendsController_trends",
+        "summary": "운영 추이 조회",
+        "description": "호 인입/응답/포기는 통화 이력에서 요청 시점에 집계하고, 대기·상담원·리소스는 주기 스냅샷에서 읽어 한 시간축으로 합친다. 스냅샷이 없는 구간의 지표는 null 이며 (적재 이전이거나 서버가 멈췄던 구간) 0 과 구분해야 한다.",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "조회 시작 (ISO8601)",
+            "schema": {
+              "example": "2026-08-25T00:00:00+09:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "조회 끝 (ISO8601, 미포함)",
+            "schema": {
+              "example": "2026-08-26T00:00:00+09:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "resolution",
+            "required": false,
+            "in": "query",
+            "description": "구간 해상도. 생략하면 기간 길이에 맞춰 자동으로 고른다.",
+            "schema": {
+              "enum": [
+                "PT1M",
+                "PT5M",
+                "PT1H",
+                "P1D"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "queueId",
+            "required": false,
+            "in": "query",
+            "description": "큐 단위 조회. 생략하면 테넌트 전체 합계.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
