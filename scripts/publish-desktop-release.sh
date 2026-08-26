@@ -28,6 +28,9 @@ SERVER_CONTAINER="${KASTER_SERVER_CONTAINER:-kaster-server}"
 PG_USER="${KASTER_PG_USER:-kaster}"
 PG_DB="${KASTER_PG_DB:-kaster_cti}"
 
+# 공개 배포 주소에 쓰는 고정 이름. 이 이름이 항상 최신 릴리스를 가리킨다.
+LATEST_LINK_NAME="${KASTER_LATEST_LINK_NAME:-KAsterAgent-Setup.exe}"
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE_DIR="${REPO_ROOT}/apps/desktop-win/release"
 RELEASE_JSON="${RELEASE_DIR}/release.json"
@@ -143,6 +146,12 @@ fi
 install -m 0644 "\$staged" "${HOST_ARTIFACT_DIR}/${FILE_NAME}"
 rm -f "\$staged"
 echo "    배치 완료: ${HOST_ARTIFACT_DIR}/${FILE_NAME}"
+
+# 공개 배포용 고정 이름. 안내문과 사내 위키에 적는 주소가 릴리스마다 바뀌면
+# 옛 주소가 그대로 돌아다니며 지난 버전을 계속 퍼뜨린다.
+# 상대 경로 심볼릭 링크라 컨테이너 안에서도 같은 디렉터리를 가리킨다.
+ln -sfn "${FILE_NAME}" "${HOST_ARTIFACT_DIR}/${LATEST_LINK_NAME}"
+echo "    고정 링크: ${HOST_ARTIFACT_DIR}/${LATEST_LINK_NAME} -> ${FILE_NAME}"
 REMOTE_SCRIPT
 
 # --- 2. 서버 컨테이너가 그 파일을 보는가 -----------------------------------
