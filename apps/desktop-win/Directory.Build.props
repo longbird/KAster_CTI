@@ -5,4 +5,18 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <!--
+    배포 버전. 이 값이 실행 파일에 박히고, AppRelease.Version 이 그것을 읽어
+    자동 업데이트의 "지금 버전" 으로 쓴다. 여기가 비어 있으면 어셈블리는 1.0.0.0 이 되고,
+    서버에 1.0.0 을 올린 순간 모든 자리가 "이미 최신" 으로 보여 업데이트가 영영 안 뜬다.
+
+    배포 스크립트가 -p:Version=x.y.z 로 덮어쓴다. 명령줄 값이 항상 이긴다.
+  -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Product>PBX 상담원</Product>
+    <Company>KAster</Company>
+    <Copyright>Copyright (c) KAster</Copyright>
+  </PropertyGroup>
 </Project>
