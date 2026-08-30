@@ -6,8 +6,12 @@ coverage/
 *.log
 *.wav
 *.mp3
+# 패킷 캡처 산출물 — RTP 에 실제 통화 음성이 담긴다. 절대 커밋하지 않는다.
+*.pcap
 *.pcapng
+*.pcap.enc
 captures/
+deploy/capture/
 *.tsbuildinfo
 *.stackdump
 .DS_Store
