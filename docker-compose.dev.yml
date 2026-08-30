@@ -125,6 +125,13 @@ services:
       SOFTPHONE_SIP_SERVER: ${SOFTPHONE_SIP_SERVER:-}
       SOFTPHONE_SIP_TRANSPORT: ${SOFTPHONE_SIP_TRANSPORT:-udp}
       SOFTPHONE_ICE_SERVERS_JSON: '${SOFTPHONE_ICE_SERVERS_JSON:-[{"urls":"stun:stun.l.google.com:19302"},{"urls":["turn:49.247.46.86:3478?transport=udp","turn:49.247.46.86:3478?transport=tcp"],"username":"kaster","credential":"kaster_turn_dev_secret"}]}'
+      PACKET_CAPTURE_ENABLED: ${PACKET_CAPTURE_ENABLED:-false}
+      PACKET_CAPTURE_STORAGE_ROOT: /var/spool/kaster/packet-capture
+      PACKET_CAPTURE_INTERFACE: ${PACKET_CAPTURE_INTERFACE:-any}
+      PACKET_CAPTURE_MAX_DURATION_SECONDS: ${PACKET_CAPTURE_MAX_DURATION_SECONDS:-600}
+      PACKET_CAPTURE_MAX_FILE_MB: ${PACKET_CAPTURE_MAX_FILE_MB:-500}
+      PACKET_CAPTURE_RETENTION_DAYS: ${PACKET_CAPTURE_RETENTION_DAYS:-7}
+      CAPTURE_AGENT_SOCKET: /var/run/kaster/capture.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -132,11 +139,35 @@ services:
       - /var/lib/asterisk/sounds/custom:/var/lib/asterisk/sounds/custom
       - /var/lib/asterisk/moh:/var/lib/asterisk/moh
       - /home/blueadm/kaster_cti/agent-artifacts:/var/lib/kaster/agent-artifacts:ro
+      # capture-agent 와 공유한다. 소켓으로 지시하고, pcap 은 서버가 읽어 해시·암호화한다.
+      - kaster_capture_ipc:/var/run/kaster
+      - kaster_capture_data:/var/spool/kaster/packet-capture
     ports:
       - "3000:3000"
       - "${CID_LOGI_TCP_PORT:-28002}:${CID_LOGI_TCP_PORT:-28002}"
       - "${CID_CALLMANOR_TCP_PORT:-28004}:${CID_CALLMANOR_TCP_PORT:-28004}"
       - "${CID_ICON_TCP_PORT:-28003}:${CID_ICON_TCP_PORT:-28003}"
+
+  capture-agent:
+    build:
+      context: .
+      dockerfile: apps/capture-agent/Dockerfile
+    container_name: kaster-capture-agent
+    restart: unless-stopped
+    # 호스트의 SIP(:36070/:48950)·RTP(10000-20000)를 보려면 호스트 네트워크가 필요하다.
+    # server 를 host 네트워크로 옮기면 postgres/redis 서비스명 DNS 와 ports 매핑이 깨지므로,
+    # 호스트 네트워크와 NET_RAW 는 이 작은 프로세스에만 준다.
+    network_mode: host
+    cap_add:
+      - NET_RAW
+    environment:
+      KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET:-change_me_internal}
+      CAPTURE_AGENT_SOCKET: /var/run/kaster/capture.sock
+      PACKET_CAPTURE_STORAGE_ROOT: /var/spool/kaster/packet-capture
+      PACKET_CAPTURE_MAX_FILE_MB: ${PACKET_CAPTURE_MAX_FILE_MB:-500}
+    volumes:
+      - kaster_capture_ipc:/var/run/kaster
+      - kaster_capture_data:/var/spool/kaster/packet-capture
 
   web:
     build:
@@ -185,3 +216,5 @@ services:
 
 volumes:
   kaster_postgres_data:
+  kaster_capture_ipc:
+  kaster_capture_data:

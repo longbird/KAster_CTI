@@ -41,6 +41,7 @@ const BASELINE_LEAF_KEYS = [
   '/settings/share-rules',
   '/settings/sms-templates',
   '/system',
+  '/system/packet-capture',
   '/numbers',
   '/integrations',
 ] as const;
@@ -105,6 +106,7 @@ describe('ADMIN_MENU_CONFIG', () => {
       '/integrations',
       '/asterisk',
       '/system',
+      '/system/packet-capture',
     ]);
   });
 

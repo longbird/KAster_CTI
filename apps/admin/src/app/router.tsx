@@ -25,6 +25,7 @@ import { IvrFailuresPage } from '../features/reports/IvrFailuresPage';
 import { MissedCallsPage } from '../features/reports/MissedCallsPage';
 import { RecordingsPage } from '../features/reports/RecordingsPage';
 import { SystemSettingsPage } from '../features/system-settings/SystemSettingsPage';
+import { PacketCapturePage } from '../features/packet-capture/PacketCapturePage';
 import { AnnouncementsPage } from '../features/announcements/AnnouncementsPage';
 import { AgentsPage } from '../pages/AgentsPage';
 import { AsteriskConfigPage } from '../pages/AsteriskConfigPage';
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
       { path: 'announcements',        element: <AnnouncementsPage /> },
       { path: 'blocklist',            element: <BlocklistPage /> },
       { path: 'system',               element: <SystemSettingsPage /> },
+      { path: 'system/packet-capture', element: <PacketCapturePage /> },
       { path: 'queues',               element: <QueuesPage /> },
       { path: 'agents',               element: <AgentsPage /> },
       { path: 'monitoring',           element: <MonitoringPage /> },

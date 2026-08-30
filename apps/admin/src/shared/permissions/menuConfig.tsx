@@ -64,6 +64,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/integrations', label: '연동' },
       { key: '/asterisk', label: 'PBX 설정' },
       { key: '/system', label: '시스템 설정' },
+      { key: '/system/packet-capture', label: '패킷 캡처' },
     ],
   },
   {

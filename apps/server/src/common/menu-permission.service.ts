@@ -45,6 +45,7 @@ export const MENU_KEYS = [
   'settings/permissions',
   'blocklist',
   'system',
+  'system/packet-capture',
   'queues',
   'agents',
   'monitoring',
@@ -84,6 +85,7 @@ const MUTABLE_MENU_KEYS = new Set([
   'integrations',
 ]);
 const OPERABLE_MENU_KEYS = new Set([
+  'system/packet-capture',
   'dashboard',
   'live-calls',
   'queues',

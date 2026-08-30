@@ -28,6 +28,7 @@ import { TrendsModule } from './modules/trends/trends.module';
 import { SipSecurityModule } from './modules/sip-security/sip-security.module';
 import { ResilienceModule } from './modules/resilience/resilience.module';
 import { RecoveryModule } from './modules/resilience/recovery.module';
+import { PacketCaptureModule } from './modules/packet-capture/packet-capture.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { RecoveryModule } from './modules/resilience/recovery.module';
     IntegrationsModule,
     SmdrModule,
     TrendsModule,
+    PacketCaptureModule,
     RecoveryModule,
     HealthModule,
   ],

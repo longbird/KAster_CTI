@@ -64,6 +64,7 @@ apps/server/          NestJS 10 + Prisma 5 CTI 미들웨어 (백엔드)
 apps/web/             Vite 7 + React 19 + Tailwind + Antd 5 상담원 앱
 apps/admin/           Vite 5 + React 18 + Antd 5 관리자 대시보드 (supervisor/admin 전용)
 apps/desktop/         Electron 33 + electron-vite 데스크톱 소프트폰 (sip.js, Windows 배포 타깃)
+apps/capture-agent/    패킷 캡처 사이드카 (dumpcap. network_mode: host + NET_RAW 를 갖는 유일한 컨테이너)
 infra/asterisk/       PBX PJSIP / Dialplan / Manager 설정 초안
 deploy/sites/         사이트별 운영 배포 템플릿 (_template/ 만 커밋. compose.prod.yml + nginx)
 scripts/              배포·검증 스크립트 (deploy-prod.sh, deploy-dev.sh, pbx-smoke-*, pbx-sip-security-prepare.sh)
@@ -361,6 +362,7 @@ AMI `SecurityEvent` 기반으로 반복 INVITE/REGISTER/OPTIONS 를 탐지해 �
 | REST 엔드포인트 추가 | `{success,data,error}` envelope 유지 + `npm run openapi:export` |
 | 주기 sweep 추가 | `AmiLeaderElectionService.isLeader()` 가드 |
 | 인증 관련 localStorage 키 | `apps/web` 과 `apps/admin` 이 같은 키를 공유 |
+| 패킷 캡처 입력 검증 규칙 | `apps/server/src/modules/packet-capture/capture-filter.util.ts` + `apps/capture-agent/index.mjs` (권한 있는 쪽이 독립 재검증) |
 
 ## 참고 문서
 

@@ -19,6 +19,7 @@ const FULLY_GATED = [
   'outbound-rules.controller.ts',
   'share-rules.controller.ts',
   'sms-templates.controller.ts',
+  'packet-capture.controller.ts',
 ];
 
 /** 설정 쓰기와 운영 쓰기가 섞여 메서드 단위로 붙인 컨트롤러 */

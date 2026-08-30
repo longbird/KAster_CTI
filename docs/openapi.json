@@ -6102,6 +6102,171 @@
           }
         ]
       }
+    },
+    "/api/v1/admin/packet-captures/settings": {
+      "get": {
+        "operationId": "PacketCaptureController_getSettings",
+        "summary": "패킷 캡처 설정 조회",
+        "description": "토글 상태와 현재 캡처 가능 여부를 함께 준다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "PacketCaptureController_updateSettings",
+        "summary": "패킷 캡처 온/오프",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePacketCaptureSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/packet-captures": {
+      "get": {
+        "operationId": "PacketCaptureController_list",
+        "summary": "캡처 작업 목록",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "PacketCaptureController_start",
+        "summary": "시한부 캡처 시작",
+        "description": "지정한 시간이 지나면 dumpcap 이 스스로 멈춘다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCaptureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/packet-captures/{packetCaptureJobId}/stop": {
+      "post": {
+        "operationId": "PacketCaptureController_stop",
+        "summary": "캡처 조기 종료",
+        "parameters": [
+          {
+            "name": "packetCaptureJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/packet-captures/{packetCaptureJobId}/download": {
+      "get": {
+        "operationId": "PacketCaptureController_download",
+        "summary": "캡처 파일 다운로드",
+        "parameters": [
+          {
+            "name": "packetCaptureJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -7545,6 +7710,39 @@
       "TestIntegrationAutomationDto": {
         "type": "object",
         "properties": {}
+      },
+      "UpdatePacketCaptureSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "테넌트 단위 패킷 캡처 사용 여부"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "StartCaptureDto": {
+        "type": "object",
+        "properties": {
+          "interfaceName": {
+            "type": "string",
+            "description": "비우면 PACKET_CAPTURE_INTERFACE 기본값을 쓴다"
+          },
+          "captureFilter": {
+            "type": "string",
+            "description": "BPF 표현식. 비우면 전량 캡처",
+            "example": "udp and portrange 10000-20000"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "캡처 시간(초). 상한은 PACKET_CAPTURE_MAX_DURATION_SECONDS"
+          }
+        },
+        "required": [
+          "durationSeconds"
+        ]
       }
     }
   }

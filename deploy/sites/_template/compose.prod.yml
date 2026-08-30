@@ -78,11 +78,43 @@ services:
       REST_CORS_ORIGIN: ${REST_CORS_ORIGIN}
       WS_CORS_ORIGIN: ${WS_CORS_ORIGIN}
       AUTO_SEED_DEMO_DATA: ${AUTO_SEED_DEMO_DATA:-false}
+      KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET}
+      PACKET_CAPTURE_ENABLED: ${PACKET_CAPTURE_ENABLED:-false}
+      PACKET_CAPTURE_STORAGE_ROOT: /var/spool/kaster/packet-capture
+      PACKET_CAPTURE_INTERFACE: ${PACKET_CAPTURE_INTERFACE:-any}
+      PACKET_CAPTURE_MAX_DURATION_SECONDS: ${PACKET_CAPTURE_MAX_DURATION_SECONDS:-600}
+      PACKET_CAPTURE_MAX_FILE_MB: ${PACKET_CAPTURE_MAX_FILE_MB:-500}
+      PACKET_CAPTURE_RETENTION_DAYS: ${PACKET_CAPTURE_RETENTION_DAYS:-7}
+      CAPTURE_AGENT_SOCKET: /var/run/kaster/capture.sock
     volumes:
       # 상담원 데스크톱 설치 파일. scripts/publish-desktop-release.sh 가 호스트 쪽에 놓고
       # 서버는 읽기만 한다. 이 마운트가 없으면 릴리스 등록은 성공하는데 상담원이
       # "받기" 를 누르는 순간 404 가 나고, 그 실패는 서버 로그에만 남는다.
       - ${AGENT_ARTIFACT_DIR:-./agent-artifacts}:/var/lib/kaster/agent-artifacts:ro
+      # capture-agent 와 공유한다. 소켓으로 지시하고, pcap 은 서버가 읽어 해시·암호화한다.
+      - kaster_capture_ipc:/var/run/kaster
+      - kaster_capture_data:/var/spool/kaster/packet-capture
+
+  capture-agent:
+    build:
+      context: ../../..
+      dockerfile: apps/capture-agent/Dockerfile
+    container_name: kaster-${SITE_CODE}-capture-agent
+    restart: unless-stopped
+    # 호스트의 SIP(:36070/:48950)·RTP(10000-20000)를 보려면 호스트 네트워크가 필요하다.
+    # server 를 host 네트워크로 옮기면 postgres/redis 서비스명 DNS 와 ports 매핑이 깨지므로,
+    # 호스트 네트워크와 NET_RAW 는 이 작은 프로세스에만 준다.
+    network_mode: host
+    cap_add:
+      - NET_RAW
+    environment:
+      KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET:-change_me_internal}
+      CAPTURE_AGENT_SOCKET: /var/run/kaster/capture.sock
+      PACKET_CAPTURE_STORAGE_ROOT: /var/spool/kaster/packet-capture
+      PACKET_CAPTURE_MAX_FILE_MB: ${PACKET_CAPTURE_MAX_FILE_MB:-500}
+    volumes:
+      - kaster_capture_ipc:/var/run/kaster
+      - kaster_capture_data:/var/spool/kaster/packet-capture
 
   web:
     build:
@@ -115,3 +147,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  kaster_capture_ipc:
+  kaster_capture_data:

@@ -882,6 +882,7 @@ model tenantSystemSettings {
   allowedOutboundCallerIds String?  @db.Text
   defaultOutboundCallerId  String?  @db.VarChar(32)
   sipRegisterPort          Int      @default(48950)
+  packetCaptureEnabled     Boolean  @default(false)
   timezone                 String   @default("Asia/Seoul") @db.VarChar(64)
   dateFormat               String   @default("YYYY-MM-DD HH:mm:ss") @db.VarChar(32)
   createdAt                DateTime @default(now()) @db.Timestamptz(6)
@@ -1432,4 +1433,46 @@ model dashboardSnapshots {
 
   @@unique([tenantId, queueId, resolution, capturedAt])
   @@index([tenantId, resolution, capturedAt(sort: Desc)])
+}
+
+model packetCaptureJobs {
+  packetCaptureJobId String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  nodeId             String    @db.VarChar(64)
+  status             String    @default("RUNNING") @db.VarChar(24)
+  requestedBy        String?   @db.Uuid
+  interfaceName      String    @db.VarChar(64)
+  captureFilter      String    @default("") @db.Text
+  durationSeconds    Int
+  startedAt          DateTime  @default(now()) @db.Timestamptz(6)
+  endedAt            DateTime? @db.Timestamptz(6)
+  filePath           String?   @db.Text
+  encryptedFilePath  String?   @db.Text
+  encryptionStatus   String    @default("NONE") @db.VarChar(16)
+  fileSizeBytes      BigInt?
+  packetCount        Int?
+  checksumSha256     String?   @db.VarChar(64)
+  retentionUntil     DateTime? @db.Timestamptz(6)
+  failureReason      String?   @db.Text
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([tenantId, startedAt(sort: Desc)])
+  @@index([tenantId, status])
+}
+
+model packetCaptureAccessAuditLogs {
+  auditLogId         String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @db.Uuid
+  packetCaptureJobId String   @db.Uuid
+  agentId            String?  @db.Uuid
+  userRole           String?  @db.VarChar(32)
+  action             String   @db.VarChar(32)
+  clientIp           String?  @db.VarChar(64)
+  userAgent          String?  @db.VarChar(255)
+  success            Boolean  @default(true)
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, packetCaptureJobId, createdAt(sort: Desc)])
 }

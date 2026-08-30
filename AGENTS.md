@@ -22,6 +22,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 apps/server/          NestJS + Prisma CTI 미들웨어 (백엔드)
 apps/web/             Vite + React + Tailwind + Antd 상담원 앱
 apps/admin/           Vite + React + Antd 관리자 대시보드 (supervisor/admin 전용)
+apps/capture-agent/    패킷 캡처 사이드카 (dumpcap. network_mode: host + NET_RAW 를 갖는 유일한 컨테이너)
 infra/asterisk/       PBX PJSIP / Dialplan / Manager 설정 초안
 docs/                 기획·설계 PDF + ChatGPT 세션 분석 + 보조 설계 문서
   docs/design/        보조 설계 MD (SIP Trunk, Hotlink, Ops 아키텍처)
