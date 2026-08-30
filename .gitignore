@@ -6,6 +6,8 @@ coverage/
 *.log
 *.wav
 *.mp3
+*.pcapng
+captures/
 *.tsbuildinfo
 *.stackdump
 .DS_Store
