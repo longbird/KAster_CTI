@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "KAster CTI 시스템 아키텍처",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "inbound-call", "label": "인바운드 통화 경로", "focus": ["caller", "pbx", "ami", "engine", "bus", "gateway", "desktop"], "note": "발신 고객이 PBX 를 거쳐 상담원 화면까지 도달하는 주 경로입니다." },
+      { "id": "control-path", "label": "제어 · 설정 역방향", "focus": ["web", "desktop", "admin", "rest", "pbx"], "note": "클라이언트 명령과 관리자 설정이 PBX 로 되돌아가는 경로입니다." },
+      { "id": "state-store", "label": "상태 저장소", "focus": ["engine", "redis", "pg"], "note": "세션 상태와 중복 제거 · 리더 선출이 어디에 남는지 봅니다." }
+    ]
+  },
+  "components": [
+    { "id": "caller", "type": "external", "label": "발신 고객", "sublabel": "PSTN · 통신사 SIP 트렁크", "pos": [60, 60], "size": [200, 90] },
+    { "id": "pbx", "type": "cloud", "label": "PBX", "sublabel": "Asterisk 18 · PJSIP", "tag": "트렁크 :36070", "pos": [400, 60], "size": [200, 90] },
+    { "id": "ami", "type": "backend", "label": "AMI 수집 · 정규화", "sublabel": "modules/ami", "pos": [740, 60], "size": [200, 90] },
+    { "id": "redis", "type": "database", "label": "Redis 7", "sublabel": "리더 선출 · 중복 제거", "pos": [400, 230], "size": [200, 90] },
+    { "id": "engine", "type": "backend", "label": "세션 엔진", "sublabel": "linkedid 기준 상태 조립", "pos": [740, 230], "size": [200, 90] },
+    { "id": "pg", "type": "database", "label": "PostgreSQL 16", "sublabel": "Prisma · tenantId 파티션", "pos": [1080, 230], "size": [200, 90] },
+    { "id": "bus", "type": "messagebus", "label": "이벤트 버스 · Outbox", "sublabel": "kaster:cti:events", "pos": [740, 400], "size": [200, 90] },
+    { "id": "gateway", "type": "backend", "label": "Realtime Gateway", "sublabel": "Socket.IO · /ws", "pos": [740, 570], "size": [200, 90] },
+    { "id": "web", "type": "frontend", "label": "상담원 앱", "sublabel": "React 19 · Vite", "pos": [400, 740], "size": [200, 90] },
+    { "id": "desktop", "type": "frontend", "label": "데스크톱 소프트폰", "sublabel": "Electron · C# WPF", "pos": [740, 740], "size": [200, 90] },
+    { "id": "admin", "type": "frontend", "label": "관리자 대시보드", "sublabel": "React 18 · Antd 5", "pos": [1080, 740], "size": [200, 90] },
+    { "id": "rest", "type": "backend", "label": "REST API", "sublabel": "NestJS · api/v1", "tag": "JWT + RBAC", "pos": [740, 910], "size": [200, 90] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "이벤트 파이프라인 (AMI → WebSocket)", "wraps": ["ami", "engine", "bus", "gateway"] },
+    { "kind": "region", "label": "클라이언트 앱", "wraps": ["web", "desktop", "admin"] }
+  ],
+  "connections": [
+    { "id": "call-in", "from": "caller", "to": "pbx", "label": "인바운드 통화", "variant": "emphasis" },
+    { "id": "ami-stream", "from": "pbx", "to": "ami", "label": "AMI 이벤트", "variant": "emphasis" },
+    { "id": "normalized", "from": "ami", "to": "engine", "label": "정규화 이벤트", "variant": "emphasis", "labelDy": 24 },
+    { "id": "engine-redis", "from": "engine", "to": "redis", "label": "지문 중복 제거" },
+    { "id": "engine-pg", "from": "engine", "to": "pg", "label": "세션 트랜잭션" },
+    { "id": "transition", "from": "engine", "to": "bus", "label": "상태 전이 이벤트", "variant": "emphasis", "labelDy": 24 },
+    { "id": "fanout", "from": "bus", "to": "gateway", "label": "Pub/Sub 팬아웃", "variant": "emphasis", "labelDy": 24 },
+    { "id": "push-web", "from": "gateway", "to": "web", "label": "WebSocket 푸시" },
+    { "id": "push-desktop", "from": "gateway", "to": "desktop", "label": "WebSocket 푸시", "labelDy": 24 },
+    { "id": "web-cmd", "from": "web", "to": "rest", "label": "통화 제어 REST" },
+    { "id": "desktop-cmd", "from": "desktop", "to": "rest", "label": "오퍼 수락 · 제어", "labelDy": 24 },
+    { "id": "admin-cmd", "from": "admin", "to": "rest", "label": "설정 · 통계 조회" },
+    { "id": "rest-pbx", "from": "rest", "to": "pbx", "label": "Originate · conf reload", "variant": "security", "fromSide": "bottom", "toSide": "left", "via": [[840, 1050], [320, 1050], [320, 105]] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "이벤트 파이프라인", "items": ["PBX AMI 원시 이벤트를 linkedid 로 묶어 통화 세션 하나로 조립", "sha256 지문 + Redis SETNX 로 중복 이벤트를 선점 차단", "상태 전이와 Outbox 적재를 하나의 트랜잭션으로 원자화"] },
+    { "dot": "emerald", "title": "멀티노드 운영", "items": ["Redis 리더 선출이 AMI 소비를 단일 노드에 고정", "Outbox 발행 · 세션 복구 · 녹취 마감 sweep 은 리더 전용", "Redis 장애 시 로컬 브로드캐스트로 폴백"] },
+    { "dot": "rose", "title": "제어 · 설정 역방향", "items": ["REST 는 accepted 즉시 반환, 성공은 후속 AMI 이벤트로 판정", "관리자 설정은 conf 로 렌더링 후 AMI reload — 운영 PBX 직접 변경", "REST 와 세션 엔진이 같은 Prisma 클라이언트로 PostgreSQL 에 접근"] }
+  ]
+}
