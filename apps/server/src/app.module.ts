@@ -23,12 +23,17 @@ import { OutboundRulesModule } from './modules/outbound-rules/outbound-rules.mod
 import { ShareRulesModule } from './modules/share-rules/share-rules.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { RecordingPipelineModule } from './modules/recording-pipeline/recording-pipeline.module';
+import { CallAnalysisModule } from './modules/call-analysis/call-analysis.module';
+import { ConsultCategoriesModule } from './modules/consult-categories/consult-categories.module';
+import { ArsFlowModule } from './modules/ars-flow/ars-flow.module';
 import { SmdrModule } from './modules/smdr/smdr.module';
 import { TrendsModule } from './modules/trends/trends.module';
 import { SipSecurityModule } from './modules/sip-security/sip-security.module';
 import { ResilienceModule } from './modules/resilience/resilience.module';
+import { FeatureEntitlementModule } from './modules/feature-entitlement/feature-entitlement.module';
 import { RecoveryModule } from './modules/resilience/recovery.module';
 import { PacketCaptureModule } from './modules/packet-capture/packet-capture.module';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
 
 @Module({
   imports: [
@@ -36,10 +41,14 @@ import { PacketCaptureModule } from './modules/packet-capture/packet-capture.mod
     MonitoringModule,
     RedisModule,
     ResilienceModule,
+    FeatureEntitlementModule,
     EventsModule,
     OutboxModule,
     SessionRecoveryModule,
     RecordingPipelineModule,
+    CallAnalysisModule,
+    ConsultCategoriesModule,
+    ArsFlowModule,
     SipSecurityModule,
     AmiModule,
     RealtimeModule,
@@ -59,6 +68,7 @@ import { PacketCaptureModule } from './modules/packet-capture/packet-capture.mod
     SmdrModule,
     TrendsModule,
     PacketCaptureModule,
+    PlatformAdminModule,
     RecoveryModule,
     HealthModule,
   ],

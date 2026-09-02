@@ -4,6 +4,7 @@ import { AgentsService } from '../src/modules/agents/agents.service';
 import { AmiConnectionService } from '../src/modules/ami/ami-connection.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AgentStateService } from '../src/modules/calls/agent-state.service';
+import { AgentPresenceService } from '../src/modules/realtime/agent-presence.service';
 
 /**
  * 상담원 편집 화면은 폼 전체를 PATCH 로 보낸다. 그 폼에 SIP 비밀번호 입력칸이 없어도
@@ -50,6 +51,12 @@ describe('AgentsService update — SIP 비밀번호', () => {
           },
         },
         { provide: AgentStateService, useValue: { changeStatus: jest.fn() } },
+        {
+          provide: AgentPresenceService,
+          useValue: {
+            connectedAgentIds: jest.fn(async (_tenantId: string, agentIds: string[]) => new Set(agentIds)),
+          },
+        },
       ],
     }).compile();
 

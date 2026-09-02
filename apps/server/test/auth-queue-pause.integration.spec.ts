@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../src/common/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { FeatureEntitlementService } from '../src/common/feature-entitlement.service';
 import { AgentStateService } from '../src/modules/calls/agent-state.service';
 import { CallsService } from '../src/modules/calls/calls.service';
 import { RedisService } from '../src/modules/redis/redis.service';
@@ -69,6 +70,10 @@ describe('AuthService login/logout queue pause path', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: FeatureEntitlementService,
+          useValue: { listForTenant: jest.fn().mockResolvedValue({}) },
+        },
         { provide: PrismaService, useValue: prisma },
         {
           provide: ConfigService,

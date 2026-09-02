@@ -21,6 +21,7 @@ function createService() {
       {} as any,
       {} as any,
       eventBus,
+      { listForTenant: jest.fn().mockResolvedValue({}) } as any,
     ),
   };
 }

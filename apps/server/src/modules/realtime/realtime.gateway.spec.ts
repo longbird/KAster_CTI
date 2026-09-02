@@ -98,6 +98,22 @@ describe('RealtimeGateway presence', () => {
     expect(presence.markDisconnected).toHaveBeenCalledWith('tenant-1', 'agent-1', 'socket-1');
   });
 
+  // 플랫폼 관리자 토큰도 같은 JWT_SECRET 으로 서명된다. REST 만 막고 이 문을 열어두면
+  // 테넌트 밖 계정이 실시간 스트림에 붙는다.
+  it('rejects a platform admin token', async () => {
+    const presence = buildPresence();
+    const gateway = new RealtimeGateway(presence);
+    const token = jwt.sign({ sub: 'platform-admin-1', scope: 'platform' }, 'change_me', { expiresIn: '15m' });
+    const client = buildClient(token);
+
+    gateway.handleConnection(client);
+    await Promise.resolve();
+
+    expect(client.disconnect).toHaveBeenCalledWith(true);
+    expect(client.join).not.toHaveBeenCalled();
+    expect(presence.markConnected).not.toHaveBeenCalled();
+  });
+
   // 토큰 없이 붙었다 끊긴 소켓은 어떤 상담원도 대표하지 않는다.
   it('leaves presence untouched for a socket that never authenticated', async () => {
     const presence = buildPresence();

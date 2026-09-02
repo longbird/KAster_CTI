@@ -48,6 +48,7 @@ function createService() {
     {} as any,
     {} as any,
     {} as any,
+    { listForTenant: jest.fn().mockResolvedValue({}) } as any,
   );
   jest.spyOn(service, 'getBranchMappings').mockResolvedValue({ success: true, data: {}, error: null } as any);
 

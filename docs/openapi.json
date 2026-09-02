@@ -3289,6 +3289,431 @@
         ]
       }
     },
+    "/api/v1/calls/{callId}/transcript": {
+      "get": {
+        "operationId": "CallAnalysisController_getTranscript",
+        "summary": "통화 전문 조회",
+        "description": "화자별 세그먼트를 시간순으로 함께 준다. 본인 통화 또는 supervisor/admin 만 볼 수 있다.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "call-analysis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/analysis": {
+      "get": {
+        "operationId": "CallAnalysisController_getAnalysis",
+        "summary": "통화 AI 분석 조회",
+        "description": "요약·감정·키워드·상담분류를 준다.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "call-analysis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calls/{callId}/analysis/retry": {
+      "post": {
+        "operationId": "CallAnalysisController_retry",
+        "summary": "통화 분석 재요청",
+        "description": "확정된 녹취를 전사 단계부터 다시 큐에 넣는다. 실제 처리는 sweep 이 이어서 한다.",
+        "parameters": [
+          {
+            "name": "callId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "call-analysis"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/consult-categories": {
+      "get": {
+        "operationId": "ConsultCategoriesController_list",
+        "summary": "상담분류 목록",
+        "description": "대-중-소 3단계를 레벨·정렬순으로 준다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "consult-categories"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ConsultCategoriesController_create",
+        "summary": "상담분류 등록",
+        "description": "parentCategoryId 를 주면 그 아래 단계로 만든다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConsultCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "consult-categories"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/consult-categories/{categoryId}": {
+      "patch": {
+        "operationId": "ConsultCategoriesController_update",
+        "summary": "상담분류 수정",
+        "description": "코드는 바꾸지 않는다 — 이미 분석된 통화가 코드를 가리킨다.",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConsultCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "consult-categories"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "ConsultCategoriesController_remove",
+        "summary": "상담분류 삭제",
+        "description": "하위 분류가 남아 있으면 거부한다.",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "consult-categories"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-flows": {
+      "get": {
+        "operationId": "ArsFlowController_list",
+        "summary": "ARS 플로우 목록",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ArsFlowController_create",
+        "summary": "ARS 플로우 생성",
+        "description": "빈 DRAFT 플로우를 만든다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArsFlowDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-flows/{flowId}": {
+      "get": {
+        "operationId": "ArsFlowController_get",
+        "summary": "ARS 플로우 그래프 조회",
+        "description": "노드·엣지와 편집기 좌표를 함께 준다.",
+        "parameters": [
+          {
+            "name": "flowId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "ArsFlowController_remove",
+        "summary": "ARS 플로우 삭제",
+        "description": "이 플로우를 쓰던 DID 는 사라지지 않고 기존 표준 경로로 되돌아간다.",
+        "parameters": [
+          {
+            "name": "flowId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-flows/{flowId}/graph": {
+      "patch": {
+        "operationId": "ArsFlowController_replaceGraph",
+        "summary": "ARS 플로우 그래프 교체",
+        "description": "노드와 엣지를 한 덩어리로 갈아끼운다. 개별 CRUD 가 아닌 이유는 편집 중간 상태가 매번 검증에 걸리기 때문이다. 검증 오류가 하나라도 있으면 아무것도 저장하지 않는다.",
+        "parameters": [
+          {
+            "name": "flowId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceArsFlowGraphDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-flows/{flowId}/validate": {
+      "post": {
+        "operationId": "ArsFlowController_validate",
+        "summary": "ARS 플로우 검증",
+        "description": "저장하지 않고 오류와 경고만 돌려준다. 오류는 저장을 막고, 경고는 막지 않는다.",
+        "parameters": [
+          {
+            "name": "flowId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceArsFlowGraphDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-flows/{flowId}/preview": {
+      "get": {
+        "operationId": "ArsFlowController_preview",
+        "summary": "ARS 플로우 컴파일 미리보기",
+        "description": "컴파일된 dialplan 문자열만 돌려준다. 파일을 쓰거나 PBX 를 reload 하지 않는다.",
+        "parameters": [
+          {
+            "name": "flowId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "AuthController_login",
@@ -6103,6 +6528,72 @@
         ]
       }
     },
+    "/api/v1/admin/call-insights": {
+      "get": {
+        "operationId": "TrendsController_callInsightsQuery",
+        "summary": "통화 AI 인사이트 조회",
+        "description": "감정 추이·상담분류 분포·급상승 키워드를 요청 시점에 집계한다. 분석은 통화 종료 뒤에 도착하므로 스냅샷에 적재하지 않는다. `totals` 의 analyzedCalls/totalCalls 가 분석 커버리지이며, 이 값이 낮으면 아래 분포를 전체 통화의 분포로 읽으면 안 된다. 급상승 키워드는 요청 구간 바로 앞의 같은 길이 구간과 비교한 결과다.",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "조회 시작 (ISO8601)",
+            "schema": {
+              "example": "2026-08-25T00:00:00+09:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "조회 끝 (ISO8601, 미포함)",
+            "schema": {
+              "example": "2026-08-26T00:00:00+09:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "resolution",
+            "required": false,
+            "in": "query",
+            "description": "구간 해상도. 생략하면 기간 길이에 맞춰 자동으로 고른다.",
+            "schema": {
+              "enum": [
+                "PT1M",
+                "PT5M",
+                "PT1H",
+                "P1D"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "queueId",
+            "required": false,
+            "in": "query",
+            "description": "큐 단위 조회. 생략하면 테넌트 전체 합계.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/packet-captures/settings": {
       "get": {
         "operationId": "PacketCaptureController_getSettings",
@@ -6260,6 +6751,455 @@
         },
         "tags": [
           "packet-capture"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/auth/login": {
+      "post": {
+        "operationId": "PlatformAuthController_login",
+        "summary": "플랫폼 관리자 로그인",
+        "description": "loginId + password 검증 (bcrypt). access token 에는 tenantId 가 없고 scope=platform 이 들어간다.",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-auth"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/refresh": {
+      "post": {
+        "operationId": "PlatformAuthController_refresh",
+        "summary": "플랫폼 관리자 토큰 재발급",
+        "description": "refresh 는 요청마다 회전한다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformRefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-auth"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/logout": {
+      "post": {
+        "operationId": "PlatformAuthController_logout",
+        "summary": "플랫폼 관리자 로그아웃",
+        "description": "토큰이 없어도 멱등 성공.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLogoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-auth"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/password": {
+      "post": {
+        "operationId": "PlatformAuthController_changePassword",
+        "summary": "플랫폼 관리자 비밀번호 변경",
+        "description": "초기 비밀번호 상태에서 유일하게 열려 있는 변경 경로다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePlatformPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/me": {
+      "get": {
+        "operationId": "PlatformAuthController_me",
+        "summary": "현재 플랫폼 관리자 조회",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/tenants": {
+      "get": {
+        "operationId": "PlatformTenantsController_list",
+        "summary": "테넌트 목록",
+        "description": "식별에 필요한 네 필드만 준다. 설계 D2 — 플랫폼 관리자는 통화·고객·녹취·상담원 같은 업무 데이터를 읽지 않는다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-tenants"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{tenantId}/entitlements": {
+      "get": {
+        "operationId": "PlatformEntitlementsController_list",
+        "summary": "테넌트 기능 자격 조회",
+        "description": "카탈로그 전체를 현재 값·기본값·출처(행/기본값)와 함께 준다. 행이 없으면 기본값으로 판정된다.",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-entitlements"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{tenantId}/entitlements/{featureKey}": {
+      "put": {
+        "operationId": "PlatformEntitlementsController_set",
+        "summary": "테넌트 기능 자격 변경",
+        "description": "되돌릴 수 없는 기능은 끄기를 409 로 거부하고, 켤 때 acknowledgeIrreversible 이 없으면 400 이다. 변경은 감사 로그로 남고 해당 테넌트의 판정 캐시가 즉시 무효화된다.",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "featureKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetEntitlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-entitlements"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{tenantId}/entitlements/history": {
+      "get": {
+        "operationId": "PlatformEntitlementsController_history",
+        "summary": "테넌트 기능 자격 변경 이력",
+        "description": "누가 언제 무엇을 어떻게 바꿨는지.",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-entitlements"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/admins": {
+      "get": {
+        "operationId": "PlatformAdminsController_list",
+        "summary": "플랫폼 관리자 목록",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-admins"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "PlatformAdminsController_create",
+        "summary": "플랫폼 관리자 생성",
+        "description": "만들어진 계정은 첫 로그인에서 비밀번호를 바꿔야 한다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlatformAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-admins"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/admins/{platformAdminId}": {
+      "patch": {
+        "operationId": "PlatformAdminsController_update",
+        "summary": "플랫폼 관리자 활성/비활성",
+        "description": "자기 계정은 비활성화할 수 없다 — 마지막 관리자가 자기를 끄면 아무도 로그인할 수 없다.",
+        "parameters": [
+          {
+            "name": "platformAdminId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlatformAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "platform-admins"
         ],
         "security": [
           {
@@ -7016,6 +7956,22 @@
         "type": "object",
         "properties": {}
       },
+      "CreateConsultCategoryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateConsultCategoryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateArsFlowDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReplaceArsFlowGraphDto": {
+        "type": "object",
+        "properties": {}
+      },
       "LoginDto": {
         "type": "object",
         "properties": {
@@ -7742,6 +8698,102 @@
         },
         "required": [
           "durationSeconds"
+        ]
+      },
+      "PlatformLoginDto": {
+        "type": "object",
+        "properties": {
+          "loginId": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loginId",
+          "password"
+        ]
+      },
+      "PlatformRefreshDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "PlatformLogoutDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangePlatformPasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "SetEntitlementDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "acknowledgeIrreversible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "CreatePlatformAdminDto": {
+        "type": "object",
+        "properties": {
+          "loginId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loginId",
+          "displayName",
+          "password"
+        ]
+      },
+      "UpdatePlatformAdminDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isActive"
         ]
       }
     }

@@ -20,6 +20,11 @@ const FULLY_GATED = [
   'share-rules.controller.ts',
   'sms-templates.controller.ts',
   'packet-capture.controller.ts',
+  'call-analysis.controller.ts',
+  'consult-categories.controller.ts',
+  'ars-flow.controller.ts',
+  'platform-entitlements.controller.ts',
+  'platform-admins.controller.ts',
 ];
 
 /** 설정 쓰기와 운영 쓰기가 섞여 메서드 단위로 붙인 컨트롤러 */
@@ -31,6 +36,7 @@ const INTENTIONALLY_OPEN: Record<string, string> = {
   'client-call-commands.controller.ts': '제1원칙 — 클라이언트 발신 명령',
   'agent-offer.controller.ts': '제1원칙 — 걸려온 호의 수락/거절은 통화 제어다. 막으면 전화를 못 받는다',
   'auth.controller.ts': 'allowNewLogin 은 별도 축이며 강제 여부가 운영 판단 사항 (runbook 6장)',
+  'platform-auth.controller.ts': '장애 대응 모드에서도 로그인은 돼야 상황을 본다 (auth.controller.ts 와 같은 판단)',
   'customers.controller.ts': '고객 업무 데이터이지 설정이 아니다',
   'agent-updates.controller.ts': '데스크톱 앱 런타임 경로(세션·다운로드·리포트)',
 };

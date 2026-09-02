@@ -6,6 +6,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import * as jwt from 'jsonwebtoken';
+import { PLATFORM_TOKEN_SCOPE } from '../platform-admin/platform-admin.constants';
 import { AgentPresenceService } from './agent-presence.service';
 
 // conv 22 + share 69de045b: WS handshake 는 access token 으로만 허용.
@@ -49,6 +50,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         token,
         process.env.JWT_SECRET || 'change_me',
       ) as jwt.JwtPayload;
+
+      // 플랫폼 관리자 토큰은 같은 JWT_SECRET 으로 서명되므로 여기서도 그냥 통과한다.
+      // REST 만 막고 이 문을 열어두면 테넌트 밖 계정이 실시간 스트림에 붙는다.
+      if (payload.scope === PLATFORM_TOKEN_SCOPE) {
+        this.logger.warn(`WS rejected (platform token): ${client.id}`);
+        client.disconnect(true);
+        return;
+      }
 
       client.data = client.data || {};
       client.data.sub = payload.sub;

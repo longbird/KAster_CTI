@@ -4,6 +4,7 @@ import { AgentsService } from '../src/modules/agents/agents.service';
 import { AmiConnectionService } from '../src/modules/ami/ami-connection.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AgentStateService } from '../src/modules/calls/agent-state.service';
+import { AgentPresenceService } from '../src/modules/realtime/agent-presence.service';
 
 describe('AgentsService listForTenant', () => {
   let service: AgentsService;
@@ -46,6 +47,12 @@ describe('AgentsService listForTenant', () => {
           provide: AgentStateService,
           useValue: {
             changeStatus: jest.fn(),
+          },
+        },
+        {
+          provide: AgentPresenceService,
+          useValue: {
+            connectedAgentIds: jest.fn(async (_tenantId: string, agentIds: string[]) => new Set(agentIds)),
           },
         },
       ],

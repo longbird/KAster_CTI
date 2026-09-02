@@ -78,6 +78,7 @@ function createService() {
       healthSummary,
       realtimeGateway,
       eventBus,
+      { listForTenant: jest.fn().mockResolvedValue({}) } as any,
     ),
   };
 }

@@ -4,6 +4,7 @@ import { PrismaService } from '../src/common/prisma.service';
 import { MenuPermissionService } from '../src/common/menu-permission.service';
 import { AsteriskReloadService } from '../src/modules/asterisk-config/asterisk-reload.service';
 import { AdminService } from '../src/modules/admin/admin.service';
+import { FeatureEntitlementService } from '../src/common/feature-entitlement.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
 import { EventBusService } from '../src/modules/events/event-bus.service';
 import { HealthSummaryService } from '../src/modules/health/health-summary.service';
@@ -152,6 +153,10 @@ describe('Admin/Permission service integration', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           AdminService,
+        {
+          provide: FeatureEntitlementService,
+          useValue: { listForTenant: jest.fn().mockResolvedValue({}) },
+        },
           { provide: PrismaService, useValue: prisma },
           { provide: QueuesService, useValue: queuesService },
           { provide: AsteriskReloadService, useValue: reloadService },

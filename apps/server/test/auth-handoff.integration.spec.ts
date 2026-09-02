@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../src/common/prisma.service';
 import { AuthController } from '../src/modules/auth/auth.controller';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { FeatureEntitlementService } from '../src/common/feature-entitlement.service';
 import { CallsService } from '../src/modules/calls/calls.service';
 import { EventBusService } from '../src/modules/events/event-bus.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
@@ -94,6 +95,10 @@ describe('AuthService desktop handoff', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: FeatureEntitlementService,
+          useValue: { listForTenant: jest.fn().mockResolvedValue({}) },
+        },
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('change_me') } },
         {
@@ -296,6 +301,10 @@ describe('AuthController web handoff HTTP integration', () => {
       controllers: [AuthController],
       providers: [
         AuthService,
+        {
+          provide: FeatureEntitlementService,
+          useValue: { listForTenant: jest.fn().mockResolvedValue({}) },
+        },
         JwtStrategy,
         { provide: PrismaService, useValue: prisma },
         {

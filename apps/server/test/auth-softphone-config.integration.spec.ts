@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../src/common/prisma.service';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { FeatureEntitlementService } from '../src/common/feature-entitlement.service';
 import { CallsService } from '../src/modules/calls/calls.service';
 import { EventBusService } from '../src/modules/events/event-bus.service';
 import { QueuesService } from '../src/modules/queues/queues.service';
@@ -80,6 +81,10 @@ describe('AuthService softphone config', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: FeatureEntitlementService,
+          useValue: { listForTenant: jest.fn().mockResolvedValue({}) },
+        },
         { provide: PrismaService, useValue: prisma },
         {
           provide: ConfigService,

@@ -19,6 +19,7 @@ function createService() {
       {} as any,
       {} as any,
       { publish: jest.fn() } as any,
+      { listForTenant: jest.fn().mockResolvedValue({}) } as any,
     ),
   };
 }
