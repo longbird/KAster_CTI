@@ -38,7 +38,14 @@ export function AdminDashboardPage() {
             갱신 {dayjs(data.updatedAt).format('HH:mm:ss')}
           </Typography.Text>
           <BranchFilterSelect value={branchId} onChange={setBranchId} />
-          {refreshing ? <Spin size="small" /> : null}
+          {/*
+            자리를 항상 잡아 둔다. 조건부로 넣고 빼면 5초마다 헤더 항목 수가 바뀌고,
+            `.ant-space-item:last-child { margin-left: auto }` 때문에 오른쪽 끝으로 밀리는
+            대상까지 달라져 줄 전체가 튄다.
+          */}
+          <span className="ops-room__refresh" aria-hidden={!refreshing}>
+            {refreshing ? <Spin size="small" /> : null}
+          </span>
           {error ? <Typography.Text type="warning" style={{ fontSize: 11 }}>{error}</Typography.Text> : null}
         </Space>
         <div className="ops-room__infra">

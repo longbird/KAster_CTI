@@ -427,6 +427,14 @@ body {
   min-width: 0;
   flex: 1;
 }
+.ops-room__refresh {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .ops-room__timestamp {
   font-family: var(--font-mono);
   font-size: 11px;
