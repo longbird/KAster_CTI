@@ -1357,3 +1357,17 @@ body {
     height: 480px;
   }
 }
+
+/*
+ * 연결 목록은 노드 폼 아래에 있다. 연결이 둘만 돼도 두 번째 줄이 패널 밖으로 밀려
+ * 사용자는 디지트 칸이 아예 없다고 읽는다 (2026-09-02 제보). 바닥에 고정한다.
+ */
+.ars-builder__links {
+  position: sticky;
+  bottom: 0;
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 8px;
+  padding-bottom: 4px;
+  background: var(--bg-1, #fff);
+}

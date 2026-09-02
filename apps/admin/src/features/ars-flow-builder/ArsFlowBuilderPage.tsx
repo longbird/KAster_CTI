@@ -99,6 +99,19 @@ export function ArsFlowBuilderPage() {
       }));
   }, [edges, nodes, selectedNodeId]);
 
+  const incoming = useMemo(() => {
+    if (!selectedNodeId) return [];
+    const labelById = new Map(nodes.map((node) => [node.id, node.data.row.label]));
+    return edges
+      .filter((edge) => edge.target === selectedNodeId)
+      .map((edge) => ({
+        edgeId: edge.id,
+        condition: (edge.data?.condition as FlowEdgeCondition) ?? 'DEFAULT',
+        digit: (edge.data?.digit as string | null) ?? null,
+        fromLabel: labelById.get(edge.source) ?? edge.source,
+      }));
+  }, [edges, nodes, selectedNodeId]);
+
   const addNode = (nodeType: FlowNodeType) => {
     const row: FlowNodeRow = {
       nodeId: newNodeId(),
@@ -333,6 +346,7 @@ export function ArsFlowBuilderPage() {
                 httpEndpoints={httpEndpoints}
                 isEntry={selectedNode?.nodeId === entryNodeId}
                 outgoing={outgoing}
+                incoming={incoming}
                 onChange={updateNode}
                 onSetEntry={() => selectedNode && setEntry(selectedNode.nodeId)}
                 onDelete={() => selectedNode && deleteNode(selectedNode.nodeId)}

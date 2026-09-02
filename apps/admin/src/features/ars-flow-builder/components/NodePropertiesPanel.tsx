@@ -9,12 +9,27 @@ import {
   type FlowNodeRow,
 } from '../types/flowGraph';
 
+interface EdgeLink {
+  edgeId: string;
+  condition: FlowEdgeCondition;
+  digit: string | null;
+  /** 반대쪽 노드 이름. 나가는 연결이면 도착지, 들어오는 연결이면 출발지다. */
+  otherLabel: string;
+}
+
 interface Props {
   node: FlowNodeRow | null;
   /** 등록된 외부 조회 엔드포인트. 노드에는 주소를 적을 수 없고 여기서 고르기만 한다. */
   httpEndpoints: Array<{ value: string; label: string }>;
   isEntry: boolean;
   outgoing: Array<{ edgeId: string; condition: FlowEdgeCondition; digit: string | null; toLabel: string }>;
+  /**
+   * 이 노드로 들어오는 연결.
+   *
+   * 디지트를 고치러 사용자는 **눌러서 가는 노드**를 클릭한다. 메뉴 노드에만 두면
+   * 대상 노드를 열어 본 사람은 고칠 곳이 없다고 읽는다.
+   */
+  incoming: Array<{ edgeId: string; condition: FlowEdgeCondition; digit: string | null; fromLabel: string }>;
   onChange: (next: FlowNodeRow) => void;
   onSetEntry: () => void;
   onDelete: () => void;
@@ -40,7 +55,7 @@ const WEEKDAYS = [
  * 최종 판정을 하지 않는다 — 두 곳에서 판정하면 규칙이 갈라진다.
  */
 export function NodePropertiesPanel({
-  node, httpEndpoints, isEntry, outgoing, onChange, onSetEntry, onDelete, onEdgeDigitChange, onEdgeDelete,
+  node, httpEndpoints, isEntry, outgoing, incoming, onChange, onSetEntry, onDelete, onEdgeDigitChange, onEdgeDelete,
 }: Props) {
   const [form] = Form.useForm();
 
@@ -227,34 +242,73 @@ export function NodePropertiesPanel({
         )}
       </Form>
 
-      {outgoing.length > 0 && (
-        <>
-          <Divider style={{ margin: '8px 0' }} />
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>나가는 연결</Typography.Text>
-          <Space direction="vertical" size={6} style={{ width: '100%', marginTop: 6 }}>
-            {outgoing.map((edge) => (
-              <Space key={edge.edgeId} size={6} style={{ width: '100%' }}>
-                <Typography.Text style={{ fontSize: 12, minWidth: 68 }}>
-                  {EDGE_CONDITION_LABELS[edge.condition]}
-                </Typography.Text>
-                {edge.condition === 'DIGIT' && (
-                  <Input
-                    size="small"
-                    style={{ width: 52 }}
-                    maxLength={2}
-                    value={edge.digit ?? ''}
-                    onChange={(event) => onEdgeDigitChange(edge.edgeId, event.target.value)}
-                  />
-                )}
-                <Typography.Text type="secondary" ellipsis style={{ fontSize: 12, flex: 1 }}>
-                  → {edge.toLabel}
-                </Typography.Text>
-                <Button size="small" type="text" danger onClick={() => onEdgeDelete(edge.edgeId)}>삭제</Button>
-              </Space>
-            ))}
-          </Space>
-        </>
+      {(outgoing.length > 0 || incoming.length > 0) && (
+        <div className="ars-builder__links">
+          {outgoing.length > 0 && (
+            <LinkSection
+              title="나가는 연결"
+              arrow="→"
+              links={outgoing.map((edge) => ({ ...edge, otherLabel: edge.toLabel }))}
+              onEdgeDigitChange={onEdgeDigitChange}
+              onEdgeDelete={onEdgeDelete}
+            />
+          )}
+          {incoming.length > 0 && (
+            <LinkSection
+              title="들어오는 연결"
+              arrow="←"
+              links={incoming.map((edge) => ({ ...edge, otherLabel: edge.fromLabel }))}
+              onEdgeDigitChange={onEdgeDigitChange}
+              onEdgeDelete={onEdgeDelete}
+            />
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 연결 한 묶음.
+ *
+ * 나가는 쪽과 들어오는 쪽이 **같은 줄 모양**을 쓴다. 디지트를 고치는 칸이 어느 쪽에서
+ * 열든 같은 자리에 있어야 사용자가 두 번 찾지 않는다.
+ */
+function LinkSection({
+  title, arrow, links, onEdgeDigitChange, onEdgeDelete,
+}: {
+  title: string;
+  arrow: string;
+  links: EdgeLink[];
+  onEdgeDigitChange: (edgeId: string, digit: string) => void;
+  onEdgeDelete: (edgeId: string) => void;
+}) {
+  return (
+    <>
+      <Divider style={{ margin: '8px 0' }} />
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>{title}</Typography.Text>
+      <Space direction="vertical" size={6} style={{ width: '100%', marginTop: 6 }}>
+        {links.map((edge) => (
+          <Space key={edge.edgeId} size={6} style={{ width: '100%' }}>
+            <Typography.Text style={{ fontSize: 12, minWidth: 68 }}>
+              {EDGE_CONDITION_LABELS[edge.condition]}
+            </Typography.Text>
+            {edge.condition === 'DIGIT' && (
+              <Input
+                size="small"
+                style={{ width: 52 }}
+                maxLength={2}
+                value={edge.digit ?? ''}
+                onChange={(event) => onEdgeDigitChange(edge.edgeId, event.target.value)}
+              />
+            )}
+            <Typography.Text type="secondary" ellipsis style={{ fontSize: 12, flex: 1 }}>
+              {arrow} {edge.otherLabel}
+            </Typography.Text>
+            <Button size="small" type="text" danger onClick={() => onEdgeDelete(edge.edgeId)}>삭제</Button>
+          </Space>
+        ))}
+      </Space>
+    </>
   );
 }
