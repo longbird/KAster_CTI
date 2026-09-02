@@ -35,7 +35,8 @@ export const darkTheme: ThemeConfig = {
     colorTextQuaternary: '#4a5060',
   },
   components: {
-    Card: { headerFontSize: 14, headerBg: 'transparent' },
+    // 13 = styles.css 의 --t-h5. .adm-card-head h4 와 같은 크기여야 카드 제목이 한 벌이 된다.
+    Card: { headerFontSize: 13, headerBg: 'transparent' },
     Table: { headerBg: '#14161a', rowHoverBg: '#14161a' },
     Button: { primaryShadow: 'none', defaultShadow: 'none' },
     Menu: {
@@ -71,7 +72,8 @@ export const lightTheme: ThemeConfig = {
     colorTextQuaternary: '#9ea3ae',
   },
   components: {
-    Card: { headerFontSize: 14, headerBg: 'transparent' },
+    // 13 = styles.css 의 --t-h5. .adm-card-head h4 와 같은 크기여야 카드 제목이 한 벌이 된다.
+    Card: { headerFontSize: 13, headerBg: 'transparent' },
     Table: { headerBg: '#f5f5f6', rowHoverBg: '#f5f5f6' },
     Button: { primaryShadow: 'none', defaultShadow: 'none' },
     Menu: {

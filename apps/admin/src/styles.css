@@ -212,7 +212,7 @@ body {
 .login-hero__title.ant-typography {
   margin: 0 !important;
   color: var(--fg-1);
-  font-size: 22px;
+  font-size: var(--t-h2);
   line-height: 1.25;
 }
 
@@ -516,7 +516,7 @@ body {
 .dashboard-compact__kpi-cell:last-child { border-right: 0; }
 .dashboard-compact__kpi-cell .label {
   color: var(--fg-3);
-  font-size: 11px;
+  font-size: var(--t-micro);
   font-weight: 600;
   line-height: 1.25;
   white-space: nowrap;
@@ -527,8 +527,9 @@ body {
   margin-top: 4px;
   color: var(--fg-1);
   font-family: var(--font-mono);
-  font-size: 22px;
-  font-weight: 700;
+  font-size: var(--t-h2);
+  font-weight: 500;
+  letter-spacing: -.015em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -878,9 +879,10 @@ body {
   display: block;
   margin-top: 4px;
   color: var(--fg-1);
-  font-family: var(--font-sans);
-  font-size: 22px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--t-h2);
+  font-weight: 500;
+  letter-spacing: -.015em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -951,9 +953,32 @@ body {
   background: var(--bg-2) !important;
 }
 .ant-statistic-title { color: var(--fg-3) !important; font-family: var(--font-sans); font-weight: 600; text-transform: none; font-size: var(--t-micro); letter-spacing: 0; }
-.ant-statistic-content { color: var(--fg-1) !important; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.ant-statistic-content {
+  color: var(--fg-1) !important;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-h2);
+  font-weight: 500;
+  letter-spacing: -.015em;
+}
 .ant-tag { border-radius: var(--r-sm) !important; }
 .ant-btn { box-shadow: none !important; }
+/* antd Title 의 레벨별 크기는 fontSize 13 에서 파생돼 18 · 14px 이 되고, 토큰 스케일과
+ * 어긋난다. 그 결과 같은 "화면 제목"이 AdmPageHead(22) 와 Title level 4(18) 로 갈렸다.
+ * 여기서 스케일에 고정한다 — 화면·모달 제목은 --t-h2, 그 안의 섹션 제목은 --t-h5.
+ * .adm-card-head h4 처럼 뒤에 오는 규칙이 필요하면 그쪽이 이긴다. */
+h2.ant-typography,
+h4.ant-typography {
+  font-size: var(--t-h2);
+  font-weight: 700;
+  letter-spacing: -.015em;
+  line-height: var(--lh-snug);
+}
+h5.ant-typography {
+  font-size: var(--t-h5);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+}
 .ant-modal-content, .ant-drawer-content {
   background: var(--bg-1) !important;
 }
@@ -967,7 +992,7 @@ body {
   margin-bottom: 4px;
 }
 .adm-page-title {
-  font-size: 22px; font-weight: 700; color: var(--fg-1);
+  font-size: var(--t-h2); font-weight: 700; color: var(--fg-1);
   margin: 0; letter-spacing: -.015em;
 }
 .adm-page-sub {
@@ -987,7 +1012,7 @@ body {
   border-bottom: 1px solid var(--line-1);
   min-height: 40px;
 }
-.adm-card-head h4 { font-size: 13px; font-weight: 600; margin: 0; color: var(--fg-1); }
+.adm-card-head h4 { font-size: var(--t-h5); font-weight: 600; margin: 0; color: var(--fg-1); }
 .adm-card-body { padding: 14px; }
 
 /* KPI grid (hairline-divided cells) */
@@ -1003,16 +1028,16 @@ body {
 .adm-kpi { padding: 14px 18px; border-right: 1px solid var(--line-1); }
 .adm-kpi:last-child { border-right: 0; }
 .adm-kpi-label {
-  font-family: var(--font-sans); font-size: 10px; font-weight: 600; text-transform: none; letter-spacing: 0;
+  font-family: var(--font-sans); font-size: var(--t-micro); font-weight: 600; text-transform: none; letter-spacing: 0;
   color: var(--fg-3);
   display: flex; justify-content: space-between; align-items: center;
 }
 .adm-kpi-value {
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  font-size: 28px; font-weight: 500; color: var(--fg-1);
+  font-size: var(--t-h1); font-weight: 500; color: var(--fg-1);
   margin-top: 6px; letter-spacing: -.015em; line-height: 1;
 }
-.adm-kpi-value .unit { font-size: 13px; color: var(--fg-3); margin-left: 3px; }
+.adm-kpi-value .unit { font-size: var(--t-body); color: var(--fg-3); margin-left: 3px; }
 
 /* ============================================================
  * 모바일 목록 카드 — ResponsiveTable 이 md 이하에서 행 대신 그린다
