@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { assertArsFlowAttachable } from './did-ars-flow';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -593,6 +594,7 @@ export class AsteriskConfigService {
   async createDid(tenantId: string, dto: CreateDidDto) {
     const normalized = await this.normalizeDidRouting(tenantId, dto);
     await this.validateDidXorAndQueue(tenantId, normalized);
+    await assertArsFlowAttachable(this.prisma, tenantId, dto.flowId);
     const data: Prisma.AsteriskDidUncheckedCreateInput = {
       tenantId,
       did: normalized.did!,
@@ -601,6 +603,7 @@ export class AsteriskConfigService {
       ivrMenuId: normalized.ivrMenuId ?? null,
       directQueue: normalized.directQueue ?? null,
       directExtension: normalized.directExtension ?? null,
+      flowId: dto.flowId ?? null,
       enabled: normalized.enabled ?? true,
     };
     const did = await this.prisma.asteriskDid.create({
@@ -618,6 +621,7 @@ export class AsteriskConfigService {
     await this.assertDidBelongs(tenantId, id);
     const normalized = await this.normalizeDidRouting(tenantId, dto);
     await this.validateDidXorAndQueue(tenantId, normalized);
+    await assertArsFlowAttachable(this.prisma, tenantId, dto.flowId);
     const data: Prisma.AsteriskDidUncheckedUpdateInput = {
       did: normalized.did,
       representativeNumber: normalized.representativeNumber ?? null,
@@ -625,6 +629,7 @@ export class AsteriskConfigService {
       ivrMenuId: normalized.ivrMenuId ?? null,
       directQueue: normalized.directQueue ?? null,
       directExtension: normalized.directExtension ?? null,
+      flowId: dto.flowId ?? null,
       enabled: normalized.enabled ?? true,
     };
     const did = await this.prisma.asteriskDid.update({ where: { id }, data });
