@@ -1,4 +1,9 @@
-import { assertNoNewlines, toSlug } from './renderer-utils';
+import { assertNoNewlines, shellQuote, toSlug } from './renderer-utils';
+import {
+  CUSTOM_SOUND_ABSOLUTE_PREFIX,
+  OPT_OUT_HOOK_PATH,
+  SMART_ARS_HOOK_PATH,
+} from './hook-paths';
 import {
   AGENT_OFFER_TIMEOUT_CONTEXT,
   clampAgentOfferTimeoutSeconds,
@@ -11,8 +16,6 @@ import {
 } from './recording-mode';
 
 const DEFAULT_QUEUE_TIMEOUT_SECONDS = 45;
-const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
-const OPT_OUT_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-opt-out-hook.sh`;
 const OPT_OUT_GUARDED_DIGIT_AGI_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-guarded-digit.agi`;
 
 // ss-noservice 는 Asterisk 가 기본 제공하는 영어 안내다("not in service"). 한국 고객에게
@@ -20,7 +23,6 @@ const OPT_OUT_GUARDED_DIGIT_AGI_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-gu
 const BLOCKED_ANI_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}blocked_ani`;
 const OPT_OUT_FAILED_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}optout_failed`;
 const QUEUE_CONNECTING_PROMPT = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}queue_connecting`;
-const SMART_ARS_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-smart-ars-hook.sh`;
 const OPT_OUT_MODE_SOURCE_TYPE: Record<OptOutMode, string> = {
   IMMEDIATE_OPT_OUT: 'OPT_OUT_080_IMMEDIATE',
   DTMF_MENU: 'OPT_OUT_080_DTMF',
@@ -297,10 +299,6 @@ function buildOptOutContextSuffix(did: DidInput): string {
 
 function buildSmartArsContextSuffix(did: DidInput): string {
   return buildOptOutContextSuffix(did);
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
 }
 
 function normalizeOptionalArg(value: string | null | undefined): string {

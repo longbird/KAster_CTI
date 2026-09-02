@@ -1,0 +1,191 @@
+import {
+  ConditionConfig,
+  FlowNodeType,
+  HangupConfig,
+  MenuConfig,
+  NodeConfig,
+  OptOutConfig,
+  PlayConfig,
+  QueueConfig,
+  SmsConfig,
+  TransferConfig,
+  isFlowNodeType,
+} from './flow-graph.types';
+
+const MENU_TIMEOUT_RANGE = { min: 1, max: 60 };
+const MENU_RETRY_RANGE = { min: 0, max: 5 };
+const DEFAULT_MENU_TIMEOUT_SECONDS = 5;
+const DEFAULT_MENU_MAX_RETRIES = 2;
+const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const OPT_OUT_ACTIONS = ['REGISTER', 'UNREGISTER'];
+const CONDITION_TYPES = ['TIME_RANGE', 'HOLIDAY'];
+
+/**
+ * 노드의 `config` JSON 을 타입별로 검증해서 꺼낸다. 여기가 시스템 경계다.
+ *
+ * 개행이 든 문자열은 렌더러의 `assertNoNewlines()` 이전에 여기서 먼저 막는다 —
+ * 잘못된 값이 DB 에 저장되는 것 자체를 막아야 나중에 렌더가 통째로 실패하지 않는다.
+ */
+export function parseNodeConfig(nodeType: FlowNodeType, raw: unknown): NodeConfig {
+  if (!isFlowNodeType(nodeType)) {
+    throw new Error(`unknown flow node type: ${nodeType}`);
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`node config must be an object (${nodeType})`);
+  }
+
+  const config = raw as Record<string, unknown>;
+
+  switch (nodeType) {
+    case 'PLAY':
+      return parsePlay(config);
+    case 'MENU':
+      return parseMenu(config);
+    case 'QUEUE':
+      return parseQueue(config);
+    case 'TRANSFER':
+      return parseTransfer(config);
+    case 'SMS':
+      return parseSms(config);
+    case 'OPT_OUT':
+      return parseOptOut(config);
+    case 'CONDITION':
+      return parseCondition(config);
+    case 'HANGUP':
+      return parseHangup(config);
+  }
+}
+
+function parsePlay(config: Record<string, unknown>): PlayConfig {
+  const promptKeys = toCleanStringList(config.promptKeys, 'promptKeys');
+  if (!promptKeys.length) {
+    throw new Error('PLAY node requires at least one entry in promptKeys');
+  }
+  return { promptKeys };
+}
+
+function parseMenu(config: Record<string, unknown>): MenuConfig {
+  return {
+    promptKey: optionalText(config.promptKey, 'promptKey'),
+    timeoutSeconds: boundedInteger(
+      config.timeoutSeconds,
+      'timeoutSeconds',
+      DEFAULT_MENU_TIMEOUT_SECONDS,
+      MENU_TIMEOUT_RANGE,
+    ),
+    maxRetries: boundedInteger(
+      config.maxRetries,
+      'maxRetries',
+      DEFAULT_MENU_MAX_RETRIES,
+      MENU_RETRY_RANGE,
+    ),
+  };
+}
+
+function parseQueue(config: Record<string, unknown>): QueueConfig {
+  return { queueName: requiredText(config.queueName, 'queueName') };
+}
+
+function parseTransfer(config: Record<string, unknown>): TransferConfig {
+  return { transferNumber: requiredText(config.transferNumber, 'transferNumber') };
+}
+
+function parseSms(config: Record<string, unknown>): SmsConfig {
+  return { smsTemplateId: requiredText(config.smsTemplateId, 'smsTemplateId') };
+}
+
+function parseOptOut(config: Record<string, unknown>): OptOutConfig {
+  if (config.action === undefined || config.action === null) {
+    return { action: 'REGISTER' };
+  }
+  const action = requiredText(config.action, 'action').toUpperCase();
+  if (!OPT_OUT_ACTIONS.includes(action)) {
+    throw new Error(`unknown OPT_OUT action: ${config.action}`);
+  }
+  return { action: action as OptOutConfig['action'] };
+}
+
+function parseCondition(config: Record<string, unknown>): ConditionConfig {
+  const conditionType = requiredText(config.conditionType, 'conditionType').toUpperCase();
+  if (!CONDITION_TYPES.includes(conditionType)) {
+    throw new Error(`unknown CONDITION type: ${config.conditionType}`);
+  }
+
+  if (conditionType === 'HOLIDAY') {
+    return { conditionType: 'HOLIDAY', timeStart: null, timeEnd: null, daysOfWeek: [] };
+  }
+
+  return {
+    conditionType: 'TIME_RANGE',
+    timeStart: requiredTime(config.timeStart, 'timeStart'),
+    timeEnd: requiredTime(config.timeEnd, 'timeEnd'),
+    daysOfWeek: toCleanStringList(config.daysOfWeek, 'daysOfWeek')
+      .map((day) => day.toLowerCase())
+      .filter((day) => WEEKDAYS.includes(day)),
+  };
+}
+
+function parseHangup(config: Record<string, unknown>): HangupConfig {
+  return { promptKey: optionalText(config.promptKey, 'promptKey') };
+}
+
+function assertNoNewline(value: string, field: string): string {
+  if (/[\r\n]/.test(value)) {
+    throw new Error(`${field} must not contain a newline`);
+  }
+  return value;
+}
+
+function requiredText(value: unknown, field: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(`${field} is required`);
+  }
+  const trimmed = assertNoNewline(value, field).trim();
+  if (!trimmed) {
+    throw new Error(`${field} is required`);
+  }
+  return trimmed;
+}
+
+function optionalText(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') {
+    throw new Error(`${field} must be a string`);
+  }
+  const trimmed = assertNoNewline(value, field).trim();
+  return trimmed || null;
+}
+
+function requiredTime(value: unknown, field: string): string {
+  const text = requiredText(value, field);
+  if (!TIME_PATTERN.test(text)) {
+    throw new Error(`${field} must be HH:MM`);
+  }
+  return text;
+}
+
+function boundedInteger(
+  value: unknown,
+  field: string,
+  fallback: number,
+  range: { min: number; max: number },
+): number {
+  if (value === undefined || value === null) return fallback;
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value), 10);
+  if (!Number.isInteger(parsed) || parsed < range.min || parsed > range.max) {
+    throw new Error(`${field} must be an integer between ${range.min} and ${range.max}`);
+  }
+  return parsed;
+}
+
+function toCleanStringList(value: unknown, field: string): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`${field} must be an array`);
+  }
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => assertNoNewline(item, field).trim())
+    .filter((item) => item.length > 0);
+}
