@@ -1,5 +1,8 @@
 import {
+  CollectDigitsConfig,
   ConditionConfig,
+  DIGIT_TARGET_SOURCES,
+  DigitTargetSource,
   FlowNodeType,
   HangupConfig,
   MenuConfig,
@@ -20,6 +23,10 @@ const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const OPT_OUT_ACTIONS = ['REGISTER', 'UNREGISTER'];
 const CONDITION_TYPES = ['TIME_RANGE', 'HOLIDAY'];
+const COLLECT_DIGIT_RANGE = { min: 1, max: 32 };
+const DEFAULT_COLLECT_MIN_DIGITS = 1;
+// 한국 휴대폰 번호가 11자리다. 대부분의 '번호를 눌러 주세요' 가 여기서 끝난다.
+const DEFAULT_COLLECT_MAX_DIGITS = 11;
 
 /**
  * 노드의 `config` JSON 을 타입별로 검증해서 꺼낸다. 여기가 시스템 경계다.
@@ -54,6 +61,8 @@ export function parseNodeConfig(nodeType: FlowNodeType, raw: unknown): NodeConfi
       return parseCondition(config);
     case 'HANGUP':
       return parseHangup(config);
+    case 'COLLECT_DIGITS':
+      return parseCollectDigits(config);
   }
 }
 
@@ -92,18 +101,56 @@ function parseTransfer(config: Record<string, unknown>): TransferConfig {
 }
 
 function parseSms(config: Record<string, unknown>): SmsConfig {
-  return { smsTemplateId: requiredText(config.smsTemplateId, 'smsTemplateId') };
+  return {
+    smsTemplateId: requiredText(config.smsTemplateId, 'smsTemplateId'),
+    targetSource: parseTargetSource(config.targetSource),
+  };
 }
 
 function parseOptOut(config: Record<string, unknown>): OptOutConfig {
+  const targetSource = parseTargetSource(config.targetSource);
   if (config.action === undefined || config.action === null) {
-    return { action: 'REGISTER' };
+    return { action: 'REGISTER', targetSource };
   }
   const action = requiredText(config.action, 'action').toUpperCase();
   if (!OPT_OUT_ACTIONS.includes(action)) {
     throw new Error(`unknown OPT_OUT action: ${config.action}`);
   }
-  return { action: action as OptOutConfig['action'] };
+  return { action: action as OptOutConfig['action'], targetSource };
+}
+
+/** 없으면 발신번호다. 이 필드가 생기기 전에 저장된 그래프의 렌더 결과가 바뀌면 안 된다. */
+function parseTargetSource(value: unknown): DigitTargetSource {
+  if (value === undefined || value === null) return 'CALLER';
+  const text = requiredText(value, 'targetSource').toUpperCase();
+  if (!(DIGIT_TARGET_SOURCES as readonly string[]).includes(text)) {
+    throw new Error(`unknown targetSource: ${value}`);
+  }
+  return text as DigitTargetSource;
+}
+
+function parseCollectDigits(config: Record<string, unknown>): CollectDigitsConfig {
+  const minDigits = boundedInteger(
+    config.minDigits, 'minDigits', DEFAULT_COLLECT_MIN_DIGITS, COLLECT_DIGIT_RANGE,
+  );
+  const maxDigits = boundedInteger(
+    config.maxDigits, 'maxDigits', DEFAULT_COLLECT_MAX_DIGITS, COLLECT_DIGIT_RANGE,
+  );
+  if (minDigits > maxDigits) {
+    throw new Error('minDigits must not be greater than maxDigits');
+  }
+
+  return {
+    promptKey: optionalText(config.promptKey, 'promptKey'),
+    minDigits,
+    maxDigits,
+    timeoutSeconds: boundedInteger(
+      config.timeoutSeconds, 'timeoutSeconds', DEFAULT_MENU_TIMEOUT_SECONDS, MENU_TIMEOUT_RANGE,
+    ),
+    maxRetries: boundedInteger(
+      config.maxRetries, 'maxRetries', DEFAULT_MENU_MAX_RETRIES, MENU_RETRY_RANGE,
+    ),
+  };
 }
 
 function parseCondition(config: Record<string, unknown>): ConditionConfig {

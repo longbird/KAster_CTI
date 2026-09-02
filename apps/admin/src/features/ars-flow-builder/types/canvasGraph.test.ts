@@ -108,3 +108,16 @@ describe('edgeLabel', () => {
     expect(edgeLabel({ condition: 'TIMEOUT' })).toBe('시간초과');
   });
 });
+
+describe('canEdgeExist — 번호 입력받기', () => {
+  it('성공(다음)과 실패(시간초과) 둘만 나간다', () => {
+    expect(canEdgeExist('COLLECT_DIGITS', 'DEFAULT')).toBe(true);
+    expect(canEdgeExist('COLLECT_DIGITS', 'TIMEOUT')).toBe(true);
+  });
+
+  it('디지트나 참/거짓으로는 나가지 않는다', () => {
+    expect(canEdgeExist('COLLECT_DIGITS', 'DIGIT')).toBe(false);
+    expect(canEdgeExist('COLLECT_DIGITS', 'TRUE')).toBe(false);
+    expect(canEdgeExist('COLLECT_DIGITS', 'INVALID')).toBe(false);
+  });
+});

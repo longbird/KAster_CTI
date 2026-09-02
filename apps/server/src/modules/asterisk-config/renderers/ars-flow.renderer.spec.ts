@@ -326,3 +326,115 @@ describe('renderArsFlow', () => {
     });
   });
 });
+
+describe('renderArsFlow — COLLECT_DIGITS', () => {
+  const collectConfig = {
+    promptKey: 'custom/enter_number',
+    minDigits: 10,
+    maxDigits: 11,
+    timeoutSeconds: 8,
+    maxRetries: 2,
+  };
+
+  it('안내를 틀고 자릿수만큼 받는다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'COLLECT_DIGITS', collectConfig, '번호입력'),
+          node('bye', 'HANGUP', { promptKey: null })],
+        [edge('ask', 'bye')],
+      ),
+    );
+
+    expect(conf).toContain('Read(ARS_COLLECT_INPUT,custom/enter_number,11,,1,8)');
+    expect(conf).toContain('Set(__ARS_COLLECTED_DIGITS=${FILTER(0-9,${ARS_COLLECT_INPUT})})');
+  });
+
+  it('자릿수를 채우면 성공 경로로, 못 채우면 다시 묻는다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'COLLECT_DIGITS', collectConfig, '번호입력'),
+          node('q', 'QUEUE', { queueName: 'sales' }),
+          node('bye', 'HANGUP', { promptKey: null })],
+        [edge('ask', 'q'), edge('ask', 'bye', 'TIMEOUT')],
+      ),
+    );
+
+    const lines = conf.split('\n').map((line) => line.trim());
+    const readLabel = lines.find((line) => line.includes('Read(ARS_COLLECT_INPUT'))?.match(/n\(([^)]+)\)/)?.[1];
+    expect(readLabel).toBeTruthy();
+
+    // 자릿수 미달이면 재시도 라벨로 되돌아간다.
+    expect(conf).toContain(`?${readLabel})`);
+    // 재시도를 소진하면 TIMEOUT 간선으로 나간다.
+    expect(conf).toContain('Goto(queue-entry,sales,1)');
+    expect(conf).toContain('Hangup()');
+  });
+
+  it('재시도가 소진되면 TIMEOUT 간선으로 나간다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'COLLECT_DIGITS', collectConfig, '번호입력'),
+          node('ok', 'QUEUE', { queueName: 'sales' }),
+          node('fail', 'QUEUE', { queueName: 'support' })],
+        [edge('ask', 'ok'), edge('ask', 'fail', 'TIMEOUT')],
+      ),
+    );
+
+    const retryGuard = conf.split('\n').find((line) => line.includes('ARS_COLLECT_RETRY') && line.includes('GotoIf'));
+    expect(retryGuard).toBeTruthy();
+    // 재시도 한도 다음 줄이 실패 경로여야 한다.
+    const lines = conf.split('\n');
+    const guardIndex = lines.indexOf(retryGuard as string);
+    expect(lines[guardIndex + 1]).toContain('Goto(queue-entry,support,1)');
+  });
+
+  it('안내가 없으면 파일 인자를 비운다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'COLLECT_DIGITS', { ...collectConfig, promptKey: null }, '번호입력'),
+          node('bye', 'HANGUP', { promptKey: null })],
+        [edge('ask', 'bye')],
+      ),
+    );
+
+    expect(conf).toContain('Read(ARS_COLLECT_INPUT,,11,,1,8)');
+  });
+
+  it('재시도 카운터 변수명에 하이픈이 들어가지 않는다 — Asterisk 변수명이 아니다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'COLLECT_DIGITS', collectConfig, '번호입력'),
+          node('bye', 'HANGUP', { promptKey: null })],
+        [edge('ask', 'bye')],
+      ),
+    );
+
+    for (const match of conf.matchAll(/Set\(__(ARS_COLLECT_RETRY_[^=]*)=/g)) {
+      expect(match[1]).toMatch(/^[A-Za-z0-9_]+$/);
+    }
+  });
+});
+
+describe('renderArsFlow — 대상 번호 출처', () => {
+  it('기본은 발신번호다', () => {
+    const conf = render(graph([node('o', 'OPT_OUT', { action: 'REGISTER', targetSource: 'CALLER' })], []));
+
+    expect(conf).toContain('Set(__OPT_OUT_TARGET_PHONE=${CALLERID(num)})');
+  });
+
+  it('수신거부 대상을 입력값으로 바꾼다 — 요청자는 여전히 발신번호다', () => {
+    const conf = render(graph([node('o', 'OPT_OUT', { action: 'REGISTER', targetSource: 'COLLECTED' })], []));
+
+    expect(conf).toContain('Set(__REQUESTER_PHONE=${CALLERID(num)})');
+    expect(conf).toContain('Set(__OPT_OUT_TARGET_PHONE=${ARS_COLLECTED_DIGITS})');
+  });
+
+  it('문자 수신자를 입력값으로 바꾼다', () => {
+    const caller = render(graph([node('s', 'SMS', { smsTemplateId: 'tpl-1', targetSource: 'CALLER' })], []));
+    const collected = render(graph([node('s', 'SMS', { smsTemplateId: 'tpl-1', targetSource: 'COLLECTED' })], []));
+
+    expect(caller).toContain("'${CALLERID(num)}'");
+    expect(collected).toContain("'${ARS_COLLECTED_DIGITS}'");
+    expect(collected).not.toContain("'${CALLERID(num)}'");
+  });
+});

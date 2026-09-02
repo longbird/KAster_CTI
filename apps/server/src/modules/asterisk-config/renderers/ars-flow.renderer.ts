@@ -1,5 +1,7 @@
 import {
+  CollectDigitsConfig,
   ConditionConfig,
+  DigitTargetSource,
   FlowEdge,
   FlowEdgeCondition,
   FlowGraph,
@@ -21,6 +23,12 @@ export interface ArsFlowRenderInput {
   tenantId: string;
   branchId: string | null;
 }
+
+// 받은 숫자가 담기는 채널 변수. `targetSource: 'COLLECTED'` 인 노드가 이 값을 대상 번호로 쓴다.
+// 한 통화에서 여러 번 받으면 마지막 값이 남는다 (그래프 모델의 약속).
+const COLLECTED_DIGITS_VAR = 'ARS_COLLECTED_DIGITS';
+const COLLECT_INPUT_VAR = 'ARS_COLLECT_INPUT';
+const CALLER_NUMBER_EXPRESSION = '${CALLERID(num)}';
 
 /** 점프 지점에서 곧바로 끝나는 노드. 별도 라벨 블록을 만들지 않는다. */
 const TERMINAL_TYPES = new Set(['QUEUE', 'TRANSFER', 'HANGUP']);
@@ -88,7 +96,7 @@ export function renderArsFlow(input: ArsFlowRenderInput): string {
     if (node.nodeType === 'MENU' || TERMINAL_TYPES.has(node.nodeType)) continue;
     mainLines.push(
       ` same => n(${labels.get(node.nodeId)}),NoOp(ARS node ${node.label})`,
-      ...renderInlineNode(node, outgoing, jump).map(prefixSame),
+      ...renderInlineNode(node, labels.get(node.nodeId) as string, outgoing, jump).map(prefixSame),
     );
   }
 
@@ -101,8 +109,13 @@ export function renderArsFlow(input: ArsFlowRenderInput): string {
   return contexts.join('\n\n');
 }
 
+/**
+ * `(라벨)App(...)` 형태면 우선순위 라벨을 붙인다.
+ * `COLLECT_DIGITS` 의 재시도 루프가 같은 extension 안으로 되돌아가려면 라벨이 필요하다.
+ */
 function prefixSame(line: string): string {
-  return ` same => n,${line}`;
+  const labeled = line.match(/^\(([A-Za-z0-9_-]+)\)(.*)$/);
+  return labeled ? ` same => n(${labeled[1]}),${labeled[2]}` : ` same => n,${line}`;
 }
 
 function buildOutgoing(
@@ -194,6 +207,7 @@ function renderJump(
 
 function renderInlineNode(
   node: FlowNode,
+  label: string,
   outgoing: Map<string, FlowEdge[]>,
   jump: (nodeId: string) => string[],
 ): string[] {
@@ -207,21 +221,22 @@ function renderInlineNode(
         ...continueOrHangup(node, outgoing, jump),
       ];
     case 'SMS': {
-      const { smsTemplateId } = node.config as SmsConfig;
+      const { smsTemplateId, targetSource } = node.config as SmsConfig;
       assertNoNewlines(smsTemplateId, 'smsTemplateId');
       return [
         `Set(__SMART_ARS_SELECTED_SMS_TEMPLATE=${smsTemplateId})`,
-        `System(${buildSmartArsHookCommand('sms')})`,
+        `System(${buildSmartArsHookCommand('sms', targetNumberExpression(targetSource))})`,
         ...continueOrHangup(node, outgoing, jump),
       ];
     }
     case 'OPT_OUT': {
-      const { action } = node.config as OptOutConfig;
+      const { action, targetSource } = node.config as OptOutConfig;
       return [
         'Set(__OPT_OUT_TENANT_ID=${SMART_ARS_TENANT_ID})',
         'Set(__OPT_OUT_BRANCH_ID=${SMART_ARS_BRANCH_ID})',
+        // 요청자는 언제나 전화를 건 사람이다. 대상만 입력값으로 바뀐다.
         'Set(__REQUESTER_PHONE=${CALLERID(num)})',
-        'Set(__OPT_OUT_TARGET_PHONE=${CALLERID(num)})',
+        `Set(__OPT_OUT_TARGET_PHONE=${targetNumberExpression(targetSource)})`,
         'Set(__OPT_OUT_SOURCE_TYPE=ARS_FLOW)',
         'Set(__OPT_OUT_SELECTED_SMS_TEMPLATE=-)',
         `System(${buildOptOutHookCommand(action === 'UNREGISTER' ? 'unregister' : 'register')})`,
@@ -230,9 +245,49 @@ function renderInlineNode(
     }
     case 'CONDITION':
       return renderCondition(node, outgoing, jump);
+    case 'COLLECT_DIGITS':
+      return renderCollectDigits(node, label, outgoing, jump);
     default:
       return ['Hangup()'];
   }
+}
+
+function targetNumberExpression(source: DigitTargetSource | undefined): string {
+  return source === 'COLLECTED' ? `\${${COLLECTED_DIGITS_VAR}}` : CALLER_NUMBER_EXPRESSION;
+}
+
+/**
+ * 숫자 여러 자리를 받는다. 자릿수를 못 채우면 정해진 횟수만큼 다시 묻는다.
+ *
+ * 재시도는 같은 extension 안의 라벨로 되돌아간다 — 080 수신거부의 번호 재입력과 같은 모양이다.
+ * 카운터 변수명에는 라벨의 하이픈을 쓸 수 없어 밑줄로 바꾼다 (Asterisk 변수명 규칙).
+ */
+function renderCollectDigits(
+  node: FlowNode,
+  label: string,
+  outgoing: Map<string, FlowEdge[]>,
+  jump: (nodeId: string) => string[],
+): string[] {
+  const config = node.config as CollectDigitsConfig;
+  if (config.promptKey) assertNoNewlines(config.promptKey, 'promptKey');
+
+  const counter = `ARS_COLLECT_RETRY_${label.replace(/[^A-Za-z0-9_]/g, '_')}`;
+  const readLabel = `${label}-read`;
+  const okLabel = `${label}-ok`;
+  const onTimeout = findEdge(node.nodeId, outgoing, 'TIMEOUT');
+
+  return [
+    `Set(__${counter}=0)`,
+    `(${readLabel})Read(${COLLECT_INPUT_VAR},${config.promptKey ?? ''},${config.maxDigits},,1,${config.timeoutSeconds})`,
+    `Set(__${COLLECTED_DIGITS_VAR}=\${FILTER(0-9,\${${COLLECT_INPUT_VAR}})})`,
+    `GotoIf($[\${LEN(\${${COLLECTED_DIGITS_VAR}})}>=${config.minDigits}]?${okLabel})`,
+    `Set(__${counter}=$[\${${counter}}+1])`,
+    `GotoIf($[\${${counter}}<=${config.maxRetries}]?${readLabel})`,
+    // 재시도를 소진했다. 입력값이 없는 상태로 나간다.
+    ...(onTimeout ? jump(onTimeout.toNodeId) : ['Hangup()']),
+    `(${okLabel})NoOp(ARS collected \${${COLLECTED_DIGITS_VAR}})`,
+    ...continueOrHangup(node, outgoing, jump),
+  ];
 }
 
 function renderCondition(
@@ -326,13 +381,13 @@ function renderExtension(exten: string, body: string[]): string[] {
   return [`exten => ${exten},1,${body[0]}`, ...body.slice(1).map(prefixSame)];
 }
 
-function buildSmartArsHookCommand(action: 'sms' | 'opt-out'): string {
+function buildSmartArsHookCommand(action: 'sms' | 'opt-out', targetNumber: string): string {
   const args = [
     shellQuote(action),
     shellQuote('${SMART_ARS_TENANT_ID}'),
     shellQuote('${SMART_ARS_BRANCH_ID}'),
     shellQuote('${ENTRY_DID}'),
-    shellQuote('${CALLERID(num)}'),
+    shellQuote(targetNumber),
     shellQuote('${SMART_ARS_SELECTED_SMS_TEMPLATE}'),
   ];
   return `${SMART_ARS_HOOK_PATH} ${args.join(' ')}`;

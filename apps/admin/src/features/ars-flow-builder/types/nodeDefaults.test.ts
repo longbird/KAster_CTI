@@ -7,8 +7,8 @@ describe('defaultConfigFor', () => {
     expect(defaultConfigFor('MENU')).toEqual({ promptKey: null, timeoutSeconds: 5, maxRetries: 2 });
     expect(defaultConfigFor('QUEUE')).toEqual({ queueName: '' });
     expect(defaultConfigFor('TRANSFER')).toEqual({ transferNumber: '' });
-    expect(defaultConfigFor('SMS')).toEqual({ smsTemplateId: '' });
-    expect(defaultConfigFor('OPT_OUT')).toEqual({ action: 'REGISTER' });
+    expect(defaultConfigFor('SMS')).toEqual({ smsTemplateId: '', targetSource: 'CALLER' });
+    expect(defaultConfigFor('OPT_OUT')).toEqual({ action: 'REGISTER', targetSource: 'CALLER' });
     expect(defaultConfigFor('HANGUP')).toEqual({ promptKey: null });
   });
 
@@ -48,5 +48,36 @@ describe('describeNodeSummary', () => {
 
   it('설정이 없는 노드는 빈 문자열', () => {
     expect(describeNodeSummary('HANGUP', { promptKey: null })).toBe('');
+  });
+});
+
+describe('COLLECT_DIGITS 기본값', () => {
+  it('서버 파서의 기본값과 같다', () => {
+    expect(defaultConfigFor('COLLECT_DIGITS')).toEqual({
+      promptKey: null,
+      minDigits: 1,
+      maxDigits: 11,
+      timeoutSeconds: 5,
+      maxRetries: 2,
+    });
+  });
+
+  it('요약에 자릿수 범위를 보여준다', () => {
+    expect(describeNodeSummary('COLLECT_DIGITS', { minDigits: 10, maxDigits: 11, timeoutSeconds: 8 }))
+      .toBe('10~11자리 · 8초');
+  });
+});
+
+describe('대상 번호 출처', () => {
+  it('새 SMS·OPT_OUT 노드는 발신번호로 시작한다', () => {
+    expect(defaultConfigFor('SMS')).toMatchObject({ targetSource: 'CALLER' });
+    expect(defaultConfigFor('OPT_OUT')).toMatchObject({ targetSource: 'CALLER' });
+  });
+
+  it('요약이 어느 번호로 가는지 밝힌다', () => {
+    expect(describeNodeSummary('OPT_OUT', { action: 'REGISTER', targetSource: 'COLLECTED' }))
+      .toBe('등록 · 입력받은 번호');
+    expect(describeNodeSummary('SMS', { smsTemplateId: 'tpl-1', targetSource: 'CALLER' }))
+      .toBe('tpl-1 → 발신번호');
   });
 });

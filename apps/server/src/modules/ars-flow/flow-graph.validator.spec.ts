@@ -251,3 +251,87 @@ describe('validateFlowGraph', () => {
     );
   });
 });
+
+describe('validateFlowGraph — 입력값 대상', () => {
+  const collect = (nodeId: string) =>
+    node(nodeId, 'COLLECT_DIGITS', {
+      promptKey: 'menu', minDigits: 10, maxDigits: 11, timeoutSeconds: 5, maxRetries: 2,
+    });
+
+  it('입력을 받은 뒤에 쓰면 통과한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [collect('ask'), node('reg', 'OPT_OUT', { action: 'REGISTER', targetSource: 'COLLECTED' }),
+          node('bye', 'HANGUP', { promptKey: 'goodbye' })],
+        [edge('ask', 'reg'), edge('ask', 'bye', 'TIMEOUT'), edge('reg', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('입력을 받기 전에 쓰면 막는다 — 빈 번호로 수신거부가 등록된다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [node('reg', 'OPT_OUT', { action: 'REGISTER', targetSource: 'COLLECTED' }),
+          node('bye', 'HANGUP', { promptKey: 'goodbye' })],
+        [edge('reg', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(codes(result)).toContain('DIGITS_NOT_COLLECTED');
+  });
+
+  it('수집 실패(TIMEOUT) 경로로 들어와도 막는다 — 그 경로엔 입력값이 없다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [collect('ask'), node('sms', 'SMS', { smsTemplateId: 'tpl-1', targetSource: 'COLLECTED' }),
+          node('bye', 'HANGUP', { promptKey: 'goodbye' })],
+        [edge('ask', 'bye'), edge('ask', 'sms', 'TIMEOUT'), edge('sms', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(codes(result)).toContain('DIGITS_NOT_COLLECTED');
+  });
+
+  it('발신번호를 쓰면 수집 노드가 없어도 통과한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [node('reg', 'OPT_OUT', { action: 'REGISTER', targetSource: 'CALLER' }),
+          node('bye', 'HANGUP', { promptKey: 'goodbye' })],
+        [edge('reg', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('수집 노드의 안내 멘트도 실재해야 한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [node('ask', 'COLLECT_DIGITS', { promptKey: 'nope', minDigits: 1, maxDigits: 4, timeoutSeconds: 5, maxRetries: 2 }),
+          node('bye', 'HANGUP', { promptKey: 'goodbye' })],
+        [edge('ask', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(codes(result)).toContain('PROMPT_NOT_FOUND');
+  });
+
+  it('입력을 기다리는 순환은 갇힌 것이 아니다 — 사람이 끊거나 다시 누를 수 있다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [collect('ask'), node('play', 'PLAY', { promptKeys: ['welcome'] })],
+        [edge('ask', 'play'), edge('play', 'ask')],
+      ),
+      CONTEXT,
+    );
+
+    expect(codes(result)).not.toContain('TRAPPED_CYCLE');
+  });
+});

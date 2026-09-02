@@ -1,8 +1,11 @@
 import {
+  CollectDigitsConfig,
+  FlowEdge,
   FlowGraph,
   FlowNode,
   HangupConfig,
   MenuConfig,
+  OptOutConfig,
   PlayConfig,
   QueueConfig,
   SmsConfig,
@@ -52,6 +55,7 @@ export function validateFlowGraph(
   checkReachability(graph, reachable, warnings);
   checkDepth(graph, nodesById, errors);
   checkTrappedCycles(graph, nodesById, errors);
+  checkCollectedTargets(graph, nodesById, errors);
 
   return { errors, warnings };
 }
@@ -153,6 +157,10 @@ function checkTargetsExist(
         pushMissingPrompt(prompts, (node.config as HangupConfig).promptKey, node.nodeId, errors);
         break;
       }
+      case 'COLLECT_DIGITS': {
+        pushMissingPrompt(prompts, (node.config as CollectDigitsConfig).promptKey, node.nodeId, errors);
+        break;
+      }
       case 'SMS': {
         const { smsTemplateId } = node.config as SmsConfig;
         if (!templates.has(smsTemplateId)) {
@@ -230,8 +238,8 @@ function checkReachability(graph: FlowGraph, reachable: Set<string>, warnings: F
  * 탈출구 없는 순환을 찾는다. **이 검사가 이 파일에서 가장 중요하다.**
  *
  * 안내만 반복하는 순환에 빠진 통화는 고객이 끊을 때까지 나오지 못한다.
- * `MENU` 는 사람이 다른 디지트를 눌러 빠져나갈 수 있는 지점이므로,
- * `MENU` 를 뺀 부분그래프에 남은 순환이 곧 갇히는 순환이다.
+ * `MENU`/`COLLECT_DIGITS` 는 사람이 다른 디지트를 눌러 빠져나갈 수 있는 지점이므로,
+ * 그 둘을 뺀 부분그래프에 남은 순환이 곧 갇히는 순환이다.
  */
 function checkTrappedCycles(
   graph: FlowGraph,
@@ -239,7 +247,11 @@ function checkTrappedCycles(
   errors: FlowIssue[],
 ): void {
   const adjacency = buildAdjacency(graph, nodesById);
-  const escapable = (nodeId: string) => nodesById.get(nodeId)?.nodeType === 'MENU';
+  // 사람의 입력을 기다리는 노드가 탈출 지점이다. 메뉴든 번호 입력이든 거기서 통화가 멈춘다.
+  const escapable = (nodeId: string) => {
+    const nodeType = nodesById.get(nodeId)?.nodeType;
+    return nodeType === 'MENU' || nodeType === 'COLLECT_DIGITS';
+  };
 
   const visiting = new Set<string>();
   const visited = new Set<string>();
@@ -267,6 +279,60 @@ function checkTrappedCycles(
   };
 
   for (const node of graph.nodes) walk(node.nodeId);
+}
+
+/**
+ * 입력값을 대상으로 쓰는 노드에 **입력을 받지 않고도 닿을 수 있는지** 본다.
+ *
+ * 닿을 수 있으면 빈 문자열로 수신거부가 등록되거나 문자가 아무 데도 안 간다.
+ * 훅이 빈 번호를 거부하긴 하지만 그때는 이미 고객이 전화를 끊은 뒤라 아무도 모른다.
+ *
+ * 판정: 진입에서 출발해 `COLLECT_DIGITS` 의 **성공 간선(DEFAULT)** 만 통과하지 않는 탐색을 한다.
+ * 수집 실패(TIMEOUT) 간선은 여전히 '입력 없음' 이므로 따라간다.
+ */
+function checkCollectedTargets(
+  graph: FlowGraph,
+  nodesById: Map<string, FlowNode>,
+  errors: FlowIssue[],
+): void {
+  const consumers = graph.nodes.filter((node) => targetSourceOf(node) === 'COLLECTED');
+  if (!consumers.length || !nodesById.has(graph.entryNodeId)) return;
+
+  const outgoing = new Map<string, FlowEdge[]>();
+  for (const node of graph.nodes) outgoing.set(node.nodeId, []);
+  for (const edge of graph.edges) {
+    if (!nodesById.has(edge.fromNodeId) || !nodesById.has(edge.toNodeId)) continue;
+    outgoing.get(edge.fromNodeId)?.push(edge);
+  }
+
+  const uncollected = new Set<string>([graph.entryNodeId]);
+  const queue = [graph.entryNodeId];
+  while (queue.length) {
+    const nodeId = queue.shift() as string;
+    const collectsHere = nodesById.get(nodeId)?.nodeType === 'COLLECT_DIGITS';
+
+    for (const edge of outgoing.get(nodeId) ?? []) {
+      if (collectsHere && edge.condition === 'DEFAULT') continue;
+      if (uncollected.has(edge.toNodeId)) continue;
+      uncollected.add(edge.toNodeId);
+      queue.push(edge.toNodeId);
+    }
+  }
+
+  for (const node of consumers) {
+    if (!uncollected.has(node.nodeId)) continue;
+    errors.push({
+      code: 'DIGITS_NOT_COLLECTED',
+      message: `node uses collected digits but can be reached without collecting any: ${node.label}`,
+      nodeId: node.nodeId,
+    });
+  }
+}
+
+function targetSourceOf(node: FlowNode): string | null {
+  if (node.nodeType === 'SMS') return (node.config as SmsConfig).targetSource ?? 'CALLER';
+  if (node.nodeType === 'OPT_OUT') return (node.config as OptOutConfig).targetSource ?? 'CALLER';
+  return null;
 }
 
 /** 최단 경로 기준 깊이. 순환이 있어도 계산이 끝난다. */

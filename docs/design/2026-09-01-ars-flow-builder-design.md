@@ -124,6 +124,13 @@ renderDidExtension(did)
 **2단계로 미루는 것**: `COLLECT_DIGITS`(guarded digit AGI 가 이미 있으니 붙이기는 쉽다),
 `HTTP_LOOKUP`(= "API 조회". 이것만 진짜 새 원시연산이고 새 AGI 훅이 필요하다).
 
+> `COLLECT_DIGITS` 는 Phase 3 에서 들어갔다 (2026-09-02). 받은 숫자는 채널 변수
+> `ARS_COLLECTED_DIGITS` 하나에 담기고, `SMS`/`OPT_OUT` 의 `targetSource: 'COLLECTED'` 가
+> 그것을 대상 번호로 쓴다 — 080 수신거부의 "다른 번호로 등록" 과 같은 시나리오다.
+> 훅이 이미 대상 번호를 인자로 받으므로 서버 쪽 변경은 없다.
+> 입력을 받지 않고도 닿을 수 있는 소비 노드는 검증기가 `DIGITS_NOT_COLLECTED` 로 저장을 막는다.
+> 구현은 `Read()` + 재시도 라벨이다. guarded digit AGI 는 *한 자리* 전용이라 여기서는 쓰지 않았다.
+
 `HTTP_LOOKUP` 이 콜브릿지 대비 진짜 차별점이지만, **1단계에 넣지 않는다.**
 외부 HTTP 를 통화 경로 한가운데에 놓는 것은 타임아웃·재시도·실패 시 폴백을 전부 설계해야 하고,
 그건 이 문서 하나에 같이 담을 크기가 아니다.

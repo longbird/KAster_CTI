@@ -13,6 +13,7 @@ const TYPE_COLOR: Record<string, string> = {
   OPT_OUT: '#eb2f96',
   CONDITION: '#faad14',
   HANGUP: '#8c8c8c',
+  COLLECT_DIGITS: '#2f54eb',
 };
 
 /**

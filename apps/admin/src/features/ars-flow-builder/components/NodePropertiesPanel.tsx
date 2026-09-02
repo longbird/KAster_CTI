@@ -1,8 +1,10 @@
 import { Button, Divider, Empty, Form, Input, InputNumber, Select, Space, Typography } from 'antd';
 import { useEffect } from 'react';
 import {
+  DIGIT_TARGET_SOURCES,
   EDGE_CONDITION_LABELS,
   NODE_TYPE_LABELS,
+  TARGET_SOURCE_LABELS,
   type FlowEdgeCondition,
   type FlowNodeRow,
 } from '../types/flowGraph';
@@ -17,6 +19,11 @@ interface Props {
   onEdgeDigitChange: (edgeId: string, digit: string) => void;
   onEdgeDelete: (edgeId: string) => void;
 }
+
+const TARGET_SOURCE_OPTIONS = DIGIT_TARGET_SOURCES.map((value) => ({
+  value,
+  label: TARGET_SOURCE_LABELS[value],
+}));
 
 const WEEKDAYS = [
   { value: 'mon', label: '월' }, { value: 'tue', label: '화' }, { value: 'wed', label: '수' },
@@ -101,20 +108,38 @@ export function NodePropertiesPanel({
         )}
 
         {node.nodeType === 'SMS' && (
-          <Form.Item name="smsTemplateId" label="문자 템플릿 ID">
-            <Input placeholder="템플릿 UUID" />
-          </Form.Item>
+          <>
+            <Form.Item name="smsTemplateId" label="문자 템플릿 ID">
+              <Input placeholder="템플릿 UUID" />
+            </Form.Item>
+            <Form.Item
+              name="targetSource"
+              label="받는 번호"
+              extra="입력받은 번호를 쓰려면 앞쪽에 '번호 입력받기' 노드가 있어야 합니다."
+            >
+              <Select options={TARGET_SOURCE_OPTIONS} />
+            </Form.Item>
+          </>
         )}
 
         {node.nodeType === 'OPT_OUT' && (
-          <Form.Item name="action" label="처리">
-            <Select
-              options={[
-                { value: 'REGISTER', label: '수신거부 등록' },
-                { value: 'UNREGISTER', label: '수신거부 해제' },
-              ]}
-            />
-          </Form.Item>
+          <>
+            <Form.Item name="action" label="처리">
+              <Select
+                options={[
+                  { value: 'REGISTER', label: '수신거부 등록' },
+                  { value: 'UNREGISTER', label: '수신거부 해제' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="targetSource"
+              label="대상 번호"
+              extra="입력받은 번호를 쓰려면 앞쪽에 '번호 입력받기' 노드가 있어야 합니다."
+            >
+              <Select options={TARGET_SOURCE_OPTIONS} />
+            </Form.Item>
+          </>
         )}
 
         {node.nodeType === 'CONDITION' && (
@@ -140,6 +165,28 @@ export function NodePropertiesPanel({
                 </Form.Item>
               </>
             )}
+          </>
+        )}
+
+        {node.nodeType === 'COLLECT_DIGITS' && (
+          <>
+            <Form.Item name="promptKey" label="안내 멘트">
+              <Input allowClear placeholder="custom/enter_number" />
+            </Form.Item>
+            <Space size={8}>
+              <Form.Item name="minDigits" label="최소 자릿수">
+                <InputNumber min={1} max={32} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item name="maxDigits" label="최대 자릿수">
+                <InputNumber min={1} max={32} style={{ width: '100%' }} />
+              </Form.Item>
+            </Space>
+            <Form.Item name="timeoutSeconds" label="입력 대기(초)">
+              <InputNumber min={1} max={60} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="maxRetries" label="재시도 횟수" extra="다 쓰면 '시간초과' 연결로 나갑니다.">
+              <InputNumber min={0} max={5} style={{ width: '100%' }} />
+            </Form.Item>
           </>
         )}
 

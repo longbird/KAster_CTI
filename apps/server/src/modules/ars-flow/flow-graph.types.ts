@@ -7,6 +7,7 @@ export const FLOW_NODE_TYPES = [
   'OPT_OUT',
   'CONDITION',
   'HANGUP',
+  'COLLECT_DIGITS',
 ] as const;
 export type FlowNodeType = (typeof FLOW_NODE_TYPES)[number];
 
@@ -19,6 +20,16 @@ export const FLOW_EDGE_CONDITIONS = [
   'DEFAULT',
 ] as const;
 export type FlowEdgeCondition = (typeof FLOW_EDGE_CONDITIONS)[number];
+
+/**
+ * 수신거부·문자의 대상 번호를 어디서 가져오는지.
+ *
+ * `COLLECTED` 는 `COLLECT_DIGITS` 노드가 받아둔 번호를 쓴다 — 고객이 *다른 번호*를
+ * 눌러 넣는 경로다(080 수신거부의 번호 재입력과 같은 시나리오).
+ * 기본값은 `CALLER` 이고, 이 필드가 없던 기존 그래프는 전부 `CALLER` 로 읽힌다.
+ */
+export const DIGIT_TARGET_SOURCES = ['CALLER', 'COLLECTED'] as const;
+export type DigitTargetSource = (typeof DIGIT_TARGET_SOURCES)[number];
 
 export interface PlayConfig {
   promptKeys: string[];
@@ -40,10 +51,12 @@ export interface TransferConfig {
 
 export interface SmsConfig {
   smsTemplateId: string;
+  targetSource: DigitTargetSource;
 }
 
 export interface OptOutConfig {
   action: 'REGISTER' | 'UNREGISTER';
+  targetSource: DigitTargetSource;
 }
 
 export interface ConditionConfig {
@@ -57,6 +70,20 @@ export interface HangupConfig {
   promptKey: string | null;
 }
 
+/**
+ * 숫자 여러 자리를 받는다.
+ *
+ * 받은 값은 채널 변수 하나(`ARS_COLLECTED_DIGITS`)에 담기고, `targetSource: 'COLLECTED'` 인
+ * `SMS`/`OPT_OUT` 노드가 그것을 대상 번호로 쓴다. 한 통화에서 여러 번 받으면 마지막 값이 남는다.
+ */
+export interface CollectDigitsConfig {
+  promptKey: string | null;
+  minDigits: number;
+  maxDigits: number;
+  timeoutSeconds: number;
+  maxRetries: number;
+}
+
 export type NodeConfig =
   | PlayConfig
   | MenuConfig
@@ -65,7 +92,8 @@ export type NodeConfig =
   | SmsConfig
   | OptOutConfig
   | ConditionConfig
-  | HangupConfig;
+  | HangupConfig
+  | CollectDigitsConfig;
 
 export interface FlowNode {
   nodeId: string;

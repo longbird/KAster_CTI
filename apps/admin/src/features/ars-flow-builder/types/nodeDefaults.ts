@@ -17,9 +17,9 @@ export function defaultConfigFor(nodeType: FlowNodeType): Record<string, unknown
     case 'TRANSFER':
       return { transferNumber: '' };
     case 'SMS':
-      return { smsTemplateId: '' };
+      return { smsTemplateId: '', targetSource: 'CALLER' };
     case 'OPT_OUT':
-      return { action: 'REGISTER' };
+      return { action: 'REGISTER', targetSource: 'CALLER' };
     case 'CONDITION':
       return {
         conditionType: 'TIME_RANGE',
@@ -29,6 +29,8 @@ export function defaultConfigFor(nodeType: FlowNodeType): Record<string, unknown
       };
     case 'HANGUP':
       return { promptKey: null };
+    case 'COLLECT_DIGITS':
+      return { promptKey: null, minDigits: 1, maxDigits: 11, timeoutSeconds: 5, maxRetries: 2 };
   }
 }
 
@@ -50,6 +52,10 @@ export function newNodeId(): string {
   });
 }
 
+function describeTarget(config: Record<string, unknown>): string {
+  return config.targetSource === 'COLLECTED' ? '입력받은 번호' : '발신번호';
+}
+
 /** 캔버스 카드에 한 줄로 보여줄 요약. */
 export function describeNodeSummary(nodeType: FlowNodeType, config: Record<string, unknown>): string {
   const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : '');
@@ -60,7 +66,7 @@ export function describeNodeSummary(nodeType: FlowNodeType, config: Record<strin
     case 'TRANSFER':
       return text(config.transferNumber) || '미설정';
     case 'SMS':
-      return text(config.smsTemplateId) || '미설정';
+      return `${text(config.smsTemplateId) || '미설정'} → ${describeTarget(config)}`;
     case 'PLAY': {
       const keys = Array.isArray(config.promptKeys) ? config.promptKeys.filter((k) => typeof k === 'string') : [];
       return keys.length ? keys.join(', ') : '미설정';
@@ -74,7 +80,9 @@ export function describeNodeSummary(nodeType: FlowNodeType, config: Record<strin
         ? '공휴일'
         : `${text(config.timeStart) || '--:--'} ~ ${text(config.timeEnd) || '--:--'}`;
     case 'OPT_OUT':
-      return config.action === 'UNREGISTER' ? '해제' : '등록';
+      return `${config.action === 'UNREGISTER' ? '해제' : '등록'} · ${describeTarget(config)}`;
+    case 'COLLECT_DIGITS':
+      return `${config.minDigits ?? 1}~${config.maxDigits ?? 11}자리 · ${config.timeoutSeconds ?? 5}초`;
     default:
       return '';
   }

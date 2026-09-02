@@ -83,6 +83,8 @@ export function canEdgeExist(nodeType: FlowNodeType, condition: FlowEdgeConditio
   if (TERMINAL_NODE_TYPES.includes(nodeType)) return false;
   if (nodeType === 'MENU') return condition === 'DIGIT' || condition === 'TIMEOUT' || condition === 'INVALID';
   if (nodeType === 'CONDITION') return condition === 'TRUE' || condition === 'FALSE';
+  // 번호 입력은 성공(다음)과 실패(시간초과) 둘로 갈린다. 실패 경로엔 입력값이 없다.
+  if (nodeType === 'COLLECT_DIGITS') return condition === 'DEFAULT' || condition === 'TIMEOUT';
   return condition === 'DEFAULT';
 }
 

@@ -88,11 +88,12 @@ describe('parseNodeConfig', () => {
 
   describe('OPT_OUT', () => {
     it('기본은 등록이다', () => {
-      expect(parseNodeConfig('OPT_OUT', {})).toEqual({ action: 'REGISTER' });
+      expect(parseNodeConfig('OPT_OUT', {})).toEqual({ action: 'REGISTER', targetSource: 'CALLER' });
     });
 
     it('해제도 받는다', () => {
-      expect(parseNodeConfig('OPT_OUT', { action: 'UNREGISTER' })).toEqual({ action: 'UNREGISTER' });
+      expect(parseNodeConfig('OPT_OUT', { action: 'UNREGISTER' }))
+        .toEqual({ action: 'UNREGISTER', targetSource: 'CALLER' });
     });
 
     it('모르는 동작은 그 값을 담아 던진다', () => {
@@ -160,5 +161,66 @@ describe('parseNodeConfig', () => {
     it('마지막 안내를 붙일 수 있다', () => {
       expect(parseNodeConfig('HANGUP', { promptKey: 'goodbye' })).toEqual({ promptKey: 'goodbye' });
     });
+  });
+});
+
+describe('parseNodeConfig — COLLECT_DIGITS', () => {
+  it('자릿수·대기·재시도를 읽는다', () => {
+    expect(
+      parseNodeConfig('COLLECT_DIGITS', {
+        promptKey: 'custom/enter_number',
+        minDigits: 10,
+        maxDigits: 11,
+        timeoutSeconds: 8,
+        maxRetries: 3,
+      }),
+    ).toEqual({
+      promptKey: 'custom/enter_number',
+      minDigits: 10,
+      maxDigits: 11,
+      timeoutSeconds: 8,
+      maxRetries: 3,
+    });
+  });
+
+  it('생략하면 기본값을 쓴다', () => {
+    expect(parseNodeConfig('COLLECT_DIGITS', {})).toEqual({
+      promptKey: null,
+      minDigits: 1,
+      maxDigits: 11,
+      timeoutSeconds: 5,
+      maxRetries: 2,
+    });
+  });
+
+  it('최소가 최대보다 크면 막는다 — 영원히 못 채우는 조건이다', () => {
+    expect(() => parseNodeConfig('COLLECT_DIGITS', { minDigits: 12, maxDigits: 4 }))
+      .toThrow(/minDigits/);
+  });
+
+  it('자릿수 상한을 넘기면 막는다', () => {
+    expect(() => parseNodeConfig('COLLECT_DIGITS', { maxDigits: 99 })).toThrow(/maxDigits/);
+  });
+});
+
+describe('parseNodeConfig — 대상 번호 출처', () => {
+  it('SMS 는 기본이 발신번호다 — 이 필드가 없던 기존 그래프가 그대로 동작해야 한다', () => {
+    expect(parseNodeConfig('SMS', { smsTemplateId: 't1' }))
+      .toEqual({ smsTemplateId: 't1', targetSource: 'CALLER' });
+  });
+
+  it('OPT_OUT 도 기본이 발신번호다', () => {
+    expect(parseNodeConfig('OPT_OUT', { action: 'REGISTER' }))
+      .toEqual({ action: 'REGISTER', targetSource: 'CALLER' });
+  });
+
+  it('입력값을 대상으로 지정할 수 있다', () => {
+    expect(parseNodeConfig('OPT_OUT', { action: 'UNREGISTER', targetSource: 'collected' }))
+      .toEqual({ action: 'UNREGISTER', targetSource: 'COLLECTED' });
+  });
+
+  it('모르는 출처는 막는다', () => {
+    expect(() => parseNodeConfig('SMS', { smsTemplateId: 't1', targetSource: 'CRM' }))
+      .toThrow(/targetSource/);
   });
 });

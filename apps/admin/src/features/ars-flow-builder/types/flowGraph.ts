@@ -7,6 +7,7 @@ export const FLOW_NODE_TYPES = [
   'OPT_OUT',
   'CONDITION',
   'HANGUP',
+  'COLLECT_DIGITS',
 ] as const;
 export type FlowNodeType = (typeof FLOW_NODE_TYPES)[number];
 
@@ -66,6 +67,16 @@ export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   OPT_OUT: '수신거부 처리',
   CONDITION: '조건 분기',
   HANGUP: '통화 종료',
+  COLLECT_DIGITS: '번호 입력받기',
+};
+
+/** 수신거부·문자를 어느 번호로 보낼지. */
+export const DIGIT_TARGET_SOURCES = ['CALLER', 'COLLECTED'] as const;
+export type DigitTargetSource = (typeof DIGIT_TARGET_SOURCES)[number];
+
+export const TARGET_SOURCE_LABELS: Record<DigitTargetSource, string> = {
+  CALLER: '발신번호',
+  COLLECTED: '입력받은 번호',
 };
 
 export const EDGE_CONDITION_LABELS: Record<FlowEdgeCondition, string> = {
