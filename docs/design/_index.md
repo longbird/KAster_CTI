@@ -2,7 +2,7 @@
 
 > 배치 규칙은 루트 [`DOCS_GUIDE.md`](../../DOCS_GUIDE.md), 전체 인덱스는 [`docs/README.md`](../README.md).
 
-생성 기준일: 2026-08-08 · 총 36건
+생성 기준일: 2026-08-08 · 총 38건
 
 | 문서 |
 |---|
@@ -26,6 +26,8 @@
 | [`2026-08-20-csharp-desktop-client-design.md`](2026-08-20-csharp-desktop-client-design.md) |
 | [`2026-08-23-desktop-client-integration-spec.md`](2026-08-23-desktop-client-integration-spec.md) |
 | [`2026-08-23-desktop-dark-console-design.md`](2026-08-23-desktop-dark-console-design.md) |
+| [`2026-09-01-ars-flow-builder-design.md`](2026-09-01-ars-flow-builder-design.md) |
+| [`2026-09-01-feature-entitlement-design.md`](2026-09-01-feature-entitlement-design.md) |
 | [`admin-agent-gap-audit.md`](admin-agent-gap-audit.md) |
 | [`admin-permissions-policy.md`](admin-permissions-policy.md) |
 | [`agent-desktop-internal-code-signing.md`](agent-desktop-internal-code-signing.md) |

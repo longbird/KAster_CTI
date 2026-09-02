@@ -2,7 +2,7 @@
 
 > 배치 규칙은 루트 [`DOCS_GUIDE.md`](../../DOCS_GUIDE.md), 전체 인덱스는 [`docs/README.md`](../README.md).
 
-생성 기준일: 2026-08-08 · 총 53건 (최종 갱신 2026-08-22)
+생성 기준일: 2026-08-08 · 총 56건 (최종 갱신 2026-09-02)
 
 | 문서 |
 |---|
@@ -48,6 +48,9 @@
 | [`2026-08-21-csharp-desktop-client-gap-analysis.md`](2026-08-21-csharp-desktop-client-gap-analysis.md) |
 | [`2026-08-22-agent-call-offer-plan.md`](2026-08-22-agent-call-offer-plan.md) |
 | [`2026-08-22-desktop-client-remaining-features-plan.md`](2026-08-22-desktop-client-remaining-features-plan.md) |
+| [`2026-09-01-ai-layer-plan.md`](2026-09-01-ai-layer-plan.md) |
+| [`2026-09-01-ars-flow-builder-plan.md`](2026-09-01-ars-flow-builder-plan.md) |
+| [`2026-09-02-feature-entitlement-plan.md`](2026-09-02-feature-entitlement-plan.md) |
 | [`agent-desktop-runtime-kickoff.md`](agent-desktop-runtime-kickoff.md) |
 | [`agent-desktop-server-integration-checklist.md`](agent-desktop-server-integration-checklist.md) |
 | [`business-30-concurrent-call-development-plan-20260509.md`](business-30-concurrent-call-development-plan-20260509.md) |
