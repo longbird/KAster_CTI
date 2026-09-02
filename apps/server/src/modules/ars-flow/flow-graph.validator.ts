@@ -178,6 +178,13 @@ function checkTargetsExist(
   }
 }
 
+/**
+ * 등록된 안내인지 본다.
+ *
+ * 테넌트가 올린 안내는 항상 `custom/` 로 시작한다(`prompt-tts.service` 가 그렇게 만든다).
+ * 그 밖의 키는 Asterisk 가 기본 제공하는 사운드다 — `vm-goodbye` 처럼 등록 테이블에 없지만
+ * 렌더러는 그대로 재생한다. 여기서 막으면 기존 IVR 과 같은 안내를 쓰는 플로우를 저장할 수 없다.
+ */
 function pushMissingPrompt(
   prompts: Set<string>,
   promptKey: string | null | undefined,
@@ -185,6 +192,7 @@ function pushMissingPrompt(
   errors: FlowIssue[],
 ): void {
   if (!promptKey) return;
+  if (!promptKey.startsWith('custom/')) return;
   if (prompts.has(promptKey)) return;
   errors.push({
     code: 'PROMPT_NOT_FOUND',

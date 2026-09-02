@@ -1,6 +1,6 @@
 import { FlowGraph } from '../../ars-flow/flow-graph.types';
 import { renderArsFlow } from './ars-flow.renderer';
-import { assertNoNewlines, shellQuote, toSlug } from './renderer-utils';
+import { assertNoNewlines, shellQuote, toPlaybackTarget, toSlug } from './renderer-utils';
 import {
   CUSTOM_SOUND_ABSOLUTE_PREFIX,
   OPT_OUT_HOOK_PATH,
@@ -276,16 +276,6 @@ function renderPromptPlaybackLines(promptKeys?: string[] | null): string[] {
     }));
 
   return lines;
-}
-
-function toPlaybackTarget(promptKey: string): string {
-  assertNoNewlines(promptKey, 'promptKey');
-  if (promptKey.startsWith('custom/')) {
-    const relativePath = promptKey.slice('custom/'.length);
-    assertNoNewlines(relativePath, 'promptKey');
-    return `${CUSTOM_SOUND_ABSOLUTE_PREFIX}${relativePath}`;
-  }
-  return promptKey;
 }
 
 function buildPromptMohClassName(promptKey: string): string {

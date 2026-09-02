@@ -135,17 +135,17 @@ describe('validateFlowGraph', () => {
     });
 
     it('등록되지 않은 프롬프트는 오류', () => {
-      const result = validateFlowGraph(graph([node('p', 'PLAY', { promptKeys: ['nope'] })], []), CONTEXT);
+      const result = validateFlowGraph(graph([node('p', 'PLAY', { promptKeys: ['custom/nope'] })], []), CONTEXT);
 
       expect(codes(result)).toContain('PROMPT_NOT_FOUND');
     });
 
     it('메뉴와 종료 안내 프롬프트도 검사한다', () => {
       const menu = validateFlowGraph(
-        graph([node('m', 'MENU', { promptKey: 'nope', timeoutSeconds: 5, maxRetries: 2 })], []),
+        graph([node('m', 'MENU', { promptKey: 'custom/nope', timeoutSeconds: 5, maxRetries: 2 })], []),
         CONTEXT,
       );
-      const hangup = validateFlowGraph(graph([node('h', 'HANGUP', { promptKey: 'nope' })], []), CONTEXT);
+      const hangup = validateFlowGraph(graph([node('h', 'HANGUP', { promptKey: 'custom/nope' })], []), CONTEXT);
 
       expect(codes(menu)).toContain('PROMPT_NOT_FOUND');
       expect(codes(hangup)).toContain('PROMPT_NOT_FOUND');
@@ -313,7 +313,7 @@ describe('validateFlowGraph — 입력값 대상', () => {
   it('수집 노드의 안내 멘트도 실재해야 한다', () => {
     const result = validateFlowGraph(
       graph(
-        [node('ask', 'COLLECT_DIGITS', { promptKey: 'nope', minDigits: 1, maxDigits: 4, timeoutSeconds: 5, maxRetries: 2 }),
+        [node('ask', 'COLLECT_DIGITS', { promptKey: 'custom/nope', minDigits: 1, maxDigits: 4, timeoutSeconds: 5, maxRetries: 2 }),
           node('bye', 'HANGUP', { promptKey: 'goodbye' })],
         [edge('ask', 'bye')],
       ),
@@ -333,5 +333,33 @@ describe('validateFlowGraph — 입력값 대상', () => {
     );
 
     expect(codes(result)).not.toContain('TRAPPED_CYCLE');
+  });
+});
+
+describe('validateFlowGraph — Asterisk 기본 안내', () => {
+  it('custom/ 이 아닌 안내는 등록을 요구하지 않는다 — 기본 제공 사운드다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [node('p', 'PLAY', { promptKeys: ['vm-goodbye', 'beep'] }),
+          node('bye', 'HANGUP', { promptKey: 'vm-goodbye' })],
+        [edge('p', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('custom/ 안내는 여전히 등록되어 있어야 한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [node('p', 'PLAY', { promptKeys: ['custom/nope'] }),
+          node('bye', 'HANGUP', { promptKey: null })],
+        [edge('p', 'bye')],
+      ),
+      CONTEXT,
+    );
+
+    expect(codes(result)).toContain('PROMPT_NOT_FOUND');
   });
 });

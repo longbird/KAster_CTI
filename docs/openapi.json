@@ -3623,6 +3623,37 @@
         ]
       }
     },
+    "/api/v1/admin/ars-flows/import/ivr-menu": {
+      "post": {
+        "operationId": "ArsFlowController_importIvrMenu",
+        "summary": "기존 IVR 메뉴를 플로우로 가져오기",
+        "description": "기존 단층 IVR 메뉴를 DRAFT 플로우로 옮긴다. 원래 메뉴와 DID 연결은 건드리지 않으므로 확인 전까지 통화는 기존 경로로 흐른다. notes 에 사람이 확인해야 할 점이 담긴다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIvrMenuDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-flow"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/ars-flows/{flowId}/graph": {
       "patch": {
         "operationId": "ArsFlowController_replaceGraph",
@@ -7986,6 +8017,18 @@
       "CreateArsFlowDto": {
         "type": "object",
         "properties": {}
+      },
+      "ImportIvrMenuDto": {
+        "type": "object",
+        "properties": {
+          "menuId": {
+            "type": "string",
+            "description": "가져올 기존 IVR 메뉴 id"
+          }
+        },
+        "required": [
+          "menuId"
+        ]
       },
       "ReplaceArsFlowGraphDto": {
         "type": "object",

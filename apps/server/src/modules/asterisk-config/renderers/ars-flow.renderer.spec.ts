@@ -301,7 +301,8 @@ describe('renderArsFlow', () => {
         graph(
           [
             node('welcome', 'PLAY', { promptKeys: ['welcome'] }),
-            node('menu', 'MENU', { promptKey: 'menu', timeoutSeconds: 5, maxRetries: 2 }),
+            // 기존 단층 IVR 은 시간초과에 재시도가 없다. 동등한 그래프의 재시도는 0 이어야 한다.
+            node('menu', 'MENU', { promptKey: 'menu', timeoutSeconds: 5, maxRetries: 0 }),
             node('q1', 'QUEUE', { queueName: 'sales' }),
             node('q2', 'QUEUE', { queueName: 'support' }),
             node('bye', 'HANGUP', { promptKey: 'vm-goodbye' }),
@@ -345,7 +346,7 @@ describe('renderArsFlow — COLLECT_DIGITS', () => {
       ),
     );
 
-    expect(conf).toContain('Read(ARS_COLLECT_INPUT,custom/enter_number,11,,1,8)');
+    expect(conf).toContain('Read(ARS_COLLECT_INPUT,/var/lib/asterisk/sounds/custom/enter_number,11,,1,8)');
     expect(conf).toContain('Set(__ARS_COLLECTED_DIGITS=${FILTER(0-9,${ARS_COLLECT_INPUT})})');
   });
 
@@ -436,5 +437,76 @@ describe('renderArsFlow — 대상 번호 출처', () => {
     expect(caller).toContain("'${CALLERID(num)}'");
     expect(collected).toContain("'${ARS_COLLECTED_DIGITS}'");
     expect(collected).not.toContain("'${CALLERID(num)}'");
+  });
+});
+
+describe('renderArsFlow — 안내 파일 경로', () => {
+  it('custom/ 안내는 절대경로로 바꾼다 — 기존 렌더러와 같은 규칙이다', () => {
+    const conf = render(
+      graph(
+        [node('p', 'PLAY', { promptKeys: ['custom/welcome', 'vm-goodbye'] }),
+          node('bye', 'HANGUP', { promptKey: 'custom/thanks' })],
+        [edge('p', 'bye')],
+      ),
+    );
+
+    expect(conf).toContain('Playback(/var/lib/asterisk/sounds/custom/welcome)');
+    expect(conf).toContain('Playback(vm-goodbye)');
+    expect(conf).toContain('Playback(/var/lib/asterisk/sounds/custom/thanks)');
+    expect(conf).not.toContain('Playback(custom/');
+  });
+
+  it('메뉴와 번호 입력의 안내에도 같은 규칙을 쓴다', () => {
+    const conf = render(
+      graph(
+        [node('m', 'MENU', { promptKey: 'custom/main', timeoutSeconds: 5, maxRetries: 0 }),
+          node('ask', 'COLLECT_DIGITS', {
+            promptKey: 'custom/enter', minDigits: 1, maxDigits: 4, timeoutSeconds: 5, maxRetries: 0,
+          }),
+          node('bye', 'HANGUP', { promptKey: null })],
+        [edge('m', 'ask', 'DIGIT', '1'), edge('ask', 'bye'), edge('m', 'bye', 'TIMEOUT')],
+      ),
+    );
+
+    expect(conf).toContain('Background(/var/lib/asterisk/sounds/custom/main)');
+    expect(conf).toContain('Read(ARS_COLLECT_INPUT,/var/lib/asterisk/sounds/custom/enter,4,,1,5)');
+  });
+
+  it('진입에서 채널 언어를 비운다 — 안내가 언어 하위 디렉터리에서 안 찾아지면 무음이 된다', () => {
+    const conf = render(graph([node('bye', 'HANGUP', { promptKey: null })], []));
+
+    expect(conf).toContain('Set(CHANNEL(language)=)');
+  });
+});
+
+describe('renderArsFlow — 메뉴 재시도', () => {
+  const menuGraph = (maxRetries: number) =>
+    graph(
+      [node('m', 'MENU', { promptKey: 'menu', timeoutSeconds: 5, maxRetries }, '메인'),
+        node('q', 'QUEUE', { queueName: 'sales' }),
+        node('bye', 'HANGUP', { promptKey: 'vm-goodbye' })],
+      [edge('m', 'q', 'DIGIT', '1'), edge('m', 'bye', 'TIMEOUT')],
+    );
+
+  it('재시도가 있으면 안내부터 다시 튼다', () => {
+    const conf = render(menuGraph(2));
+
+    expect(conf).toMatch(/same => n\(prompt\),Background\(menu\)/);
+    expect(conf).toMatch(/exten => t,1,Set\(__ARS_MENU_RETRY_[A-Za-z0-9_]+=\$\[\$\{ARS_MENU_RETRY_[A-Za-z0-9_]+\}\+1\]\)/);
+    expect(conf).toMatch(/GotoIf\(\$\[\$\{ARS_MENU_RETRY_[A-Za-z0-9_]+\}<=2\]\?s,prompt\)/);
+  });
+
+  it('재시도를 다 쓰면 시간초과 연결로 나간다', () => {
+    const lines = render(menuGraph(2)).split('\n');
+    const guardIndex = lines.findIndex((line) => line.includes('?s,prompt)'));
+
+    expect(lines[guardIndex + 1]).toContain('Playback(vm-goodbye)');
+  });
+
+  it('재시도가 0 이면 카운터를 만들지 않는다 — 기존 단층 IVR 과 같은 모양을 유지한다', () => {
+    const conf = render(menuGraph(0));
+
+    expect(conf).not.toContain('ARS_MENU_RETRY');
+    expect(conf).toContain('exten => t,1,Playback(vm-goodbye)');
   });
 });

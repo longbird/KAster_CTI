@@ -9,6 +9,7 @@ import { MenuPermissionService, PermissionAction } from '../../common/menu-permi
 import { RequiresWriteAvailability } from '../resilience/write-availability.decorator';
 import { ArsFlowService } from './ars-flow.service';
 import { CreateArsFlowDto } from './dto/create-ars-flow.dto';
+import { ImportIvrMenuDto } from './dto/import-ivr-menu.dto';
 import { PreviewArsFlowQueryDto } from './dto/preview-ars-flow.query.dto';
 import { ReplaceArsFlowGraphDto } from './dto/replace-ars-flow-graph.dto';
 
@@ -51,6 +52,19 @@ export class ArsFlowController {
   async create(@Req() req: any, @Body() dto: CreateArsFlowDto) {
     await this.assert(req, 'create');
     return this.arsFlow.create(req.user.tenantId, dto);
+  }
+
+  @Post('import/ivr-menu')
+  @Roles('supervisor', 'admin')
+  @ApiOperation({
+    summary: '기존 IVR 메뉴를 플로우로 가져오기',
+    description:
+      '기존 단층 IVR 메뉴를 DRAFT 플로우로 옮긴다. 원래 메뉴와 DID 연결은 건드리지 않으므로'
+      + ' 확인 전까지 통화는 기존 경로로 흐른다. notes 에 사람이 확인해야 할 점이 담긴다.',
+  })
+  async importIvrMenu(@Req() req: any, @Body() dto: ImportIvrMenuDto) {
+    await this.assert(req, 'create');
+    return this.arsFlow.importFromIvrMenu(req.user.tenantId, dto.menuId);
   }
 
   @Patch(':flowId/graph')

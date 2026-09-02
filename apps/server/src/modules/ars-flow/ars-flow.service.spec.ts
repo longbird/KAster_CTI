@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ArsFlowService } from './ars-flow.service';
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
@@ -42,12 +42,20 @@ function buildService(options: {
   queues?: Array<{ queueName: string }>;
   prompts?: Array<{ promptKey: string }>;
   templates?: Array<{ templateId: string }>;
+  ivrMenu?: Record<string, unknown> | null;
+  duplicateFlow?: boolean;
 } = {}) {
   const state = { created: [] as any[], nodeCreates: [] as any[], edgeCreates: [] as any[], deletes: [] as string[] };
   const prisma: any = {
     arsFlows: {
       findMany: jest.fn().mockResolvedValue([FLOW_ROW]),
-      findFirst: jest.fn().mockResolvedValue(options.flow === undefined ? FLOW_ROW : options.flow),
+      findFirst: jest.fn().mockImplementation(async (args: any) => {
+        // 이름으로 찾으면 중복 검사다. flowId 로 찾으면 플로우 로딩이다.
+        if (args?.where?.name !== undefined) {
+          return options.duplicateFlow ? { flowId: FLOW_ID } : null;
+        }
+        return options.flow === undefined ? FLOW_ROW : options.flow;
+      }),
       create: jest.fn().mockImplementation(async (args: any) => {
         state.created.push(args);
         return { ...FLOW_ROW, ...args.data };
@@ -79,6 +87,9 @@ function buildService(options: {
         state.edgeCreates.push(...args.data);
         return { count: args.data.length };
       }),
+    },
+    asteriskIvrMenu: {
+      findFirst: jest.fn().mockResolvedValue(options.ivrMenu === undefined ? null : options.ivrMenu),
     },
     queues: { findMany: jest.fn().mockResolvedValue(options.queues ?? [{ queueName: 'sales' }]) },
     asteriskPrompt: { findMany: jest.fn().mockResolvedValue(options.prompts ?? [{ promptKey: 'menu' }]) },
@@ -249,5 +260,62 @@ describe('ArsFlowService', () => {
 
       await expect(service.remove(TENANT_ID, FLOW_ID)).rejects.toBeInstanceOf(NotFoundException);
     });
+  });
+});
+
+
+describe('ArsFlowService.importFromIvrMenu', () => {
+  const MENU_ID = '00000000-0000-0000-0000-0000000000m1'.replace('m', 'a');
+  const MENU = {
+    id: MENU_ID,
+    name: '대표 안내',
+    welcomePrompt: null,
+    menuPrompt: 'menu',
+    timeoutSecs: 5,
+    entries: [
+      { id: 'e1', digit: '1', label: '영업', queueName: 'sales' },
+    ],
+  };
+
+  it('메뉴가 없으면 404 다', async () => {
+    const { service } = buildService({ ivrMenu: null });
+
+    await expect(service.importFromIvrMenu(TENANT_ID, MENU_ID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('같은 이름의 플로우가 있으면 만들지 않는다', async () => {
+    const { service, prisma } = buildService({ ivrMenu: MENU, duplicateFlow: true });
+
+    await expect(service.importFromIvrMenu(TENANT_ID, MENU_ID)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.arsFlows.create).not.toHaveBeenCalled();
+  });
+
+  it('DRAFT 플로우와 그래프를 함께 만든다', async () => {
+    const { service, state } = buildService({ ivrMenu: MENU });
+
+    const result = await service.importFromIvrMenu(TENANT_ID, MENU_ID);
+
+    expect(result.flowId).toBeTruthy();
+    expect(state.nodeCreates.map((node: any) => node.nodeType).sort())
+      .toEqual(['HANGUP', 'MENU', 'QUEUE']);
+    expect(state.edgeCreates.map((edge: any) => edge.condition).sort())
+      .toEqual(['DIGIT', 'TIMEOUT']);
+  });
+
+  it('원래 메뉴는 건드리지 않는다 — 확인 전까지 통화는 기존 경로로 흐른다', async () => {
+    const { service, prisma } = buildService({ ivrMenu: MENU });
+
+    await service.importFromIvrMenu(TENANT_ID, MENU_ID);
+
+    expect(prisma.asteriskIvrMenu.findFirst).toHaveBeenCalled();
+    expect((prisma.asteriskIvrMenu as any).update).toBeUndefined();
+  });
+
+  it('검증에 걸리면 빈 플로우를 남기지 않는다', async () => {
+    // 큐가 실재하지 않으므로 QUEUE_NOT_FOUND 로 저장이 막힌다.
+    const { service, state } = buildService({ ivrMenu: MENU, queues: [] });
+
+    await expect(service.importFromIvrMenu(TENANT_ID, MENU_ID)).rejects.toBeInstanceOf(BadRequestException);
+    expect(state.deletes).toContain('flow');
   });
 });

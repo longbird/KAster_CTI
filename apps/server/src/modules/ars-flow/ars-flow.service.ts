@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { renderArsFlow } from '../asterisk-config/renderers/ars-flow.renderer';
 import {
@@ -11,6 +11,7 @@ import {
   isFlowNodeType,
 } from './flow-graph.types';
 import { FlowValidationContext, FlowValidationResult, validateFlowGraph } from './flow-graph.validator';
+import { importIvrMenu } from './import/ivr-menu.importer';
 import { parseNodeConfig } from './node-config.parser';
 
 export interface GraphNodeInput {
@@ -100,6 +101,71 @@ export class ArsFlowService {
       },
       select: FLOW_FIELDS,
     });
+  }
+
+  /**
+   * 기존 단층 IVR 메뉴를 플로우로 옮긴다.
+   *
+   * 옮긴 결과는 사람이 확인하고 DID 에 붙여야 한다 — 여기서는 DRAFT 플로우만 만든다.
+   * 원래 메뉴는 건드리지 않으므로, 확인 전까지 통화는 기존 경로로 계속 흐른다.
+   */
+  async importFromIvrMenu(tenantId: string, menuId: string) {
+    const menu = await this.prisma.asteriskIvrMenu.findFirst({
+      where: { id: menuId, tenantId },
+      include: { entries: { orderBy: { digit: 'asc' } } },
+    });
+    if (!menu) {
+      throw new NotFoundException(`ivr menu not found: ${menuId}`);
+    }
+
+    const imported = importIvrMenu({
+      id: menu.id,
+      name: menu.name,
+      welcomePrompt: menu.welcomePrompt,
+      menuPrompt: menu.menuPrompt,
+      timeoutSecs: menu.timeoutSecs,
+      entries: menu.entries.map((entry) => ({
+        id: entry.id,
+        tenantId,
+        menuId: menu.id,
+        digit: entry.digit,
+        label: entry.label,
+        queueName: entry.queueName,
+      })),
+    });
+
+    const duplicate = await (this.prisma as any).arsFlows.findFirst({
+      where: { tenantId, name: imported.name },
+      select: { flowId: true },
+    });
+    if (duplicate) {
+      throw new ConflictException(`a flow named "${imported.name}" already exists`);
+    }
+
+    const flow = await this.create(tenantId, {
+      name: imported.name,
+      description: `IVR 메뉴 "${menu.name}" 에서 가져왔습니다.`,
+    });
+
+    try {
+      const result = await this.replaceGraph(tenantId, flow.flowId, {
+        entryNodeId: imported.entryNodeId,
+        nodes: imported.nodes,
+        edges: imported.edges,
+      });
+      return {
+        flowId: flow.flowId,
+        name: flow.name,
+        notes: imported.notes,
+        warnings: result.warnings,
+      };
+    } catch (error) {
+      // 검증에 걸리면 빈 플로우만 남는다. 지우고 원래 오류를 그대로 올린다.
+      await (this.prisma as any).arsFlows
+        .delete({ where: { flowId: flow.flowId } })
+        .catch(() => undefined);
+      throw error;
+    }
   }
 
   async remove(tenantId: string, flowId: string) {

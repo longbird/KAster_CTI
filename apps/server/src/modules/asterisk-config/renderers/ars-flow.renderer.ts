@@ -15,7 +15,7 @@ import {
   TransferConfig,
 } from '../../ars-flow/flow-graph.types';
 import { OPT_OUT_HOOK_PATH, SMART_ARS_HOOK_PATH } from './hook-paths';
-import { assertNoNewlines, shellQuote, toSlug } from './renderer-utils';
+import { assertNoNewlines, shellQuote, toPlaybackTarget, toSlug } from './renderer-utils';
 
 export interface ArsFlowRenderInput {
   graph: FlowGraph;
@@ -86,6 +86,8 @@ export function renderArsFlow(input: ArsFlowRenderInput): string {
     `[${mainContext}]`,
     `exten => s,1,NoOp(ARS flow ${graph.name})`,
     ' same => n,Answer()',
+    // 안내를 언어 하위 디렉터리에서 찾다가 못 찾으면 무음이 된다. 기존 Smart ARS 도 같은 줄을 넣는다.
+    ' same => n,Set(CHANNEL(language)=)',
     ` same => n,Set(__SMART_ARS_TENANT_ID=${input.tenantId})`,
     ` same => n,Set(__SMART_ARS_BRANCH_ID=${input.branchId ?? '-'})`,
     ` same => n,Set(__ENTRY_DID=${input.did})`,
@@ -195,8 +197,7 @@ function renderJump(
     }
     case 'HANGUP': {
       const { promptKey } = node.config as HangupConfig;
-      if (promptKey) assertNoNewlines(promptKey, 'promptKey');
-      return [...(promptKey ? [`Playback(${promptKey})`] : []), 'Hangup()'];
+      return [...(promptKey ? [`Playback(${toPlaybackTarget(promptKey)})`] : []), 'Hangup()'];
     }
     case 'MENU':
       return [`Goto(${menuContexts.get(node.nodeId)},s,1)`];
@@ -214,10 +215,9 @@ function renderInlineNode(
   switch (node.nodeType) {
     case 'PLAY':
       return [
-        ...(node.config as PlayConfig).promptKeys.map((promptKey) => {
-          assertNoNewlines(promptKey, 'promptKey');
-          return `Playback(${promptKey})`;
-        }),
+        ...(node.config as PlayConfig).promptKeys.map(
+          (promptKey) => `Playback(${toPlaybackTarget(promptKey)})`,
+        ),
         ...continueOrHangup(node, outgoing, jump),
       ];
     case 'SMS': {
@@ -269,7 +269,7 @@ function renderCollectDigits(
   jump: (nodeId: string) => string[],
 ): string[] {
   const config = node.config as CollectDigitsConfig;
-  if (config.promptKey) assertNoNewlines(config.promptKey, 'promptKey');
+  const prompt = config.promptKey ? toPlaybackTarget(config.promptKey) : '';
 
   const counter = `ARS_COLLECT_RETRY_${label.replace(/[^A-Za-z0-9_]/g, '_')}`;
   const readLabel = `${label}-read`;
@@ -278,7 +278,7 @@ function renderCollectDigits(
 
   return [
     `Set(__${counter}=0)`,
-    `(${readLabel})Read(${COLLECT_INPUT_VAR},${config.promptKey ?? ''},${config.maxDigits},,1,${config.timeoutSeconds})`,
+    `(${readLabel})Read(${COLLECT_INPUT_VAR},${prompt},${config.maxDigits},,1,${config.timeoutSeconds})`,
     `Set(__${COLLECTED_DIGITS_VAR}=\${FILTER(0-9,\${${COLLECT_INPUT_VAR}})})`,
     `GotoIf($[\${LEN(\${${COLLECTED_DIGITS_VAR}})}>=${config.minDigits}]?${okLabel})`,
     `Set(__${counter}=$[\${${counter}}+1])`,
@@ -354,10 +354,15 @@ function renderMenuContext(
   jump: (nodeId: string) => string[],
 ): string {
   const config = node.config as MenuConfig;
-  if (config.promptKey) assertNoNewlines(config.promptKey, 'promptKey');
+  const counter = `ARS_MENU_RETRY_${contextName.replace(/[^A-Za-z0-9_]/g, '_')}`;
+  const retries = config.maxRetries ?? 0;
 
   const lines: string[] = [`[${contextName}]`, `exten => s,1,NoOp(ARS menu ${node.label})`];
-  if (config.promptKey) lines.push(` same => n,Background(${config.promptKey})`);
+  // 재시도가 없으면 카운터도 만들지 않는다 — 기존 단층 IVR 과 같은 모양을 지킨다.
+  if (retries > 0) lines.push(` same => n,Set(__${counter}=0)`);
+  if (config.promptKey) {
+    lines.push(` same => n${retries > 0 ? '(prompt)' : ''},Background(${toPlaybackTarget(config.promptKey)})`);
+  }
   lines.push(` same => n,WaitExten(${config.timeoutSeconds})`);
 
   for (const edge of outgoing.get(node.nodeId) ?? []) {
@@ -367,7 +372,16 @@ function renderMenuContext(
   }
 
   const onTimeout = findEdge(node.nodeId, outgoing, 'TIMEOUT');
-  lines.push(...renderExtension('t', onTimeout ? jump(onTimeout.toNodeId) : ['Hangup()']));
+  const giveUp = onTimeout ? jump(onTimeout.toNodeId) : ['Hangup()'];
+  // 재시도는 안내부터 다시 튼다. 다 쓰면 시간초과 연결로 나간다.
+  const timeoutBody = retries > 0 && config.promptKey
+    ? [
+        `Set(__${counter}=$[\${${counter}}+1])`,
+        `GotoIf($[\${${counter}}<=${retries}]?s,prompt)`,
+        ...giveUp,
+      ]
+    : giveUp;
+  lines.push(...renderExtension('t', timeoutBody));
 
   const onInvalid = findEdge(node.nodeId, outgoing, 'INVALID');
   if (onInvalid) {
