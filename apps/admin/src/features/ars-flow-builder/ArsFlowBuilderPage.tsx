@@ -250,6 +250,7 @@ export function ArsFlowBuilderPage() {
 
   return (
     <Card
+      className="ars-builder"
       title="ARS 플로우 빌더"
       extra={
         <Space wrap>
@@ -281,7 +282,7 @@ export function ArsFlowBuilderPage() {
       }
     >
       {validation && (validation.errors.length > 0 || validation.warnings.length > 0) && (
-        <Space direction="vertical" size={8} style={{ width: '100%', marginBottom: 12 }}>
+        <Space className="ars-builder__issues" direction="vertical" size={8} style={{ width: '100%' }}>
           {validation.errors.length > 0 && (
             <Alert
               type="error"
@@ -312,9 +313,9 @@ export function ArsFlowBuilderPage() {
       {!flowId ? (
         <Empty description="플로우를 고르거나 새로 만드세요." />
       ) : (
-        <Row gutter={12}>
-          <Col xs={24} lg={17}>
-            <div style={{ border: '1px solid var(--line-1, #eee)', borderRadius: 6, height: 560 }}>
+        <Row gutter={12} className="ars-builder__workspace">
+          <Col xs={24} lg={17} className="ars-builder__pane-col">
+            <div className="ars-builder__pane">
               <ArsFlowCanvas
                 nodes={nodes}
                 edges={edges}
@@ -325,8 +326,8 @@ export function ArsFlowBuilderPage() {
               />
             </div>
           </Col>
-          <Col xs={24} lg={7}>
-            <div style={{ border: '1px solid var(--line-1, #eee)', borderRadius: 6, height: 560, overflow: 'auto' }}>
+          <Col xs={24} lg={7} className="ars-builder__pane-col">
+            <div className="ars-builder__pane ars-builder__pane--panel">
               <NodePropertiesPanel
                 node={selectedNode}
                 httpEndpoints={httpEndpoints}

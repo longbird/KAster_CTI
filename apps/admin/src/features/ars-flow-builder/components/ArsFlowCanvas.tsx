@@ -100,7 +100,7 @@ export function ArsFlowCanvas({
   }, [onNodesChange, setCanvasNodes, onNodesChangeExternal]);
 
   return (
-    <div style={{ height: '100%', minHeight: 520 }}>
+    <div style={{ height: '100%' }}>
       <ReactFlow
         nodes={canvasNodes.map((node) => ({ ...node, selected: node.id === selectedNodeId }))}
         edges={canvasEdges}

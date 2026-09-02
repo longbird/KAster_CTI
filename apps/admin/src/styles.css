@@ -1306,3 +1306,54 @@ body {
 }
 
 .trends-page { padding-bottom: 16px; }
+
+/* ARS 플로우 빌더 — 캔버스가 본체다. 남는 높이를 전부 준다. */
+.ars-builder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.ars-builder > .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ars-builder__issues {
+  flex: none;
+}
+.ars-builder__workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.ars-builder__pane-col {
+  display: flex;
+  min-height: 0;
+}
+.ars-builder__pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 320px;
+  border: 1px solid var(--line-1, #eee);
+  border-radius: 6px;
+}
+.ars-builder__pane--panel {
+  overflow: auto;
+}
+
+/* 좁은 화면에서는 두 판이 세로로 쌓인다. 한 화면 높이를 나눠 가지면 둘 다 못 쓴다. */
+@media (max-width: 991px) {
+  .ars-builder {
+    height: auto;
+  }
+  .ars-builder__workspace {
+    flex: none;
+  }
+  .ars-builder__pane-col {
+    display: block;
+  }
+  .ars-builder__pane {
+    height: 480px;
+  }
+}
