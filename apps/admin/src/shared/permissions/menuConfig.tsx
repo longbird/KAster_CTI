@@ -59,6 +59,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/settings/prompts', label: '멘트 관리' },
       { key: '/settings/sms-templates', label: '문자 템플릿 관리' },
       { key: '/settings/consult-categories', label: '상담분류 관리' },
+      { key: '/settings/ars-flows', label: 'ARS 플로우 빌더' },
       { key: '/settings/permissions', label: '권한 관리' },
       { key: '/announcements', label: '공지사항' },
       { key: '/numbers', label: 'DID / 내선' },

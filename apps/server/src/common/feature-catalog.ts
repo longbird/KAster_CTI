@@ -64,7 +64,7 @@ export const FEATURE_CATALOG: Record<FeatureKey, FeatureDefinition> = {
     name: 'ARS 플로우 빌더',
     description: '다단계 ARS 시나리오를 그래프로 만들고 PBX dialplan 으로 컴파일한다.',
     defaultEnabled: false,
-    menuKeys: [],
+    menuKeys: ['settings/ars-flows'],
     irreversible: false,
   },
   'recording-encryption': {

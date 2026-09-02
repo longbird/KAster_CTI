@@ -1,3 +1,5 @@
+import { lazy, Suspense } from 'react';
+import { Spin } from 'antd';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/AppLayout';
 import { AdminDashboardPage } from '../features/dashboard/components/AdminDashboardPage';
@@ -36,6 +38,20 @@ import { NumbersPage } from '../features/numbers/NumbersPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { IntegrationsPage } from '../features/integrations/IntegrationsPage';
 
+// 캔버스 라이브러리(@xyflow/react)를 기본 번들에 넣지 않는다. 빌더를 안 여는 관리자가
+// 내려받을 이유가 없다.
+const ArsFlowBuilderPage = lazy(() =>
+  import('../features/ars-flow-builder/ArsFlowBuilderPage').then((m) => ({ default: m.ArsFlowBuilderPage })),
+);
+
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}><Spin size="large" /></div>}>
+      {children}
+    </Suspense>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -56,6 +72,7 @@ export const router = createBrowserRouter([
       { path: 'settings/prompts',     element: <PromptSettingsPage /> },
       { path: 'settings/sms-templates', element: <SmsTemplatesPage /> },
       { path: 'settings/consult-categories', element: <ConsultCategoriesPage /> },
+      { path: 'settings/ars-flows',   element: <LazyPage><ArsFlowBuilderPage /></LazyPage> },
       { path: 'settings/branches',    element: <BranchSettingsPage /> },
       { path: 'settings/permissions', element: <PermissionSettingsPage /> },
       { path: 'customers',            element: <CustomersPage /> },
