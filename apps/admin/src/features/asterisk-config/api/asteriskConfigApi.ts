@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from '../../../config';
+import type { ConfigDiffResponse } from '../apply/applyGate';
 import type { AgentSipRow, AsteriskBlocklistEntry, AsteriskBlocklistEntryInput, AsteriskBulkTrunkInput, AsteriskDid, AsteriskForwardingRule, AsteriskIvrMenu, AsteriskPrompt, AsteriskSpeedDial, AsteriskSpeedDialInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput, ConfPreview, FeatureCode, FeatureCodeInput, ImportBlocklistEntryRow, PromptGenerationJob, PromptTtsInput } from '../types/asterisk-config';
 
 function headers(): Record<string, string> {
@@ -125,3 +126,9 @@ export const manualReload = () =>
   axios.post(`${base}/reload`, {}, { headers: headers() });
 export const getPreview = () =>
   axios.get<{ data: ConfPreview }>(`${base}/preview`, { headers: headers() }).then(r => r.data.data);
+
+// 적용하면 무엇이 바뀌는지. 화면은 이걸 본 뒤에만 적용 버튼을 연다.
+export const getConfigDiff = () =>
+  axios.get<{ data: ConfigDiffResponse }>(`${base}/diff`, { headers: headers() }).then(r => r.data.data);
+export const applyConfig = () =>
+  axios.post<{ data: unknown }>(`${base}/reload`, {}, { headers: headers() }).then(r => r.data);

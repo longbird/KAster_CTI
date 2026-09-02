@@ -29,12 +29,19 @@ export const RENDERED_CONF_FILE_NAMES: Array<{
   key: keyof RenderedConfFiles;
   fileName: string;
   requiredContext?: string;
+  /**
+   * dialplan 파일은 Asterisk 변수를 정상적으로 담는다 (예: EXTEN, CALLERID).
+   * 그걸 "미해결 placeholder" 로 잡으면 세 파일이 영원히 검증 실패가 되고,
+   * 그 패널은 아무도 안 보게 된다. 반대로 pjsip·rtp·queues 에 남아 있으면
+   * 렌더가 덜 된 것이므로 계속 잡는다.
+   */
+  allowsDialplanVariables?: boolean;
 }> = [
   { key: 'pjsip', fileName: 'pjsip.conf', requiredContext: 'global' },
   { key: 'rtp', fileName: 'rtp.conf', requiredContext: 'general' },
-  { key: 'extensionsInbound', fileName: 'extensions_inbound.conf', requiredContext: 'inbound-main' },
-  { key: 'extensionsQueue', fileName: 'extensions_queue.conf', requiredContext: 'queue-entry' },
-  { key: 'extensionsAgent', fileName: 'extensions_agent.conf', requiredContext: 'from-queue' },
+  { key: 'extensionsInbound', fileName: 'extensions_inbound.conf', requiredContext: 'inbound-main', allowsDialplanVariables: true },
+  { key: 'extensionsQueue', fileName: 'extensions_queue.conf', requiredContext: 'queue-entry', allowsDialplanVariables: true },
+  { key: 'extensionsAgent', fileName: 'extensions_agent.conf', requiredContext: 'from-queue', allowsDialplanVariables: true },
   { key: 'queues', fileName: 'queues.conf' },
 ];
 
@@ -69,9 +76,14 @@ export function validateRenderedConfFiles(files: RenderedConfFiles): ConfigValid
     );
 
     checks.push(
-      content.includes('${')
-        ? fail(`${displayName} has no unresolved placeholders`, 'Found unresolved ${...} placeholder text.')
-        : pass(`${displayName} has no unresolved placeholders`, 'No unresolved ${...} placeholder text found.'),
+      item.allowsDialplanVariables
+        ? pass(
+            `${displayName} has no unresolved placeholders`,
+            'Dialplan file — Asterisk variable syntax is expected here, so this check is skipped.',
+          )
+        : content.includes('${')
+          ? fail(`${displayName} has no unresolved placeholders`, 'Found unresolved ${...} placeholder text.')
+          : pass(`${displayName} has no unresolved placeholders`, 'No unresolved ${...} placeholder text found.'),
     );
 
     checks.push(

@@ -168,6 +168,8 @@ export class AsteriskConfigController {
   // Reload + Preview
   @Post('reload') async manualReload(@CurrentUser() u: any) { await this.assertAsteriskAction(u, 'operate'); return this.reload.executeReload(u.tenantId); }
   @Get('preview') async preview(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.previewConfFiles(u.tenantId); }
+  // 적용하면 무엇이 바뀌는지. 화면은 이걸 본 뒤에만 적용 버튼을 연다.
+  @Get('diff') async diff(@CurrentUser() u: any) { await this.assertAsteriskAccess(u); return this.reload.diffConfFiles(u.tenantId); }
 }
 
 @ApiTags('asterisk-config-internal')

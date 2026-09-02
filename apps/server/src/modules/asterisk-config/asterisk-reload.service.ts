@@ -732,6 +732,16 @@ function buildOptOutGuardedDigitAgiScript(): string {
  * `arsFlow` 는 null 이 되는데, 그걸 기준으로 삼으면 정작 문제가 생긴 상황에서
  * 기대값이 0개가 되어 검사가 통째로 사라진다.
  */
+/**
+ * pjsip 비밀번호를 가린다. 미리보기와 diff 가 **같은 규칙**으로 가려야
+ * 바뀐 것이 없는데도 매번 "변경" 으로 잡히지 않는다.
+ */
+function maskPjsipSecrets(content: string): string {
+  return content
+    .replace(/^(password=).+$/gm, '$1***')
+    .replace(/^(md5_cred=).+$/gm, '$1***');
+}
+
 function collectArsFlowDids(
   dids: Array<{ enabled?: boolean; did: string; flowId?: string | null }>,
 ): string[] {
@@ -1178,11 +1188,40 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       directory: item.directory,
     })));
 
-    const maskedPjsip = pjsip
-      .replace(/^(password=).+$/gm, '$1***')
-      .replace(/^(md5_cred=).+$/gm, '$1***');
+    const maskedPjsip = maskPjsipSecrets(pjsip);
 
     return { pjsip: maskedPjsip, rtp, extensionsInbound, extensionsQueue, extensionsAgent, queues: `${queues}\n\n${musiconhold}` };
+  }
+
+  /**
+   * 적용하면 무엇이 바뀌는지. 지금 디스크에 있는 conf 와 렌더 결과를 비교한다.
+   *
+   * 관리자가 이걸 본 뒤에만 적용을 누를 수 있게 하려는 것이다 — PBX 설정은 통화가
+   * 오가는 중에 덮이므로, 무엇이 바뀌는지 모르고 누르면 안 된다.
+   * pjsip 비밀번호는 미리보기에서 이미 마스킹돼 있으므로 diff 도 마스킹된 값으로 비교한다.
+   */
+  async diffConfFiles(tenantId: string) {
+    const rendered = await this.previewConfFiles(tenantId);
+    const confDir = this.config.get<string>('ASTERISK_CONF_DIR', '/etc/asterisk');
+
+    const currentFiles: Record<string, string> = {};
+    for (const { fileName } of RENDERED_CONF_FILE_NAMES) {
+      const current = this.readCurrentConfFile(confDir, fileName);
+      if (current === null) continue;
+      // 미리보기는 pjsip 비밀번호를 마스킹한다. 디스크 원본과 그대로 비교하면
+      // 바뀐 것이 없어도 매번 "변경" 으로 잡혀 진짜 변경이 묻힌다. 양쪽을 같게 가린다.
+      currentFiles[fileName] = maskPjsipSecrets(current);
+    }
+
+    const validation = validateRenderedConfFiles(rendered);
+    const diff = diffRenderedConfFiles(rendered, currentFiles);
+
+    return {
+      validation,
+      diff,
+      // 바뀌는 파일이 하나도 없으면 적용해도 달라지는 것이 없다. 화면이 그렇게 알려준다.
+      hasChanges: diff.some((entry) => entry.status !== 'unchanged'),
+    };
   }
 
   private buildPromptMohClasses(
