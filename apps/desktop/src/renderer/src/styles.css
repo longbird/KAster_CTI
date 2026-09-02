@@ -20,6 +20,19 @@
   --ok: #1f7a4c;
   --warn: #a16207;
   --shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  /* 표면 위에 얹는 hover 틴트. 정의 없이 참조돼 폴백(흰 4%)으로 떨어져 있었다. */
+  --surface-hover: rgba(15, 23, 42, 0.05);
+
+  /* 글자 크기 — px 10가지와 rem 12가지가 섞여 22가지였다.
+   * 0.76rem(12.16) · 0.78rem(12.48) 처럼 눈에 안 보이는 차이가 어휘만 늘렸다. */
+  --t-micro: 10px;
+  --t-caption: 11px;
+  --t-small: 12px;
+  --t-body: 13px;
+  --t-lg: 15px;
+  --t-h3: 17px;
+  --t-h2: 22px;
+  --t-h1: 24px;
 }
 
 * {
@@ -136,13 +149,13 @@ button {
   background: var(--primary);
   color: var(--primary-text);
   font-family: Consolas, "Courier New", monospace;
-  font-size: 15px;
+  font-size: var(--t-lg);
   font-weight: 900;
 }
 
 .desktop-brand-wordmark {
   font-family: Consolas, "Courier New", monospace;
-  font-size: 12px;
+  font-size: var(--t-small);
   font-weight: 900;
   letter-spacing: .08em;
   color: var(--text);
@@ -161,7 +174,7 @@ button {
 .desktop-login-heading h1 {
   margin: 0 0 6px;
   color: var(--text);
-  font-size: 18px;
+  font-size: var(--t-h3);
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -169,7 +182,7 @@ button {
 .desktop-login-heading p {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .desktop-login-advanced {
@@ -180,7 +193,7 @@ button {
   padding: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--t-caption);
   font-weight: 700;
 }
 
@@ -194,7 +207,7 @@ button {
   margin-bottom: 6px;
   color: var(--muted);
   font-family: Consolas, "Courier New", monospace;
-  font-size: 10px;
+  font-size: var(--t-micro);
   letter-spacing: .14em;
 }
 
@@ -240,7 +253,7 @@ button {
   border-left: 1px solid var(--border);
   border-radius: 0 4px 4px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .desktop-login-error {
@@ -250,7 +263,7 @@ button {
   padding: 8px 10px;
   background: rgba(248, 113, 113, 0.14);
   color: var(--danger-fg);
-  font-size: 12px;
+  font-size: var(--t-small);
   line-height: 1.45;
 }
 
@@ -277,7 +290,7 @@ button {
   margin-top: 20px;
   color: var(--muted);
   font-family: Consolas, "Courier New", monospace;
-  font-size: 10px;
+  font-size: var(--t-micro);
   letter-spacing: .1em;
   text-transform: uppercase;
 }
@@ -326,7 +339,7 @@ button {
 .eyebrow {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--t-body);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -345,15 +358,19 @@ button {
 
 .field span {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: var(--t-lg);
 }
 
 /* 테두리도 배경도 흰색 위에서 보이지 않는 값이었다 — 어두운 유리 배경을
  * 전제로 만든 규칙이 흰 .panel 위에 그대로 남아 있었다. */
+/* 입력칸 규격은 .desktop-login-field input 한 벌을 따른다.
+ * 반지름 14px · 패딩 14/16 은 옛 유리 디자인 값이라 패널(8) · 버튼(4) 어디에도 맞지 않았다. */
 .field input {
+  width: 100%;
+  min-height: 36px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 16px;
+  border-radius: 4px;
+  padding: 8px 10px;
   background: var(--surface-subtle);
   color: var(--text);
 }
@@ -362,9 +379,9 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  border: 1px solid rgba(233, 244, 237, 0.16);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-subtle);
 }
 
 .password-input-shell input {
@@ -377,8 +394,8 @@ button {
   min-width: 64px;
   height: 100%;
   border: 0;
-  border-left: 1px solid rgba(233, 244, 237, 0.12);
-  border-radius: 0 14px 14px 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0 4px 4px 0;
   padding: 0 14px;
   background: transparent;
   color: #cde5d8;
@@ -414,7 +431,7 @@ button {
 
 .update-banner span {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--t-body);
 }
 
 .update-banner button {
@@ -457,17 +474,17 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.92rem;
+  font-size: var(--t-lg);
 }
 
 .announcement-banner__badge {
-  font-size: 0.7rem;
+  font-size: var(--t-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-hover);
   color: var(--muted);
 }
 
@@ -486,7 +503,7 @@ button {
 }
 
 .announcement-banner__meta {
-  font-size: 0.78rem;
+  font-size: var(--t-small);
   color: var(--muted);
   flex: 0 0 auto;
 }
@@ -495,7 +512,7 @@ button {
   border: none;
   background: transparent;
   color: var(--muted);
-  font-size: 1.05rem;
+  font-size: var(--t-h3);
   line-height: 1;
   cursor: pointer;
   padding: 2px 6px;
@@ -503,12 +520,12 @@ button {
 }
 
 .announcement-banner__close:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-hover);
   color: var(--text);
 }
 
 .announcement-banner__body {
-  font-size: 0.86rem;
+  font-size: var(--t-lg);
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
@@ -550,7 +567,7 @@ button {
   max-width: 150px;
   overflow: hidden;
   color: var(--text);
-  font-size: 15px;
+  font-size: var(--t-lg);
   font-weight: 800;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -561,7 +578,7 @@ button {
 .console-muted,
 .call-surface p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--t-small);
   line-height: 1.45;
 }
 
@@ -583,7 +600,7 @@ button {
 .desktop-console input {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-subtle);
   color: var(--text);
   outline: none;
@@ -593,7 +610,7 @@ button {
   width: 84px;
   min-height: 32px;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: var(--t-small);
   font-weight: 700;
 }
 
@@ -654,7 +671,7 @@ button {
 .call-surface strong {
   display: block;
   overflow: hidden;
-  font-size: 22px;
+  font-size: var(--t-h2);
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -705,7 +722,7 @@ button {
 }
 
 .console-section h2 {
-  font-size: 14px;
+  font-size: var(--t-lg);
   font-weight: 800;
 }
 
@@ -719,7 +736,7 @@ button {
   min-height: 32px;
   padding: 6px 4px;
   border-color: var(--border);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .settings-tabs button.active {
@@ -799,13 +816,13 @@ button {
 
 .confirm-dialog h2 {
   color: var(--text);
-  font-size: 16px;
+  font-size: var(--t-h3);
   font-weight: 800;
 }
 
 .confirm-dialog p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--t-body);
   line-height: 1.45;
 }
 
@@ -852,7 +869,7 @@ button {
 .settings-button {
   flex: 0 0 auto;
   padding: 0 10px;
-  font-size: 0.82rem;
+  font-size: var(--t-body);
 }
 
 .sr-only {
@@ -929,7 +946,7 @@ button {
   align-items: center;
   gap: 8px;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .field {
@@ -939,7 +956,7 @@ button {
 
 .field span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .popup-layout {
@@ -968,12 +985,12 @@ button {
 }
 
 .popup-header h1 {
-  font-size: 17px;
+  font-size: var(--t-h3);
 }
 
 .popup-header p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .popup-header-actions {
@@ -1022,7 +1039,7 @@ button {
 .popup-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--t-body);
 }
 
 .popup-table th,
@@ -1072,7 +1089,7 @@ button {
   border-radius: 4px;
   background: var(--primary);
   color: white;
-  font-size: 11px;
+  font-size: var(--t-caption);
   line-height: 1;
   padding: 4px 5px;
 }
@@ -1142,11 +1159,12 @@ button {
     --ok: #3aa56d;
     --warn: #c58a22;
     --shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
+    --surface-hover: rgba(255, 255, 255, 0.06);
   }
 }
 
 .call-info-panel .grade-badge {
-  font-size: 11px;
+  font-size: var(--t-caption);
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--surface-subtle);
@@ -1185,12 +1203,12 @@ button {
 }
 
 .call-info-grid dt {
-  font-size: 11px;
+  font-size: var(--t-caption);
   color: var(--muted);
 }
 
 .call-info-grid dd {
-  font-size: 13px;
+  font-size: var(--t-body);
   margin: 0;
   word-break: break-all;
 }
@@ -1202,7 +1220,7 @@ button {
 }
 
 .call-history-mini h3 {
-  font-size: 12px;
+  font-size: var(--t-small);
   color: var(--muted);
   margin: 0 0 6px;
   font-weight: 500;
@@ -1221,7 +1239,7 @@ button {
   display: grid;
   grid-template-columns: 80px 40px 1fr 50px;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--t-small);
   color: var(--text);
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
@@ -1251,7 +1269,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--t-small);
   color: var(--muted);
 }
 
@@ -1265,7 +1283,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--t-body);
 }
 
 .call-memo-field textarea:focus {
@@ -1274,7 +1292,7 @@ button {
 }
 
 .memo-status {
-  font-size: 11px;
+  font-size: var(--t-caption);
 }
 
 .memo-status--saving {
@@ -1300,7 +1318,7 @@ button {
 .ringing-auto-timer__label {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--t-small);
   color: var(--muted);
   margin-bottom: 6px;
 }
@@ -1343,7 +1361,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--t-body);
 }
 
 .status-reason-overlay {
@@ -1376,7 +1394,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--t-body);
   resize: vertical;
 }
 
@@ -1397,7 +1415,7 @@ button {
   grid-template-columns: 24px 1fr 1fr 80px 64px;
   gap: 6px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .hotkey-row__index {
@@ -1417,7 +1435,7 @@ button {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .transfer-hotkey-strip {
@@ -1436,7 +1454,7 @@ button {
   border-radius: 999px;
   background: var(--surface-subtle);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--t-small);
   cursor: pointer;
 }
 
@@ -1458,7 +1476,7 @@ button {
   border-radius: 999px;
   background: var(--primary);
   color: var(--primary-text);
-  font-size: 11px;
+  font-size: var(--t-caption);
   font-weight: 600;
 }
 
@@ -1483,7 +1501,7 @@ button {
   border-radius: 6px 6px 0 0;
   background: var(--surface-subtle);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--t-body);
   cursor: pointer;
 }
 
@@ -1503,7 +1521,7 @@ button {
   border-radius: 999px;
   background: var(--border);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--t-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1532,7 +1550,7 @@ button {
   border-radius: 999px;
   background: var(--surface);
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: var(--t-body);
   transition: background 240ms ease, border-color 240ms ease, color 240ms ease;
 }
 
@@ -1569,7 +1587,7 @@ button {
 }
 
 .queue-monitor__label {
-  font-size: 0.76rem;
+  font-size: var(--t-small);
   letter-spacing: 0.04em;
   color: var(--muted);
 }
@@ -1610,7 +1628,7 @@ button {
 
 .dialpad-display {
   width: 100%;
-  font-size: 1.5rem;
+  font-size: var(--t-h1);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-align: center;
@@ -1645,7 +1663,7 @@ button {
 }
 
 .dialpad-key:hover:not(:disabled) {
-  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+  background: var(--surface-hover);
 }
 
 .dialpad-key:active:not(:disabled) {
@@ -1653,13 +1671,13 @@ button {
 }
 
 .dialpad-key__label {
-  font-size: 1.4rem;
+  font-size: var(--t-h2);
   font-weight: 700;
   line-height: 1;
 }
 
 .dialpad-key__sub {
-  font-size: 0.7rem;
+  font-size: var(--t-caption);
   letter-spacing: 0.08em;
   color: var(--muted);
   margin-top: 2px;
@@ -1679,7 +1697,7 @@ button {
   padding: 10px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: var(--t-h3);
 }
 
 .dialpad-secondary:disabled {
@@ -1688,7 +1706,7 @@ button {
 }
 
 .dialpad-call {
-  font-size: 1.05rem;
+  font-size: var(--t-h3);
   font-weight: 700;
   padding: 12px;
 }
@@ -1767,12 +1785,12 @@ button {
 }
 
 .popup-agent-group__header:hover {
-  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+  background: var(--surface-hover);
 }
 
 .popup-agent-group__count {
   margin-left: auto;
-  font-size: 0.78rem;
+  font-size: var(--t-small);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

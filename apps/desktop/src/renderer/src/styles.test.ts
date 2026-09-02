@@ -54,6 +54,34 @@ describe('데스크톱 렌더러 색', () => {
   });
 });
 
+describe('치수', () => {
+  // px 10가지와 rem 12가지가 섞여 22가지였다. 0.76rem(12.16) · 0.78rem(12.48) 처럼
+  // 눈에 보이지 않는 차이가 어휘만 늘렸다.
+  it('글자 크기를 스케일 토큰으로만 정한다', () => {
+    expect(css).not.toMatch(/font-size: *[0-9.]+(px|rem)/);
+  });
+
+  it.each(['--t-micro', '--t-caption', '--t-small', '--t-body', '--t-lg', '--t-h3', '--t-h2', '--t-h1'])(
+    '%s 가 정의돼 있다',
+    (token) => {
+      expect(css).toMatch(new RegExp(`${token}:\\s*\\d+px`));
+    },
+  );
+
+  // 참조만 되고 정의가 없어 폴백(흰 4%)으로 떨어졌다. 흰 판 위에서 hover 가 무반응이었다.
+  it('--surface-hover 가 두 테마 모두에 있다', () => {
+    expect(css.match(/--surface-hover:/g)?.length).toBe(2);
+    expect(css).not.toContain('var(--surface-hover, ');
+  });
+
+  // 입력칸이 반지름 14px(옛 유리)과 4px(로그인) 두 벌이었다.
+  it('입력칸 규격이 한 벌이다', () => {
+    expect(css).not.toMatch(/border-radius: *14px/);
+    expect(rule('.field input')).toContain('border-radius: 4px');
+    expect(rule('.desktop-login-field input')).toContain('border-radius: 4px');
+  });
+});
+
 describe('브랜드 색', () => {
   // 셸은 --primary(steel blue), 로그인 화면은 에메랄드, 옛 화면은 민트 그라디언트로
   // 세 벌이 갈려 있었다. --primary 한 벌로 모은다.
