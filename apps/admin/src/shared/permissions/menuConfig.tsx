@@ -58,6 +58,7 @@ export const ADMIN_MENU_CONFIG: MenuConfigItem[] = [
       { key: '/settings/share-rules', label: '공유규칙 (호 분배)' },
       { key: '/settings/prompts', label: '멘트 관리' },
       { key: '/settings/sms-templates', label: '문자 템플릿 관리' },
+      { key: '/settings/consult-categories', label: '상담분류 관리' },
       { key: '/settings/permissions', label: '권한 관리' },
       { key: '/announcements', label: '공지사항' },
       { key: '/numbers', label: 'DID / 내선' },

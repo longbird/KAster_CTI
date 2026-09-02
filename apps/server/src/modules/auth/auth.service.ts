@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
+import { FeatureEntitlementService } from '../../common/feature-entitlement.service';
 import { PrismaService } from '../../common/prisma.service';
 import { AgentStateService } from '../calls/agent-state.service';
 import { CallsService } from '../calls/calls.service';
@@ -74,6 +75,7 @@ export class AuthService {
     private readonly callsService: CallsService,
     private readonly redis: RedisService,
     private readonly agentState: AgentStateService,
+    private readonly entitlement: FeatureEntitlementService,
   ) {}
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
@@ -237,6 +239,8 @@ export class AuthService {
     });
     const outboundDialOptions = await this.callsService.getOutboundDialOptions(user.tenantId);
     const callCapabilities = await this.callsService.getOutboundCallCapabilities(user.tenantId, user.sub);
+    // 화면은 어떤 기능이 열려 있는지 스스로 판단하지 않는다. 서버가 준 목록만 쓴다.
+    const featureEntitlements = await this.entitlement.listForTenant(agent.tenantId);
 
     return {
       success: true,
@@ -246,6 +250,7 @@ export class AuthService {
         outboundDialOptions,
         callCapabilities,
         softphoneConfig: this.buildSoftphoneConfig(agent),
+        featureEntitlements,
       },
       error: null,
     };

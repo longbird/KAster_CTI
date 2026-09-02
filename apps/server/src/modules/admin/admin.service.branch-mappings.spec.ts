@@ -60,6 +60,7 @@ describe('AdminService getBranchMappings forwarding rule details', () => {
       {} as any,
       {} as any,
       {} as any,
+      { listForTenant: jest.fn().mockResolvedValue({}) } as any,
     );
 
     const result = await service.getBranchMappings('tenant-1', 'branch-1');

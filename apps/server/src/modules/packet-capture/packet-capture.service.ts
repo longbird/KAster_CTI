@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createReadStream, promises as fs } from 'fs';
 import * as path from 'path';
+import { FeatureEntitlementService } from '../../common/feature-entitlement.service';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiLeaderElectionService } from '../redis/ami-leader-election.service';
 import { RecordingEncryptionService } from '../recording-pipeline/recording-encryption.service';
@@ -55,6 +56,7 @@ export class PacketCaptureService {
     private readonly captureProcess: CaptureProcessService,
     private readonly encryption: RecordingEncryptionService,
     private readonly storage: RecordingStorageService,
+    private readonly entitlement: FeatureEntitlementService,
   ) {}
 
   private get hardEnabled(): boolean {
@@ -126,6 +128,9 @@ export class PacketCaptureService {
    * 어느 하나라도 막히면 사이드카에 지시를 보내지 않는다.
    */
   async startCapture(tenantId: string, input: StartCaptureInput, audit: CaptureAuditContext) {
+    // 자격이 가장 바깥 게이트다. 자격이 없으면 테넌트 토글은 읽지도 않는다.
+    await this.entitlement.assertEnabled(tenantId, 'packet-capture');
+
     if (!this.hardEnabled) {
       throw new ForbiddenException('이 서버에서 패킷 캡처가 비활성화돼 있습니다 (PACKET_CAPTURE_ENABLED)');
     }

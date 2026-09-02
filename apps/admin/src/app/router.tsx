@@ -19,6 +19,7 @@ import { OptOutCustomersPage } from '../features/opt-out-customers/OptOutCustome
 import { PermissionSettingsPage } from '../features/permission-settings/PermissionSettingsPage';
 import { PromptSettingsPage } from '../features/prompt-settings/PromptSettingsPage';
 import { SmsTemplatesPage } from '../features/sms-templates/SmsTemplatesPage';
+import { ConsultCategoriesPage } from '../features/consult-categories/ConsultCategoriesPage';
 import { CallsReportPage } from '../features/reports/CallsReportPage';
 import { AmiLogsPage } from '../features/reports/AmiLogsPage';
 import { IvrFailuresPage } from '../features/reports/IvrFailuresPage';
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: 'settings/holidays',    element: <HolidaySettingsPage /> },
       { path: 'settings/prompts',     element: <PromptSettingsPage /> },
       { path: 'settings/sms-templates', element: <SmsTemplatesPage /> },
+      { path: 'settings/consult-categories', element: <ConsultCategoriesPage /> },
       { path: 'settings/branches',    element: <BranchSettingsPage /> },
       { path: 'settings/permissions', element: <PermissionSettingsPage /> },
       { path: 'customers',            element: <CustomersPage /> },

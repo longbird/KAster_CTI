@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { PacketCaptureService } from './packet-capture.service';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
@@ -9,6 +10,7 @@ function buildService(overrides: {
   isLeader?: boolean;
   runningJob?: any;
   interfaces?: string[];
+  entitled?: boolean;
 } = {}) {
   const env: Record<string, string> = {
     PACKET_CAPTURE_ENABLED: 'true',
@@ -45,12 +47,45 @@ function buildService(overrides: {
   };
   const encryption: any = { isEnabled: () => false, encryptFile: jest.fn(), openDecryptedReadStream: jest.fn() };
   const storage: any = { calculateSha256: jest.fn() };
+  const entitlement: any = {
+    assertEnabled: jest.fn().mockImplementation(async () => {
+      if (overrides.entitled === false) throw new ForbiddenException('자격 없음');
+    }),
+  };
 
-  const service = new PacketCaptureService(prisma, config, leader, captureProcess, encryption, storage);
-  return { service, prisma, captureProcess, jobs };
+  const service = new PacketCaptureService(
+    prisma,
+    config,
+    leader,
+    captureProcess,
+    encryption,
+    storage,
+    entitlement,
+  );
+  return { service, prisma, captureProcess, jobs, entitlement };
 }
 
 describe('PacketCaptureService.startCapture 게이트', () => {
+  // 자격이 가장 바깥 게이트다. 없으면 테넌트 토글은 읽지도 않는다.
+  it('기능 자격이 없으면 다른 게이트를 보기 전에 막는다', async () => {
+    const { service, prisma, captureProcess } = buildService({ entitled: false });
+
+    await expect(
+      service.startCapture(TENANT, { durationSeconds: 60, interfaceName: 'eth0' }, AUDIT),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.tenantSystemSettings.findFirst).not.toHaveBeenCalled();
+    expect(captureProcess.startCapture).not.toHaveBeenCalled();
+  });
+
+  it('자격을 먼저 확인한다', async () => {
+    const { service, entitlement } = buildService();
+
+    await service.startCapture(TENANT, { durationSeconds: 60, interfaceName: 'eth0' }, AUDIT);
+
+    expect(entitlement.assertEnabled).toHaveBeenCalledWith(TENANT, 'packet-capture');
+  });
+
   it('네 게이트를 모두 통과하면 캡처를 띄운다', async () => {
     const { service, captureProcess, jobs } = buildService();
 

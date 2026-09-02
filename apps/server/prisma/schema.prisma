@@ -87,6 +87,16 @@ model tenants {
   integrationAutomations      integrationAutomations[]
   holidayRules                tenantHolidayRules[]
   featureCodes                featureCodes[]
+  consultCategories           consultCategories[]
+  callTranscripts             callTranscripts[]
+  callTranscriptSegments      callTranscriptSegments[]
+  callAnalyses                callAnalyses[]
+  callAnalysisJobs            callAnalysisJobs[]
+  arsFlows                    arsFlows[]
+  arsFlowNodes                arsFlowNodes[]
+  arsFlowEdges                arsFlowEdges[]
+  featureEntitlements         tenantFeatureEntitlements[]
+  featureEntitlementAuditLogs tenantFeatureEntitlementAuditLogs[]
 }
 
 model agentGroups {
@@ -331,6 +341,9 @@ model callSessions {
   recordingFinalizeJobs recordingFinalizeJobs[]
   callMemos             callMemos[]
   callTransfers         callTransfers[]
+  callTranscripts       callTranscripts[]
+  callAnalyses          callAnalyses[]
+  callAnalysisJobs      callAnalysisJobs[]
 
   @@unique([tenantId, linkedid])
   @@index([startedAt(sort: Desc)])
@@ -423,8 +436,10 @@ model callRecordings {
   createdAt                 DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime  @updatedAt @db.Timestamptz(6)
 
-  session callSessions @relation(fields: [callId], references: [callId], onDelete: Cascade)
-  tenant  tenants      @relation(fields: [tenantId], references: [tenantId])
+  session         callSessions       @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  tenant          tenants            @relation(fields: [tenantId], references: [tenantId])
+  callTranscripts callTranscripts[]
+  analysisJobs    callAnalysisJobs[]
 }
 
 model recordingFinalizeJobs {
@@ -479,6 +494,118 @@ model callRecordingAccessAuditLogs {
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, recordingId, createdAt(sort: Desc)])
   @@index([tenantId, agentId, createdAt(sort: Desc)])
+}
+
+model consultCategories {
+  categoryId       String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  parentCategoryId String?  @db.Uuid
+  level            Int      @default(1)
+  code             String   @db.VarChar(64)
+  name             String   @db.VarChar(128)
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant       tenants             @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  parent       consultCategories?  @relation("consult_category_parent", fields: [parentCategoryId], references: [categoryId])
+  children     consultCategories[] @relation("consult_category_parent")
+  callAnalyses callAnalyses[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, parentCategoryId, sortOrder])
+}
+
+model callTranscripts {
+  transcriptId    String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  callId          String   @db.Uuid
+  recordingId     String   @db.Uuid
+  provider        String   @db.VarChar(32)
+  modelName       String?  @db.VarChar(128)
+  language        String   @default("ko") @db.VarChar(16)
+  fullText        String
+  durationSeconds Int      @default(0)
+  confidence      Float?
+  status          String   @default("READY") @db.VarChar(32)
+  failureReason   String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant    tenants                  @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  session   callSessions             @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  recording callRecordings           @relation(fields: [recordingId], references: [recordingId], onDelete: Cascade)
+  segments  callTranscriptSegments[]
+  analyses  callAnalyses[]
+
+  @@unique([tenantId, callId, recordingId])
+  @@index([tenantId, callId])
+}
+
+model callTranscriptSegments {
+  segmentId    String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  transcriptId String   @db.Uuid
+  speaker      String   @default("UNKNOWN") @db.VarChar(16)
+  startMs      Int      @default(0)
+  endMs        Int      @default(0)
+  text         String
+  confidence   Float?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant     tenants         @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  transcript callTranscripts @relation(fields: [transcriptId], references: [transcriptId], onDelete: Cascade)
+
+  @@index([transcriptId, startMs])
+  @@index([tenantId, transcriptId])
+}
+
+model callAnalyses {
+  analysisId     String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  callId         String   @db.Uuid
+  transcriptId   String   @db.Uuid
+  summary        String
+  sentiment      String   @default("NEUTRAL") @db.VarChar(16)
+  sentimentScore Float?
+  categoryId     String?  @db.Uuid
+  keywords       Json?
+  riskFlags      Json?
+  provider       String   @db.VarChar(32)
+  modelName      String?  @db.VarChar(128)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant     tenants            @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  session    callSessions       @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  transcript callTranscripts    @relation(fields: [transcriptId], references: [transcriptId], onDelete: Cascade)
+  category   consultCategories? @relation(fields: [categoryId], references: [categoryId])
+
+  @@unique([tenantId, callId])
+  @@index([tenantId, sentiment])
+  @@index([tenantId, categoryId])
+}
+
+model callAnalysisJobs {
+  callAnalysisJobId String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @db.Uuid
+  callId            String   @db.Uuid
+  recordingId       String   @db.Uuid
+  stage             String   @default("TRANSCRIBE") @db.VarChar(16)
+  status            String   @default("PENDING") @db.VarChar(32)
+  attempts          Int      @default(0)
+  nextAttemptAt     DateTime @default(now()) @db.Timestamptz(6)
+  lastError         String?
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant    tenants        @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  session   callSessions   @relation(fields: [callId], references: [callId], onDelete: Cascade)
+  recording callRecordings @relation(fields: [recordingId], references: [recordingId], onDelete: Cascade)
+
+  @@unique([tenantId, callId, recordingId])
+  @@index([tenantId, status, nextAttemptAt])
 }
 
 model callMemos {
@@ -710,6 +837,7 @@ model branches {
   defaultShareRule      shareRules?             @relation("branch_default_share_rule", fields: [defaultShareRuleId], references: [shareRuleId], onDelete: SetNull)
   shareRuleBranches     shareRuleBranches[]
   holidayRules          tenantHolidayRules[]
+  arsFlows              arsFlows[]
 
   @@unique([tenantId, branchCode])
   @@index([tenantId, branchName])
@@ -958,6 +1086,7 @@ model AsteriskDid {
   representativeNumber String?                  @db.VarChar(32)
   description          String?                  @db.VarChar(255)
   ivrMenuId            String?                  @db.Uuid
+  flowId               String?                  @db.Uuid
   directQueue          String?                  @db.VarChar(64)
   directExtension      String?                  @db.VarChar(16)
   enabled              Boolean                  @default(true)
@@ -965,10 +1094,144 @@ model AsteriskDid {
   updatedAt            DateTime                 @updatedAt @db.Timestamptz(6)
   tenant               tenants                  @relation(fields: [tenantId], references: [tenantId])
   ivrMenu              AsteriskIvrMenu?         @relation(fields: [ivrMenuId], references: [id])
+  flow                 arsFlows?                @relation(fields: [flowId], references: [flowId], onDelete: SetNull)
   branchMappings       branchDids[]
   forwardingRule       asteriskForwardingRules?
 
   @@unique([tenantId, did])
+}
+
+model arsFlows {
+  flowId      String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  branchId    String?  @db.Uuid
+  name        String   @db.VarChar(128)
+  description String?
+  status      String   @default("DRAFT") @db.VarChar(16)
+  /// 진입 노드. arsFlowNodes 를 가리키지만 FK 를 걸지 않는다 — 순환 FK 가 되어 생성 순서가 꼬인다.
+  /// 존재 여부는 flow-graph.validator 가 확인한다.
+  entryNodeId String?  @db.Uuid
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant tenants        @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  branch branches?      @relation(fields: [branchId], references: [branchId], onDelete: SetNull)
+  nodes  arsFlowNodes[]
+  edges  arsFlowEdges[]
+  dids   AsteriskDid[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, status])
+}
+
+model arsFlowNodes {
+  nodeId    String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  flowId    String   @db.Uuid
+  nodeType  String   @db.VarChar(24)
+  label     String   @db.VarChar(128)
+  config    Json
+  /// 편집기 좌표. 컴파일러에는 전달하지 않는다 (좌표가 dialplan 을 바꾸면 안 된다).
+  posX      Int      @default(0)
+  posY      Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant    tenants        @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  flow      arsFlows       @relation(fields: [flowId], references: [flowId], onDelete: Cascade)
+  edgesFrom arsFlowEdges[] @relation("ars_flow_edge_from")
+  edgesTo   arsFlowEdges[] @relation("ars_flow_edge_to")
+
+  @@index([tenantId, flowId])
+}
+
+model arsFlowEdges {
+  edgeId     String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  flowId     String   @db.Uuid
+  fromNodeId String   @db.Uuid
+  toNodeId   String   @db.Uuid
+  condition  String   @db.VarChar(24)
+  digit      String?  @db.VarChar(2)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant   tenants      @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  flow     arsFlows     @relation(fields: [flowId], references: [flowId], onDelete: Cascade)
+  fromNode arsFlowNodes @relation("ars_flow_edge_from", fields: [fromNodeId], references: [nodeId], onDelete: Cascade)
+  toNode   arsFlowNodes @relation("ars_flow_edge_to", fields: [toNodeId], references: [nodeId], onDelete: Cascade)
+
+  @@unique([flowId, fromNodeId, condition, digit])
+  @@index([tenantId, flowId])
+}
+
+/// 테넌트 밖의 계정. tenantId 가 없다 — 상담원이 아니고 큐·통계·대시보드에 나타나지 않는다.
+model platformAdmins {
+  platformAdminId    String    @id @default(uuid()) @db.Uuid
+  loginId            String    @unique @db.VarChar(64)
+  displayName        String    @db.VarChar(128)
+  passwordHash       String    @db.Text
+  isActive           Boolean   @default(true)
+  /// 부트스트랩 env 로 만든 계정은 첫 로그인에서 반드시 비밀번호를 바꿔야 한다.
+  /// env 파일에 남은 값이 그대로 운영 비밀번호가 되는 것을 막는다.
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime? @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+
+  refreshTokens platformAdminRefreshTokens[]
+}
+
+model platformAdminRefreshTokens {
+  refreshTokenId  String    @id @default(uuid()) @db.Uuid
+  platformAdminId String    @db.Uuid
+  tokenHash       String    @unique @db.VarChar(64)
+  issuedAt        DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt       DateTime  @db.Timestamptz(6)
+  revokedAt       DateTime? @db.Timestamptz(6)
+  userAgent       String?   @db.VarChar(255)
+  ipAddress       String?   @db.VarChar(64)
+
+  platformAdmin platformAdmins @relation(fields: [platformAdminId], references: [platformAdminId], onDelete: Cascade)
+
+  @@index([platformAdminId, revokedAt])
+  @@index([expiresAt])
+}
+
+/// 행이 없으면 `feature-catalog.ts` 의 기능별 기본값으로 판정한다.
+model tenantFeatureEntitlements {
+  entitlementId    String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  featureKey       String    @db.VarChar(64)
+  enabled          Boolean
+  /// 처음 켠 시각. 되돌릴 수 없는 기능의 평문/암호문 경계를 나중에 알아야 한다.
+  enabledAt        DateTime? @db.Timestamptz(6)
+  note             String?
+  updatedByAdminId String?   @db.Uuid
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(6)
+
+  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, featureKey])
+  @@index([tenantId])
+}
+
+model tenantFeatureEntitlementAuditLogs {
+  auditLogId      String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  featureKey      String   @db.VarChar(64)
+  platformAdminId String?  @db.Uuid
+  beforeEnabled   Boolean?
+  afterEnabled    Boolean
+  note            String?
+  clientIp        String?  @db.VarChar(64)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc)])
 }
 
 model AsteriskSpeedDial {

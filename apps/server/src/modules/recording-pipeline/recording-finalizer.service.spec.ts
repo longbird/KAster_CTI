@@ -49,6 +49,7 @@ describe('RecordingFinalizerService', () => {
       new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
       new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
       {} as any,
+      { isEnabled: async () => true } as any,
     );
 
     await service.finalizeJob({
@@ -86,6 +87,7 @@ describe('RecordingFinalizerService', () => {
       new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
       new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
       {} as any,
+      { isEnabled: async () => true } as any,
     );
 
     await service.finalizeJob({
@@ -128,6 +130,7 @@ describe('RecordingFinalizerService', () => {
       new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
       new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
       {} as any,
+      { isEnabled: async () => true } as any,
     );
 
     await service.finalizeJob({
@@ -170,6 +173,7 @@ describe('RecordingFinalizerService', () => {
       new RecordingStorageService(configFromObject({ RECORDING_STORAGE_ROOT: tmpDir })),
       new RecordingEncryptionService(configFromObject({ RECORDING_ENCRYPTION_ENABLED: 'false' })),
       eventBus,
+      { isEnabled: async () => true } as any,
     );
 
     await service.finalizeJob({

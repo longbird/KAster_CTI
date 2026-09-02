@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { FeatureEntitlementService } from '../../common/feature-entitlement.service';
 import { PrismaService } from '../../common/prisma.service';
 import { createReadStream, createWriteStream, promises as fs } from 'fs';
 import * as path from 'path';
@@ -30,6 +31,7 @@ export class RecordingFinalizerService implements OnModuleInit {
     private readonly storage: RecordingStorageService,
     private readonly encryption: RecordingEncryptionService,
     private readonly eventBus: EventBusService,
+    private readonly entitlement: FeatureEntitlementService,
     private readonly leader?: AmiLeaderElectionService,
   ) {}
 
@@ -113,10 +115,14 @@ export class RecordingFinalizerService implements OnModuleInit {
         return;
       }
 
-      const encrypted = await this.encryption.encryptFile(inspected.filePath);
-      const encryptedPlayback = playback
+      // 암호화는 env(서버가 할 수 있나)와 자격(이 테넌트가 가질 수 있나)이 모두 켜져야 한다.
+      // 복호 경로는 이 판정을 보지 않는다 — 자격과 무관하게 기존 녹취는 들을 수 있어야 한다.
+      const noEncryption = { encryptionStatus: 'NONE' as const, encryptedFilePath: null, keyRef: null };
+      const mayEncrypt = await this.entitlement.isEnabled(job.tenantId, 'recording-encryption');
+      const encrypted = mayEncrypt ? await this.encryption.encryptFile(inspected.filePath) : noEncryption;
+      const encryptedPlayback = mayEncrypt && playback
         ? await this.encryption.encryptFile(playback.filePath)
-        : { encryptionStatus: 'NONE' as const, encryptedFilePath: null, keyRef: null };
+        : noEncryption;
       const finalizedAt = new Date();
       const saved = await this.saveRecording(job, {
         filePath: inspected.filePath,

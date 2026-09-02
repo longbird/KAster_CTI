@@ -1,4 +1,4 @@
-import { Alert, Card, Col, Radio, Row, Select, Space, Spin, Typography } from 'antd';
+import { Alert, Card, Col, Radio, Row, Select, Space, Spin, Tabs, Typography } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   type QueueOption,
@@ -8,6 +8,8 @@ import {
   fetchTrends,
 } from '../api/trendsApi';
 import type { TrendResolution } from '../trendSeries';
+import { usePermissionStore } from '../../../store/usePermissionStore';
+import { CallInsightsPanel } from './CallInsightsPanel';
 import { TrendChart, type ChartSeries } from './TrendChart';
 import { RANGE_PRESETS, type RangePresetKey, resolveRange } from '../rangePresets';
 
@@ -31,6 +33,9 @@ export function TrendsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [tab, setTab] = useState<'trends' | 'insights'>('trends');
+  // 메뉴가 없는 기능이라 자격을 직접 본다. 자격 판정은 서버가 한 것을 그대로 쓴다.
+  const insightsEnabled = usePermissionStore((s) => s.featureEntitlements['ai-insights'] ?? false);
 
   useEffect(() => {
     fetchQueueOptions().then(setQueues).catch(() => setQueues([]));
@@ -58,6 +63,7 @@ export function TrendsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const range = useMemo(() => resolveRange(preset), [preset]);
   const points = data?.points ?? [];
   const timestamps = useMemo(() => points.map((point) => point.at), [points]);
   const outageIndexes = useMemo(
@@ -153,28 +159,56 @@ export function TrendsPage() {
           />
         )}
 
-        <Spin spinning={loading}>
-          <Row gutter={[12, 12]}>
-            {charts.map((chart) => (
-              <Col xs={24} key={chart.title}>
-                <Card
-                  size="small"
-                  title={chart.title}
-                  extra={chart.extra && <Typography.Text type="secondary">{chart.extra}</Typography.Text>}
-                >
-                  <TrendChart
-                    series={chart.series}
-                    timestamps={timestamps}
-                    resolution={data?.range.resolution ?? 'PT1M'}
-                    outageIndexes={chart.title === '리소스' ? outageIndexes : []}
-                    hoverIndex={hoverIndex}
-                    onHoverIndex={setHoverIndex}
-                  />
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </Spin>
+        <Tabs
+          activeKey={tab}
+          onChange={(key) => setTab(key as 'trends' | 'insights')}
+          items={[
+            {
+              key: 'trends',
+              label: '운영 추이',
+              children: (
+                <Spin spinning={loading}>
+                  <Row gutter={[12, 12]}>
+                    {charts.map((chart) => (
+                      <Col xs={24} key={chart.title}>
+                        <Card
+                          size="small"
+                          title={chart.title}
+                          extra={chart.extra && <Typography.Text type="secondary">{chart.extra}</Typography.Text>}
+                        >
+                          <TrendChart
+                            series={chart.series}
+                            timestamps={timestamps}
+                            resolution={data?.range.resolution ?? 'PT1M'}
+                            outageIndexes={chart.title === '리소스' ? outageIndexes : []}
+                            hoverIndex={hoverIndex}
+                            onHoverIndex={setHoverIndex}
+                          />
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                </Spin>
+              ),
+            },
+            ...(insightsEnabled
+              ? [
+                  {
+                    key: 'insights',
+                    label: 'AI 인사이트',
+                    children: (
+                      <CallInsightsPanel
+                        from={range.from}
+                        to={range.to}
+                        resolution={resolution === 'auto' ? undefined : resolution}
+                        queueId={queueId}
+                      />
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </Space>
     </div>
   );

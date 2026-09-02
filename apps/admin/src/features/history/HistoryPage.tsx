@@ -1,5 +1,5 @@
 import { Button, DatePicker, Input, Skeleton, Space, Table, Tag, Typography } from 'antd';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
@@ -8,6 +8,7 @@ import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
+import { CallAnalysisDrawer } from '../call-analysis/CallAnalysisDrawer';
 
 interface HistoryRow {
   callId: string;
@@ -49,6 +50,8 @@ export function HistoryPage() {
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(1, 'day'), dayjs()]);
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   const [keyword, setKeyword] = useState('');
+  const [analysisCallId, setAnalysisCallId] = useState<string | null>(null);
+  const analysisEnabled = usePermissionStore((s) => s.featureEntitlements['call-analysis'] ?? false);
 
   const load = async () => {
     setLoading(true);
@@ -194,9 +197,33 @@ export function HistoryPage() {
               width: 70,
               render: (v: boolean) => v ? <Tag color="blue">REC</Tag> : '-',
             },
+            ...(analysisEnabled
+              ? [
+                  {
+                    title: 'AI 분석',
+                    width: 90,
+                    render: (_: unknown, r: HistoryRow) => (
+                      <Button
+                        size="small"
+                        icon={<FileTextOutlined />}
+                        disabled={!r.recordingFlag}
+                        onClick={() => setAnalysisCallId(r.callId)}
+                      >
+                        보기
+                      </Button>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       </section>
+
+      <CallAnalysisDrawer
+        callId={analysisEnabled ? analysisCallId : null}
+        canRetry={permission?.canOperate ?? false}
+        onClose={() => setAnalysisCallId(null)}
+      />
     </>
   );
 }

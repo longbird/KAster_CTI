@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { menuKeysHiddenBy } from '../../common/feature-catalog';
+import { FeatureEntitlementService } from '../../common/feature-entitlement.service';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Prisma } from '@prisma/client';
@@ -940,6 +942,7 @@ export class AdminService {
     private readonly healthSummary: HealthSummaryService,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly eventBus: EventBusService,
+    private readonly featureEntitlement: FeatureEntitlementService,
     @Optional() private readonly ami?: AmiConnectionService,
   ) {}
 
@@ -2594,6 +2597,14 @@ export class AdminService {
       roleCode,
     );
 
+    // 기능 자격이 없으면 메뉴 자체를 감춘다. 화면이 스스로 판단하지 않도록 서버가 목록을 준다.
+    const featureEntitlements = await this.featureEntitlement.listForTenant(tenantId);
+    const hiddenMenuKeys = menuKeysHiddenBy(
+      Object.entries(featureEntitlements)
+        .filter(([, enabled]) => !enabled)
+        .map(([key]) => key),
+    );
+
     return {
       success: true,
       data: {
@@ -2601,6 +2612,8 @@ export class AdminService {
         roleCode,
         menuKeys: MENU_KEYS,
         permissions,
+        featureEntitlements,
+        hiddenMenuKeys,
       },
       error: null,
     };
