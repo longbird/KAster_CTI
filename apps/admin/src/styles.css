@@ -43,6 +43,7 @@
 
   --t-micro: 10px;
   --t-caption: 11px;
+  --t-small: 12px;
   --t-body: 13px;
   --t-h5: 13px;
   --t-h4: 15px;
@@ -736,21 +737,7 @@ body {
 /* ============================================================
  * Helper classes
  * ============================================================ */
-.k-panel {
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-radius: var(--r-md);
-}
-.k-eyebrow {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tr-eyebrow);
-  color: var(--fg-3);
-  font-family: var(--font-mono);
-}
 .k-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.k-num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; }
 
 .k-chip {
   display: inline-flex;
@@ -788,8 +775,6 @@ body {
   70%  { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
   100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
 }
-
-.k-hr { height: 1px; background: var(--line-1); border: none; margin: 0; }
 
 /* ============================================================
  * Admin design patterns — operations room / workbench / settings portal
@@ -959,93 +944,9 @@ body {
 }
 
 /* ============================================================
- * Admin Console v2 — adm-* shell (top / side / main / status)
+ * Admin Console v2 — adm-* 페이지 머리 / 카드 / KPI
+ * 셸은 antd Layout 을 쓰는 AppLayout.tsx 다. 여기에 셸을 다시 정의하지 않는다.
  * ============================================================ */
-.adm-brand { display: flex; align-items: center; gap: 10px; }
-.adm-brand-box {
-  width: 24px; height: 24px;
-  background: var(--signal); color: var(--bg-0);
-  font-family: var(--font-sans); font-weight: 700; font-size: 13px;
-  border-radius: 3px;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.adm-brand-wm {
-  font-family: var(--font-sans);
-  font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--fg-1);
-}
-.adm-brand-wm span { color: var(--fg-3); font-weight: 400; }
-.adm-brand-wm em { color: var(--signal); font-style: normal; margin-left: 6px; font-size: 10px; }
-
-.adm-top-meta {
-  display: flex; align-items: center; gap: 14px;
-  color: var(--fg-3); font-family: var(--font-sans);
-  font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0;
-}
-.adm-top-meta strong { color: var(--fg-1); font-weight: 500; }
-.adm-top-meta .seg { display: inline-flex; align-items: center; gap: 6px; }
-.adm-top-meta .sep { width: 1px; height: 12px; background: var(--line-1); display: inline-block; }
-
-.adm-admin-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 0 10px; height: 26px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
-  font-size: 12px;
-  color: var(--fg-1);
-}
-.adm-admin-pill .role {
-  font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0;
-  color: var(--signal); padding: 2px 4px;
-  border: 1px solid var(--signal-dim); border-radius: 2px;
-  background: var(--signal-soft);
-}
-.adm-avatar {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--bg-3); color: var(--fg-1);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 600;
-  border: 1px solid var(--line-2);
-}
-
-/* Admin app shell (grid) */
-.adm-app {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  grid-template-rows: 44px 1fr 24px;
-  grid-template-areas:
-    "top top"
-    "side main"
-    "status status";
-  min-height: 100vh;
-  background: var(--bg-0);
-  color: var(--fg-1);
-}
-.adm-top {
-  grid-area: top;
-  display: grid;
-  grid-template-columns: 220px 1fr auto;
-  align-items: center;
-  border-bottom: 1px solid var(--line-1);
-  background: var(--bg-1);
-  padding: 0 14px 0 16px;
-  gap: 16px;
-}
-.adm-top-right { display: flex; align-items: center; gap: 8px; }
-.adm-side {
-  grid-area: side;
-  background: var(--bg-1);
-  border-right: 1px solid var(--line-1);
-  overflow: auto;
-  padding: 12px 8px;
-}
-.adm-side-group { margin-bottom: 18px; }
-.adm-side-group > h4 {
-  font-family: var(--font-sans); font-size: 10px; text-transform: none; letter-spacing: 0;
-  color: var(--fg-3); font-weight: 600; padding: 0 10px; margin: 0 0 6px;
-}
-.adm-main { grid-area: main; overflow: auto; padding: 14px 18px; }
-.adm-main-inner { display: flex; flex-direction: column; gap: 12px; max-width: 1600px; margin: 0 auto; }
-
 .adm-page-head {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 4px;
@@ -1097,91 +998,6 @@ body {
   margin-top: 6px; letter-spacing: -.015em; line-height: 1;
 }
 .adm-kpi-value .unit { font-size: 13px; color: var(--fg-3); margin-left: 3px; }
-
-/* Bare table variant used by AgentsPage */
-.adm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.adm-table th {
-  text-align: left;
-  padding: 8px 14px;
-  font-family: var(--font-sans); font-size: 10px;
-  text-transform: none; letter-spacing: 0;
-  color: var(--fg-3); font-weight: 600;
-  border-bottom: 1px solid var(--line-1);
-  background: var(--bg-1);
-  position: sticky; top: 0;
-}
-.adm-table td {
-  padding: 9px 14px;
-  border-bottom: 1px solid var(--line-1);
-  color: var(--fg-1);
-  vertical-align: middle;
-}
-.adm-table tr:hover td { background: var(--bg-2); }
-.adm-table tr:last-child td { border-bottom: 0; }
-.adm-table .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.adm-table .muted { color: var(--fg-3); }
-.adm-table .num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-
-/* Queue row */
-.adm-q-row {
-  display: grid;
-  grid-template-columns: 1fr 140px 160px 80px;
-  gap: 14px; align-items: center;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line-1);
-}
-.adm-q-row:last-child { border-bottom: 0; }
-.adm-q-row:hover { background: var(--bg-2); }
-.adm-q-nm {
-  font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--fg-1);
-  display: flex; align-items: center; gap: 8px;
-}
-.adm-q-desc { font-size: 11px; color: var(--fg-3); margin-top: 2px; }
-.adm-q-metric {
-  font-family: var(--font-mono); font-size: 13px; color: var(--fg-1);
-  font-variant-numeric: tabular-nums; text-align: right;
-}
-.adm-q-metric .lbl {
-  font-size: 9px; color: var(--fg-3);
-  text-transform: uppercase; letter-spacing: .1em;
-  display: block; margin-bottom: 2px;
-}
-
-/* Sparkline svg */
-.adm-spark { width: 100%; height: 20px; margin-top: 8px; }
-
-/* Tabs (for agents filter) */
-.adm-tabs {
-  display: flex; gap: 2px;
-  border-bottom: 1px solid var(--line-1);
-  padding: 0 8px;
-  align-items: center;
-}
-.adm-tab {
-  padding: 8px 14px;
-  background: transparent; border: 0;
-  color: var(--fg-3); font-size: 13px; font-weight: 500;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-.adm-tab:hover { color: var(--fg-1); }
-.adm-tab.is-active { color: var(--fg-1); border-bottom-color: var(--signal); }
-
-/* Status bar */
-.adm-status {
-  grid-area: status;
-  border-top: 1px solid var(--line-1);
-  background: var(--bg-1);
-  display: flex; align-items: center; gap: 14px;
-  padding: 0 16px;
-  font-family: var(--font-sans); font-size: 10px; font-weight: 500;
-  text-transform: none; letter-spacing: 0;
-  color: var(--fg-3);
-}
-.adm-status strong { color: var(--fg-1); font-weight: 500; }
-.adm-status .seg { display: inline-flex; align-items: center; gap: 6px; }
-.adm-status .spacer { flex: 1; }
 
 /* ============================================================
  * 모바일 목록 카드 — ResponsiveTable 이 md 이하에서 행 대신 그린다
