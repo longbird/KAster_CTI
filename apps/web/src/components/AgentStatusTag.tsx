@@ -62,7 +62,7 @@ export function AgentStatusTag({ status, onChange }: Props) {
     <button
       type="button"
       aria-label="상태 변경"
-      className={`flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors${
+      className={`flex items-center gap-2 rounded-full px-3 py-1 text-caption font-semibold transition-colors${
         onChange ? ' cursor-pointer hover:scale-105 active:scale-95' : ' cursor-default'
       }`}
       style={{
@@ -79,7 +79,7 @@ export function AgentStatusTag({ status, onChange }: Props) {
       {label}
       {onChange && (
         <span
-          className="material-symbols-outlined text-[14px]"
+          className="material-symbols-outlined text-sm"
           style={{ fontVariationSettings: "'wght' 500" }}
         >
           expand_more

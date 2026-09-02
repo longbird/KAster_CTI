@@ -53,7 +53,7 @@ export function TopAppBar() {
         <button
           type="button"
           onClick={() => setMode('mini')}
-          className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
+          className="rounded-full px-3 py-1 text-caption font-semibold transition-colors"
           style={{
             background: 'var(--bg-elevated)',
             color: 'var(--text-secondary)',
@@ -68,7 +68,7 @@ export function TopAppBar() {
 
         <button
           onClick={() => { void onLogout(); }}
-          className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
+          className="flex items-center gap-1 rounded-full px-2 py-1 text-caption font-semibold"
           style={{ color: 'var(--status-danger)' }}
           title="로그아웃"
         >

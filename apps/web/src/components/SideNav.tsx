@@ -31,7 +31,7 @@ export function SideNav() {
       }}
     >
       <div
-        className="mb-3 flex h-[30px] w-[30px] items-center justify-center rounded-lg text-[11px] font-extrabold text-white"
+        className="mb-3 flex h-[30px] w-[30px] items-center justify-center rounded-lg text-caption font-extrabold text-white"
         style={{
           background: 'linear-gradient(135deg, var(--accent-strong), var(--accent))',
           boxShadow: '0 0 12px var(--accent-glow)',
@@ -78,7 +78,7 @@ export function SideNav() {
       </nav>
 
       <div
-        className="mt-auto flex h-[30px] w-[30px] items-center justify-center rounded-full text-[11px] font-bold"
+        className="mt-auto flex h-[30px] w-[30px] items-center justify-center rounded-full text-caption font-bold"
         style={{
           background: 'var(--bg-raised)',
           color: 'var(--accent)',

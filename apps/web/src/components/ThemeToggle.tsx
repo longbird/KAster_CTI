@@ -41,14 +41,14 @@ function ThemeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold tracking-wide transition-all ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-caption font-bold tracking-wide transition-all ${
         active
           ? 'bg-surface-container-lowest text-primary shadow-sm'
           : 'text-on-surface-variant hover:text-on-surface'
       }`}
       title={label}
     >
-      <span className="material-symbols-outlined text-[16px] leading-none">{icon}</span>
+      <span className="material-symbols-outlined text-base leading-none">{icon}</span>
       {!compact ? <span>{label}</span> : null}
     </button>
   );

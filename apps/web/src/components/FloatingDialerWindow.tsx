@@ -80,7 +80,7 @@ export function FloatingDialerWindow({
       >
         <span className="material-symbols-outlined">dialpad</span>
         <span>
-          <span className="block text-[10px] font-bold uppercase tracking-widest opacity-70">
+          <span className="block text-micro font-bold uppercase tracking-widest opacity-70">
             Dialer
           </span>
           <span className="block text-sm font-bold">전화 발신</span>
@@ -93,7 +93,7 @@ export function FloatingDialerWindow({
     <aside className="fixed bottom-20 left-4 z-[70] w-[min(440px,calc(100vw-2rem))] rounded-[28px] border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-2xl shadow-shadow/10 md:bottom-6 md:left-[17rem] md:w-[min(440px,calc(100vw-19rem))]">
       <div className="mb-4 flex items-center justify-between gap-3 px-2">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-outline">Call Popup</p>
+          <p className="text-micro font-bold uppercase tracking-[0.28em] text-outline">Call Popup</p>
           <h3 className="font-headline text-lg font-bold text-on-surface">전화 발신</h3>
         </div>
         <button
@@ -126,7 +126,7 @@ export function FloatingDialerWindow({
       {tab === 'external' ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-outline-variant/20 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">발신번호</p>
+            <p className="text-micro font-bold uppercase tracking-widest text-on-surface-variant">발신번호</p>
             <select
               value={selectedCallerId}
               onChange={(event) => setSelectedCallerId(event.target.value)}
@@ -143,7 +143,7 @@ export function FloatingDialerWindow({
             </select>
           </div>
           <div className="rounded-2xl border border-outline-variant/20 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">대상 번호</p>
+            <p className="text-micro font-bold uppercase tracking-widest text-on-surface-variant">대상 번호</p>
             <input
               value={phoneNumber}
               onChange={(event) => setPhoneNumber(event.target.value)}
@@ -174,7 +174,7 @@ export function FloatingDialerWindow({
       ) : (
         <div className="space-y-4">
           <div className="rounded-2xl border border-outline-variant/20 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">상담원 검색</p>
+            <p className="text-micro font-bold uppercase tracking-widest text-on-surface-variant">상담원 검색</p>
             <input
               value={agentQuery}
               onChange={(event) => setAgentQuery(event.target.value)}
@@ -207,7 +207,7 @@ export function FloatingDialerWindow({
                         내선 {agent.extension} · {agent.role}
                       </p>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusToneClass(meta.tone)}`}>
+                    <span className={`rounded-full px-2.5 py-1 text-caption font-bold ${statusToneClass(meta.tone)}`}>
                       {meta.label}
                     </span>
                   </div>

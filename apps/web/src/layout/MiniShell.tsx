@@ -108,10 +108,10 @@ export function MiniShell() {
               <span className="material-symbols-outlined text-base" style={{ color: 'var(--signal)' }}>headset_mic</span>
             </div>
             <div className="min-w-0">
-              <p className="k-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
+              <p className="k-mono text-caption font-bold uppercase tracking-widest" style={{ color: 'var(--signal)' }}>
                 KAster CTI
               </p>
-              <p className="truncate text-[10px]" style={{ color: 'var(--fg-3)' }}>
+              <p className="truncate text-micro" style={{ color: 'var(--fg-3)' }}>
                 {agentSession?.agentName ?? '-'} · 내선 <span className="k-mono">{agentSession?.extension ?? '-'}</span>
               </p>
             </div>
@@ -122,7 +122,7 @@ export function MiniShell() {
               title="Full 모드로 전환"
               className="k-btn k-btn-icon k-btn-sm"
             >
-              <span className="material-symbols-outlined text-[16px]">open_in_full</span>
+              <span className="material-symbols-outlined text-base">open_in_full</span>
             </button>
             <button
               onClick={() => {
@@ -131,7 +131,7 @@ export function MiniShell() {
               title="로그아웃"
               className="k-btn k-btn-danger k-btn-icon k-btn-sm"
             >
-              <span className="material-symbols-outlined text-[16px]">logout</span>
+              <span className="material-symbols-outlined text-base">logout</span>
             </button>
           </div>
         </div>
@@ -165,10 +165,10 @@ export function MiniShell() {
                 <h3 className="truncate text-base font-bold text-[var(--fg-1)]">
                   {selectedCall!.customer?.customerName ?? '미식별 고객'}
                 </h3>
-                <p className="truncate text-[11px] text-[var(--fg-3)]">
+                <p className="truncate text-caption text-[var(--fg-3)]">
                   <span className="k-mono text-[var(--fg-2)]">{selectedCall!.ani ?? '-'}</span>
                   {selectedCall!.customer?.grade && (
-                    <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--fg-1)]">
+                    <span className="ml-1 rounded-sm border border-[var(--line-2)] bg-[var(--bg-2)] px-1.5 py-0.5 text-micro font-bold text-[var(--fg-1)]">
                       {selectedCall!.customer.grade}
                     </span>
                   )}
@@ -194,7 +194,7 @@ export function MiniShell() {
               <span className="material-symbols-outlined text-xl text-[var(--fg-3)]">call</span>
             </div>
             <p className="text-sm font-semibold text-[var(--fg-1)]">통화 없음</p>
-            <p className="text-[11px] text-[var(--fg-3)]">새 콜이 배정되면 여기에 표시됩니다</p>
+            <p className="text-caption text-[var(--fg-3)]">새 콜이 배정되면 여기에 표시됩니다</p>
           </div>
         )}
 
@@ -349,8 +349,8 @@ function MiniCtrlButton({
       : 'border-[var(--line-1)] bg-[var(--bg-1)] text-[var(--fg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--line-3)]';
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${toneClass}`}>
-      <span className="material-symbols-outlined text-[20px]">{icon}</span>
-      <span className="k-mono text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      <span className="material-symbols-outlined text-xl">{icon}</span>
+      <span className="k-mono text-micro font-bold uppercase tracking-wider">{label}</span>
     </button>
   );
 }

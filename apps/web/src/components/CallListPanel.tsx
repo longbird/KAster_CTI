@@ -41,7 +41,7 @@ export function CallListPanel() {
           활성 통화
         </span>
         <span
-          className="rounded px-2 py-0.5 text-[11px] font-semibold"
+          className="rounded px-2 py-0.5 text-caption font-semibold"
           style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
         >
           {activeCalls.length}
@@ -53,7 +53,7 @@ export function CallListPanel() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="번호/이름 검색"
-          className="h-8 rounded px-2 text-[12px] outline-none"
+          className="h-8 rounded px-2 text-xs outline-none"
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
@@ -68,7 +68,7 @@ export function CallListPanel() {
                 key={chip.key}
                 type="button"
                 onClick={() => setFilter(chip.key)}
-                className="flex-1 rounded py-1 text-[11px] font-semibold transition-colors"
+                className="flex-1 rounded py-1 text-caption font-semibold transition-colors"
                 style={{
                   background: active ? 'var(--accent-dim)' : 'var(--bg-elevated)',
                   color: active ? 'var(--accent)' : 'var(--text-secondary)',

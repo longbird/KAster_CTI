@@ -36,7 +36,7 @@ export function StatusPanel({ queues }: Props) {
                       {q.queueName}
                     </span>
                   </div>
-                  <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-secondary-container">
+                  <span className="rounded-full bg-secondary-container px-2 py-0.5 text-micro font-bold text-on-secondary-container">
                     상담원 {q.availableAgents}명
                   </span>
                 </div>

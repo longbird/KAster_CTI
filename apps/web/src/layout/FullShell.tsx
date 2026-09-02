@@ -171,7 +171,7 @@ export function FullShell() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               <section className="k-panel p-6 lg:col-span-4">
                 <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-[15px] font-semibold text-[var(--fg-1)]">활성 통화</h3>
+                  <h3 className="text-base font-semibold text-[var(--fg-1)]">활성 통화</h3>
                   <span className="k-eyebrow">
                     {filteredCalls.length}건
                   </span>
@@ -212,9 +212,9 @@ export function FullShell() {
                           <p className="font-semibold text-[var(--fg-1)]">
                             {call.customer?.customerName ?? call.ani ?? '미식별 고객'}
                           </p>
-                          <p className="mt-1 text-[11px] text-[var(--fg-3)]">{call.queueName || '-'}</p>
+                          <p className="mt-1 text-caption text-[var(--fg-3)]">{call.queueName || '-'}</p>
                         </div>
-                        <span className="k-mono text-[10px] font-semibold uppercase text-[var(--signal)]">
+                        <span className="k-mono text-micro font-semibold uppercase text-[var(--signal)]">
                           {call.sessionStatus}
                         </span>
                       </div>
@@ -249,7 +249,7 @@ export function FullShell() {
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
                 <section className="k-panel p-6 lg:col-span-4">
                   <div className="mb-5 flex items-center justify-between">
-                    <h3 className="text-[15px] font-semibold text-[var(--fg-1)]">큐 목록</h3>
+                    <h3 className="text-base font-semibold text-[var(--fg-1)]">큐 목록</h3>
                     <span className="k-eyebrow">
                       {queues.length}개
                     </span>
@@ -269,7 +269,7 @@ export function FullShell() {
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="font-semibold text-[var(--fg-1)]">{queue.queueName}</p>
-                            <p className="mt-1 text-[11px] text-[var(--fg-3)]">
+                            <p className="mt-1 text-caption text-[var(--fg-3)]">
                               대기 {queue.waitingCount} / 통화 {queue.talkingCount} / 가능 {queue.availableAgents}
                             </p>
                           </div>
@@ -286,7 +286,7 @@ export function FullShell() {
                   <section className="k-panel p-6">
                     <div className="mb-5 flex items-center justify-between">
                       <div>
-                        <h3 className="text-[15px] font-semibold text-[var(--fg-1)]">
+                        <h3 className="text-base font-semibold text-[var(--fg-1)]">
                           {selectedQueue?.queueName ?? '큐 상세'}
                         </h3>
                         <p className="mt-1 text-xs text-[var(--fg-3)]">
@@ -308,7 +308,7 @@ export function FullShell() {
                             <p className="mt-3 k-num text-3xl font-semibold text-[var(--fg-1)]">
                               {selectedQueue.waitingCount}
                             </p>
-                            <p className="mt-2 text-[11px] text-[var(--fg-3)]">
+                            <p className="mt-2 text-caption text-[var(--fg-3)]">
                               전체 큐 부하 대비{' '}
                               {totalQueueLoad > 0
                                 ? Math.round((selectedQueue.waitingCount / totalQueueLoad) * 100)
@@ -323,7 +323,7 @@ export function FullShell() {
                             <p className="mt-3 k-num text-3xl font-semibold text-[var(--fg-1)]">
                               {selectedQueue.talkingCount}
                             </p>
-                            <p className="mt-2 text-[11px] text-[var(--fg-3)]">
+                            <p className="mt-2 text-caption text-[var(--fg-3)]">
                               현재 상담 연결량 기준 실시간 점유
                             </p>
                           </div>
@@ -334,7 +334,7 @@ export function FullShell() {
                             <p className="mt-3 k-num text-3xl font-semibold text-[var(--fg-1)]">
                               {selectedQueue.availableAgents}
                             </p>
-                            <p className="mt-2 text-[11px] text-[var(--fg-3)]">
+                            <p className="mt-2 text-caption text-[var(--fg-3)]">
                               즉시 응대 가능한 상담원 수
                             </p>
                           </div>
@@ -348,7 +348,7 @@ export function FullShell() {
                             <p className="mt-3 k-num text-3xl font-semibold text-[var(--signal)]">
                               {selectedQueue.longestWaitSeconds}s
                             </p>
-                            <p className="mt-2 text-[11px] text-[var(--fg-3)]">
+                            <p className="mt-2 text-caption text-[var(--fg-3)]">
                               장시간 대기 고객이 있으면 우선 배정 점검이 필요합니다.
                             </p>
                           </div>
@@ -391,7 +391,7 @@ export function FullShell() {
                                 }}
                               />
                             </div>
-                            <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-[var(--fg-3)]">
+                            <div className="mt-3 flex flex-wrap gap-3 text-caption text-[var(--fg-3)]">
                               <span>대기 {selectedQueue.waitingCount}</span>
                               <span>통화 {selectedQueue.talkingCount}</span>
                               <span>가능 {selectedQueue.availableAgents}</span>
@@ -412,7 +412,7 @@ export function FullShell() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               <section className="k-panel p-6 lg:col-span-7">
                 <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-[15px] font-semibold text-[var(--fg-1)]">최근 이력</h3>
+                  <h3 className="text-base font-semibold text-[var(--fg-1)]">최근 이력</h3>
                   <span className="k-eyebrow">
                     {filteredHistory.length}건
                   </span>
@@ -442,15 +442,15 @@ export function FullShell() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="font-semibold text-[var(--fg-1)]">{item.customerName}</p>
-                          <p className="mt-1 text-[11px] text-[var(--fg-3)]">
+                          <p className="mt-1 text-caption text-[var(--fg-3)]">
                             {item.phoneNumber} · {item.queueName}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="k-mono text-[11px] font-semibold uppercase text-[var(--signal)]">
+                          <p className="k-mono text-caption font-semibold uppercase text-[var(--signal)]">
                             {item.resultCode}
                           </p>
-                          <p className="mt-1 text-[11px] text-[var(--fg-3)]">{formatTime(item.startedAt)}</p>
+                          <p className="mt-1 text-caption text-[var(--fg-3)]">{formatTime(item.startedAt)}</p>
                         </div>
                       </div>
                     </div>
@@ -459,7 +459,7 @@ export function FullShell() {
               </section>
               <section className="k-panel p-6 lg:col-span-5">
                 <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-[15px] font-semibold text-[var(--fg-1)]">이벤트 기록</h3>
+                  <h3 className="text-base font-semibold text-[var(--fg-1)]">이벤트 기록</h3>
                   <span className="k-eyebrow">
                     최신
                   </span>
@@ -471,7 +471,7 @@ export function FullShell() {
                     <div key={item.id} className="rounded-xl border border-[var(--line-1)] p-4">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm text-on-surface">{item.message}</p>
-                        <span className="shrink-0 text-[11px] text-[var(--fg-3)]">{formatTime(item.timestamp)}</span>
+                        <span className="shrink-0 text-caption text-[var(--fg-3)]">{formatTime(item.timestamp)}</span>
                       </div>
                     </div>
                   ))}

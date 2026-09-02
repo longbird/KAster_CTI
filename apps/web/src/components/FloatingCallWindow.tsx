@@ -45,7 +45,7 @@ export function FloatingCallWindow({
       >
         <span className="material-symbols-outlined">call</span>
         <span>
-          <span className="block text-[10px] font-bold uppercase tracking-widest text-white/70">
+          <span className="block text-micro font-bold uppercase tracking-widest text-white/70">
             현재 통화
           </span>
           <span className="block text-sm font-bold">
@@ -60,7 +60,7 @@ export function FloatingCallWindow({
     <aside className="fixed right-4 top-20 z-[70] w-[min(560px,calc(100vw-2rem))] rounded-[28px] border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-2xl shadow-shadow/10 md:right-6 md:top-24">
       <div className="mb-4 flex items-center justify-between gap-3 px-2">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-outline">
+          <p className="text-micro font-bold uppercase tracking-[0.28em] text-outline">
             Live Call Popup
           </p>
           <h3 className="font-headline text-lg font-bold text-on-surface">통화 제어 팝업</h3>

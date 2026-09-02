@@ -27,7 +27,7 @@ export function AnnouncementsPanel({
   return (
     <section className={`k-panel ${compact ? 'p-3' : 'p-5'}`} aria-label="공지사항">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-[15px] font-semibold text-[var(--fg-1)]">공지사항</h3>
+        <h3 className="text-base font-semibold text-[var(--fg-1)]">공지사항</h3>
         <span className="k-eyebrow">{announcements.length}건</span>
       </div>
       <div className="space-y-2">
@@ -44,7 +44,7 @@ export function AnnouncementsPanel({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   {item.pinned ? (
-                    <span className="rounded-sm border border-[var(--signal-dim)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--signal)]">
+                    <span className="rounded-sm border border-[var(--signal-dim)] px-1.5 py-0.5 text-micro font-semibold text-[var(--signal)]">
                       고정
                     </span>
                   ) : null}
@@ -54,7 +54,7 @@ export function AnnouncementsPanel({
                   {item.body}
                 </p>
               </div>
-              <time className="shrink-0 text-[10px] text-[var(--fg-3)]" dateTime={item.createdAt}>
+              <time className="shrink-0 text-micro text-[var(--fg-3)]" dateTime={item.createdAt}>
                 {formatNoticeTime(item.createdAt)}
               </time>
             </div>

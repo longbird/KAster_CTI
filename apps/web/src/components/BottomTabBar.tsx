@@ -27,7 +27,7 @@ export function BottomTabBar() {
             <span className="material-symbols-outlined text-xl leading-none">
               {tab.icon}
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-wider">
+            <span className="text-micro font-bold uppercase tracking-wider">
               {tab.label}
             </span>
           </button>

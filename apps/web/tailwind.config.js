@@ -61,6 +61,12 @@ export default {
         xl: '1.5rem',
         full: '9999px',
       },
+      // Tailwind 기본 스케일(12 · 14 · 16 · 20)에 없는 두 단계만 이름을 준다.
+      // 예전에는 text-[9px] ~ text-[20px] 여덟 가지가 임의값으로 흩어져 있었다.
+      fontSize: {
+        micro: ['10px', { lineHeight: '1.3' }],
+        caption: ['11px', { lineHeight: '1.35' }],
+      },
       fontFamily: {
         headline: ['Manrope', 'system-ui', 'sans-serif'],
         body: ['Inter', 'Pretendard', 'Noto Sans KR', 'system-ui', 'sans-serif'],

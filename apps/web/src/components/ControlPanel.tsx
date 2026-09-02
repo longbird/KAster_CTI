@@ -286,7 +286,7 @@ export function ControlPanel({
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-bold text-on-surface">{item.title}</p>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  <span className="text-micro font-bold uppercase tracking-wider text-primary">
                     {item.id === 'opening'
                       ? '기본 응대'
                       : item.id === 'vip'
@@ -335,7 +335,7 @@ function TabButton({
 
 function FormLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+    <span className="text-micro font-bold uppercase tracking-wider text-on-surface-variant">
       {children}
     </span>
   );
