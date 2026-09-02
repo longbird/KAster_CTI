@@ -82,6 +82,26 @@ describe('치수', () => {
   });
 });
 
+describe('다크 팔레트', () => {
+  // 예전에는 @media (prefers-color-scheme: dark) 하나뿐이라 앱에서 밝기를 고를 수
+  // 없었다. 이제 렌더러가 themeMode('system' 포함)를 풀어 data-theme 를 넣는다.
+  it('data-theme 로 켜진다', () => {
+    expect(css).toMatch(/:root\[data-theme='dark'\]\s*\{/);
+  });
+
+  it('OS 설정에만 매달리지 않는다', () => {
+    // 주석은 걷어내고 규칙만 본다.
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toContain('prefers-color-scheme');
+  });
+
+  it('다크에서도 토큰이 한 벌 다 있다', () => {
+    const dark = rule(":root[data-theme='dark']");
+    for (const token of ['--app-bg', '--surface', '--border', '--text', '--muted', '--primary', '--danger-fg', '--surface-hover']) {
+      expect(dark, `${token} 이 다크 블록에 없다`).toContain(`${token}:`);
+    }
+  });
+});
+
 describe('브랜드 색', () => {
   // 셸은 --primary(steel blue), 로그인 화면은 에메랄드, 옛 화면은 민트 그라디언트로
   // 세 벌이 갈려 있었다. --primary 한 벌로 모은다.

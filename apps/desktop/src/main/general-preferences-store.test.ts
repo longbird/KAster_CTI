@@ -34,6 +34,7 @@ describe('GeneralPreferencesStore', () => {
         alwaysOnTop: true,
         closeToTray: false,
         ringTonePresetId: 'urgent',
+        themeMode: 'dark',
       });
       expect(saved.autoStart).toBe(true);
       expect(saved.autoLogin).toBe(false);
@@ -57,6 +58,7 @@ describe('GeneralPreferencesStore', () => {
           alwaysOnTop: 1,
           closeToTray: 'truthy',
           ringTonePresetId: 'evil-tone',
+          themeMode: 'neon',
         }),
         'utf8',
       );

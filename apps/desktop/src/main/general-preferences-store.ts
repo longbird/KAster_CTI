@@ -3,7 +3,10 @@ import { join } from 'node:path';
 import type {
   DesktopGeneralPreferences,
   DesktopRingTonePresetId,
+  DesktopThemeMode,
 } from '../shared/ipc';
+
+const THEME_MODES: ReadonlyArray<DesktopThemeMode> = ['system', 'light', 'dark'];
 
 const RING_TONE_PRESETS: ReadonlyArray<DesktopRingTonePresetId> = [
   'classic',
@@ -18,6 +21,7 @@ export const DEFAULT_GENERAL_PREFERENCES: DesktopGeneralPreferences = {
   alwaysOnTop: false,
   closeToTray: true,
   ringTonePresetId: 'classic',
+  themeMode: 'system',
 };
 
 function asBool(value: unknown, fallback: boolean): boolean {
@@ -34,6 +38,13 @@ function asRingTonePresetId(value: unknown): DesktopRingTonePresetId {
   return DEFAULT_GENERAL_PREFERENCES.ringTonePresetId;
 }
 
+function asThemeMode(value: unknown): DesktopThemeMode {
+  if (typeof value === 'string' && (THEME_MODES as ReadonlyArray<string>).includes(value)) {
+    return value as DesktopThemeMode;
+  }
+  return DEFAULT_GENERAL_PREFERENCES.themeMode;
+}
+
 export function normalizeGeneralPreferences(
   input: Partial<DesktopGeneralPreferences> | null | undefined,
 ): DesktopGeneralPreferences {
@@ -44,6 +55,7 @@ export function normalizeGeneralPreferences(
     alwaysOnTop: asBool(source.alwaysOnTop, DEFAULT_GENERAL_PREFERENCES.alwaysOnTop),
     closeToTray: asBool(source.closeToTray, DEFAULT_GENERAL_PREFERENCES.closeToTray),
     ringTonePresetId: asRingTonePresetId(source.ringTonePresetId),
+    themeMode: asThemeMode(source.themeMode),
   };
 }
 

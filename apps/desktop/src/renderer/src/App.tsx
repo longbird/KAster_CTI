@@ -9,6 +9,7 @@ import { QueueMonitorPanel } from './components/QueueMonitorPanel';
 import { SoftphoneShell } from './components/SoftphoneShell';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useDesktopStore } from './store/useDesktopStore';
+import { watchTheme } from './theme';
 
 export default function App() {
   const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -99,6 +100,9 @@ export default function App() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  // 'system' 인 동안에는 OS 설정 변화도 따라간다.
+  useEffect(() => watchTheme(generalPreferences.themeMode), [generalPreferences.themeMode]);
 
   useEffect(() => {
     if (!desktopApi?.onProtocolConnect) {

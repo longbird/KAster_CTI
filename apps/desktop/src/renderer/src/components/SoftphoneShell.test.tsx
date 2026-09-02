@@ -112,6 +112,7 @@ const baseProps = {
     alwaysOnTop: false,
     closeToTray: true,
     ringTonePresetId: 'classic' as const,
+    themeMode: 'system' as const,
   },
   onChangeGeneralPreferences: vi.fn(),
   onMute: vi.fn(),

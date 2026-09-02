@@ -7,6 +7,7 @@ import type {
   DesktopCallPreferences,
   DesktopConfig,
   DesktopGeneralPreferences,
+  DesktopThemeMode,
   DesktopRingTonePresetId,
   DesktopTransferHotkeySlot,
 } from '../../../shared/ipc';
@@ -762,6 +763,22 @@ export function SoftphoneShell({
                   }
                 />
                 <span>닫기 버튼 → 트레이로 최소화 (해제 시 종료)</span>
+              </label>
+              <label className="field general-pref-theme">
+                <span>화면 밝기</span>
+                <select
+                  value={generalPreferences.themeMode}
+                  onChange={(event) =>
+                    onChangeGeneralPreferences({
+                      ...generalPreferences,
+                      themeMode: event.target.value as DesktopThemeMode,
+                    })
+                  }
+                >
+                  <option value="system">시스템 설정 따르기</option>
+                  <option value="light">밝게</option>
+                  <option value="dark">어둡게</option>
+                </select>
               </label>
               <label className="field general-pref-ringtone">
                 <span>벨소리 음원</span>

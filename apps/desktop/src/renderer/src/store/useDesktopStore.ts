@@ -190,6 +190,7 @@ const DEFAULT_GENERAL_PREFERENCES: DesktopGeneralPreferences = {
   alwaysOnTop: false,
   closeToTray: true,
   ringTonePresetId: 'classic',
+  themeMode: 'system',
 };
 const OUTBOUND_SOFTPHONE_MATCH_WINDOW_MS = 15_000;
 

@@ -33,6 +33,9 @@ export interface DesktopCallPreferences {
 
 export type DesktopRingTonePresetId = 'classic' | 'soft' | 'urgent' | 'silent';
 
+/** 'system' 이면 OS 설정을 따른다. */
+export type DesktopThemeMode = 'system' | 'light' | 'dark';
+
 export interface DesktopGeneralPreferences {
   /** 부팅 시 자동 시작 (OS 로그인 항목 등록) */
   autoStart: boolean;
@@ -44,6 +47,8 @@ export interface DesktopGeneralPreferences {
   closeToTray: boolean;
   /** 벨소리 음원 프리셋 */
   ringTonePresetId: DesktopRingTonePresetId;
+  /** 화면 밝기. OS 설정과 별개로 앱만 어둡게/밝게 둘 수 있다 */
+  themeMode: DesktopThemeMode;
 }
 
 export type DesktopTransferHotkeyMode = 'blind' | 'attended';

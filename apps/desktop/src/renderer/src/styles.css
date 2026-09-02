@@ -1138,29 +1138,29 @@ button {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    background: #11161d;
-    color: #e5edf5;
-    --app-bg: #11161d;
-    --surface: #171d25;
-    --surface-subtle: #202833;
-    --border: #344152;
-    --border-strong: #4a5a6e;
-    --text: #e5edf5;
-    --muted: #9aa8b8;
-    --primary: #2d7fb8;
-    --primary-strong: #58a5d8;
-    --primary-text: #ffffff;
-    --danger: #c9474f;
-    --danger-text: #ffffff;
-    --danger-fg: #ff8b8b;
-    --ok: #3aa56d;
-    --warn: #c58a22;
-    --shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
-    --surface-hover: rgba(255, 255, 255, 0.06);
-  }
+/* 렌더러가 themeMode('system' 포함)를 풀어 data-theme 를 넣는다.
+ * 예전에는 @media (prefers-color-scheme: dark) 하나뿐이라 앱에서 고를 수 없었다. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  background: #11161d;
+  color: #e5edf5;
+  --app-bg: #11161d;
+  --surface: #171d25;
+  --surface-subtle: #202833;
+  --border: #344152;
+  --border-strong: #4a5a6e;
+  --text: #e5edf5;
+  --muted: #9aa8b8;
+  --primary: #2d7fb8;
+  --primary-strong: #58a5d8;
+  --primary-text: #ffffff;
+  --danger: #c9474f;
+  --danger-text: #ffffff;
+  --danger-fg: #ff8b8b;
+  --ok: #3aa56d;
+  --warn: #c58a22;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
+  --surface-hover: rgba(255, 255, 255, 0.06);
 }
 
 .call-info-panel .grade-badge {
