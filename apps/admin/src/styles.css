@@ -93,8 +93,12 @@
   --line-2: rgba(10, 11, 13, 0.10);
   --line-3: rgba(10, 11, 13, 0.22);
 
+  /* signal 을 여기서 덮지 않으면 다크용 #4ade80 이 흰 배경에 그대로 얹혀 1.6:1 이 된다.
+   * 선택된 메뉴 항목 · .k-chip.is-available · 로그인 히어로 배지 세 곳이 같이 걸린다. */
+  --signal: #15803d;
   --signal-soft: rgba(74, 222, 128, 0.18);
   --signal-dim: #15803d;
+  --focus-ring: 0 0 0 2px rgba(21, 128, 61, 0.45);
   --accent-info: #2563eb;
   --accent-warn: #d97706;
   --accent-danger: #dc2626;
