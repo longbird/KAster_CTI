@@ -157,6 +157,7 @@ export function AgentMonitoringPage() {
     {
       title: '상담원',
       dataIndex: 'agentName',
+      width: 200,
       render: (value, row) => (
         <Space direction="vertical" size={0}>
           <span>{value}</span>
@@ -169,16 +170,19 @@ export function AgentMonitoringPage() {
     {
       title: '그룹',
       dataIndex: ['agentGroup', 'groupName'],
+      width: 140,
       render: (_, row) => row.agentGroup?.groupName ?? '미지정',
     },
     {
       title: '로그인',
       dataIndex: 'loginStatus',
+      width: 100,
       render: (value: string) =>
         value === 'LOGGED_IN' ? <Tag color="green">온라인</Tag> : <Tag>오프라인</Tag>,
     },
     {
       title: '전화기',
+      width: 110,
       render: (_, row) =>
         row.sipRegistration.registered ? (
           <Tag color="green">등록</Tag>
@@ -188,13 +192,14 @@ export function AgentMonitoringPage() {
     },
     {
       title: '상태',
+      width: 130,
       render: (_, row) => {
         const code = row.currentStatus?.statusCode;
         const elapsed = secondsSince(row.currentStatus?.startedAt, now);
         return (
           <Space direction="vertical" size={0}>
             <Tag color={statusColor(code)}>{formatStatus(code)}</Tag>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
               {formatDuration(elapsed)}
             </Typography.Text>
           </Space>
@@ -216,7 +221,7 @@ export function AgentMonitoringPage() {
             <span>
               {direction === 'OUTBOUND' ? '발신' : '수신'} · {counterparty ?? '-'}
             </span>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
               {row.activeCall.queueName ?? '-'} · {formatDuration(elapsed)}
             </Typography.Text>
           </Space>
@@ -308,6 +313,7 @@ export function AgentMonitoringPage() {
             columns={columns}
             pagination={false}
             size="middle"
+            tableLayout="fixed"
           />
         </Space>
       </Card>

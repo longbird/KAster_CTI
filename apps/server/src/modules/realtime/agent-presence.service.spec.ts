@@ -26,6 +26,18 @@ function buildRedis() {
     }),
     hgetall: jest.fn(async (key: string) => Object.fromEntries(store.get(key) ?? new Map())),
     expire: jest.fn(async () => 1),
+    pipeline: jest.fn(() => {
+      const keys: string[] = [];
+      const chain = {
+        hgetall: (key: string) => {
+          keys.push(key);
+          return chain;
+        },
+        exec: async () =>
+          keys.map((key) => [null, Object.fromEntries(store.get(key) ?? new Map())]),
+      };
+      return chain;
+    }),
   };
   return { redis: { getClient: () => client } as any, client, store };
 }
@@ -222,5 +234,34 @@ describe('AgentPresenceService', () => {
     expect(listener).not.toHaveBeenCalled();
 
     await service.onModuleDestroy();
+  });
+  it('reads many agents in one pipeline and drops the ones whose nodes expired', async () => {
+    const { redis, client, store } = buildRedis();
+    const service = new AgentPresenceService(redis);
+
+    await service.markConnected('tenant-1', 'agent-live', 'socket-1');
+    // 죽은 노드는 hdel 을 못 했으므로 field 가 남는다 — 만료 시각으로 걸러져야 한다.
+    store.set('presence:tenant-1:agent-stale', new Map([['dead-node', String(Date.now() - 1000)]]));
+
+    const connected = await service.connectedAgentIds('tenant-1', [
+      'agent-live',
+      'agent-stale',
+      'agent-never',
+    ]);
+
+    expect([...connected]).toEqual(['agent-live']);
+    expect(client.pipeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('assumes connected when the pipeline read fails, like isConnected does', async () => {
+    const { redis, client } = buildRedis();
+    client.pipeline.mockImplementationOnce(() => {
+      throw new Error('redis down');
+    });
+    const service = new AgentPresenceService(redis);
+
+    const connected = await service.connectedAgentIds('tenant-1', ['agent-1', 'agent-2']);
+
+    expect([...connected]).toEqual(['agent-1', 'agent-2']);
   });
 });

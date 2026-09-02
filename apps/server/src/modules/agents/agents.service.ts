@@ -11,6 +11,7 @@ import { AmiConnectionService } from '../ami/ami-connection.service';
 import type { ParsedAmiFrame } from '../ami/ami.parser';
 import { AsteriskReloadService } from '../asterisk-config/asterisk-reload.service';
 import { AgentStateService } from '../calls/agent-state.service';
+import { AgentPresenceService } from '../realtime/agent-presence.service';
 import {
   CopyAgentPermissionsDto,
   PERMISSION_COPY_CORE_SCOPES,
@@ -26,6 +27,7 @@ export class AgentsService {
     private readonly asteriskReload: AsteriskReloadService,
     private readonly ami: AmiConnectionService,
     private readonly agentStateService: AgentStateService,
+    private readonly presence: AgentPresenceService,
   ) {}
 
   async listForTenant(tenantId: string) {
@@ -107,10 +109,18 @@ export class AgentsService {
 
     const contactsByExtension = this.indexContactsByExtension(await this.fetchPjsipContacts());
 
+    // refresh token 만 보고 로그인 여부를 판정하면 안 된다. 토큰은 14일짜리라
+    // 앱을 그냥 닫거나 죽은 세션도 2주 동안 "온라인" 으로 남는다. 지금 앱이 붙어
+    // 있는가는 WS presence 가 답한다 — 큐 pause 도 같은 신호를 쓴다.
+    const connectedAgentIds = await this.presence.connectedAgentIds(tenantId, agentIds);
+    const isLoggedIn = (agentId: string) =>
+      activeSessionByAgentId.has(agentId) && connectedAgentIds.has(agentId);
+
     const withStatus = agents.map((agent) => ({
       ...agent,
       currentStatus: currentStatusByAgentId.get(agent.agentId) ?? null,
-      loginStatus: activeSessionByAgentId.has(agent.agentId) ? 'LOGGED_IN' : 'LOGGED_OUT',
+      loginStatus: isLoggedIn(agent.agentId) ? 'LOGGED_IN' : 'LOGGED_OUT',
+      appConnected: connectedAgentIds.has(agent.agentId),
       activeSession: activeSessionByAgentId.get(agent.agentId) ?? null,
       sipRegistration: contactsByExtension[agent.extension] ?? {
         registered: false,
@@ -120,7 +130,7 @@ export class AgentsService {
         roundtripUsec: null,
       },
       canCall: agent.isActive
-        && activeSessionByAgentId.has(agent.agentId)
+        && isLoggedIn(agent.agentId)
         && Boolean(contactsByExtension[agent.extension]?.registered),
     }));
 

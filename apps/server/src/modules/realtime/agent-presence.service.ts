@@ -115,6 +115,42 @@ export class AgentPresenceService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * 여러 상담원의 접속 여부를 한 번에 읽는다.
+   *
+   * 목록 화면은 상담원 전원을 5초마다 다시 묻는다. isConnected 를 사람 수만큼
+   * 이어 부르면 그만큼 왕복이 늘어나므로 파이프라인으로 한 번에 보낸다.
+   * 읽기 실패 시 전원을 접속 중으로 보는 것은 isConnected 와 같은 이유다.
+   */
+  async connectedAgentIds(tenantId: string, agentIds: ReadonlyArray<string>): Promise<Set<string>> {
+    if (!tenantId || agentIds.length === 0) return new Set();
+
+    try {
+      const pipeline = this.redis.getClient().pipeline();
+      for (const agentId of agentIds) {
+        pipeline.hgetall(this.presenceKey(tenantId, agentId));
+      }
+      const results = await pipeline.exec();
+      const now = Date.now();
+      const connected = new Set<string>();
+      agentIds.forEach((agentId, index) => {
+        const [err, nodes] = results?.[index] ?? [null, null];
+        if (err) {
+          connected.add(agentId);
+          return;
+        }
+        const values = Object.values((nodes as Record<string, string> | null) ?? {});
+        if (values.some((expiresAt) => Number(expiresAt) > now)) {
+          connected.add(agentId);
+        }
+      });
+      return connected;
+    } catch (err) {
+      this.logger.warn(`presence bulk read failed, assuming connected: ${(err as Error).message}`);
+      return new Set(agentIds);
+    }
+  }
+
   async onModuleDestroy() {
     this.stopHeartbeat();
     // 프로세스가 내려가는 중이므로 내가 들고 있던 자리는 즉시 비운다. 남겨 두면

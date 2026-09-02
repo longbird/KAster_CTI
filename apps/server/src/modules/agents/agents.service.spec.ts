@@ -20,7 +20,8 @@ describe('AgentsService', () => {
     const reload = { scheduleReload: jest.fn() } as any;
     const ami = { sendActionWithResponse: jest.fn().mockResolvedValue([]) } as any;
     const agentStateService = { changeStatus: jest.fn() } as any;
-    const service = new AgentsService(prisma, reload, ami, agentStateService);
+    const presence = { connectedAgentIds: jest.fn().mockResolvedValue(new Set()) } as any;
+    const service = new AgentsService(prisma, reload, ami, agentStateService, presence);
 
     await service.update('tenant-1', 'agent-1', { extensionDisplayName: ' 본사 1번 데스크 ' });
 
@@ -53,7 +54,8 @@ describe('AgentsService', () => {
     const reload = { scheduleReload: jest.fn() } as any;
     const ami = { sendActionWithResponse: jest.fn().mockResolvedValue([]) } as any;
     const agentStateService = { changeStatus: jest.fn() } as any;
-    const service = new AgentsService(prisma, reload, ami, agentStateService);
+    const presence = { connectedAgentIds: jest.fn().mockResolvedValue(new Set()) } as any;
+    const service = new AgentsService(prisma, reload, ami, agentStateService, presence);
 
     await service.update('tenant-1', 'agent-1', { sipPassword: null });
 
@@ -63,5 +65,61 @@ describe('AgentsService', () => {
       }),
     );
     expect(reload.scheduleReload).toHaveBeenCalledWith('tenant-1');
+  });
+  describe('listForTenant 의 로그인 표시', () => {
+    // refresh token 은 14일짜리라, 앱을 그냥 닫은 자리도 2주 동안 살아 있다.
+    // 그걸 로그인 신호로 쓰면 라이브 모니터가 없는 사람을 온라인으로 세운다.
+    const listPrisma = () => ({
+      agents: {
+        findMany: jest.fn().mockResolvedValue([
+          { agentId: 'agent-1', extension: '1001', isActive: true },
+        ]),
+      },
+      agentStatusHistory: { findMany: jest.fn().mockResolvedValue([]) },
+      refreshTokens: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            agentId: 'agent-1',
+            issuedAt: new Date('2026-08-20T00:00:00Z'),
+            expiresAt: new Date('2099-01-01T00:00:00Z'),
+          },
+        ]),
+      },
+    }) as any;
+
+    const build = (connected: string[]) => {
+      const prisma = listPrisma();
+      const presence = {
+        connectedAgentIds: jest.fn().mockResolvedValue(new Set(connected)),
+      } as any;
+      const ami = { sendActionWithResponse: jest.fn().mockResolvedValue([]) } as any;
+      const service = new AgentsService(
+        prisma,
+        { scheduleReload: jest.fn() } as any,
+        ami,
+        { changeStatus: jest.fn() } as any,
+        presence,
+      );
+      return { service, presence };
+    };
+
+    it('앱이 끊긴 상담원은 토큰이 남아 있어도 로그아웃으로 본다', async () => {
+      const { service } = build([]);
+
+      const result = await service.listForTenant('tenant-1');
+
+      expect(result.data[0].loginStatus).toBe('LOGGED_OUT');
+      expect(result.data[0].appConnected).toBe(false);
+      expect(result.data[0].canCall).toBe(false);
+    });
+
+    it('앱이 붙어 있고 세션도 살아 있으면 로그인으로 본다', async () => {
+      const { service, presence } = build(['agent-1']);
+
+      const result = await service.listForTenant('tenant-1');
+
+      expect(result.data[0].loginStatus).toBe('LOGGED_IN');
+      expect(presence.connectedAgentIds).toHaveBeenCalledWith('tenant-1', ['agent-1']);
+    });
   });
 });
