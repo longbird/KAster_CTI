@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined, PhoneOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Popconfirm, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';

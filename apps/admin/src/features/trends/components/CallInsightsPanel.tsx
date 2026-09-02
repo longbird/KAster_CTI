@@ -1,4 +1,4 @@
-import { Alert, Card, Col, Empty, Progress, Row, Space, Spin, Table, Tag, Typography } from 'antd';
+import { Alert, Card, Col, Empty, Progress, Row, Space, Spin, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import {
   type CallInsightsResponse,
@@ -8,6 +8,7 @@ import {
 import { computeCoverageRate, formatChangeRate } from '../insights/insightFormat';
 import type { TrendResolution } from '../trendSeries';
 import { TrendChart } from './TrendChart';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 interface Props {
   from: string;
@@ -178,7 +179,7 @@ export function CallInsightsPanel({ from, to, resolution, queueId }: Props) {
             <Row gutter={[12, 12]}>
               <Col xs={24} lg={14}>
                 <Card size="small" title="상담 주제 분포">
-                  <Table
+                  <ResponsiveTable
                     rowKey={(row) => row.categoryId ?? UNCLASSIFIED_LABEL}
                     size="small"
                     pagination={false}
@@ -197,7 +198,7 @@ export function CallInsightsPanel({ from, to, resolution, queueId }: Props) {
                     </Typography.Text>
                   }
                 >
-                  <Table
+                  <ResponsiveTable
                     rowKey="keyword"
                     size="small"
                     pagination={false}

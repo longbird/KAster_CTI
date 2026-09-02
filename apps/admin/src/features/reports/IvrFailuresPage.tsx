@@ -1,5 +1,5 @@
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, DatePicker, Input, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, DatePicker, Input, Select, Space, Tag, Typography } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';

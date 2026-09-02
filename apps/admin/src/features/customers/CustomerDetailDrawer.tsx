@@ -1,9 +1,10 @@
-import { Button, Drawer, Form, Space, Table, Typography, message } from 'antd';
+import { Button, Drawer, Form, Space, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { getCustomerDetail, getCustomerHistory, updateCustomer } from './api/customersApi';
 import type { CustomerDetail, CustomerHistoryItem } from './types/customer';
 import { buildCustomerFormValues, normalizeCustomerFormValues, type CustomerFormValues } from './CustomerFormFields';
 import { CustomerDetailSummary } from './CustomerDetailSummary';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface Props {
   open: boolean;
@@ -89,7 +90,7 @@ export function CustomerDetailDrawer({ open, customerId, onClose, canUpdate = tr
           </Form>
 
           <Typography.Title level={5} style={{ marginTop: 20 }}>최근 수/발신 이력</Typography.Title>
-          <Table<CustomerHistoryItem>
+          <ResponsiveTable<CustomerHistoryItem>
             rowKey="callId"
             size="small"
             pagination={false}

@@ -1,4 +1,4 @@
-import { Button, Card, Drawer, Skeleton, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Drawer, Skeleton, Space, Tag, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';

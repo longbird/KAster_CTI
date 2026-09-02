@@ -1,4 +1,4 @@
-import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createIvrMenu, deleteIvrMenu, getIvrMenus, updateIvrMenu } from '../api/asteriskConfigApi';
 import type { AsteriskIvrMenu } from '../types/asterisk-config';

@@ -8,7 +8,6 @@ import {
   Select,
   Skeleton,
   Space,
-  Table,
   Tabs,
   Tag,
   Typography,
@@ -16,6 +15,7 @@ import {
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface AgentRef {
   agentId: string;
@@ -318,7 +318,7 @@ export function ShareRuleEditDrawer({
                   {agentEntries.length === 0 ? (
                     <Empty description="상담원 미지정" />
                   ) : (
-                    <Table<AgentEntry>
+                    <ResponsiveTable<AgentEntry>
                       rowKey="agentId"
                       dataSource={agentEntries}
                       pagination={false}
@@ -374,7 +374,7 @@ export function ShareRuleEditDrawer({
                   {groupEntries.length === 0 ? (
                     <Empty description="그룹 미지정" />
                   ) : (
-                    <Table<GroupEntry>
+                    <ResponsiveTable<GroupEntry>
                       rowKey="agentGroupId"
                       dataSource={groupEntries}
                       pagination={false}
@@ -465,7 +465,7 @@ export function ShareRuleEditDrawer({
                   {branchEntries.length === 0 ? (
                     <Empty description="지사 미지정" />
                   ) : (
-                    <Table<BranchEntry>
+                    <ResponsiveTable<BranchEntry>
                       rowKey="branchId"
                       dataSource={branchEntries}
                       pagination={false}

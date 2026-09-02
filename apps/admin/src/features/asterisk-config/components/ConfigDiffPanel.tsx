@@ -1,5 +1,6 @@
-import { Alert, Empty, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Empty, Space, Tag, Typography } from 'antd';
 import { describeLineDelta, type ConfigDiffEntry, type ConfigValidationResult } from '../apply/applyGate';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 interface Props {
   diff: ConfigDiffEntry[] | null;
@@ -49,7 +50,7 @@ export function ConfigDiffPanel({ diff, validation }: Props) {
         description="통화가 오가는 중에 바뀝니다. 아래 변경 내역을 확인한 뒤 적용하세요."
       />
 
-      <Table<ConfigDiffEntry>
+      <ResponsiveTable<ConfigDiffEntry>
         rowKey="fileName"
         size="small"
         pagination={false}

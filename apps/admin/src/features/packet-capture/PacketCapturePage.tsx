@@ -9,7 +9,6 @@ import {
   Select,
   Space,
   Switch,
-  Table,
   Tag,
   Typography,
   message,
@@ -17,6 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 import {
   describeJobStatus,
   evaluateCaptureReadiness,
@@ -294,7 +294,7 @@ export function PacketCapturePage() {
       </Card>
 
       <Card title="캡처 이력">
-        <Table
+        <ResponsiveTable
           rowKey="packetCaptureJobId"
           size="small"
           loading={loading}

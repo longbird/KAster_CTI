@@ -1,15 +1,4 @@
-import {
-  Button,
-  Card,
-  Modal,
-  Popconfirm,
-  Skeleton,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
+import { Button, Card, Modal, Popconfirm, Skeleton, Space, Tag, Typography, message } from 'antd';
 import {
   CopyOutlined,
   EditOutlined,

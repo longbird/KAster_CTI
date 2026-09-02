@@ -1,4 +1,4 @@
-import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createDid, deleteDid, getDids, updateDid } from '../api/asteriskConfigApi';
 import type { AsteriskDid } from '../types/asterisk-config';

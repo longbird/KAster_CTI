@@ -1,4 +1,4 @@
-import { Button, Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Skeleton, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';

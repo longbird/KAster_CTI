@@ -1,7 +1,8 @@
-import { Card, Progress, Space, Table, Tag } from 'antd';
+import { Card, Progress, Space, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { QueueSummaryItem } from '../types/dashboard';
 import { formatSecondsToClock } from '../../../shared/lib/format';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 function renderVirtualBuffer(item: QueueSummaryItem) {
   const buffer = item.virtualBuffer;
@@ -81,7 +82,7 @@ export function QueueSummaryTable({ items, compact = false }: { items: QueueSumm
       styles={compact ? { body: { padding: 8 } } : undefined}
       style={{ height: '100%' }}
     >
-      <Table
+      <ResponsiveTable
         className="queue-summary-table__table"
         size="small"
         rowKey="queueName"

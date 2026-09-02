@@ -1,4 +1,4 @@
-import { Button, Card, Input, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Input, Space, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { getAgentSip, syncAgentSip, updateAgentSipPassword } from '../api/asteriskConfigApi';
 import type { AgentSipRow } from '../types/asterisk-config';

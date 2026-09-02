@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Skeleton, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Popconfirm, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import {

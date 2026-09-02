@@ -1,4 +1,4 @@
-import { Alert, Button, Input, Modal, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
+import { Alert, Button, Input, Modal, Popconfirm, Space, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { ResponsiveTable } from '../../../components/ResponsiveTable';
 import { usePermissionStore } from '../../../store/usePermissionStore';
@@ -172,7 +172,7 @@ export function ArsHttpEndpointsTab() {
       ) : null}
 
       <ResponsiveTable>
-        <Table
+        <ResponsiveTable
           rowKey="endpointId"
           size="small"
           loading={loading}

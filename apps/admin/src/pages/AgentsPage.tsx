@@ -1,4 +1,4 @@
-import { Button, Card, Skeleton, Table, Tag, Typography } from 'antd';
+import { Button, Card, Skeleton, Tag, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';

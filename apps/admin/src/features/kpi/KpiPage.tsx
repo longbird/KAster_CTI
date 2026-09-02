@@ -1,7 +1,8 @@
-import { Card, Col, Row, Skeleton, Statistic, Table, Tag, Typography } from 'antd';
+import { Card, Col, Row, Skeleton, Statistic, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { AgentWorkTimeChart } from './AgentWorkTimeChart';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface QueueKpi {
   queueName: string;
@@ -91,7 +92,7 @@ export function KpiPage() {
       </Row>
 
       <Card title="큐별 현황 (최근 30분)">
-        <Table<QueueKpi>
+        <ResponsiveTable<QueueKpi>
           rowKey="queueName"
           dataSource={queues}
           pagination={false}
@@ -138,7 +139,7 @@ export function KpiPage() {
 
       {data.traffic && data.traffic.length > 0 && (
         <Card title="시간대별 트래픽">
-          <Table<TrafficRow>
+          <ResponsiveTable<TrafficRow>
             rowKey="hour"
             dataSource={data.traffic}
             pagination={false}

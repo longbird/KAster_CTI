@@ -1,5 +1,5 @@
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, Card, DatePicker, Descriptions, Drawer, Input, Space, Table, Tag, Timeline, Typography } from 'antd';
+import { Button, Card, DatePicker, Descriptions, Drawer, Input, Space, Tag, Timeline, Typography } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
@@ -473,7 +473,7 @@ export function AmiLogsPage() {
             <Typography.Title level={5} style={{ marginBottom: 0 }}>
               기술 로그
             </Typography.Title>
-            <Table<AmiLogRow>
+            <ResponsiveTable<AmiLogRow>
               rowKey="eventId"
               dataSource={rawRows.filter((row) => row.linkedid === selected.linkedid)}
               size="small"

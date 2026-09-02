@@ -1,5 +1,6 @@
-import { Card, Table } from 'antd';
+import { Card } from 'antd';
 import type { AgentTeamSummaryItem } from '../types/dashboard';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 export function TeamStatusTable({ items, compact = false }: { items: AgentTeamSummaryItem[]; compact?: boolean }) {
   return (
@@ -9,7 +10,7 @@ export function TeamStatusTable({ items, compact = false }: { items: AgentTeamSu
       bodyStyle={compact ? { padding: 8 } : undefined}
       style={{ height: '100%' }}
     >
-      <Table
+      <ResponsiveTable
         size="small"
         rowKey="teamName"
         pagination={false}

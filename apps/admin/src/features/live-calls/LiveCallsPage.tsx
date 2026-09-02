@@ -1,4 +1,4 @@
-import { Alert, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Space, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../shared/lib/apiClient';

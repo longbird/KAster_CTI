@@ -1,19 +1,4 @@
-import {
-  Alert,
-  Button,
-  Card,
-  Checkbox,
-  Col,
-  Row,
-  Select,
-  Skeleton,
-  Space,
-  Table,
-  Tabs,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
+import { Alert, Button, Card, Checkbox, Col, Row, Select, Skeleton, Space, Tabs, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';
 import { labelForMenuPath, menuKeyToPath } from '../../shared/permissions/menuConfig';

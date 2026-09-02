@@ -1,4 +1,4 @@
-import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createSpeedDial, deleteSpeedDial, getSpeedDials, updateSpeedDial } from '../api/asteriskConfigApi';
 import type { AsteriskSpeedDial, AsteriskSpeedDialInput } from '../types/asterisk-config';

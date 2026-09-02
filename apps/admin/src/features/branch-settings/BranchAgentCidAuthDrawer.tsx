@@ -1,18 +1,5 @@
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Drawer,
-  Empty,
-  Input,
-  Modal,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
+import { Alert, Button, Checkbox, Drawer, Empty, Input, Modal, Space, Tag, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { FeatureHelpButton } from '../../shared/help';
 import { apiClient } from '../../shared/lib/apiClient';

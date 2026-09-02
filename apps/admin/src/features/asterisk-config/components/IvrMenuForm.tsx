@@ -1,7 +1,8 @@
-import { Button, Form, Input, InputNumber, Modal, Select, Space, Table } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { getPrompts } from '../api/asteriskConfigApi';
 import type { AsteriskIvrMenu, AsteriskPrompt } from '../types/asterisk-config';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 type EntryRow = { _key: string; digit: string; label: string; queueName: string };
 
@@ -94,7 +95,7 @@ export function IvrMenuForm({ open, initial, onOk, onCancel }: Props) {
         <span style={{ fontWeight: 500 }}>메뉴 항목 (DTMF → 큐)</span>
         <Button size="small" onClick={addEntry}>+ 항목 추가</Button>
       </Space>
-      <Table
+      <ResponsiveTable
         size="small"
         dataSource={entries}
         columns={entryCols}

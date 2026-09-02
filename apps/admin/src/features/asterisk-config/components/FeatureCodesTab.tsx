@@ -1,4 +1,4 @@
-import { Alert, Card, Input, Space, Switch, Table, Tag, Typography, notification } from 'antd';
+import { Alert, Card, Input, Space, Switch, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { getFeatureCodes, upsertFeatureCode } from '../api/asteriskConfigApi';
 import type { FeatureCode } from '../types/asterisk-config';

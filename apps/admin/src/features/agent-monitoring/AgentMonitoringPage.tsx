@@ -1,4 +1,4 @@
-import { Card, Col, Input, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Card, Col, Input, Row, Select, Space, Statistic, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../shared/lib/apiClient';

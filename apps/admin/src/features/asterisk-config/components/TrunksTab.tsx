@@ -1,4 +1,4 @@
-import { Button, Card, Popconfirm, Space, Table, Tag, Typography, notification } from 'antd';
+import { Button, Card, Popconfirm, Space, Tag, Typography, notification } from 'antd';
 import { useEffect, useState } from 'react';
 import { createTrunk, createTrunkGroup, createTrunksBulk, deleteTrunk, deleteTrunkGroup, getTrunkGroups, getTrunks, updateTrunk, updateTrunkGroup } from '../api/asteriskConfigApi';
 import type { AsteriskBulkTrunkInput, AsteriskTrunk, AsteriskTrunkGroup, AsteriskTrunkGroupInput, AsteriskTrunkInput } from '../types/asterisk-config';

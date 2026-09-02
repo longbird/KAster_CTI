@@ -1,7 +1,8 @@
-import { Card, Table, Tag } from 'antd';
+import { Card, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { AgentStatusSummaryItem } from '../types/dashboard';
 import { AGENT_STATUS_TONE } from '../../../shared/ui/tagTone';
+import { ResponsiveTable } from '../../../components/ResponsiveTable';
 
 export function AgentStatusSummaryTable({
   items,
@@ -37,7 +38,7 @@ export function AgentStatusSummaryTable({
       styles={compact ? { body: { padding: 8 } } : undefined}
       style={{ height: '100%' }}
     >
-      <Table
+      <ResponsiveTable
         size="small"
         rowKey="statusCode"
         pagination={false}

@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Popconfirm, Space, Tag, Typography, message } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
 import { usePermissionStore } from '../../store/usePermissionStore';
@@ -181,7 +181,7 @@ export function ConsultCategoriesPage() {
       />
 
       <ResponsiveTable>
-        <Table<ConsultCategoryTreeRow>
+        <ResponsiveTable<ConsultCategoryTreeRow>
           rowKey="categoryId"
           columns={columns}
           dataSource={tree}

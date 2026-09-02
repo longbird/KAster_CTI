@@ -17,7 +17,6 @@ import {
   Skeleton,
   Space,
   Switch,
-  Table,
   Typography,
   message,
 } from 'antd';
@@ -41,6 +40,7 @@ import {
   type QueueMemberAgent,
 } from './queueMemberGroups';
 import { AGENT_OFFER_TIMEOUT_MAX_SECONDS, AGENT_OFFER_TIMEOUT_MIN_SECONDS } from './agentOfferTimeout';
+import { ResponsiveTable } from '../../components/ResponsiveTable';
 
 interface Props {
   open: boolean;
@@ -504,7 +504,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
                   }}
                 >
                   <Card title={`추가 가능 상담원 (${availableAgents.length})`} size="small" styles={{ body: { padding: 0 } }}>
-                    <Table<AgentOption>
+                    <ResponsiveTable<AgentOption>
                       rowKey="agentId"
                       dataSource={availableAgents}
                       size="small"
@@ -561,7 +561,7 @@ export function QueueCreateModal({ open, onClose, onCreated }: Props) {
                   </div>
 
                   <Card title={`분배 대상 (${draftMembers.length})`} size="small" styles={{ body: { padding: 0 } }}>
-                    <Table<DraftMember>
+                    <ResponsiveTable<DraftMember>
                       rowKey="agentId"
                       dataSource={draftMembers}
                       size="small"

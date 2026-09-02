@@ -1,4 +1,4 @@
-import { Button, Card, DatePicker, Input, Modal, Space, Table, Tabs, Tag, Typography, message } from 'antd';
+import { Button, Card, DatePicker, Input, Modal, Space, Tabs, Tag, Typography, message } from 'antd';
 import { DownloadOutlined, PlayCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -397,7 +397,7 @@ export function RecordingsPage() {
             key: 'audits',
             label: `다운로드 감사 (${auditTotal.toLocaleString()})`,
             children: (
-              <Table<RecordingAuditRow>
+              <ResponsiveTable<RecordingAuditRow>
                 rowKey="auditLogId"
                 dataSource={auditRows}
                 loading={auditLoading}
