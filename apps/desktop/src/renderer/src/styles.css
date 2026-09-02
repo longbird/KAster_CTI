@@ -15,6 +15,8 @@
   --primary-text: #ffffff;
   --danger: #ba2f36;
   --danger-text: #ffffff;
+  /* 채우기용 --danger 와 달리, 표면 위에 글자로 얹는 빨강. */
+  --danger-fg: #ba2f36;
   --ok: #1f7a4c;
   --warn: #a16207;
   --shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
@@ -39,6 +41,12 @@ select {
 
 button {
   cursor: pointer;
+}
+
+/* 초점 표시가 한 곳도 없었다. 통화 중에는 키보드로만 조작하는 경우가 많다. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 #root {
@@ -241,7 +249,7 @@ button {
   border-radius: 4px;
   padding: 8px 10px;
   background: rgba(248, 113, 113, 0.14);
-  color: #fca5a5;
+  color: var(--danger-fg);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -285,43 +293,19 @@ button {
 }
 
 .boot-card p {
-  color: #a5bdb0;
+  color: var(--muted);
 }
 
-.login-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.login-card-header h1 {
-  margin: 0;
-  font-size: 1.8rem;
-}
-
-.compact-field {
-  margin-top: 14px;
-}
-
-.text-button,
-.secondary-button,
 .primary-button {
   border: none;
   font-weight: 700;
 }
 
-.text-button {
-  padding: 0;
-  background: transparent;
-  color: #9fbbb0;
-}
-
-.primary-button,
-.secondary-button {
+.secondary-button,
+.primary-button {
   border-radius: 999px;
   padding: 10px 14px;
+  font-weight: 700;
 }
 
 .primary-button {
@@ -331,20 +315,17 @@ button {
   color: #092018;
 }
 
+/* 어두운 유리 배경을 전제로 만든 색이었다. 실제로는 흰 .panel 위에 얹혀
+ * 흰 글자가 흰 배경에 놓였다(1.24:1). 표면 토큰을 쓴다. */
 .secondary-button {
-  background: rgba(255, 255, 255, 0.06);
-  color: #d9ebe1;
-}
-
-.login-error {
-  margin: 16px 0 0;
-  color: #ffb3b3;
-  line-height: 1.5;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text);
 }
 
 .eyebrow {
   margin: 0 0 10px;
-  color: #86d0a7;
+  color: var(--muted);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -352,7 +333,7 @@ button {
 }
 
 .lead {
-  color: #c7d9ce;
+  color: var(--muted);
   line-height: 1.6;
 }
 
@@ -363,16 +344,18 @@ button {
 }
 
 .field span {
-  color: #a5bdb0;
+  color: var(--muted);
   font-size: 0.92rem;
 }
 
+/* 테두리도 배경도 흰색 위에서 보이지 않는 값이었다 — 어두운 유리 배경을
+ * 전제로 만든 규칙이 흰 .panel 위에 그대로 남아 있었다. */
 .field input {
-  border: 1px solid rgba(233, 244, 237, 0.16);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
+  background: var(--surface-subtle);
+  color: var(--text);
 }
 
 .password-input-shell {
@@ -466,7 +449,7 @@ button {
 }
 
 .announcement-banner--pinned {
-  border-left-color: #c9474f;
+  border-left-color: var(--danger);
   background: rgba(201, 71, 79, 0.06);
 }
 
@@ -490,7 +473,7 @@ button {
 
 .announcement-banner--pinned .announcement-banner__badge {
   background: rgba(201, 71, 79, 0.18);
-  color: #c9474f;
+  color: var(--danger-fg);
 }
 
 .announcement-banner__title {
@@ -1155,6 +1138,7 @@ button {
     --primary-text: #ffffff;
     --danger: #c9474f;
     --danger-text: #ffffff;
+    --danger-fg: #ff8b8b;
     --ok: #3aa56d;
     --warn: #c58a22;
     --shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
@@ -1560,7 +1544,7 @@ button {
 
 .queue-monitor--flash {
   animation: queue-monitor-flash 1.2s ease-in-out 2;
-  border-color: #c9474f;
+  border-color: var(--danger);
 }
 
 @keyframes queue-monitor-flash {
