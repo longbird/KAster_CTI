@@ -9,9 +9,9 @@ const headerStyle = { whiteSpace: 'nowrap' as const };
 
 function renderRegistrationStatus(row: AgentSipRow) {
   const status = row.registrationStatus ?? 'UNREGISTERED';
-  if (/Avail|Reachable/i.test(status)) return <Tag color="green">등록됨</Tag>;
-  if (/NonQual|NonQualified/i.test(status)) return <Tag color="green">등록됨(품질측정안함)</Tag>;
-  if (/Lagged|Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="orange">{status}</Tag>;
+  if (/Avail|Reachable/i.test(status)) return <Tag color="success">등록됨</Tag>;
+  if (/NonQual|NonQualified/i.test(status)) return <Tag color="success">등록됨(품질측정안함)</Tag>;
+  if (/Lagged|Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="warning">{status}</Tag>;
   return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
 }
 
@@ -69,7 +69,7 @@ export function AgentSipTab() {
             disabled={!canUpdate}
           />
           {canUpdate ? <Button size="small" onClick={() => handlePasswordSave(row.agentId)}>저장</Button> : null}
-          {row.usesSiteDefault && <Tag color="blue">사이트 기본값 사용</Tag>}
+          {row.usesSiteDefault && <Tag color="processing">사이트 기본값 사용</Tag>}
         </Space>
       ),
     },

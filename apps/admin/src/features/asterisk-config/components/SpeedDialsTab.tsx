@@ -53,7 +53,7 @@ export function SpeedDialsTab() {
   };
 
   const columns = [
-    { title: '단축번호', dataIndex: 'code', width: 120, render: (value: string) => <Tag color="blue">{value}</Tag> },
+    { title: '단축번호', dataIndex: 'code', width: 120, render: (value: string) => <Tag color="processing">{value}</Tag> },
     { title: '대상번호', dataIndex: 'targetNumber', width: 180, render: (value: string) => formatPhoneNumber(value) },
     { title: '표시명', dataIndex: 'displayName' },
     { title: '설명', dataIndex: 'description' },
@@ -61,7 +61,7 @@ export function SpeedDialsTab() {
       title: '상태',
       dataIndex: 'enabled',
       width: 80,
-      render: (value: boolean) => <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>,
+      render: (value: boolean) => <Tag color={value ? 'success' : 'default'}>{value ? '활성' : '비활성'}</Tag>,
     },
     {
       title: '관리',

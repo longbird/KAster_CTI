@@ -159,7 +159,7 @@ export function AgentGroupsPage() {
               return (
                 <Space size={[4, 4]} wrap>
                   {labels.slice(0, 3).map((label) => (
-                    <Tag key={label} color="blue">
+                    <Tag key={label} color="processing">
                       {label}
                     </Tag>
                   ))}
@@ -173,7 +173,7 @@ export function AgentGroupsPage() {
             dataIndex: 'isActive',
             width: 80,
             render: (v: boolean) =>
-              v ? <Tag color="green">사용</Tag> : <Tag color="default">미사용</Tag>,
+              v ? <Tag color="success">사용</Tag> : <Tag color="default">미사용</Tag>,
           },
           {
             title: '수정일',

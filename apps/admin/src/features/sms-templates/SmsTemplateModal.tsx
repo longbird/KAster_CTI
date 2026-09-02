@@ -34,10 +34,10 @@ function estimateSmsType(byteLength: number) {
   }
 
   if (byteLength <= 90) {
-    return { label: 'SMS 예상', color: 'green' as const };
+    return { label: 'SMS 예상', color: 'success' as const };
   }
 
-  return { label: 'LMS 예상', color: 'orange' as const };
+  return { label: 'LMS 예상', color: 'warning' as const };
 }
 
 interface SmsTemplateModalProps {

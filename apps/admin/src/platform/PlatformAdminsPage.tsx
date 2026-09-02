@@ -70,7 +70,7 @@ export function PlatformAdminsPage() {
       render: (loginId: string, row: PlatformAdminRow) => (
         <Space size={6}>
           <Typography.Text code>{loginId}</Typography.Text>
-          {row.platformAdminId === currentAdminId ? <Tag color="blue">본인</Tag> : null}
+          {row.platformAdminId === currentAdminId ? <Tag color="processing">본인</Tag> : null}
         </Space>
       ),
     },
@@ -80,7 +80,7 @@ export function PlatformAdminsPage() {
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
-      render: (isActive: boolean) => (isActive ? <Tag color="green">활성</Tag> : <Tag>비활성</Tag>),
+      render: (isActive: boolean) => (isActive ? <Tag color="success">활성</Tag> : <Tag>비활성</Tag>),
     },
     {
       title: '마지막 로그인',

@@ -87,10 +87,10 @@ interface Props {
 }
 
 const DID_ROUTE_META: Record<string, { label: string; color: string }> = {
-  ARS: { label: 'ARS 메뉴', color: 'blue' },
-  DIRECT_QUEUE: { label: '직접 분배룰', color: 'green' },
-  FORWARDING: { label: '착신전환', color: 'gold' },
-  NONE: { label: '착신 정책 미설정', color: 'red' },
+  ARS: { label: 'ARS 메뉴', color: 'processing' },
+  DIRECT_QUEUE: { label: '직접 분배룰', color: 'success' },
+  FORWARDING: { label: '착신전환', color: 'warning' },
+  NONE: { label: '착신 정책 미설정', color: 'error' },
 };
 
 function buildInitialValues(next: MappingResponse | null): BranchOperationFormValue {
@@ -115,7 +115,7 @@ function buildInitialValues(next: MappingResponse | null): BranchOperationFormVa
 }
 
 function featureStatusTag(enabled: boolean) {
-  return <Tag color={enabled ? 'green' : 'default'}>{enabled ? '사용' : '미사용'}</Tag>;
+  return <Tag color={enabled ? 'success' : 'default'}>{enabled ? '사용' : '미사용'}</Tag>;
 }
 
 export function BranchMappingsModal({ open, branch, onClose, onSaved }: Props) {

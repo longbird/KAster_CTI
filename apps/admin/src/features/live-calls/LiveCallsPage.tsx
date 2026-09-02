@@ -6,6 +6,7 @@ import { FeatureHelpButton } from '../../shared/help';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { CallDetailDrawer, type CallRow } from './CallDetailDrawer';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
+import { TRANSFER_PHASE_TONE } from '../../shared/ui/tagTone';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   QUEUED:          { label: '대기열',  color: 'var(--accent-warn)' },
@@ -13,16 +14,6 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   TALKING:         { label: '통화 중', color: 'var(--status-talking)' },
   AFTER_CALL_WORK: { label: '후처리',  color: 'var(--status-acw)' },
   TRANSFERRING:    { label: '전환 중', color: 'var(--accent-info)' },
-};
-
-const TRANSFER_PHASE_COLOR: Record<string, string> = {
-  REQUESTED: 'default',
-  CONSULT_RINGING: 'gold',
-  CONSULT_TALKING: 'blue',
-  REBRIDGING: 'cyan',
-  COMPLETED: 'green',
-  FAILED: 'red',
-  EXPIRED: 'orange',
 };
 
 function fmtSec(sec?: number) {
@@ -154,7 +145,7 @@ export function LiveCallsPage() {
               width: 150,
               render: (_: unknown, r: CallRow) =>
                 r.latestTransfer ? (
-                  <Tag color={TRANSFER_PHASE_COLOR[r.latestTransfer.phase] ?? 'default'}>
+                  <Tag color={TRANSFER_PHASE_TONE[r.latestTransfer.phase] ?? 'default'}>
                     {r.latestTransfer.phase}
                     {r.latestTransfer.toExtension ? ` · ${r.latestTransfer.toExtension}` : ''}
                   </Tag>

@@ -199,7 +199,7 @@ export function PacketCapturePage() {
       title: '암호화',
       dataIndex: 'encryptionStatus',
       render: (value: string) =>
-        value === 'ENCRYPTED' ? <Tag color="green">암호화</Tag> : <Tag>평문</Tag>,
+        value === 'ENCRYPTED' ? <Tag color="success">암호화</Tag> : <Tag>평문</Tag>,
     },
     {
       title: '',

@@ -118,7 +118,7 @@ export function OptOutCustomersPage() {
             title: '상태',
             dataIndex: 'isActive',
             width: 90,
-            render: (value: boolean) => <Tag color={value ? 'red' : 'default'}>{value ? '활성' : '해제'}</Tag>,
+            render: (value: boolean) => <Tag color={value ? 'error' : 'default'}>{value ? '활성' : '해제'}</Tag>,
           },
           {
             title: '수신거부 번호',

@@ -419,8 +419,8 @@ export function IntegrationsPage() {
                     </span>
                   )}
                   {it.status === 'error' && (
-                    <span className="k-chip" style={{ color: 'var(--accent-danger, #f87171)', borderColor: 'var(--accent-danger, #f87171)' }}>
-                      <span className="k-dot" style={{ background: 'var(--accent-danger, #f87171)' }} />
+                    <span className="k-chip" style={{ color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}>
+                      <span className="k-dot" style={{ background: 'var(--accent-danger)' }} />
                       오류
                     </span>
                   )}

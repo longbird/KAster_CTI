@@ -113,7 +113,7 @@ export function PlatformTenantEntitlementsPage() {
         <Space direction="vertical" size={2}>
           <Space size={6}>
             <Typography.Text strong>{name}</Typography.Text>
-            {feature.irreversible ? <Tag color="orange">되돌릴 수 없음</Tag> : null}
+            {feature.irreversible ? <Tag color="warning">되돌릴 수 없음</Tag> : null}
           </Space>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {feature.description}
@@ -129,7 +129,7 @@ export function PlatformTenantEntitlementsPage() {
       key: 'source',
       width: 140,
       render: (_: unknown, feature: FeatureEntitlement) => (
-        <Tag color={feature.source === 'row' ? 'blue' : 'default'}>{describeEntitlementSource(feature)}</Tag>
+        <Tag color={feature.source === 'row' ? 'processing' : 'default'}>{describeEntitlementSource(feature)}</Tag>
       ),
     },
     {
@@ -167,7 +167,7 @@ export function PlatformTenantEntitlementsPage() {
               <span style={{ display: 'inline-flex' }}>{control}</span>
             </Tooltip>
             <Tooltip title={state.lockReason}>
-              <Tag icon={<LockOutlined />} color="orange">
+              <Tag icon={<LockOutlined />} color="warning">
                 잠김
               </Tag>
             </Tooltip>

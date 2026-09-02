@@ -1372,7 +1372,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
               </Typography.Text>
             </div>
           </Space>
-          <Tag color={isEdit ? 'blue' : 'green'}>{isEdit ? '수정' : '신규'}</Tag>
+          <Tag color={isEdit ? 'processing' : 'success'}>{isEdit ? '수정' : '신규'}</Tag>
         </div>
 
         <Form form={form} layout="vertical" disabled={loading} className="branch-edit-modal__form">
@@ -2002,7 +2002,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                           모든 모드에서 사용하는 시작/완료 흐름입니다.
                         </Typography.Text>
                       </div>
-                      <Tag color={blocklist080Enabled ? 'green' : 'default'}>
+                      <Tag color={blocklist080Enabled ? 'success' : 'default'}>
                         {blocklist080Enabled ? '사용' : '미사용'}
                       </Tag>
                     </div>
@@ -2230,7 +2230,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
                             번호 입력과 재시도 흐름을 설정합니다.
                           </Typography.Text>
                         </div>
-                        <Tag color="blue">입력 종료 # 고정</Tag>
+                        <Tag color="processing">입력 종료 # 고정</Tag>
                       </div>
                       <Row gutter={[12, 12]}>
                         <Col xs={24} lg={12}>

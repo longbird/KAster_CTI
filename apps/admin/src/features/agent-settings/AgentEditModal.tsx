@@ -15,6 +15,7 @@ import {
 } from './agentSettingProfile';
 import { buildAgentEditFormValues } from './agentEditFormValues';
 import { EXTENSION_LOCK_MODE_OPTIONS } from './extensionPolicy';
+import { AGENT_STATUS_TONE } from '../../shared/ui/tagTone';
 
 export interface AgentRow {
   agentId: string;
@@ -57,17 +58,6 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: '관리자' },
 ];
 
-const STATUS_COLOR: Record<string, string> = {
-  AVAILABLE: 'green',
-  TALKING: 'blue',
-  RINGING: 'gold',
-  RINGING_AGENT: 'gold',
-  AFTER_CALL_WORK: 'purple',
-  BREAK: 'red',
-  MEAL: 'orange',
-  MANUAL_PAUSED: 'default',
-};
-
 const STATUS_LABEL: Record<string, string> = {
   AVAILABLE: '대기',
   TALKING: '통화 중',
@@ -109,7 +99,7 @@ function SectionTitle({ title, help }: { title: string; help?: string }) {
 
 function renderCurrentStatusTag(currentStatus: AgentRow['currentStatus']) {
   return currentStatus ? (
-    <Tag color={STATUS_COLOR[currentStatus.statusCode] ?? 'default'} style={{ marginInlineEnd: 0 }}>
+    <Tag color={AGENT_STATUS_TONE[currentStatus.statusCode] ?? 'default'} style={{ marginInlineEnd: 0 }}>
       현재 상태: {STATUS_LABEL[currentStatus.statusCode] ?? currentStatus.statusCode}
     </Tag>
   ) : (

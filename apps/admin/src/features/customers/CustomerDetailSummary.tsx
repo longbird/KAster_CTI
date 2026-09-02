@@ -9,8 +9,8 @@ interface Props {
 
 const GRADE_COLOR: Record<string, string> = {
   NORMAL: 'default',
-  VIP: 'gold',
-  BLACK: 'red',
+  VIP: 'warning',
+  BLACK: 'error',
 };
 
 export function CustomerDetailSummary({ detail, editing }: Props) {

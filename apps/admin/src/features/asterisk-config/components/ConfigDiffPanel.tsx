@@ -7,8 +7,8 @@ interface Props {
 }
 
 const STATUS_LABEL: Record<ConfigDiffEntry['status'], { text: string; color: string }> = {
-  changed: { text: '변경', color: 'blue' },
-  'missing-current': { text: '신규', color: 'green' },
+  changed: { text: '변경', color: 'processing' },
+  'missing-current': { text: '신규', color: 'success' },
   unchanged: { text: '동일', color: 'default' },
 };
 

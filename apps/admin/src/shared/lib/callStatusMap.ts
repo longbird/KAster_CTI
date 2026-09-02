@@ -22,11 +22,16 @@ export interface KanbanColumnMeta {
   emptyText: string;
 }
 
+/**
+ * 칸반 열의 accent 는 **열을 구분하는 표식**이지 통화 상태의 심각도가 아니다.
+ * (통화 한 건의 상태는 카드의 태그와 왼쪽 테두리가 나른다.)
+ * 그래서 네 열이 서로 다른 색을 갖되, 값은 토큰에서만 가져온다.
+ */
 export const KANBAN_COLUMNS: readonly KanbanColumnMeta[] = [
-  { id: 'queued', label: '대기', accentVar: '#f59e0b', emptyText: '대기 중인 통화 없음' },
-  { id: 'ringing', label: '벨 울림', accentVar: '#3b82f6', emptyText: '호출 중인 통화 없음' },
-  { id: 'talking', label: '통화 중', accentVar: '#10b981', emptyText: '통화 중 없음' },
-  { id: 'acw', label: '후처리', accentVar: '#8b5cf6', emptyText: '후처리 없음' },
+  { id: 'queued', label: '대기', accentVar: 'var(--accent-warn)', emptyText: '대기 중인 통화 없음' },
+  { id: 'ringing', label: '벨 울림', accentVar: 'var(--accent-info)', emptyText: '호출 중인 통화 없음' },
+  { id: 'talking', label: '통화 중', accentVar: 'var(--signal)', emptyText: '통화 중 없음' },
+  { id: 'acw', label: '후처리', accentVar: 'var(--status-acw)', emptyText: '후처리 없음' },
 ];
 
 export function groupByKanbanColumn<T extends { status?: string | null; sessionStatus?: string | null }>(

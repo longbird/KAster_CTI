@@ -41,7 +41,7 @@ export function PlatformTenantsPage() {
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
-      render: (isActive: boolean) => (isActive ? <Tag color="green">활성</Tag> : <Tag>비활성</Tag>),
+      render: (isActive: boolean) => (isActive ? <Tag color="success">활성</Tag> : <Tag>비활성</Tag>),
     },
     {
       title: '관리',

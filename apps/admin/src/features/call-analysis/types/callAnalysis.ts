@@ -48,9 +48,9 @@ export const SPEAKER_LABELS: Record<Speaker, string> = {
 };
 
 export const SENTIMENT_META: Record<Sentiment, { label: string; color: string }> = {
-  POSITIVE: { label: '긍정', color: 'green' },
+  POSITIVE: { label: '긍정', color: 'success' },
   NEUTRAL: { label: '중립', color: 'default' },
-  NEGATIVE: { label: '부정', color: 'red' },
+  NEGATIVE: { label: '부정', color: 'error' },
 };
 
 /** 세그먼트 시작 시각을 통화 경과시간 표기(m:ss)로 바꾼다. */

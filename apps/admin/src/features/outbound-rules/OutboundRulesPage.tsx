@@ -245,7 +245,7 @@ export function OutboundRulesPage() {
             width: 160,
             render: (b: BranchRef | null) =>
               b ? (
-                <Tag color="blue">{b.branchName}</Tag>
+                <Tag color="processing">{b.branchName}</Tag>
               ) : (
                 <Tag>전역</Tag>
               ),
@@ -268,7 +268,7 @@ export function OutboundRulesPage() {
             dataIndex: 'enabled',
             width: 70,
             render: (v: boolean) =>
-              v ? <Tag color="green">사용</Tag> : <Tag>중지</Tag>,
+              v ? <Tag color="success">사용</Tag> : <Tag>중지</Tag>,
           },
           {
             title: '관리',
@@ -446,13 +446,13 @@ export function OutboundRulesPage() {
           {testResult ? (
             <div style={{ marginTop: 12 }}>
               {testResult.winner ? (
-                <Tag color="green">
+                <Tag color="success">
                   매칭됨 → callerIdNumber: <strong>{testResult.winner.callerIdNumber}</strong>
                   {testResult.winner.displayName ? ` (${testResult.winner.displayName})` : null}
                   · matchType={testResult.winner.matchType} · priority={testResult.winner.priority}
                 </Tag>
               ) : (
-                <Tag color="orange">매칭되는 룰이 없습니다 → fallback (defaultOutboundCallerId) 사용</Tag>
+                <Tag color="warning">매칭되는 룰이 없습니다 → fallback (defaultOutboundCallerId) 사용</Tag>
               )}
               <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
                 후보 평가: {testResult.candidates?.length ?? 0}건

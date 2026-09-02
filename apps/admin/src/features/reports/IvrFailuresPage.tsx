@@ -37,11 +37,11 @@ interface IvrFailureResponse {
 }
 
 const FAILURE_REASON_COLOR: Record<string, string> = {
-  INPUT_TIMEOUT: 'orange',
-  INVALID_INPUT: 'red',
-  FLOW_FAILURE: 'purple',
-  SMS_FAILURE: 'volcano',
-  OPT_OUT_FAILURE: 'magenta',
+  INPUT_TIMEOUT: 'warning',
+  INVALID_INPUT: 'error',
+  FLOW_FAILURE: 'default',
+  SMS_FAILURE: 'warning',
+  OPT_OUT_FAILURE: 'error',
 };
 
 const FAILURE_REASON_LABEL: Record<string, string> = {

@@ -129,7 +129,7 @@ export function QueueSettingsPage() {
             render: (_: unknown, r: QueueRow) => (
               <Space size={[4, 4]} wrap>
                 {renderSingleLine(r.queueDisplayName ?? r.queueName)}
-                {r.isDefaultRule ? <Tag color="gold">기본 룰</Tag> : null}
+                {r.isDefaultRule ? <Tag color="warning">기본 룰</Tag> : null}
               </Space>
             ),
           },
@@ -150,7 +150,7 @@ export function QueueSettingsPage() {
             width: 120,
             render: (_: unknown, row: QueueRow) =>
               row.distributionMode === 'UNCONDITIONAL' ? (
-                <Tag color="purple">{getUnconditionalTargetTypeLabel(row.unconditionalTargetType)}</Tag>
+                <Tag color="default">{getUnconditionalTargetTypeLabel(row.unconditionalTargetType)}</Tag>
               ) : (
                 <Typography.Text type="secondary">-</Typography.Text>
               ),
@@ -185,7 +185,7 @@ export function QueueSettingsPage() {
               return (
                 <Space size={[4, 4]} wrap>
                   <Tag color={waiting > 0 ? 'processing' : 'default'}>대기 {waiting}</Tag>
-                  <Tag color={overThreshold > 0 ? 'red' : 'green'}>초과 {overThreshold}</Tag>
+                  <Tag color={overThreshold > 0 ? 'error' : 'success'}>초과 {overThreshold}</Tag>
                 </Space>
               );
             },
@@ -195,14 +195,14 @@ export function QueueSettingsPage() {
             dataIndex: 'autopause',
             width: 90,
             align: 'center',
-            render: (v?: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'ON' : 'OFF'}</Tag>,
+            render: (v?: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'ON' : 'OFF'}</Tag>,
           },
           {
             title: '상태',
             dataIndex: 'isActive',
             width: 82,
             align: 'center',
-            render: (v?: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '활성' : '비활성'}</Tag>,
+            render: (v?: boolean) => <Tag color={v ? 'success' : 'error'}>{v ? '활성' : '비활성'}</Tag>,
           },
           {
             title: '라우팅 참조',
@@ -211,17 +211,17 @@ export function QueueSettingsPage() {
               const refs = r.routingReferences;
               const tags = [
                 refs?.directDidCount ? (
-                  <Tag key="did" color="blue">
+                  <Tag key="did" color="processing">
                     DID {refs.directDidCount}
                   </Tag>
                 ) : null,
                 refs?.forwardingRuleCount ? (
-                  <Tag key="forward" color="purple">
+                  <Tag key="forward" color="default">
                     착신전환 {refs.forwardingRuleCount}
                   </Tag>
                 ) : null,
                 refs?.ivrEntryCount ? (
-                  <Tag key="ivr" color="cyan">
+                  <Tag key="ivr" color="processing">
                     IVR {refs.ivrEntryCount}
                   </Tag>
                 ) : null,

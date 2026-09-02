@@ -78,7 +78,7 @@ export function CallInsightsPanel({ from, to, resolution, queueId }: Props) {
       width: 110,
       render: (_: unknown, row: CategoryInsight) =>
         row.negativeCalls > 0 ? (
-          <Tag color="red">
+          <Tag color="error">
             {row.negativeCalls} ({Math.round((row.negativeCalls / row.calls) * 100)}%)
           </Tag>
         ) : (
@@ -103,7 +103,7 @@ export function CallInsightsPanel({ from, to, resolution, queueId }: Props) {
       key: 'delta',
       width: 130,
       render: (_: unknown, row: { delta: number; changeRate: number | null }) => (
-        <Tag color={row.changeRate === null ? 'gold' : 'blue'}>
+        <Tag color={row.changeRate === null ? 'warning' : 'processing'}>
           +{row.delta} · {formatChangeRate(row.changeRate)}
         </Tag>
       ),

@@ -1,17 +1,7 @@
 import { Card, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { AgentStatusSummaryItem } from '../types/dashboard';
-
-const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: 'green',
-  RINGING: 'gold',
-  TALKING: 'blue',
-  AFTER_CALL_WORK: 'purple',
-  BREAK: 'orange',
-  MEAL: 'orange',
-  TRAINING: 'cyan',
-  MANUAL_PAUSED: 'default',
-};
+import { AGENT_STATUS_TONE } from '../../../shared/ui/tagTone';
 
 export function AgentStatusSummaryTable({
   items,
@@ -26,7 +16,7 @@ export function AgentStatusSummaryTable({
       dataIndex: 'label',
       width: compact ? 160 : undefined,
       render: (value: string, row) => (
-        <Tag color={STATUS_COLORS[row.statusCode] ?? 'default'} style={{ marginInlineEnd: 0 }}>
+        <Tag color={AGENT_STATUS_TONE[row.statusCode] ?? 'default'} style={{ marginInlineEnd: 0 }}>
           {value}
         </Tag>
       ),

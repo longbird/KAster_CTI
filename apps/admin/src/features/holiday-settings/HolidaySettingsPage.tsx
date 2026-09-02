@@ -221,7 +221,7 @@ export function HolidaySettingsPage() {
               dataIndex: 'ruleType',
               width: 140,
               render: (value: HolidayRuleType) => (
-                <Tag color={value === 'WORKDAY_OVERRIDE' ? 'green' : 'blue'}>
+                <Tag color={value === 'WORKDAY_OVERRIDE' ? 'success' : 'processing'}>
                   {HOLIDAY_RULE_TYPE_LABELS[value]}
                 </Tag>
               ),
@@ -236,7 +236,7 @@ export function HolidaySettingsPage() {
               dataIndex: 'isActive',
               width: 100,
               render: (value: boolean) => (
-                <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>
+                <Tag color={value ? 'success' : 'default'}>{value ? '활성' : '비활성'}</Tag>
               ),
             },
             {

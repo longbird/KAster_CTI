@@ -20,8 +20,8 @@ interface Props {
 
 const GRADE_COLOR: Record<string, string> = {
   NORMAL: 'default',
-  VIP: 'gold',
-  BLACK: 'red',
+  VIP: 'warning',
+  BLACK: 'error',
 };
 
 const headerLabel = (label: string) => <span className="customers-page__table-header">{label}</span>;

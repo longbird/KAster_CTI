@@ -4,6 +4,7 @@ import type { CallRow } from '../../features/live-calls/CallDetailDrawer';
 import { toKanbanColumn, KANBAN_COLUMNS } from '../lib/callStatusMap';
 import { formatElapsed, secondsSince } from '../hooks/useNow';
 import { formatPhoneNumber } from '../lib/format';
+import { TRANSFER_PHASE_TONE } from '../ui/tagTone';
 
 const TRANSFER_PHASE_LABEL: Record<string, string> = {
   REQUESTED: '요청됨',
@@ -15,20 +16,10 @@ const TRANSFER_PHASE_LABEL: Record<string, string> = {
   EXPIRED: '만료',
 };
 
-const TRANSFER_PHASE_COLOR: Record<string, string> = {
-  REQUESTED: 'default',
-  CONSULT_RINGING: 'gold',
-  CONSULT_TALKING: 'blue',
-  REBRIDGING: 'cyan',
-  COMPLETED: 'green',
-  FAILED: 'red',
-  EXPIRED: 'orange',
-};
-
 function borderColorForElapsed(seconds: number): string {
-  if (seconds <= 30) return '#10b981';
-  if (seconds <= 60) return '#f59e0b';
-  return '#f5222d';
+  if (seconds <= 30) return 'var(--signal)';
+  if (seconds <= 60) return 'var(--accent-warn)';
+  return 'var(--accent-danger)';
 }
 
 function elapsedForCard(call: CallRow, now: number): number {
@@ -86,7 +77,7 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
           {call.agentName || call.primaryAgentId || call.queueName || '-'}
         </Typography.Text>
         {transferPhase ? (
-          <Tag color={TRANSFER_PHASE_COLOR[transferPhase] ?? 'default'} style={{ marginTop: 4 }}>
+          <Tag color={TRANSFER_PHASE_TONE[transferPhase] ?? 'default'} style={{ marginTop: 4 }}>
             {TRANSFER_PHASE_LABEL[transferPhase] ?? transferPhase}
           </Tag>
         ) : null}
@@ -116,7 +107,7 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
         </Typography.Text>
       ) : null}
       {transferPhase ? (
-        <Tag color={TRANSFER_PHASE_COLOR[transferPhase] ?? 'default'} style={{ marginTop: 4 }}>
+        <Tag color={TRANSFER_PHASE_TONE[transferPhase] ?? 'default'} style={{ marginTop: 4 }}>
           {TRANSFER_PHASE_LABEL[transferPhase] ?? transferPhase}
           {call.latestTransfer?.toExtension ? ` · ${call.latestTransfer.toExtension}` : ''}
         </Tag>

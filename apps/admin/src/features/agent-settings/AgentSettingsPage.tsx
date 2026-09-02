@@ -28,17 +28,7 @@ import { AgentPermissionCopyModal } from './AgentPermissionCopyModal';
 import { formatExtensionDisplayName } from './extensionDisplayName';
 import { getExtensionLockModeLabel } from './extensionPolicy';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
-
-const STATUS_COLOR: Record<string, string> = {
-  AVAILABLE: 'green',
-  TALKING: 'blue',
-  RINGING: 'gold',
-  RINGING_AGENT: 'gold',
-  AFTER_CALL_WORK: 'purple',
-  BREAK: 'red',
-  MEAL: 'orange',
-  MANUAL_PAUSED: 'default',
-};
+import { AGENT_STATUS_TONE } from '../../shared/ui/tagTone';
 
 const STATUS_LABEL: Record<string, string> = {
   AVAILABLE: '대기',
@@ -174,7 +164,7 @@ export function AgentSettingsPage() {
               !r.isActive ? (
                 <Tag color="default">비활성</Tag>
               ) : r.currentStatus ? (
-                <Tag color={STATUS_COLOR[r.currentStatus.statusCode] ?? 'default'}>
+                <Tag color={AGENT_STATUS_TONE[r.currentStatus.statusCode] ?? 'default'}>
                   {STATUS_LABEL[r.currentStatus.statusCode] ?? r.currentStatus.statusCode}
                 </Tag>
               ) : (

@@ -118,7 +118,7 @@ export function PromptSettingsPage() {
             dataIndex: 'isActive',
             width: 90,
             render: (value: boolean) => (
-              <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>
+              <Tag color={value ? 'success' : 'default'}>{value ? '활성' : '비활성'}</Tag>
             ),
           },
           {

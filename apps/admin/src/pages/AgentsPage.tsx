@@ -7,6 +7,7 @@ import { getAgentSip } from '../features/asterisk-config/api/asteriskConfigApi';
 import { downloadCsv } from '../shared/lib/csv';
 import { usePermissionStore } from '../store/usePermissionStore';
 import { ResponsiveTable } from '../components/ResponsiveTable';
+import { AGENT_STATUS_TONE } from '../shared/ui/tagTone';
 
 interface AgentRow {
   agentId: string;
@@ -20,17 +21,6 @@ interface AgentRow {
   sipRegistrationStatus?: string | null;
   sipContactUri?: string | null;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: 'green',
-  RINGING: 'gold',
-  TALKING: 'blue',
-  AFTER_CALL_WORK: 'purple',
-  BREAK: 'red',
-  MEAL: 'orange',
-  TRAINING: 'cyan',
-  MANUAL_PAUSED: 'default',
-};
 
 const STATUS_LABELS: Record<string, string> = {
   AVAILABLE: '대기',
@@ -139,8 +129,8 @@ export function AgentsPage() {
             title: '전화기 등록',
             render: (_, r) => {
               const status = r.sipRegistrationStatus ?? 'UNREGISTERED';
-              if (/Avail|Reachable|NonQual|NonQualified/i.test(status)) return <Tag color="green">등록됨</Tag>;
-              if (/Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="orange">{status}</Tag>;
+              if (/Avail|Reachable|NonQual|NonQualified/i.test(status)) return <Tag color="success">등록됨</Tag>;
+              if (/Unreach|Unavailable|Unknown/i.test(status)) return <Tag color="warning">{status}</Tag>;
               return <Tag>{status === 'UNREGISTERED' ? '미등록' : status}</Tag>;
             },
           },
@@ -153,7 +143,7 @@ export function AgentsPage() {
             title: '현재 상태',
             render: (_, r) =>
               r.currentStatus ? (
-                <Tag color={STATUS_COLORS[r.currentStatus.statusCode] ?? 'default'}>
+                <Tag color={AGENT_STATUS_TONE[r.currentStatus.statusCode] ?? 'default'}>
                   {STATUS_LABELS[r.currentStatus.statusCode] ?? r.currentStatus.statusCode}
                 </Tag>
               ) : (

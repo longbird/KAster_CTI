@@ -30,7 +30,7 @@ export function EntitlementHistoryTable({ entries, features, loading }: Props) {
       key: 'change',
       width: 160,
       render: (_: unknown, entry: EntitlementHistoryEntry) => (
-        <Tag color={entry.afterEnabled ? 'green' : 'default'}>
+        <Tag color={entry.afterEnabled ? 'success' : 'default'}>
           {formatEntitlementChange(entry.beforeEnabled, entry.afterEnabled)}
         </Tag>
       ),

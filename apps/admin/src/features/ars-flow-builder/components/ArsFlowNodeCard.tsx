@@ -4,17 +4,19 @@ import { NODE_TYPE_LABELS, TERMINAL_NODE_TYPES } from '../types/flowGraph';
 import type { FlowCanvasNode } from '../types/canvasGraph';
 import { describeNodeSummary } from '../types/nodeDefaults';
 
+// 값은 styles.css 의 --ars-node-* 범주형 스케일에 있다. 헤더가 흰 글자를 얹은
+// 단색 배경이라, 예전 값 중 몇은(큐·조건·종료 등) 흰 글자가 2:1 대로 안 읽혔다.
 const TYPE_COLOR: Record<string, string> = {
-  PLAY: '#1677ff',
-  MENU: '#722ed1',
-  QUEUE: '#52c41a',
-  TRANSFER: '#13c2c2',
-  SMS: '#fa8c16',
-  OPT_OUT: '#eb2f96',
-  CONDITION: '#faad14',
-  HANGUP: '#8c8c8c',
-  COLLECT_DIGITS: '#2f54eb',
-  HTTP_LOOKUP: '#c41d7f',
+  PLAY: 'var(--ars-node-play)',
+  MENU: 'var(--ars-node-menu)',
+  QUEUE: 'var(--ars-node-queue)',
+  TRANSFER: 'var(--ars-node-transfer)',
+  SMS: 'var(--ars-node-sms)',
+  OPT_OUT: 'var(--ars-node-opt-out)',
+  CONDITION: 'var(--ars-node-condition)',
+  HANGUP: 'var(--ars-node-hangup)',
+  COLLECT_DIGITS: 'var(--ars-node-collect-digits)',
+  HTTP_LOOKUP: 'var(--ars-node-http-lookup)',
 };
 
 /**
@@ -25,7 +27,7 @@ const TYPE_COLOR: Record<string, string> = {
  */
 export function ArsFlowNodeCard({ data, selected }: NodeProps<FlowCanvasNode>) {
   const { row, isEntry } = data;
-  const color = TYPE_COLOR[row.nodeType] ?? '#1677ff';
+  const color = TYPE_COLOR[row.nodeType] ?? 'var(--ars-node-play)';
   const summary = describeNodeSummary(row.nodeType, row.config);
   const isTerminal = TERMINAL_NODE_TYPES.includes(row.nodeType);
 
@@ -44,7 +46,7 @@ export function ArsFlowNodeCard({ data, selected }: NodeProps<FlowCanvasNode>) {
       <Handle type="target" position={Position.Left} />
       <div style={{ background: color, color: '#fff', padding: '4px 10px', fontSize: 12, display: 'flex', gap: 6 }}>
         <span>{NODE_TYPE_LABELS[row.nodeType]}</span>
-        {isEntry && <Tag color="gold" style={{ marginInlineEnd: 0, lineHeight: '16px' }}>진입</Tag>}
+        {isEntry && <Tag color="warning" style={{ marginInlineEnd: 0, lineHeight: '16px' }}>진입</Tag>}
       </div>
       <div style={{ padding: '8px 10px' }}>
         <Typography.Text strong ellipsis style={{ display: 'block' }}>{row.label}</Typography.Text>

@@ -2,9 +2,9 @@ import { Alert, Card, Space, Tag, Typography } from 'antd';
 import type { AlertItem } from '../types/dashboard';
 
 const LEVEL_COLOR: Record<AlertItem['level'], string> = {
-  info: 'blue',
-  warning: 'gold',
-  error: 'red',
+  info: 'processing',
+  warning: 'warning',
+  error: 'error',
 };
 
 const LEVEL_SHORT: Record<AlertItem['level'], string> = {

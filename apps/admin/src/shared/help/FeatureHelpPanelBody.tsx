@@ -26,7 +26,7 @@ function ReadyBody({ entry }: { entry: FeatureHelpEntry }) {
           <Typography.Title level={5} style={{ margin: 0 }}>
             {entry.title}
           </Typography.Title>
-          <Tag color={entry.reviewStatus === 'APPROVED' ? 'green' : 'orange'}>
+          <Tag color={entry.reviewStatus === 'APPROVED' ? 'success' : 'warning'}>
             {entry.reviewStatus === 'APPROVED' ? '검토 완료' : '검토 대기'}
           </Tag>
         </Space>

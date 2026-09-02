@@ -154,7 +154,7 @@ export function AnnouncementsPage() {
             render: (value: string, row: Notice) => (
               <Space style={{ maxWidth: '100%' }}>
                 {row.pinned && (
-                  <Tag color="red" icon={<PushpinOutlined />}>
+                  <Tag color="error" icon={<PushpinOutlined />}>
                     고정
                   </Tag>
                 )}
@@ -168,10 +168,10 @@ export function AnnouncementsPage() {
             width: 130,
             render: (value: Notice['category'], row: Notice) => (
               <Space size={4}>
-                <Tag color={value === 'UPDATE' ? 'blue' : 'default'}>
+                <Tag color={value === 'UPDATE' ? 'processing' : 'default'}>
                   {value === 'UPDATE' ? '업데이트' : '공지'}
                 </Tag>
-                {row.showOnLogin ? <Tag color="green">로그인</Tag> : null}
+                {row.showOnLogin ? <Tag color="success">로그인</Tag> : null}
               </Space>
             ),
           },
@@ -189,7 +189,7 @@ export function AnnouncementsPage() {
             dataIndex: 'severity',
             width: 100,
             render: (value: Notice['severity']) => {
-              const color = value === 'CRITICAL' ? 'red' : value === 'IMPORTANT' ? 'orange' : 'default';
+              const color = value === 'CRITICAL' ? 'error' : value === 'IMPORTANT' ? 'warning' : 'default';
               const label = value === 'CRITICAL' ? '긴급' : value === 'IMPORTANT' ? '중요' : '일반';
               return <Tag color={color}>{label}</Tag>;
             },

@@ -38,6 +38,21 @@
   --status-training: #a78bfa;
   --status-offline: var(--fg-4);
 
+  /* ARS 플로우 노드 타입 — 심각도가 아니라 종류를 가리키는 범주형 스케일이다.
+   * 위의 signal/accent 네 개로는 열 가지를 구분할 수 없어 따로 둔다.
+   * 전부 흰 글자를 얹은 단색 배경으로 쓰이므로 값은 흰 글자 기준 4.5:1 이상이고,
+   * 페이지 배경과 무관해서 라이트/다크 구분이 필요 없다. */
+  --ars-node-play: #0958d9;
+  --ars-node-menu: #722ed1;
+  --ars-node-queue: #237804;
+  --ars-node-transfer: #006d75;
+  --ars-node-sms: #ad4e00;
+  --ars-node-opt-out: #9e1068;
+  --ars-node-condition: #ad6800;
+  --ars-node-hangup: #595959;
+  --ars-node-collect-digits: #2f54eb;
+  --ars-node-http-lookup: #c41d7f;
+
   --font-sans: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 

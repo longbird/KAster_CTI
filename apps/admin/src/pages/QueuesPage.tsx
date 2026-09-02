@@ -177,7 +177,7 @@ export function QueuesPage() {
                 return (
                   <>
                     <Tag color={waiting > 0 ? 'processing' : 'default'}>대기 {waiting}</Tag>
-                    <Tag color={overThreshold > 0 ? 'red' : 'green'}>초과 {overThreshold}</Tag>
+                    <Tag color={overThreshold > 0 ? 'error' : 'success'}>초과 {overThreshold}</Tag>
                   </>
                 );
               },
@@ -186,8 +186,8 @@ export function QueuesPage() {
               title: '최근 30분',
               render: (_, r) => (
                 <>
-                  <Tag color="green">응답 {r.recentAnswered}</Tag>
-                  <Tag color="red">포기 {r.recentAbandoned}</Tag>
+                  <Tag color="success">응답 {r.recentAnswered}</Tag>
+                  <Tag color="error">포기 {r.recentAbandoned}</Tag>
                 </>
               ),
             },
@@ -246,7 +246,7 @@ export function QueuesPage() {
                   title: '상태',
                   dataIndex: 'isActive',
                   width: 90,
-                  render: (value?: boolean) => <Tag color={value === false ? 'default' : 'green'}>{value === false ? '비활성' : '활성'}</Tag>,
+                  render: (value?: boolean) => <Tag color={value === false ? 'default' : 'success'}>{value === false ? '비활성' : '활성'}</Tag>,
                 },
               ]}
             />

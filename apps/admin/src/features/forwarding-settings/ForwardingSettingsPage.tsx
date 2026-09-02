@@ -195,7 +195,7 @@ export function ForwardingSettingsPage() {
             dataIndex: 'forwardType',
             width: 120,
             render: (value: string) => (
-              <Tag color={value === 'QUEUE' ? 'blue' : value === 'EXTENSION' ? 'green' : 'orange'}>
+              <Tag color={value === 'QUEUE' ? 'processing' : value === 'EXTENSION' ? 'success' : 'warning'}>
                 {FORWARD_TYPE_LABELS[value as AsteriskForwardingRule['forwardType']]}
               </Tag>
             ),
@@ -226,9 +226,9 @@ export function ForwardingSettingsPage() {
                 );
               }
               if (row.forwardTriggerMode === 'SMART_NO_READY') {
-                return <Tag color="purple">상담원 없음</Tag>;
+                return <Tag color="default">상담원 없음</Tag>;
               }
-              return <Tag color="green">즉시</Tag>;
+              return <Tag color="success">즉시</Tag>;
             },
           },
           {
@@ -247,7 +247,7 @@ export function ForwardingSettingsPage() {
                   </Space>
                 );
               }
-              return <Tag color="green">항상 적용</Tag>;
+              return <Tag color="success">항상 적용</Tag>;
             },
           },
           {
@@ -266,7 +266,7 @@ export function ForwardingSettingsPage() {
             dataIndex: 'enabled',
             width: 90,
             render: (value: boolean) => (
-              <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>
+              <Tag color={value ? 'success' : 'default'}>{value ? '활성' : '비활성'}</Tag>
             ),
           },
           {

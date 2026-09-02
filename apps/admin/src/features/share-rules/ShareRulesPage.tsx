@@ -172,7 +172,7 @@ export function ShareRulesPage() {
               title: '사용',
               dataIndex: 'isActive',
               width: 70,
-              render: (v: boolean) => (v ? <Tag color="green">사용</Tag> : <Tag>중지</Tag>),
+              render: (v: boolean) => (v ? <Tag color="success">사용</Tag> : <Tag>중지</Tag>),
             },
             {
               title: '관리',

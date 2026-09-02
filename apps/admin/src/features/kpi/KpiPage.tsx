@@ -36,12 +36,12 @@ export function buildKpiCards(data: DashboardData) {
   const idleAgents = data.agentStatusDistribution?.AVAILABLE ?? 0;
 
   return [
-    { title: '오늘 응답', value: today.answered, suffix: '건', color: '#52c41a' },
-    { title: '오늘 포기', value: today.abandoned, suffix: '건', color: '#ff4d4f' },
-    { title: '응답률', value: answerRate, suffix: '%', color: answerRate >= 80 ? '#52c41a' : '#fa8c16' },
-    { title: '대기 콜', value: queues.reduce((s, q) => s + q.waiting, 0), suffix: '건', color: '#1890ff' },
-    { title: '현재 통화 중', value: queues.reduce((s, q) => s + q.talking, 0), suffix: '건', color: '#13c2c2' },
-    { title: '대기 상담원', value: idleAgents, suffix: '명', color: '#722ed1' },
+    { title: '오늘 응답', value: today.answered, suffix: '건', color: 'var(--signal)' },
+    { title: '오늘 포기', value: today.abandoned, suffix: '건', color: 'var(--accent-danger)' },
+    { title: '응답률', value: answerRate, suffix: '%', color: answerRate >= 80 ? 'var(--signal)' : 'var(--accent-warn)' },
+    { title: '대기 콜', value: queues.reduce((s, q) => s + q.waiting, 0), suffix: '건', color: 'var(--accent-warn)' },
+    { title: '현재 통화 중', value: queues.reduce((s, q) => s + q.talking, 0), suffix: '건', color: 'var(--accent-info)' },
+    { title: '대기 상담원', value: idleAgents, suffix: '명', color: 'var(--fg-2)' },
   ];
 }
 
@@ -108,26 +108,26 @@ export function KpiPage() {
               title: '최장 대기',
               dataIndex: 'longestWaitSeconds',
               render: (v: number) => {
-                const color = v > 180 ? 'red' : v > 60 ? 'orange' : 'green';
+                const color = v > 180 ? 'error' : v > 60 ? 'warning' : 'success';
                 return <Tag color={color}>{v}s</Tag>;
               },
             },
             {
               title: '응답',
               dataIndex: 'recentAnswered',
-              render: (v: number) => <Tag color="green">{v}건</Tag>,
+              render: (v: number) => <Tag color="success">{v}건</Tag>,
             },
             {
               title: '포기',
               dataIndex: 'recentAbandoned',
-              render: (v: number) => <Tag color="red">{v}건</Tag>,
+              render: (v: number) => <Tag color="error">{v}건</Tag>,
             },
             {
               title: '응답률',
               render: (_: unknown, r: QueueKpi) => {
                 const t = r.recentAnswered + r.recentAbandoned;
                 const rate = t > 0 ? Math.round((r.recentAnswered / t) * 100) : 0;
-                return <Tag color={rate >= 80 ? 'green' : 'orange'}>{rate}%</Tag>;
+                return <Tag color={rate >= 80 ? 'success' : 'warning'}>{rate}%</Tag>;
               },
             },
           ]}
@@ -152,7 +152,7 @@ export function KpiPage() {
                 title: '응답률',
                 render: (_: unknown, r: TrafficRow) => {
                   const rate = r.inbound > 0 ? Math.round((r.answered / r.inbound) * 100) : 0;
-                  return <Tag color={rate >= 80 ? 'green' : 'orange'}>{rate}%</Tag>;
+                  return <Tag color={rate >= 80 ? 'success' : 'warning'}>{rate}%</Tag>;
                 },
               },
             ]}

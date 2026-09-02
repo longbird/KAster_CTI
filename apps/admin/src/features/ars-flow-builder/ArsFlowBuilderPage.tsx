@@ -210,7 +210,7 @@ export function ArsFlowBuilderPage() {
             title: '컴파일된 dialplan',
             width: 820,
             content: (
-              <pre style={{ maxHeight: 480, overflow: 'auto', fontSize: 12, background: '#f6f6f6', padding: 12 }}>
+              <pre style={{ maxHeight: 480, overflow: 'auto', fontSize: 12, background: 'var(--bg-2)', padding: 12 }}>
                 {conf}
               </pre>
             ),

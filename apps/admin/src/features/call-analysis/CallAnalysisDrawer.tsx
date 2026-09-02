@@ -13,9 +13,9 @@ interface Props {
 }
 
 const SPEAKER_STYLE: Record<string, { align: 'flex-start' | 'flex-end'; background: string }> = {
-  CUSTOMER: { align: 'flex-start', background: 'var(--bg-2, #f5f5f5)' },
-  AGENT: { align: 'flex-end', background: 'var(--accent-soft, #e6f4ff)' },
-  UNKNOWN: { align: 'flex-start', background: 'var(--bg-2, #f5f5f5)' },
+  CUSTOMER: { align: 'flex-start', background: 'var(--bg-2)' },
+  AGENT: { align: 'flex-end', background: 'var(--accent-info-soft)' },
+  UNKNOWN: { align: 'flex-start', background: 'var(--bg-2)' },
 };
 
 export function CallAnalysisDrawer({ callId, onClose, canRetry = false }: Props) {
@@ -126,7 +126,7 @@ export function CallAnalysisDrawer({ callId, onClose, canRetry = false }: Props)
                     <Descriptions.Item label="위험 신호">
                       {analysis.riskFlags?.length
                         ? analysis.riskFlags.map((flag) => (
-                            <Tag color="orange" key={flag}>
+                            <Tag color="warning" key={flag}>
                               {flag}
                             </Tag>
                           ))

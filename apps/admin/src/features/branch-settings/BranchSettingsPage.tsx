@@ -113,7 +113,7 @@ export function BranchSettingsPage() {
             dataIndex: 'isActive',
             width: 100,
             render: (value: boolean) => (
-              <Tag color={value ? 'green' : 'red'}>{value ? '활성' : '비활성'}</Tag>
+              <Tag color={value ? 'success' : 'error'}>{value ? '활성' : '비활성'}</Tag>
             ),
           },
           {
@@ -124,7 +124,7 @@ export function BranchSettingsPage() {
               return enabledItems.length > 0 ? (
                 <Space size={[4, 4]} wrap>
                   {enabledItems.map((item) => (
-                    <Tag key={item.key} color="blue">
+                    <Tag key={item.key} color="processing">
                       {item.label}
                     </Tag>
                   ))}

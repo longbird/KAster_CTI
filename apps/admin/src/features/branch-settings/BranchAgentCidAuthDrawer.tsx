@@ -225,7 +225,7 @@ export function BranchAgentCidAuthDrawer({ open, branchId, branchName, onClose }
         render: (_: unknown, agent: AgentRow) => (
           <div>
             <Typography.Text strong>{agent.agentName}</Typography.Text>
-            <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+            <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
               {agent.agentCode} · 내선 {agent.extension}
             </div>
           </div>
@@ -296,7 +296,7 @@ export function BranchAgentCidAuthDrawer({ open, branchId, branchName, onClose }
           <Typography.Text strong>발신권한 매트릭스</Typography.Text>
           <FeatureHelpButton featureKey="branch.callerIdMatrix" featureName="발신권한 매트릭스" />
           {branch ? (
-            <Tag color="blue">
+            <Tag color="processing">
               {branch.branchName} ({branch.branchCode})
             </Tag>
           ) : branchName ? (

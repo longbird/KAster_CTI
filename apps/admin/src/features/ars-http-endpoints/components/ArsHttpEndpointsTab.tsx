@@ -125,14 +125,14 @@ export function ArsHttpEndpointsTab() {
       render: (_: unknown, row: ArsHttpEndpoint) =>
         row.authType === 'NONE'
           ? <Tag>없음</Tag>
-          : <Tag color={row.hasSecret ? 'green' : 'red'}>{row.hasSecret ? row.authType : '값 없음'}</Tag>,
+          : <Tag color={row.hasSecret ? 'success' : 'error'}>{row.hasSecret ? row.authType : '값 없음'}</Tag>,
     },
     { title: '대기', width: 80, render: (_: unknown, row: ArsHttpEndpoint) => `${row.timeoutMs}ms` },
     {
       title: '상태',
       width: 80,
       render: (_: unknown, row: ArsHttpEndpoint) =>
-        row.isActive ? <Tag color="blue">사용</Tag> : <Tag>중지</Tag>,
+        row.isActive ? <Tag color="processing">사용</Tag> : <Tag>중지</Tag>,
     },
     {
       title: '관리',

@@ -61,7 +61,7 @@ export function EntitlementChangeModal({ request, saving, onCancel, onConfirm }:
         <Descriptions.Item label="변경">
           <Tag>{feature.enabled ? '허용' : '차단'}</Tag>
           {'→ '}
-          <Tag color={nextEnabled ? 'green' : 'default'}>{nextEnabled ? '허용' : '차단'}</Tag>
+          <Tag color={nextEnabled ? 'success' : 'default'}>{nextEnabled ? '허용' : '차단'}</Tag>
         </Descriptions.Item>
       </Descriptions>
 

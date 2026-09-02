@@ -3,6 +3,7 @@ import { Button, Descriptions, Drawer, Empty, List, Popconfirm, Space, Spin, Tag
 import { apiClient } from '../../shared/lib/apiClient';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
+import { SESSION_STATUS_TONE, TRANSFER_PHASE_TONE } from '../../shared/ui/tagTone';
 
 export interface CallRow {
   callId: string;
@@ -52,15 +53,6 @@ interface Props {
   onHangup: () => void;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  QUEUED: 'gold',
-  RINGING_AGENT: 'blue',
-  TALKING: 'green',
-  AFTER_CALL_WORK: 'purple',
-  TRANSFERRING: 'cyan',
-  ENDED: 'default',
-};
-
 const STATUS_LABEL: Record<string, string> = {
   QUEUED: '대기열',
   RINGING_AGENT: '벨 울림',
@@ -68,16 +60,6 @@ const STATUS_LABEL: Record<string, string> = {
   AFTER_CALL_WORK: '후처리',
   TRANSFERRING: '전환 중',
   ENDED: '종료',
-};
-
-const TRANSFER_PHASE_COLOR: Record<string, string> = {
-  REQUESTED: 'default',
-  CONSULT_RINGING: 'gold',
-  CONSULT_TALKING: 'blue',
-  REBRIDGING: 'cyan',
-  COMPLETED: 'green',
-  FAILED: 'red',
-  EXPIRED: 'orange',
 };
 
 const TRANSFER_PHASE_LABEL: Record<string, string> = {
@@ -186,11 +168,11 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
             <Descriptions.Item label="큐">{detail.queueName ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="상담원">{detail.agentName || detail.primaryAgentId || '-'}</Descriptions.Item>
             <Descriptions.Item label="상태">
-              <Tag color={STATUS_COLOR[detail.sessionStatus] ?? 'default'}>{getStatusLabel(detail.sessionStatus)}</Tag>
+              <Tag color={SESSION_STATUS_TONE[detail.sessionStatus] ?? 'default'}>{getStatusLabel(detail.sessionStatus)}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="전환 상태">
               {detail.transferCandidates?.[0] ? (
-                <Tag color={TRANSFER_PHASE_COLOR[detail.transferCandidates[0].phase] ?? 'default'}>
+                <Tag color={TRANSFER_PHASE_TONE[detail.transferCandidates[0].phase] ?? 'default'}>
                   {getTransferPhaseLabel(detail.transferCandidates[0].phase)}
                 </Tag>
               ) : (
@@ -219,7 +201,7 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
                         <Typography.Text>
                           {item.fromExtension ?? '-'} → {item.toExtension ?? '-'}
                         </Typography.Text>
-                        <Tag color={TRANSFER_PHASE_COLOR[item.phase] ?? 'default'}>{getTransferPhaseLabel(item.phase)}</Tag>
+                        <Tag color={TRANSFER_PHASE_TONE[item.phase] ?? 'default'}>{getTransferPhaseLabel(item.phase)}</Tag>
                       </div>
                       <Typography.Text type="secondary">
                         요청 {fmtDateTime(item.requestedAt)}
@@ -251,7 +233,7 @@ export function CallDetailDrawer({ call, onClose, onHangup }: Props) {
                         <Typography.Text>
                           {item.transferType} / {item.fromExtension ?? '-'} → {item.toExtension ?? '-'}
                         </Typography.Text>
-                        <Tag color={TRANSFER_PHASE_COLOR[item.transferResult ?? 'REQUESTED'] ?? 'default'}>
+                        <Tag color={TRANSFER_PHASE_TONE[item.transferResult ?? 'REQUESTED'] ?? 'default'}>
                           {getTransferPhaseLabel(item.transferResult ?? 'REQUESTED')}
                         </Tag>
                       </div>

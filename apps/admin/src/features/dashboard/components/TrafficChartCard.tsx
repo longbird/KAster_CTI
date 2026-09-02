@@ -29,8 +29,8 @@ export function TrafficChartCard({ items, compact = false }: { items: HourlyTraf
                 minWidth: 4,
               }}
             >
-              <div style={{ height: `${(item.answered / max) * 70}px`, background: '#1677ff', borderRadius: '1px 1px 0 0' }} />
-              <div style={{ height: `${(item.abandoned / max) * 70}px`, background: '#ff4d4f' }} />
+              <div style={{ height: `${(item.answered / max) * 70}px`, background: 'var(--accent-info)', borderRadius: '1px 1px 0 0' }} />
+              <div style={{ height: `${(item.abandoned / max) * 70}px`, background: 'var(--accent-danger)' }} />
             </div>
           ))}
         </div>

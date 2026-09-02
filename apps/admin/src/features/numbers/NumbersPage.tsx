@@ -177,7 +177,7 @@ export function NumbersPage() {
               title: '충돌',
               dataIndex: 'hasConflict',
               width: 80,
-              render: (value: boolean) => value ? <Tag color="red">충돌</Tag> : <Tag color="green">정상</Tag>,
+              render: (value: boolean) => value ? <Tag color="error">충돌</Tag> : <Tag color="success">정상</Tag>,
             },
           ]}
         />
@@ -221,13 +221,13 @@ export function NumbersPage() {
               title: '녹취',
               dataIndex: 'recordingEnabled',
               width: 80,
-              render: (v?: boolean) => v ? <Tag color="green">REC</Tag> : <Tag>OFF</Tag>,
+              render: (v?: boolean) => v ? <Tag color="success">REC</Tag> : <Tag>OFF</Tag>,
             },
             {
               title: '상태',
               dataIndex: 'isActive',
               width: 80,
-              render: (v?: boolean) => v === false ? <Tag>비활성</Tag> : <Tag color="green">활성</Tag>,
+              render: (v?: boolean) => v === false ? <Tag>비활성</Tag> : <Tag color="success">활성</Tag>,
             },
           ]}
         />
@@ -258,7 +258,7 @@ export function NumbersPage() {
               title: '상태',
               dataIndex: 'isActive',
               width: 80,
-              render: (v: boolean) => v ? <Tag color="green">활성</Tag> : <Tag>비활성</Tag>,
+              render: (v: boolean) => v ? <Tag color="success">활성</Tag> : <Tag>비활성</Tag>,
             },
           ]}
         />

@@ -189,13 +189,13 @@ export function HistoryPage() {
               title: '포기',
               dataIndex: 'abandonFlag',
               width: 70,
-              render: (v: boolean) => v ? <Tag color="red">포기</Tag> : '-',
+              render: (v: boolean) => v ? <Tag color="error">포기</Tag> : '-',
             },
             {
               title: '녹취',
               dataIndex: 'recordingFlag',
               width: 70,
-              render: (v: boolean) => v ? <Tag color="blue">REC</Tag> : '-',
+              render: (v: boolean) => v ? <Tag color="processing">REC</Tag> : '-',
             },
             ...(analysisEnabled
               ? [

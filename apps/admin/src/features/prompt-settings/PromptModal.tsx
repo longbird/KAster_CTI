@@ -297,7 +297,7 @@ export function PromptModal({ open, prompt, onClose, onSave, onGenerated }: Prop
 
         <div className="prompt-modal__footer-note">
           <Space size={8} wrap>
-            <Tag bordered={false} color="blue">
+            <Tag bordered={false} color="processing">
               Playback
             </Tag>
             <Typography.Text type="secondary">

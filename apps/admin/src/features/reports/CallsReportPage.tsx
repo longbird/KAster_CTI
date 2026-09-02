@@ -9,6 +9,7 @@ import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { AdmPageHead } from '../../shared/ui/AdmPageHead';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
+import { MISSED_REASON_TONE, SESSION_STATUS_TONE, TRANSFER_PHASE_TONE } from '../../shared/ui/tagTone';
 
 interface CdrRow {
   callId: string;
@@ -37,16 +38,6 @@ interface CdrRow {
   } | null;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  ENDED: 'default',
-  QUEUED: 'orange',
-  TALKING: 'blue',
-  AFTER_CALL_WORK: 'purple',
-  RINGING_AGENT: 'gold',
-  NEW: 'cyan',
-  TRANSFERRING: 'cyan',
-};
-
 const STATUS_LABEL: Record<string, string> = {
   NEW: '인입 중',
   QUEUED: '대기열',
@@ -57,16 +48,6 @@ const STATUS_LABEL: Record<string, string> = {
   ENDED: '종료',
 };
 
-const TRANSFER_PHASE_COLOR: Record<string, string> = {
-  REQUESTED: 'default',
-  CONSULT_RINGING: 'gold',
-  CONSULT_TALKING: 'blue',
-  REBRIDGING: 'cyan',
-  COMPLETED: 'green',
-  FAILED: 'red',
-  EXPIRED: 'orange',
-};
-
 const TRANSFER_PHASE_LABEL: Record<string, string> = {
   REQUESTED: '요청됨',
   CONSULT_RINGING: '협의 호출',
@@ -75,15 +56,6 @@ const TRANSFER_PHASE_LABEL: Record<string, string> = {
   COMPLETED: '완료',
   FAILED: '실패',
   EXPIRED: '만료',
-};
-
-const MISSED_REASON_COLOR: Record<string, string> = {
-  CUSTOMER_ABANDONED: 'red',
-  QUEUE_TIMEOUT: 'orange',
-  QUEUE_NO_ANSWER: 'gold',
-  AGENT_NO_ANSWER: 'volcano',
-  SYSTEM_RECOVERY: 'purple',
-  NO_ANSWER: 'default',
 };
 
 const MISSED_REASON_LABEL: Record<string, string> = {
@@ -322,14 +294,14 @@ export function CallsReportPage() {
           {
             title: '상태',
             dataIndex: 'sessionStatus',
-            render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{getStatusLabel(v)}</Tag>,
+            render: (v: string) => <Tag color={SESSION_STATUS_TONE[v] ?? 'default'}>{getStatusLabel(v)}</Tag>,
             width: 120,
           },
           {
             title: '미연결 원인',
             dataIndex: 'missedReason',
             render: (value: string | null) =>
-              value ? <Tag color={MISSED_REASON_COLOR[value] ?? 'default'}>{getMissedReasonLabel(value)}</Tag> : '-',
+              value ? <Tag color={MISSED_REASON_TONE[value] ?? 'default'}>{getMissedReasonLabel(value)}</Tag> : '-',
             width: 120,
           },
           { title: '결과코드', dataIndex: 'resultCode', width: 120, render: (value: string | null) => value || '-' },
@@ -338,7 +310,7 @@ export function CallsReportPage() {
             width: 150,
             render: (_: unknown, r: CdrRow) =>
               r.latestTransfer ? (
-                <Tag color={TRANSFER_PHASE_COLOR[r.latestTransfer.phase] ?? 'default'}>
+                <Tag color={TRANSFER_PHASE_TONE[r.latestTransfer.phase] ?? 'default'}>
                   {getTransferPhaseLabel(r.latestTransfer.phase)}
                   {r.latestTransfer.toExtension ? ` · ${r.latestTransfer.toExtension}` : ''}
                 </Tag>
@@ -351,13 +323,13 @@ export function CallsReportPage() {
           {
             title: '포기',
             dataIndex: 'abandonFlag',
-            render: (v: boolean) => (v ? <Tag color="red">포기</Tag> : '-'),
+            render: (v: boolean) => (v ? <Tag color="error">포기</Tag> : '-'),
             width: 60,
           },
           {
             title: '녹취',
             dataIndex: 'recordingFlag',
-            render: (v: boolean) => (v ? <Tag color="blue">Y</Tag> : '-'),
+            render: (v: boolean) => (v ? <Tag color="processing">Y</Tag> : '-'),
             width: 60,
           },
         ]}

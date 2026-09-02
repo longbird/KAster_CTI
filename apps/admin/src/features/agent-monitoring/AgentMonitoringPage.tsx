@@ -5,6 +5,7 @@ import { apiClient } from '../../shared/lib/apiClient';
 import { joinAgentsAndCalls, summarizeMonitorRows } from './fixtures';
 import type { ActiveCallRow, AgentMonitorRow } from './types';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
+import { AGENT_STATUS_TONE } from '../../shared/ui/tagTone';
 
 const STATUS_LABELS: Record<string, string> = {
   AVAILABLE: '대기',
@@ -19,19 +20,6 @@ const STATUS_LABELS: Record<string, string> = {
   MANUAL_PAUSED: '일시정지',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: 'green',
-  TALKING: 'blue',
-  RINGING_AGENT: 'gold',
-  AFTER_CALL_WORK: 'purple',
-  HOLD: 'orange',
-  TRANSFERRING: 'cyan',
-  BREAK: 'orange',
-  MEAL: 'orange',
-  TRAINING: 'cyan',
-  MANUAL_PAUSED: 'default',
-};
-
 function formatStatus(code: string | undefined | null) {
   if (!code) return '-';
   return STATUS_LABELS[code] ?? code;
@@ -39,7 +27,7 @@ function formatStatus(code: string | undefined | null) {
 
 function statusColor(code: string | undefined | null) {
   if (!code) return 'default';
-  return STATUS_COLORS[code] ?? 'default';
+  return AGENT_STATUS_TONE[code] ?? 'default';
 }
 
 function secondsSince(iso: string | null | undefined, now: number): number {
@@ -178,16 +166,16 @@ export function AgentMonitoringPage() {
       dataIndex: 'loginStatus',
       width: 100,
       render: (value: string) =>
-        value === 'LOGGED_IN' ? <Tag color="green">온라인</Tag> : <Tag>오프라인</Tag>,
+        value === 'LOGGED_IN' ? <Tag color="success">온라인</Tag> : <Tag>오프라인</Tag>,
     },
     {
       title: '전화기',
       width: 110,
       render: (_, row) =>
         row.sipRegistration.registered ? (
-          <Tag color="green">등록</Tag>
+          <Tag color="success">등록</Tag>
         ) : (
-          <Tag color="orange">{row.sipRegistration.registrationStatus || '미등록'}</Tag>
+          <Tag color="warning">{row.sipRegistration.registrationStatus || '미등록'}</Tag>
         ),
     },
     {
@@ -238,13 +226,13 @@ export function AgentMonitoringPage() {
             <Statistic title="전체" value={summary.total} />
           </Col>
           <Col span={4}>
-            <Statistic title="온라인" value={summary.online} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="온라인" value={summary.online} valueStyle={{ color: 'var(--signal)' }} />
           </Col>
           <Col span={4}>
             <Statistic title="대기" value={summary.available} />
           </Col>
           <Col span={4}>
-            <Statistic title="통화중" value={summary.talking} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="통화중" value={summary.talking} valueStyle={{ color: 'var(--accent-info)' }} />
           </Col>
           <Col span={4}>
             <Statistic title="후처리" value={summary.afterCall} />

@@ -77,10 +77,10 @@ export function DidsTab({ resourceId, onResourceHandled }: DidsTabProps) {
       title: '연결',
       render: (_: unknown, row: AsteriskDid) =>
         row.ivrMenuId
-          ? <Tag color="blue">IVR</Tag>
+          ? <Tag color="processing">IVR</Tag>
           : row.directExtension
-            ? <Tag color="purple">내선: {row.directExtension}</Tag>
-            : <Tag color="green">큐: {row.directQueue}</Tag>,
+            ? <Tag color="default">내선: {row.directExtension}</Tag>
+            : <Tag color="success">큐: {row.directQueue}</Tag>,
     },
     {
       title: '지사',
@@ -90,7 +90,7 @@ export function DidsTab({ resourceId, onResourceHandled }: DidsTabProps) {
         return (
           <Space wrap>
             {items.map((item) => (
-              <Tag key={item.branch.branchId} color="purple">
+              <Tag key={item.branch.branchId} color="default">
                 {item.branch.branchName}
               </Tag>
             ))}
@@ -100,7 +100,7 @@ export function DidsTab({ resourceId, onResourceHandled }: DidsTabProps) {
     },
     {
       title: '상태', dataIndex: 'enabled', width: 80,
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '활성' : '비활성'}</Tag>,
+      render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '활성' : '비활성'}</Tag>,
     },
     {
       title: '관리', width: 120, fixed: 'right' as const,

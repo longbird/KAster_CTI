@@ -13,7 +13,7 @@ import { ConsultCategoryModal, type ConsultCategoryFormValues } from './ConsultC
 import type { ConsultCategoryRow, ConsultCategoryTreeRow } from './types/consultCategory';
 import { buildCategoryTree, CATEGORY_LEVEL_LABELS } from './types/consultCategory';
 
-const LEVEL_COLORS: Record<number, string> = { 1: 'blue', 2: 'cyan', 3: 'default' };
+const LEVEL_COLORS: Record<number, string> = { 1: 'processing', 2: 'processing', 3: 'default' };
 
 export function ConsultCategoriesPage() {
   const permission = usePermissionStore((state) => state.permissionsByMenu['settings/consult-categories']);
@@ -114,7 +114,7 @@ export function ConsultCategoriesPage() {
       key: 'isActive',
       width: 100,
       render: (isActive: boolean) =>
-        isActive ? <Tag color="green">활성</Tag> : <Tag>비활성</Tag>,
+        isActive ? <Tag color="success">활성</Tag> : <Tag>비활성</Tag>,
     },
     {
       title: '관리',

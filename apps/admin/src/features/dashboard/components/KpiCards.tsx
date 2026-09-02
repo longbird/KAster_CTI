@@ -13,8 +13,8 @@ export function KpiCards({ items, compact = false }: { items: KpiItem[]; compact
               className="delta"
               style={{
                 color:
-                  item.trend === 'up' ? '#1677ff' :
-                  item.trend === 'down' ? '#52c41a' : '#8c8c8c',
+                  item.trend === 'up' ? 'var(--accent-info)' :
+                  item.trend === 'down' ? 'var(--signal)' : 'var(--fg-3)',
               }}
             >
               {item.delta}
@@ -31,7 +31,7 @@ export function KpiCards({ items, compact = false }: { items: KpiItem[]; compact
         <Col xs={24} sm={12} xl={8} xxl={4} key={item.key}>
           <Card>
             <Statistic title={item.label} value={item.value} />
-            <Tag color={item.trend === 'up' ? 'blue' : item.trend === 'down' ? 'green' : 'default'} style={{ marginTop: 12 }}>
+            <Tag color={item.trend === 'up' ? 'processing' : item.trend === 'down' ? 'success' : 'default'} style={{ marginTop: 12 }}>
               {item.delta}
             </Tag>
           </Card>

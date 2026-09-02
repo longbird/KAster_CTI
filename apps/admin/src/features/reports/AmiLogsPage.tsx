@@ -8,6 +8,7 @@ import { downloadCsv } from '../../shared/lib/csv';
 import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
+import { SESSION_STATUS_TONE } from '../../shared/ui/tagTone';
 
 interface AmiLogRow {
   eventId: string;
@@ -57,16 +58,6 @@ interface AmiLogResponse {
   total: number;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  NEW: 'cyan',
-  QUEUED: 'orange',
-  RINGING_AGENT: 'gold',
-  TALKING: 'blue',
-  AFTER_CALL_WORK: 'purple',
-  TRANSFERRING: 'geekblue',
-  ENDED: 'default',
-};
-
 const STATUS_LABEL: Record<string, string> = {
   NEW: '인입',
   QUEUED: '대기',
@@ -78,18 +69,18 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const TIMELINE_COLOR: Record<string, string> = {
-  CALL_STARTED: 'blue',
-  QUEUE_ENTERED: 'orange',
-  AGENT_RINGING: 'gold',
-  CALL_ANSWERED: 'green',
-  TRANSFER_COMPLETED: 'purple',
+  CALL_STARTED: 'processing',
+  QUEUE_ENTERED: 'warning',
+  AGENT_RINGING: 'warning',
+  CALL_ANSWERED: 'success',
+  TRANSFER_COMPLETED: 'default',
   CALL_ENDED: 'gray',
-  MEMO_SAVED: 'blue',
-  RECORDING_STARTED: 'cyan',
-  SMART_ARS_PROMPT: 'blue',
-  SMART_ARS_SELECTION: 'gold',
-  SMART_ARS_ACTION: 'purple',
-  SMART_ARS_RESULT: 'green',
+  MEMO_SAVED: 'processing',
+  RECORDING_STARTED: 'processing',
+  SMART_ARS_PROMPT: 'processing',
+  SMART_ARS_SELECTION: 'warning',
+  SMART_ARS_ACTION: 'default',
+  SMART_ARS_RESULT: 'success',
 };
 
 const AMI_EVENT_LABEL: Record<string, string> = {
@@ -430,7 +421,7 @@ export function AmiLogsPage() {
           {
             title: '상태',
             width: 110,
-            render: (_: unknown, row) => <Tag color={STATUS_COLOR[row.sessionStatus] ?? 'default'}>{getStatusLabel(row.sessionStatus)}</Tag>,
+            render: (_: unknown, row) => <Tag color={SESSION_STATUS_TONE[row.sessionStatus] ?? 'default'}>{getStatusLabel(row.sessionStatus)}</Tag>,
           },
           {
             title: '시간',
@@ -468,7 +459,7 @@ export function AmiLogsPage() {
 
             <Timeline
               items={(selected.timeline ?? []).map((item) => ({
-                color: TIMELINE_COLOR[item.type] ?? 'blue',
+                color: TIMELINE_COLOR[item.type] ?? 'processing',
                 children: (
                   <Space direction="vertical" size={0}>
                     <Typography.Text strong>{item.label}</Typography.Text>

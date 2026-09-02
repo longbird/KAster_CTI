@@ -8,6 +8,7 @@ import { formatPhoneNumber } from '../../shared/lib/format';
 import { usePermissionStore } from '../../store/usePermissionStore';
 import { BranchFilterSelect } from '../../shared/branches/BranchFilterSelect';
 import { ResponsiveTable } from '../../components/ResponsiveTable';
+import { MISSED_REASON_TONE } from '../../shared/ui/tagTone';
 
 interface MissedRow {
   callId: string;
@@ -24,15 +25,6 @@ interface MissedRow {
   waitSeconds: number;
   primaryAgent: { agentName: string } | null;
 }
-
-const MISSED_REASON_COLOR: Record<string, string> = {
-  CUSTOMER_ABANDONED: 'red',
-  QUEUE_TIMEOUT: 'orange',
-  QUEUE_NO_ANSWER: 'gold',
-  AGENT_NO_ANSWER: 'volcano',
-  SYSTEM_RECOVERY: 'purple',
-  NO_ANSWER: 'default',
-};
 
 const MISSED_REASON_LABEL: Record<string, string> = {
   CUSTOMER_ABANDONED: '고객 포기',
@@ -206,14 +198,14 @@ export function MissedCallsPage() {
             title: '미연결 원인',
             dataIndex: 'missedReason',
             render: (value: string | null) =>
-              value ? <Tag color={MISSED_REASON_COLOR[value] ?? 'default'}>{getMissedReasonLabel(value)}</Tag> : '-',
+              value ? <Tag color={MISSED_REASON_TONE[value] ?? 'default'}>{getMissedReasonLabel(value)}</Tag> : '-',
             width: 120,
           },
           { title: '결과코드', dataIndex: 'resultCode', width: 120, render: (value: string | null) => value || '-' },
           {
             title: '포기',
             dataIndex: 'abandonFlag',
-            render: (value: boolean) => (value ? <Tag color="red">포기</Tag> : '-'),
+            render: (value: boolean) => (value ? <Tag color="error">포기</Tag> : '-'),
             width: 70,
           },
           {

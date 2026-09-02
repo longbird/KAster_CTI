@@ -80,9 +80,9 @@ function AlertBanners({ data }: { data: ReturnType<typeof useHealthData>['data']
 type InfraVal = 'up' | 'down' | 'degraded' | 'connected' | 'disconnected';
 
 function infraColor(v: InfraVal): string {
-  if (v === 'up' || v === 'connected') return '#52c41a';
-  if (v === 'degraded') return '#faad14';
-  return '#ff4d4f';
+  if (v === 'up' || v === 'connected') return 'var(--signal)';
+  if (v === 'degraded') return 'var(--accent-warn)';
+  return 'var(--accent-danger)';
 }
 
 function InfraCards({ data }: { data: ReturnType<typeof useHealthData>['data'] }) {
@@ -167,7 +167,7 @@ function MetricGrid({ title, items }: { title: string; items: MetricItem[] }) {
               title={label}
               value={value}
               suffix={suffix}
-              valueStyle={danger && value > 0 ? { color: '#ff4d4f' } : undefined}
+              valueStyle={danger && value > 0 ? { color: 'var(--accent-danger)' } : undefined}
             />
           </Card>
         ))}
@@ -179,10 +179,10 @@ function MetricGrid({ title, items }: { title: string; items: MetricItem[] }) {
 
 // ----- DB 장애 대응 지표 -----
 const MODE_TAG_COLOR: Record<string, string> = {
-  NORMAL: 'green',
-  DB_FAILOVER: 'orange',
-  RECOVERING: 'orange',
-  DEGRADED: 'red',
+  NORMAL: 'success',
+  DB_FAILOVER: 'warning',
+  RECOVERING: 'warning',
+  DEGRADED: 'error',
 };
 
 function ResiliencePanel({ data }: { data: ReturnType<typeof useHealthData>['data'] }) {
@@ -212,12 +212,12 @@ function ResiliencePanel({ data }: { data: ReturnType<typeof useHealthData>['dat
         <Descriptions.Item label="LKG 버전">{r.lkgVersion ?? '없음'}</Descriptions.Item>
         <Descriptions.Item label="LKG 생성 경과">{formatAgeSeconds(r.lkgAgeSeconds)}</Descriptions.Item>
         <Descriptions.Item label="설정 버전 불일치">
-          <span style={r.configVersionMismatch > 0 ? { color: '#ff4d4f' } : undefined}>
+          <span style={r.configVersionMismatch > 0 ? { color: 'var(--accent-danger)' } : undefined}>
             {r.configVersionMismatch}
           </span>
         </Descriptions.Item>
         <Descriptions.Item label="미처리 이벤트">
-          <span style={r.offlineEventQueueDepth > 0 ? { color: '#ff4d4f' } : undefined}>
+          <span style={r.offlineEventQueueDepth > 0 ? { color: 'var(--accent-danger)' } : undefined}>
             {r.offlineEventQueueDepth}
           </span>
         </Descriptions.Item>

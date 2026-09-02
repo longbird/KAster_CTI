@@ -51,8 +51,14 @@ export const lightTheme: ThemeConfig = {
   algorithm: antdTheme.defaultAlgorithm,
   token: {
     ...baseToken,
+    // 이 넷은 styles.css 의 [data-theme='light'] 토큰과 같은 값이어야 한다.
+    // Tag 의 success/processing/warning/error 가 여기서 파생되므로,
+    // 어긋나면 CSS 로 그린 칩과 antd 태그가 라이트에서 다른 색이 된다.
     colorPrimary: '#15803d',
     colorSuccess: '#15803d',
+    colorInfo: '#2563eb',
+    colorWarning: '#d97706',
+    colorError: '#dc2626',
     colorBgBase: '#fafafa',
     colorBgLayout: '#fafafa',
     colorBgContainer: '#ffffff',

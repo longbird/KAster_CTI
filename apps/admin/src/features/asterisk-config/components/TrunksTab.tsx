@@ -100,7 +100,7 @@ export function TrunksTab() {
       dataIndex: 'computedDisplayNumber',
       width: 120,
       render: (value: string | null, row: AsteriskTrunk) => (
-        value ? <Tag color={row.displayNumber ? 'blue' : 'default'}>{value}</Tag> : <Tag>미지정</Tag>
+        value ? <Tag color={row.displayNumber ? 'processing' : 'default'}>{value}</Tag> : <Tag>미지정</Tag>
       ),
     },
     {
@@ -111,7 +111,7 @@ export function TrunksTab() {
     { title: '코덱', dataIndex: 'codecs' },
     {
       title: '상태', dataIndex: 'enabled', width: 80,
-      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '활성' : '비활성'}</Tag>,
+      render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '활성' : '비활성'}</Tag>,
     },
     {
       title: '관리', width: 120, fixed: 'right' as const,
@@ -134,7 +134,7 @@ export function TrunksTab() {
       title: '기본',
       dataIndex: 'isDefault',
       width: 90,
-      render: (value: boolean) => (value ? <Tag color="blue">기본</Tag> : <Tag>일반</Tag>),
+      render: (value: boolean) => (value ? <Tag color="processing">기본</Tag> : <Tag>일반</Tag>),
     },
     {
       title: '회선',
@@ -145,7 +145,7 @@ export function TrunksTab() {
             .slice()
             .sort((a, b) => a.priority - b.priority)
             .map((member) => (
-              <Tag key={member.id} color={member.enabled && member.trunk.enabled ? 'green' : 'default'}>
+              <Tag key={member.id} color={member.enabled && member.trunk.enabled ? 'success' : 'default'}>
                 {member.priority} · {member.trunk.name}
               </Tag>
             ))}
@@ -156,7 +156,7 @@ export function TrunksTab() {
       title: '상태',
       dataIndex: 'enabled',
       width: 80,
-      render: (value: boolean) => <Tag color={value ? 'green' : 'default'}>{value ? '활성' : '비활성'}</Tag>,
+      render: (value: boolean) => <Tag color={value ? 'success' : 'default'}>{value ? '활성' : '비활성'}</Tag>,
     },
     {
       title: '관리',

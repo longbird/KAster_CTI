@@ -9,7 +9,7 @@ import { ResponsiveTable } from '../../../components/ResponsiveTable';
 const INVOCATION_META: Record<FeatureCode['invocation'], { label: string; color: string; hint: string }> = {
   HANDSET_DIAL: {
     label: '단말 다이얼',
-    color: 'green',
+    color: 'success',
     hint: '상담원이 전화기에서 눌러 호출합니다.',
   },
   SERVER_DTMF: {
@@ -115,7 +115,7 @@ export function FeatureCodesTab() {
       width: 110,
       render: (value: boolean) => (
         value
-          ? <Tag color="blue">설정됨</Tag>
+          ? <Tag color="processing">설정됨</Tag>
           : <Tag>기본값</Tag>
       ),
     },

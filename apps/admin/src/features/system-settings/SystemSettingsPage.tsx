@@ -243,7 +243,7 @@ export function SystemSettingsPage() {
               <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
                 <Space align="center">
                   <Typography.Text strong>서버 버전</Typography.Text>
-                  <Tag color={version ? 'blue' : 'default'}>{version?.version ?? '확인 중'}</Tag>
+                  <Tag color={version ? 'processing' : 'default'}>{version?.version ?? '확인 중'}</Tag>
                 </Space>
                 <Button size="small" onClick={() => void loadVersion()}>
                   버전 새로고침
@@ -337,7 +337,7 @@ export function SystemSettingsPage() {
                     event.preventDefault();
                     removeCallerId(callerId);
                   }}
-                  color="blue"
+                  color="processing"
                 >
                   {callerId}
                 </Tag>

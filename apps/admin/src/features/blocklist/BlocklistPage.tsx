@@ -205,7 +205,7 @@ export function BlocklistPage() {
             dataIndex: 'isActive',
             width: 100,
             render: (value: boolean) => (
-              <Tag color={value ? 'red' : 'default'}>{value ? '활성' : '비활성'}</Tag>
+              <Tag color={value ? 'error' : 'default'}>{value ? '활성' : '비활성'}</Tag>
             ),
           },
           {
@@ -240,11 +240,11 @@ export function BlocklistPage() {
         <Space wrap>
           <StopOutlined />
           <Tag>전체 {summary.total}</Tag>
-          <Tag color="red">활성 {summary.active}</Tag>
+          <Tag color="error">활성 {summary.active}</Tag>
           <Tag>비활성 {summary.inactive}</Tag>
-          <Tag color="blue">접두어 {summary.prefix}</Tag>
-          <Tag color="purple">지사 {summary.branchScoped}</Tag>
-          <Tag color="green">자동등록 {summary.automated}</Tag>
+          <Tag color="processing">접두어 {summary.prefix}</Tag>
+          <Tag color="default">지사 {summary.branchScoped}</Tag>
+          <Tag color="success">자동등록 {summary.automated}</Tag>
           <Typography.Text type="secondary">
             접두어 규칙은 동일 패턴으로 시작하는 ANI를 함께 차단합니다.
           </Typography.Text>

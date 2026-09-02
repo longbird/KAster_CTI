@@ -357,7 +357,7 @@ export function PermissionSettingsPage() {
                           />
                           {accountAgent ? (
                             <Space wrap>
-                              <Tag color={accountAgent.isActive ? 'green' : 'default'}>
+                              <Tag color={accountAgent.isActive ? 'success' : 'default'}>
                                 {accountAgent.isActive ? '활성' : '비활성'}
                               </Tag>
                               <Tag>{accountAgent.loginId}</Tag>
@@ -436,7 +436,7 @@ export function PermissionSettingsPage() {
                               return (
                                 <Space>
                                   <span>{labelForMenuPath(menuKeyToPath(menuKey))}</span>
-                                  {overridden ? <Tag color="orange">개별 수정</Tag> : null}
+                                  {overridden ? <Tag color="warning">개별 수정</Tag> : null}
                                 </Space>
                               );
                             },

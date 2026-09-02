@@ -225,7 +225,7 @@ export function AppLayout() {
         <List
           dataSource={loginUpdates}
           renderItem={(item) => {
-            const color = item.severity === 'CRITICAL' ? 'red' : item.severity === 'IMPORTANT' ? 'orange' : 'blue';
+            const color = item.severity === 'CRITICAL' ? 'error' : item.severity === 'IMPORTANT' ? 'warning' : 'processing';
             const label = item.severity === 'CRITICAL' ? '긴급' : item.severity === 'IMPORTANT' ? '중요' : '일반';
             return (
               <List.Item>
