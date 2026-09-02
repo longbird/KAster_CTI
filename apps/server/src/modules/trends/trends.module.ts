@@ -3,6 +3,7 @@ import { MenuPermissionService } from '../../common/menu-permission.service';
 import { PrismaService } from '../../common/prisma.service';
 import { AmiModule } from '../ami/ami.module';
 import { DashboardSnapshotService } from './dashboard-snapshot.service';
+import { CallInsightsService } from './insights/call-insights.service';
 import { SnapshotRetentionService } from './snapshot-retention.service';
 import { TrendQueryService } from './trend-query.service';
 import { TrendsController } from './trends.controller';
@@ -20,6 +21,7 @@ import { TrendsController } from './trends.controller';
   controllers: [TrendsController],
   providers: [
     DashboardSnapshotService,
+    CallInsightsService,
     SnapshotRetentionService,
     TrendQueryService,
     MenuPermissionService,

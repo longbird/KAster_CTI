@@ -62,3 +62,47 @@ export async function fetchQueueOptions(): Promise<QueueOption[]> {
   const rows = data?.data ?? data ?? [];
   return Array.isArray(rows) ? rows : [];
 }
+
+/**
+ * AI 인사이트.
+ *
+ * 추이의 리소스 축과 달리 스냅샷 적재가 없다 — 요청 시점에 통화 이력과 분석 결과를 조인해
+ * 집계하므로 값이 없으면 `0` 이다.
+ * `totals` 가 분석 커버리지다. analyzedCalls 가 totalCalls 보다 많이 낮으면
+ * 아래 분포를 전체 통화의 분포로 읽으면 안 된다.
+ */
+export interface SentimentPoint {
+  at: string;
+  positive: number;
+  neutral: number;
+  negative: number;
+  total: number;
+}
+
+export interface CategoryInsight {
+  categoryId: string | null;
+  code: string | null;
+  name: string | null;
+  calls: number;
+  avgTalkSeconds: number;
+  negativeCalls: number;
+}
+
+export interface CallInsightsResponse {
+  range: { from: string; to: string; resolution: TrendResolution; queueId: string | null };
+  totals: { totalCalls: number; analyzedCalls: number };
+  sentimentSeries: SentimentPoint[];
+  categories: CategoryInsight[];
+  risingKeywords: Array<{
+    keyword: string;
+    current: number;
+    previous: number;
+    delta: number;
+    changeRate: number | null;
+  }>;
+}
+
+export async function fetchCallInsights(query: TrendQuery): Promise<CallInsightsResponse> {
+  const { data } = await apiClient.get('/admin/call-insights', { params: query });
+  return data?.data ?? data;
+}

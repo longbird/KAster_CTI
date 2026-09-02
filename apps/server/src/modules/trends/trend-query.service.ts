@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
+import { buildStartedAtBucketExpression } from './call-bucket-expression';
 import { SnapshotResolution } from './snapshot-rollup';
 import {
   CallBucket,
@@ -18,14 +19,6 @@ import { ListTrendsQueryDto } from './dto/list-trends.query.dto';
  * 끝난 줄 알고 그린다 — 없는 데이터가 아니라 <b>안 보낸 데이터</b>인데 구분이 안 된다.
  */
 const MAX_POINTS = 3000;
-
-/** Postgres `date_trunc` 단위. 5분은 trunc 로 안 되므로 따로 계산한다. */
-const TRUNC_UNIT: Record<SnapshotResolution, string> = {
-  PT1M: 'minute',
-  PT5M: 'minute',
-  PT1H: 'hour',
-  P1D: 'day',
-};
 
 @Injectable()
 export class TrendQueryService {
@@ -99,7 +92,7 @@ export class TrendQueryService {
     resolution: SnapshotResolution,
     queueName: string | null,
   ): Promise<CallBucket[]> {
-    const bucketExpr = this.bucketExpression(resolution);
+    const bucketExpr = buildStartedAtBucketExpression(resolution);
     const queueFilter = queueName
       ? Prisma.sql`AND s."queueName" = ${queueName}`
       : Prisma.empty;
@@ -143,17 +136,6 @@ export class TrendQueryService {
    * 5분은 `date_trunc` 로 안 되므로 분으로 내린 뒤 5분 배수로 다시 내린다.
    * 나머지 해상도는 `date_trunc` 하나로 끝난다.
    */
-  private bucketExpression(resolution: SnapshotResolution): Prisma.Sql {
-    const unit = TRUNC_UNIT[resolution];
-    if (resolution !== 'PT5M') {
-      return Prisma.sql`date_trunc(${unit}, s."startedAt")`;
-    }
-    return Prisma.sql`
-      date_trunc('hour', s."startedAt")
-        + make_interval(mins => (EXTRACT(MINUTE FROM s."startedAt")::int / 5) * 5)
-    `;
-  }
-
   /**
    * 리소스 축. 저장된 해상도(PT1M/PT5M)를 그대로 읽고, 요청 해상도로 접는 것은
    * `mergeTrendPoints` 가 한다 — 접는 규칙(평균/최대)이 한 곳에만 있어야 한다.
