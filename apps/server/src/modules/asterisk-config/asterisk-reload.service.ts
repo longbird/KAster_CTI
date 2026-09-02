@@ -23,6 +23,7 @@ import {
   validateRenderedConfFiles,
 } from './asterisk-config-validation';
 import { findConfigRenderRegression } from './config-render-guard';
+import { toSlug } from './renderers/renderer-utils';
 import { CONFIG_OWNER_MARKER_FILENAME, decideConfigOwnership } from './config-ownership';
 import {
   DEFAULT_SIP_REGISTER_PORT,
@@ -724,6 +725,21 @@ function buildOptOutGuardedDigitAgiScript(): string {
   ].join('\n');
 }
 
+/**
+ * 렌더 가드가 확인할 플로우 컨텍스트 슬러그. 컴파일러와 **같은 규칙**으로 만든다.
+ * 어긋나면 가드가 멀쩡한 렌더를 막거나, 반대로 빠진 컨텍스트를 놓친다.
+ */
+function collectArsFlowSlugs(dids: Array<{ enabled?: boolean; arsFlow?: any }>): string[] {
+  const slugs = new Set<string>();
+  for (const did of dids) {
+    if (did.enabled === false || !did.arsFlow?.graph) continue;
+    const graph = did.arsFlow.graph;
+    const slug = toSlug(graph.name) || toSlug(graph.flowId);
+    if (slug) slugs.add(slug);
+  }
+  return [...slugs];
+}
+
 @Injectable()
 export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(AsteriskReloadService.name);
@@ -1041,6 +1057,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       expectedAgentCount: agents.length,
       renderedPjsip: pjsipContent,
       renderedAgentDialplan: extensionsAgent,
+      // 플로우가 걸린 DID 는 그 컨텍스트로 점프한다. 컨텍스트가 없으면 허공으로 뛴다.
+      expectedArsFlowSlugs: collectArsFlowSlugs(dids),
+      renderedExtensionsQueue: extensionsQueue,
+      renderedExtensionsInbound: extensionsInbound,
+      // 직전에 실제로 쓰인 파일과 비교한다. 최초 적용이면 null 이라 검사를 건너뛴다.
+      previousExtensionsInbound: this.readCurrentConfFile(confDir, 'extensions_inbound.conf'),
     });
     if (regression) {
       this.logger.error(`Refusing to write Asterisk config for tenant ${tenantId}: ${regression}`);
@@ -1348,6 +1370,71 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       : buildDefaultMusiconholdBaseContent(`#include ${PROMPT_MOH_INCLUDE_FILENAME}`);
   }
 
+  /**
+   * DID 에 걸린 ARS 플로우 그래프를 읽는다.
+   *
+   * 플로우가 하나도 걸려 있지 않으면 쿼리를 아예 하지 않는다 — 플로우를 쓰지 않는 사이트가
+   * 렌더링할 때마다 빈 테이블을 두 번 훑을 이유가 없다.
+   * 좌표(posX/posY)는 가져오지 않는다. 컴파일러가 좌표를 보면 편집기에서 노드를 옮겼다는
+   * 이유로 dialplan 이 바뀐다.
+   */
+  private async fetchArsFlowGraphs(
+    tenantId: string,
+    didRows: Array<{ id: string; flowId?: string | null }>,
+  ): Promise<Map<string, { tenantId: string; graph: any }>> {
+    const byDid = new Map<string, { tenantId: string; graph: any }>();
+    const flowIds = [...new Set(didRows.map((did) => did.flowId).filter((id): id is string => !!id))];
+    if (flowIds.length === 0) return byDid;
+
+    const flows = await (this.prisma as any).arsFlows.findMany({
+      where: { tenantId, flowId: { in: flowIds } },
+      select: { flowId: true, name: true, entryNodeId: true },
+    });
+    if (flows.length === 0) return byDid;
+
+    const [nodes, edges] = await Promise.all([
+      (this.prisma as any).arsFlowNodes.findMany({
+        where: { tenantId, flowId: { in: flows.map((f: any) => f.flowId) } },
+        select: { nodeId: true, flowId: true, nodeType: true, label: true, config: true },
+        orderBy: { nodeId: 'asc' },
+      }),
+      (this.prisma as any).arsFlowEdges.findMany({
+        where: { tenantId, flowId: { in: flows.map((f: any) => f.flowId) } },
+        select: { edgeId: true, flowId: true, fromNodeId: true, toNodeId: true, condition: true, digit: true },
+        orderBy: [{ fromNodeId: 'asc' }, { sortOrder: 'asc' }],
+      }),
+    ]);
+
+    const graphByFlowId = new Map<string, any>();
+    for (const flow of flows) {
+      // 진입 노드가 비어 있으면 컴파일할 수 없다. 렌더에서 조용히 빠지는 대신 건너뛰고,
+      // 가드가 "컨텍스트가 없다" 로 잡아 쓰기를 막는다.
+      if (!flow.entryNodeId) continue;
+      graphByFlowId.set(flow.flowId, {
+        flowId: flow.flowId,
+        name: flow.name,
+        entryNodeId: flow.entryNodeId,
+        nodes: nodes.filter((n: any) => n.flowId === flow.flowId),
+        edges: edges.filter((e: any) => e.flowId === flow.flowId),
+      });
+    }
+
+    for (const did of didRows) {
+      const graph = did.flowId ? graphByFlowId.get(did.flowId) : undefined;
+      if (graph) byDid.set(did.id, { tenantId, graph });
+    }
+    return byDid;
+  }
+
+  /** 지금 디스크에 있는 conf. 최초 적용이면 없으므로 null 이다. */
+  private readCurrentConfFile(confDir: string, fileName: string): string | null {
+    try {
+      return fs.readFileSync(path.join(confDir, fileName), 'utf8');
+    } catch {
+      return null;
+    }
+  }
+
   private async fetchTenantData(tenantId: string) {
     const [trunks, trunkGroups, speedDials, featureCodes, agents, didRows, ivrMenus, forwardingRules, queueOverflowRules, blocklistEntries, holidayRules, prompts, queues, settings] = await Promise.all([
       this.prisma.asteriskTrunk.findMany({ where: { tenantId } }),
@@ -1454,8 +1541,12 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     const siteAllowDirectSipDial = typedSettings?.allowDirectSipDial ?? false;
     const promptKeyById = new Map(prompts.map((prompt) => [prompt.id, prompt.promptKey]));
     const queueNameById = new Map(queues.map((queue) => [queue.queueId, queue.queueName]));
+    // 플로우가 걸린 DID 만 그래프를 읽는다. 플로우를 안 쓰는 사이트는 쿼리 자체가 없다.
+    const arsFlowByDid = await this.fetchArsFlowGraphs(tenantId, didRows);
+
     const dids = didRows.map(({ branchMappings, ...did }) => ({
       ...did,
+      arsFlow: arsFlowByDid.get(did.id) ?? null,
       branchId: resolveDidPrimaryBranchId(branchMappings),
       branchPromptKeys: resolveDidPromptKeys(branchMappings, promptKeyById),
       branchPromptQueueDelaySeconds: resolveDidPromptQueueDelaySeconds(branchMappings),

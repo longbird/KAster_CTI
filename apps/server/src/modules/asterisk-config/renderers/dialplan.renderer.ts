@@ -1,3 +1,5 @@
+import { FlowGraph } from '../../ars-flow/flow-graph.types';
+import { renderArsFlow } from './ars-flow.renderer';
 import { assertNoNewlines, shellQuote, toSlug } from './renderer-utils';
 import {
   CUSTOM_SOUND_ABSOLUTE_PREFIX,
@@ -111,7 +113,17 @@ export interface DidInput {
   branchPromptWaitForCompletion?: boolean | null;
   branchOptOut080?: BranchOptOut080Input | null;
   branchSmartArs?: BranchSmartArsInput | null;
+  /**
+   * ARS 플로우 빌더로 만든 그래프. 있으면 다른 세 갈래보다 **먼저** 탄다.
+   * 기존 경로는 건드리지 않고 갈래만 앞에 추가한다 — 운영 중인 사이트가 DID 단위로 옮겨 탄다.
+   */
+  arsFlow?: ArsFlowRouteInput | null;
   enabled: boolean;
+}
+
+export interface ArsFlowRouteInput {
+  tenantId: string;
+  graph: FlowGraph;
 }
 
 export interface IvrEntryInput {
@@ -776,6 +788,28 @@ function renderSmartArsVariableLines(did: DidInput): string[] {
   ];
 }
 
+function renderDidArsFlowRoute(
+  did: DidInput,
+  blocklistEntries: BlocklistEntryInput[],
+): string | null {
+  if (!did.arsFlow) return null;
+
+  const slug = arsFlowContextSlug(did.arsFlow.graph);
+  return [
+    `exten => ${did.did},1,NoOp(Inbound DID \${EXTEN} -> ARS flow)`,
+    ' same => n,Set(__ENTRY_DID=${EXTEN})',
+    ...renderBlocklistChecks(blocklistEntries),
+    ` same => n,Goto(ars-flow-${slug},s,1)`,
+  ].join('\n');
+}
+
+/** 컴파일러와 **같은 규칙**으로 컨텍스트 이름을 만든다. 어긋나면 진입점이 허공을 가리킨다. */
+function arsFlowContextSlug(graph: FlowGraph): string {
+  const slug = toSlug(graph.name) || toSlug(graph.flowId);
+  if (!slug) throw new Error('ARS flow has no usable name or id for a context slug');
+  return slug;
+}
+
 function renderDidSmartArsRoute(
   did: DidInput,
   blocklistEntries: BlocklistEntryInput[],
@@ -883,6 +917,13 @@ function renderDidExtension(
   holidayRules: HolidayRuleInput[],
 ): string | null {
   assertNoNewlines(did.did, 'did');
+
+  // 플로우가 걸린 DID 는 여기서 끝난다. 아래 세 갈래는 타지 않는다.
+  const arsFlowRoute = renderDidArsFlowRoute(did, blocklistEntries);
+  if (arsFlowRoute) {
+    return arsFlowRoute;
+  }
+
   if (did.branchOptOut080?.enabled) {
     return renderDidOptOutRoute(did, blocklistEntries);
   }
@@ -1333,6 +1374,31 @@ function renderOptOutContexts(): string {
   ].join('\n');
 }
 
+/**
+ * 플로우 컨텍스트를 IVR·Smart ARS 와 같은 파일(extensions_queue.conf)에 낸다.
+ *
+ * 여러 DID 가 같은 플로우를 가리킬 수 있으므로 컨텍스트는 **플로우당 한 번만** 낸다.
+ * 두 번 내면 Asterisk 가 같은 컨텍스트를 중복 정의로 읽는다.
+ */
+function renderArsFlowContexts(enabledDids: DidInput[]): string[] {
+  const rendered = new Map<string, string>();
+
+  for (const did of enabledDids) {
+    if (!did.arsFlow) continue;
+    const slug = arsFlowContextSlug(did.arsFlow.graph);
+    if (rendered.has(slug)) continue;
+
+    rendered.set(slug, renderArsFlow({
+      graph: did.arsFlow.graph,
+      did: did.did,
+      tenantId: did.arsFlow.tenantId,
+      branchId: did.branchId ?? null,
+    }));
+  }
+
+  return [...rendered.values()];
+}
+
 export function renderDialplan(input: DialplanInput): DialplanOutput {
   const recordingChannelMode = normalizeRecordingChannelMode(input.recordingChannelMode);
   const recordingFileExtension = getRecordingFileExtension(recordingChannelMode);
@@ -1357,6 +1423,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
   const smartArsContexts = enabledDids
     .map(renderSmartArsContext)
     .filter((line): line is string => line !== null);
+  const arsFlowContexts = renderArsFlowContexts(enabledDids);
 
   const blockedAniContext = [
     '[blocked-ani]',
@@ -1409,7 +1476,7 @@ export function renderDialplan(input: DialplanInput): DialplanOutput {
 
   const extensionsQueue = [queueEntry, renderQueueOverflowTimeoutContext(queueOverflowRules), renderAgentOfferTimeoutContext(input.queueOfferTimeouts ?? []), renderQueueOverflowContext(queueOverflowRules), renderOptOutContexts(), ...input.ivrMenus
     .filter((m) => m.entries.length > 0)
-    .map(renderIvrMenu), ...smartArsContexts, buildDynamicDispatchLines().join('\n')]
+    .map(renderIvrMenu), ...smartArsContexts, ...arsFlowContexts, buildDynamicDispatchLines().join('\n')]
     .join('\n\n');
 
   return { extensionsInbound, extensionsQueue };
