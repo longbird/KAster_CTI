@@ -7,6 +7,7 @@ import {
   FlowGraph,
   FlowNode,
   HangupConfig,
+  HttpLookupConfig,
   MenuConfig,
   OptOutConfig,
   PlayConfig,
@@ -14,7 +15,7 @@ import {
   SmsConfig,
   TransferConfig,
 } from '../../ars-flow/flow-graph.types';
-import { OPT_OUT_HOOK_PATH, SMART_ARS_HOOK_PATH } from './hook-paths';
+import { ARS_HTTP_LOOKUP_AGI_PATH, OPT_OUT_HOOK_PATH, SMART_ARS_HOOK_PATH } from './hook-paths';
 import { assertNoNewlines, shellQuote, toPlaybackTarget, toSlug } from './renderer-utils';
 
 export interface ArsFlowRenderInput {
@@ -29,6 +30,10 @@ export interface ArsFlowRenderInput {
 const COLLECTED_DIGITS_VAR = 'ARS_COLLECTED_DIGITS';
 const COLLECT_INPUT_VAR = 'ARS_COLLECT_INPUT';
 const CALLER_NUMBER_EXPRESSION = '${CALLERID(num)}';
+// AGI 가 채우는 변수. NOMATCH 와 ERROR 는 둘 다 실패 갈래로 간다 —
+// 셋으로 나누면 작성자가 오류 갈래를 비워 두고, 장애 때 통화가 갈 곳을 잃는다.
+const LOOKUP_STATUS_VAR = 'ARS_LOOKUP_STATUS';
+const LOOKUP_VALUE_VAR = 'ARS_LOOKUP_VALUE';
 
 /** 점프 지점에서 곧바로 끝나는 노드. 별도 라벨 블록을 만들지 않는다. */
 const TERMINAL_TYPES = new Set(['QUEUE', 'TRANSFER', 'HANGUP']);
@@ -244,12 +249,45 @@ function renderInlineNode(
       ];
     }
     case 'CONDITION':
-      return renderCondition(node, outgoing, jump);
+      return renderCondition(node, label, outgoing, jump);
     case 'COLLECT_DIGITS':
       return renderCollectDigits(node, label, outgoing, jump);
+    case 'HTTP_LOOKUP':
+      return renderHttpLookup(node, label, outgoing, jump);
     default:
       return ['Hangup()'];
   }
+}
+
+/**
+ * 통화 중 외부 조회.
+ *
+ * 성공 갈래를 **뒤에 라벨로** 둔다. 실패 갈래가 여러 줄로 끝날 수 있어서
+ * `GotoIf(...?목적지)` 한 줄에 밀어 넣을 수 없기 때문이다. 실패 갈래는 항상 Goto 나 Hangup 으로
+ * 끝나므로 아래 라벨 블록으로 흘러 들어가지 않는다.
+ */
+function renderHttpLookup(
+  node: FlowNode,
+  label: string,
+  outgoing: Map<string, FlowEdge[]>,
+  jump: (nodeId: string) => string[],
+): string[] {
+  const config = node.config as HttpLookupConfig;
+  assertNoNewlines(config.endpointId, 'endpointId');
+
+  const matchLabel = `${label}-match`;
+  const onTrue = findEdge(node.nodeId, outgoing, 'TRUE');
+  const onFalse = findEdge(node.nodeId, outgoing, 'FALSE');
+
+  return [
+    ...(config.waitPromptKey ? [`Playback(${toPlaybackTarget(config.waitPromptKey)})`] : []),
+    `AGI(${ARS_HTTP_LOOKUP_AGI_PATH},${config.endpointId})`,
+    `GotoIf($["\${${LOOKUP_STATUS_VAR}}"="MATCH"]?${matchLabel})`,
+    // 조회가 실패했거나 조건에 맞지 않았다. 검증기가 이 갈래를 반드시 채우게 한다.
+    ...(onFalse ? jump(onFalse.toNodeId) : ['Hangup()']),
+    `(${matchLabel})NoOp(ARS lookup matched \${${LOOKUP_VALUE_VAR}})`,
+    ...(onTrue ? jump(onTrue.toNodeId) : ['Hangup()']),
+  ];
 }
 
 function targetNumberExpression(source: DigitTargetSource | undefined): string {
@@ -290,28 +328,41 @@ function renderCollectDigits(
   ];
 }
 
+/**
+ * 시간·공휴일 조건 분기.
+ *
+ * 참일 때 갈 곳이 **여러 줄일 수 있다** (HANGUP 은 안내 + Hangup 두 줄이다).
+ * `GotoIfTime` 의 목적지 자리에는 우선순위 라벨만 들어가므로, 여러 줄이면
+ * 라벨을 하나 만들어 뒤에 두고 그리로 보낸다 — `HTTP_LOOKUP` 과 같은 모양이다.
+ *
+ * 한 줄짜리 목적지는 예전처럼 조건 안에 그대로 둔다. 이미 잘 돌던 플로우의 컴파일 결과를
+ * 바꾸지 않기 위해서다.
+ */
 function renderCondition(
   node: FlowNode,
+  label: string,
   outgoing: Map<string, FlowEdge[]>,
   jump: (nodeId: string) => string[],
 ): string[] {
   const config = node.config as ConditionConfig;
   const onTrue = findEdge(node.nodeId, outgoing, 'TRUE');
   const onFalse = findEdge(node.nodeId, outgoing, 'FALSE');
+  const otherwise = onFalse ? jump(onFalse.toNodeId) : ['Hangup()'];
 
-  // 참일 때 갈 곳이 여러 줄일 수 있으므로(예: HANGUP 은 안내 + Hangup),
-  // GotoIfTime 은 한 줄짜리 목적지에만 직접 쓰고 나머지는 아래로 흘린다.
-  const lines: string[] = [];
-  if (onTrue) {
-    const target = jump(onTrue.toNodeId);
-    if (target.length === 1) {
-      lines.push(`GotoIfTime(${buildTimeSpec(config)}?${stripGoto(target[0])})`);
-    } else {
-      lines.push(`GotoIfTime(${buildTimeSpec(config)}?${stripGoto(target[0])})`);
-    }
+  if (!onTrue) return otherwise;
+
+  const target = jump(onTrue.toNodeId);
+  if (target.length === 1) {
+    return [`GotoIfTime(${buildTimeSpec(config)}?${stripGoto(target[0])})`, ...otherwise];
   }
-  lines.push(...(onFalse ? jump(onFalse.toNodeId) : ['Hangup()']));
-  return lines;
+
+  const trueLabel = `${label}-true`;
+  return [
+    `GotoIfTime(${buildTimeSpec(config)}?${trueLabel})`,
+    ...otherwise,
+    `(${trueLabel})NoOp(ARS condition ${node.label} matched)`,
+    ...target,
+  ];
 }
 
 /** `GotoIfTime(...?target)` 의 target 자리에는 Goto 를 벗긴 형태가 들어간다. */

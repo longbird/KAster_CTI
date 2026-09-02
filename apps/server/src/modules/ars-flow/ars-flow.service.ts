@@ -300,7 +300,7 @@ export class ArsFlowService {
 
   /** 큐·프롬프트·문자 템플릿의 실재 여부. 검증기는 DB 를 모르므로 여기서 모아 넘긴다. */
   private async loadValidationContext(tenantId: string): Promise<FlowValidationContext> {
-    const [queues, prompts, templates] = await Promise.all([
+    const [queues, prompts, templates, httpEndpoints] = await Promise.all([
       (this.prisma as any).queues.findMany({ where: { tenantId }, select: { queueName: true } }),
       (this.prisma as any).asteriskPrompt.findMany({
         where: { tenantId, isActive: true },
@@ -310,12 +310,21 @@ export class ArsFlowService {
         where: { tenantId, isActive: true },
         select: { templateId: true },
       }),
+      // 꺼진 엔드포인트는 없는 것으로 본다 — 통화 중에 조회가 안 될 것을 저장 시점에 막는다.
+      (this.prisma as any).arsHttpEndpoints.findMany({
+        where: { tenantId, isActive: true },
+        select: { endpointId: true, timeoutMs: true },
+      }),
     ]);
 
     return {
       queueNames: queues.map((queue: any) => queue.queueName),
       promptKeys: prompts.map((prompt: any) => prompt.promptKey),
       smsTemplateIds: templates.map((template: any) => template.templateId),
+      httpEndpoints: (httpEndpoints ?? []).map((endpoint: any) => ({
+        endpointId: endpoint.endpointId,
+        timeoutMs: endpoint.timeoutMs,
+      })),
     };
   }
 

@@ -31,6 +31,8 @@ import {
 import { buildDefaultMohWav } from './default-moh';
 import { buildAgentOfferAgiScript } from './agent-offer-agi';
 import { AGENT_OFFER_AGI_PATH } from '../../common/call-routing.constants';
+import { buildArsHttpLookupAgiScript } from '../ars-http-lookup/ars-http-lookup-agi';
+import { ARS_HTTP_LOOKUP_AGI_PATH } from './renderers/hook-paths';
 
 const PROMPT_MOH_INCLUDE_FILENAME = 'musiconhold_kaster_prompts.conf';
 const DEFAULT_MOH_DIR = '/var/lib/asterisk/moh';
@@ -1092,6 +1094,7 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
     this.writeOptOutGuardedDigitAgiScript();
     this.writeSmartArsHookScript(httpPort, internalSecret);
     this.writeAgentOfferAgiScript(httpPort, internalSecret);
+    this.writeArsHttpLookupAgiScript(httpPort, internalSecret);
     return true;
   }
 
@@ -1290,6 +1293,16 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       { encoding: 'utf8', mode: 0o755 },
     );
     fs.chmodSync(SMART_ARS_HOOK_SCRIPT_PATH, 0o755);
+  }
+
+  private writeArsHttpLookupAgiScript(httpPort: number, internalSecret: string | null) {
+    fs.mkdirSync(path.dirname(ARS_HTTP_LOOKUP_AGI_PATH), { recursive: true });
+    fs.writeFileSync(
+      ARS_HTTP_LOOKUP_AGI_PATH,
+      buildArsHttpLookupAgiScript(httpPort, internalSecret),
+      { encoding: 'utf8', mode: 0o755 },
+    );
+    fs.chmodSync(ARS_HTTP_LOOKUP_AGI_PATH, 0o755);
   }
 
   private writeAgentOfferAgiScript(httpPort: number, internalSecret: string | null) {

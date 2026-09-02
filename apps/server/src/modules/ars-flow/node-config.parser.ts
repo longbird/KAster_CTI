@@ -5,6 +5,7 @@ import {
   DigitTargetSource,
   FlowNodeType,
   HangupConfig,
+  HttpLookupConfig,
   MenuConfig,
   NodeConfig,
   OptOutConfig,
@@ -63,6 +64,8 @@ export function parseNodeConfig(nodeType: FlowNodeType, raw: unknown): NodeConfi
       return parseHangup(config);
     case 'COLLECT_DIGITS':
       return parseCollectDigits(config);
+    case 'HTTP_LOOKUP':
+      return parseHttpLookup(config);
   }
 }
 
@@ -150,6 +153,13 @@ function parseCollectDigits(config: Record<string, unknown>): CollectDigitsConfi
     maxRetries: boundedInteger(
       config.maxRetries, 'maxRetries', DEFAULT_MENU_MAX_RETRIES, MENU_RETRY_RANGE,
     ),
+  };
+}
+
+function parseHttpLookup(config: Record<string, unknown>): HttpLookupConfig {
+  return {
+    endpointId: requiredText(config.endpointId, 'endpointId'),
+    waitPromptKey: optionalText(config.waitPromptKey, 'waitPromptKey'),
   };
 }
 

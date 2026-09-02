@@ -31,6 +31,8 @@ export function defaultConfigFor(nodeType: FlowNodeType): Record<string, unknown
       return { promptKey: null };
     case 'COLLECT_DIGITS':
       return { promptKey: null, minDigits: 1, maxDigits: 11, timeoutSeconds: 5, maxRetries: 2 };
+    case 'HTTP_LOOKUP':
+      return { endpointId: '', waitPromptKey: null };
   }
 }
 
@@ -83,6 +85,8 @@ export function describeNodeSummary(nodeType: FlowNodeType, config: Record<strin
       return `${config.action === 'UNREGISTER' ? '해제' : '등록'} · ${describeTarget(config)}`;
     case 'COLLECT_DIGITS':
       return `${config.minDigits ?? 1}~${config.maxDigits ?? 11}자리 · ${config.timeoutSeconds ?? 5}초`;
+    case 'HTTP_LOOKUP':
+      return text(config.endpointId) ? '등록된 엔드포인트' : '미설정';
     default:
       return '';
   }

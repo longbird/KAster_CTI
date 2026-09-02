@@ -12,6 +12,7 @@ import {
   saveArsFlowGraph,
   validateArsFlow,
 } from './api/arsFlowApi';
+import { listArsHttpEndpoints } from '../ars-http-endpoints/api/arsHttpEndpointsApi';
 import { ArsFlowCanvas } from './components/ArsFlowCanvas';
 import { NodePropertiesPanel } from './components/NodePropertiesPanel';
 import { toCanvas, toGraphPayload, type FlowCanvasNode } from './types/canvasGraph';
@@ -38,6 +39,7 @@ export function ArsFlowBuilderPage() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [validation, setValidation] = useState<FlowValidationResult | null>(null);
+  const [httpEndpoints, setHttpEndpoints] = useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -69,6 +71,14 @@ export function ArsFlowBuilderPage() {
   }, []);
 
   useEffect(() => { void loadFlows(); }, [loadFlows]);
+  useEffect(() => {
+    // 자격이 없으면 403 이다. 그때는 조회 노드를 못 쓰는 것이지 편집기가 깨지는 것은 아니다.
+    void listArsHttpEndpoints()
+      .then((rows) => setHttpEndpoints(
+        rows.filter((row) => row.isActive).map((row) => ({ value: row.endpointId, label: row.name })),
+      ))
+      .catch(() => setHttpEndpoints([]));
+  }, []);
   useEffect(() => { if (flowId) void loadGraph(flowId); }, [flowId, loadGraph]);
 
   const selectedNode = useMemo(
@@ -319,6 +329,7 @@ export function ArsFlowBuilderPage() {
             <div style={{ border: '1px solid var(--line-1, #eee)', borderRadius: 6, height: 560, overflow: 'auto' }}>
               <NodePropertiesPanel
                 node={selectedNode}
+                httpEndpoints={httpEndpoints}
                 isEntry={selectedNode?.nodeId === entryNodeId}
                 outgoing={outgoing}
                 onChange={updateNode}

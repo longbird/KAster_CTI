@@ -121,3 +121,16 @@ describe('canEdgeExist — 번호 입력받기', () => {
     expect(canEdgeExist('COLLECT_DIGITS', 'INVALID')).toBe(false);
   });
 });
+
+describe('canEdgeExist — 외부 조회', () => {
+  it('맞음·안맞음 둘로만 나간다', () => {
+    expect(canEdgeExist('HTTP_LOOKUP', 'TRUE')).toBe(true);
+    expect(canEdgeExist('HTTP_LOOKUP', 'FALSE')).toBe(true);
+  });
+
+  it('오류 전용 갈래를 만들지 않는다 — 실패도 안맞음으로 온다', () => {
+    expect(canEdgeExist('HTTP_LOOKUP', 'DEFAULT')).toBe(false);
+    expect(canEdgeExist('HTTP_LOOKUP', 'TIMEOUT')).toBe(false);
+    expect(canEdgeExist('HTTP_LOOKUP', 'INVALID')).toBe(false);
+  });
+});

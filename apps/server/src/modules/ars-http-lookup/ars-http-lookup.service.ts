@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { promises as dns } from 'dns';
+import { Counter, Histogram, Registry } from 'prom-client';
+import { METRICS_REGISTRY } from '../monitoring/metrics.registry';
 import { PrismaService } from '../../common/prisma.service';
 import { CircuitBreaker } from './circuit-breaker';
 import { decryptEndpointSecret, loadEndpointSecretKey } from './endpoint-secret.util';
@@ -22,8 +24,24 @@ export interface LookupInput {
   vars: LookupVariables;
 }
 
+/**
+ * 무슨 일이 있었는지 기계가 읽는 코드. `status` 만으로는 실패의 종류를 구분할 수 없다.
+ * 지표 라벨과 관리자 화면이 쓴다. AGI 는 `status` 만 본다.
+ */
+export type LookupCode =
+  | 'MATCH'
+  | 'NOMATCH'
+  | 'DISABLED'
+  | 'ENDPOINT_NOT_FOUND'
+  | 'BREAKER_OPEN'
+  | 'TOO_MANY_IN_FLIGHT'
+  | 'HTTP_ERROR'
+  | 'BAD_RESPONSE'
+  | 'TRANSPORT_ERROR';
+
 export interface LookupOutcome {
   status: LookupStatus;
+  code: LookupCode;
   value: string;
   reason?: string;
   httpStatus?: number;
@@ -44,16 +62,44 @@ export class ArsHttpLookupService {
   private readonly logger = new Logger(ArsHttpLookupService.name);
   private readonly breaker = new CircuitBreaker();
   private readonly inFlight = new Map<string, number>();
+  private readonly lookupTotal?: Counter<string>;
+  private readonly lookupDuration?: Histogram<string>;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-  ) {}
+    // 지표는 있으면 남기고 없으면 그만이다. 조회가 지표 때문에 실패하면 안 된다.
+    @Optional() @Inject(METRICS_REGISTRY) registry?: Registry,
+  ) {
+    if (!registry) return;
+
+    this.lookupTotal = new Counter({
+      name: 'kaster_ars_http_lookup_total',
+      help: 'ARS external lookups by endpoint and outcome',
+      registers: [registry],
+      labelNames: ['endpoint', 'code'],
+    });
+    this.lookupDuration = new Histogram({
+      name: 'kaster_ars_http_lookup_duration_seconds',
+      help: 'ARS external lookup duration',
+      registers: [registry],
+      labelNames: ['endpoint'],
+      // 통화가 기다리는 시간이라 상한이 5초다. 그 구간을 촘촘히 본다.
+      buckets: [0.1, 0.25, 0.5, 1, 2, 3, 5],
+    });
+  }
 
   async lookup(input: LookupInput): Promise<LookupOutcome> {
+    const outcome = await this.runLookup(input);
+    this.record(input.endpointId, outcome);
+    return outcome;
+  }
+
+  private async runLookup(input: LookupInput): Promise<LookupOutcome> {
     const startedAt = Date.now();
-    const fail = (reason: string, extra: Partial<LookupOutcome> = {}): LookupOutcome => ({
+    const fail = (code: LookupCode, reason: string, extra: Partial<LookupOutcome> = {}): LookupOutcome => ({
       status: 'ERROR',
+      code,
       value: '',
       reason,
       durationMs: Date.now() - startedAt,
@@ -61,21 +107,21 @@ export class ArsHttpLookupService {
     });
 
     if (!this.isEnabled()) {
-      return fail('ARS_HTTP_LOOKUP_ENABLED is false');
+      return fail('DISABLED', 'ARS_HTTP_LOOKUP_ENABLED is false');
     }
 
     const endpoint = await (this.prisma as any).arsHttpEndpoints.findFirst({
       where: { tenantId: input.tenantId, endpointId: input.endpointId, isActive: true },
     });
     if (!endpoint) {
-      return fail(`endpoint not found or inactive: ${input.endpointId}`);
+      return fail('ENDPOINT_NOT_FOUND', `endpoint not found or inactive: ${input.endpointId}`);
     }
 
     if (!this.breaker.canRequest(endpoint.endpointId)) {
-      return fail('circuit breaker is open for this endpoint');
+      return fail('BREAKER_OPEN', 'circuit breaker is open for this endpoint');
     }
     if (!this.acquireSlot(endpoint.endpointId)) {
-      return fail('too many concurrent lookups for this endpoint');
+      return fail('TOO_MANY_IN_FLIGHT', 'too many concurrent lookups for this endpoint');
     }
 
     const timeoutMs = Math.min(Number(endpoint.timeoutMs) || DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
@@ -85,7 +131,7 @@ export class ArsHttpLookupService {
       this.breaker.recordFailure(endpoint.endpointId);
       const message = describe(error);
       this.logger.warn(`ars http lookup failed endpoint=${endpoint.endpointId}: ${message}`);
-      return fail(message, { timeoutMs });
+      return fail('TRANSPORT_ERROR', message, { timeoutMs });
     } finally {
       this.releaseSlot(endpoint.endpointId);
     }
@@ -120,17 +166,26 @@ export class ArsHttpLookupService {
 
     if (response.status >= 300 && response.status < 400) {
       this.breaker.recordFailure(endpoint.endpointId);
-      return done({ status: 'ERROR', value: '', reason: 'endpoint answered with a redirect', httpStatus: response.status });
+      return done({
+        status: 'ERROR', code: 'HTTP_ERROR', value: '',
+        reason: 'endpoint answered with a redirect', httpStatus: response.status,
+      });
     }
     if (!response.ok) {
       this.breaker.recordFailure(endpoint.endpointId);
-      return done({ status: 'ERROR', value: '', reason: `endpoint returned ${response.status}`, httpStatus: response.status });
+      return done({
+        status: 'ERROR', code: 'HTTP_ERROR', value: '',
+        reason: `endpoint returned ${response.status}`, httpStatus: response.status,
+      });
     }
 
     const text = await readCapped(response, MAX_BODY_BYTES);
     if (text === null) {
       this.breaker.recordFailure(endpoint.endpointId);
-      return done({ status: 'ERROR', value: '', reason: 'response body is too large', httpStatus: response.status });
+      return done({
+        status: 'ERROR', code: 'BAD_RESPONSE', value: '',
+        reason: 'response body is too large', httpStatus: response.status,
+      });
     }
 
     // 여기까지 왔으면 엔드포인트는 살아 있다. NOMATCH 는 정상 결과이므로 성공으로 친다.
@@ -140,7 +195,10 @@ export class ArsHttpLookupService {
     try {
       body = JSON.parse(text);
     } catch {
-      return done({ status: 'ERROR', value: '', reason: 'response body is not JSON', httpStatus: response.status });
+      return done({
+        status: 'ERROR', code: 'BAD_RESPONSE', value: '',
+        reason: 'response body is not JSON', httpStatus: response.status,
+      });
     }
 
     const extracted = extractLookupResult({
@@ -150,7 +208,17 @@ export class ArsHttpLookupService {
       matchValue: endpoint.matchValue ?? null,
     });
 
-    return done({ ...extracted, httpStatus: response.status });
+    return done({
+      ...extracted,
+      // 값을 못 꺼낸 것과 조건에 안 맞는 것은 다르다. 앞은 응답이 이상한 것이다.
+      code: extracted.status === 'ERROR' ? 'BAD_RESPONSE' : extracted.status,
+      httpStatus: response.status,
+    });
+  }
+
+  private record(endpointId: string, outcome: LookupOutcome): void {
+    this.lookupTotal?.labels(endpointId, outcome.code).inc();
+    this.lookupDuration?.labels(endpointId).observe(outcome.durationMs / 1000);
   }
 
   private buildHeaders(endpoint: any, method: 'GET' | 'POST'): Record<string, string> {

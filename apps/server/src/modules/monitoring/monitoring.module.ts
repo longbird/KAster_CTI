@@ -15,6 +15,7 @@ import { HealthModule } from '../health/health.module';
     },
     MetricsService,
   ],
-  exports: [MetricsService],
+  // 다른 모듈이 자기 지표를 같은 레지스트리에 등록할 수 있게 함께 내보낸다.
+  exports: [MetricsService, METRICS_REGISTRY],
 })
 export class MonitoringModule {}

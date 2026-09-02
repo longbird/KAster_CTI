@@ -363,3 +363,146 @@ describe('validateFlowGraph — Asterisk 기본 안내', () => {
     expect(codes(result)).toContain('PROMPT_NOT_FOUND');
   });
 });
+
+describe('validateFlowGraph — HTTP_LOOKUP', () => {
+  const CONTEXT_WITH_ENDPOINT: FlowValidationContext = {
+    ...CONTEXT,
+    httpEndpoints: [{ endpointId: 'ep-1', timeoutMs: 2000 }, { endpointId: 'ep-slow', timeoutMs: 4000 }],
+  };
+
+  const lookup = (nodeId: string, config: any = { endpointId: 'ep-1', waitPromptKey: null }) =>
+    node(nodeId, 'HTTP_LOOKUP', config);
+
+  it('맞음·안맞음 두 갈래가 다 있으면 통과한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask'), node('vip', 'QUEUE', { queueName: 'sales' }), node('normal', 'QUEUE', { queueName: 'support' })],
+        [edge('ask', 'vip', 'TRUE'), edge('ask', 'normal', 'FALSE')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('등록되지 않은 엔드포인트는 막는다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask', { endpointId: 'nope', waitPromptKey: null }), node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'q', 'TRUE'), edge('ask', 'q', 'FALSE')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(codes(result)).toContain('HTTP_ENDPOINT_NOT_FOUND');
+  });
+
+  it('실패 연결이 없으면 저장을 막는다 — 조회가 실패하면 통화가 갈 곳을 잃는다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask'), node('vip', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'vip', 'TRUE')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(codes(result)).toContain('HTTP_LOOKUP_WITHOUT_FALLBACK');
+  });
+
+  it('맞았을 때 갈 곳이 없으면 경고한다 — 조회할 이유가 없다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask'), node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'q', 'FALSE')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.map((issue) => issue.code)).toContain('HTTP_LOOKUP_WITHOUT_MATCH_BRANCH');
+  });
+
+  it('한 경로에 조회가 셋이면 막는다 — 최악 대기가 15초다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('a'), lookup('b'), lookup('c'), node('q', 'QUEUE', { queueName: 'sales' })],
+        [
+          edge('a', 'b', 'TRUE'), edge('a', 'q', 'FALSE'),
+          edge('b', 'c', 'TRUE'), edge('b', 'q', 'FALSE'),
+          edge('c', 'q', 'TRUE'), edge('c', 'q', 'FALSE'),
+        ],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(codes(result)).toContain('TOO_MANY_HTTP_LOOKUPS');
+  });
+
+  it('갈라진 가지에 하나씩이면 괜찮다 — 한 통화가 다 겪지 않는다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [node('m', 'MENU', { promptKey: 'menu', timeoutSeconds: 5, maxRetries: 0 }),
+          lookup('a'), lookup('b'), lookup('c'), node('q', 'QUEUE', { queueName: 'sales' })],
+        [
+          edge('m', 'a', 'DIGIT', '1'), edge('m', 'b', 'DIGIT', '2'), edge('m', 'c', 'DIGIT', '3'),
+          edge('m', 'q', 'TIMEOUT'),
+          edge('a', 'q', 'TRUE'), edge('a', 'q', 'FALSE'),
+          edge('b', 'q', 'TRUE'), edge('b', 'q', 'FALSE'),
+          edge('c', 'q', 'TRUE'), edge('c', 'q', 'FALSE'),
+        ],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(codes(result)).not.toContain('TOO_MANY_HTTP_LOOKUPS');
+  });
+
+  it('대기 안내에 느린 엔드포인트를 붙이면 경고한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask', { endpointId: 'ep-slow', waitPromptKey: 'menu' }), node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'q', 'TRUE'), edge('ask', 'q', 'FALSE')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(result.warnings.map((issue) => issue.code)).toContain('HTTP_LOOKUP_WAIT_TOO_LONG');
+  });
+
+  it('대기 안내의 프롬프트도 실재해야 한다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask', { endpointId: 'ep-1', waitPromptKey: 'custom/nope' }), node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'q', 'TRUE'), edge('ask', 'q', 'FALSE')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(codes(result)).toContain('PROMPT_NOT_FOUND');
+  });
+
+  it('조회를 반복하는 순환은 갇힌 것이다 — 사람의 입력을 기다리지 않는다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('a'), node('p', 'PLAY', { promptKeys: ['welcome'] })],
+        [edge('a', 'p', 'TRUE'), edge('a', 'p', 'FALSE'), edge('p', 'a')],
+      ),
+      CONTEXT_WITH_ENDPOINT,
+    );
+
+    expect(codes(result)).toContain('TRAPPED_CYCLE');
+  });
+
+  it('엔드포인트 목록이 없는 호출도 깨지지 않는다', () => {
+    const result = validateFlowGraph(
+      graph(
+        [lookup('ask'), node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'q', 'TRUE'), edge('ask', 'q', 'FALSE')],
+      ),
+      CONTEXT,
+    );
+
+    expect(codes(result)).toContain('HTTP_ENDPOINT_NOT_FOUND');
+  });
+});

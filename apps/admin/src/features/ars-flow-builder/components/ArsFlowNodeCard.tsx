@@ -14,6 +14,7 @@ const TYPE_COLOR: Record<string, string> = {
   CONDITION: '#faad14',
   HANGUP: '#8c8c8c',
   COLLECT_DIGITS: '#2f54eb',
+  HTTP_LOOKUP: '#c41d7f',
 };
 
 /**

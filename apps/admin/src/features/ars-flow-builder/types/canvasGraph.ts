@@ -82,7 +82,11 @@ export function toGraphPayload(
 export function canEdgeExist(nodeType: FlowNodeType, condition: FlowEdgeCondition): boolean {
   if (TERMINAL_NODE_TYPES.includes(nodeType)) return false;
   if (nodeType === 'MENU') return condition === 'DIGIT' || condition === 'TIMEOUT' || condition === 'INVALID';
-  if (nodeType === 'CONDITION') return condition === 'TRUE' || condition === 'FALSE';
+  // 조회는 맞음/안맞음 둘로 갈린다. 실패도 '안맞음' 으로 온다 —
+  // 셋으로 나누면 작성자가 오류 갈래를 비워 두고, 장애 때 통화가 갈 곳을 잃는다.
+  if (nodeType === 'CONDITION' || nodeType === 'HTTP_LOOKUP') {
+    return condition === 'TRUE' || condition === 'FALSE';
+  }
   // 번호 입력은 성공(다음)과 실패(시간초과) 둘로 갈린다. 실패 경로엔 입력값이 없다.
   if (nodeType === 'COLLECT_DIGITS') return condition === 'DEFAULT' || condition === 'TIMEOUT';
   return condition === 'DEFAULT';

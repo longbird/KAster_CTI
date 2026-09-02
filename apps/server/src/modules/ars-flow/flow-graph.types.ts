@@ -8,6 +8,7 @@ export const FLOW_NODE_TYPES = [
   'CONDITION',
   'HANGUP',
   'COLLECT_DIGITS',
+  'HTTP_LOOKUP',
 ] as const;
 export type FlowNodeType = (typeof FLOW_NODE_TYPES)[number];
 
@@ -84,6 +85,20 @@ export interface CollectDigitsConfig {
   maxRetries: number;
 }
 
+/**
+ * 통화 중 외부 API 를 조회하고 결과로 분기한다.
+ *
+ * 주소·인증·응답 해석 규칙은 **여기 없다** — 관리자가 등록한 엔드포인트(`arsHttpEndpoints`)에 있다.
+ * 노드에 주소를 적을 수 있으면 PBX 망에서 아무 데나 부를 수 있고, 그래프는 미리보기·백업으로
+ * 복사되므로 자격증명이 거기 있으면 안 된다.
+ *
+ * `waitPromptKey` 는 조회하는 동안 틀 안내다. 비우면 그 시간 동안 고객은 무음을 듣는다.
+ */
+export interface HttpLookupConfig {
+  endpointId: string;
+  waitPromptKey: string | null;
+}
+
 export type NodeConfig =
   | PlayConfig
   | MenuConfig
@@ -93,7 +108,8 @@ export type NodeConfig =
   | OptOutConfig
   | ConditionConfig
   | HangupConfig
-  | CollectDigitsConfig;
+  | CollectDigitsConfig
+  | HttpLookupConfig;
 
 export interface FlowNode {
   nodeId: string;

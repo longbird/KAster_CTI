@@ -40,6 +40,9 @@ const INTENTIONALLY_OPEN: Record<string, string> = {
   'platform-auth.controller.ts': '장애 대응 모드에서도 로그인은 돼야 상황을 본다 (auth.controller.ts 와 같은 판단)',
   'customers.controller.ts': '고객 업무 데이터이지 설정이 아니다',
   'agent-updates.controller.ts': '데스크톱 앱 런타임 경로(세션·다운로드·리포트)',
+  'ars-http-lookup-internal.controller.ts':
+    '제1원칙 — 진행 중인 통화의 조회다. POST 지만 우리 설정을 쓰지 않는다. '
+    + '막으면 ARS 가 전부 실패 갈래로 떨어진다',
 };
 
 function controllersWithWrites(): string[] {

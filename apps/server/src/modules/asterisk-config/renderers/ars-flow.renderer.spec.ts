@@ -510,3 +510,115 @@ describe('renderArsFlow — 메뉴 재시도', () => {
     expect(conf).toContain('exten => t,1,Playback(vm-goodbye)');
   });
 });
+
+describe('renderArsFlow — HTTP_LOOKUP', () => {
+  const lookupGraph = (config: any = { endpointId: 'ep-1', waitPromptKey: null }) =>
+    graph(
+      [node('ask', 'HTTP_LOOKUP', config, '등급조회'),
+        node('vip', 'QUEUE', { queueName: 'sales' }),
+        node('normal', 'QUEUE', { queueName: 'support' })],
+      [edge('ask', 'vip', 'TRUE'), edge('ask', 'normal', 'FALSE')],
+    );
+
+  it('AGI 를 부르고 결과로 분기한다', () => {
+    const conf = render(lookupGraph());
+
+    expect(conf).toContain('AGI(/var/lib/asterisk/sounds/custom/kaster-ars-http-lookup.agi,ep-1)');
+    expect(conf).toContain('GotoIf($["${ARS_LOOKUP_STATUS}"="MATCH"]?');
+  });
+
+  it('맞으면 TRUE, 아니면 FALSE 로 간다', () => {
+    const lines = render(lookupGraph()).split('\n');
+    const guardIndex = lines.findIndex((line) => line.includes('ARS_LOOKUP_STATUS'));
+    const matchLabel = lines[guardIndex].match(/\?([A-Za-z0-9_-]+)\)/)?.[1];
+
+    // 조건 바로 다음 줄이 실패 경로다.
+    expect(lines[guardIndex + 1]).toContain('Goto(queue-entry,support,1)');
+    // 성공 경로는 라벨 뒤에 있다.
+    const matchIndex = lines.findIndex((line) => line.includes(`n(${matchLabel}),`));
+    expect(matchIndex).toBeGreaterThan(guardIndex);
+    expect(lines.slice(matchIndex).join('\n')).toContain('Goto(queue-entry,sales,1)');
+  });
+
+  it('대기 안내를 조회 전에 튼다', () => {
+    const conf = render(lookupGraph({ endpointId: 'ep-1', waitPromptKey: 'custom/checking' }));
+    const lines = conf.split('\n');
+    const promptIndex = lines.findIndex((line) => line.includes('Playback(/var/lib/asterisk/sounds/custom/checking)'));
+    const agiIndex = lines.findIndex((line) => line.includes('kaster-ars-http-lookup.agi'));
+
+    expect(promptIndex).toBeGreaterThan(-1);
+    expect(promptIndex).toBeLessThan(agiIndex);
+  });
+
+  it('안내가 없으면 곧바로 조회한다', () => {
+    expect(render(lookupGraph())).not.toContain('Playback(');
+  });
+
+  it('여러 줄로 끝나는 목적지도 온전히 낸다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'HTTP_LOOKUP', { endpointId: 'ep-1', waitPromptKey: null }, '등급조회'),
+          node('bye', 'HANGUP', { promptKey: 'vm-goodbye' }),
+          node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'bye', 'TRUE'), edge('ask', 'q', 'FALSE')],
+      ),
+    );
+
+    expect(conf).toContain('Playback(vm-goodbye)');
+    expect(conf).toContain('Hangup()');
+    expect(conf).toContain('Goto(queue-entry,sales,1)');
+  });
+
+  it('실패 연결이 없으면 끊는다 — 컴파일이 통화를 허공에 두지 않는다', () => {
+    const conf = render(
+      graph(
+        [node('ask', 'HTTP_LOOKUP', { endpointId: 'ep-1', waitPromptKey: null }, '등급조회'),
+          node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('ask', 'q', 'TRUE')],
+      ),
+    );
+
+    expect(conf).toContain('Hangup()');
+  });
+
+  it('엔드포인트 id 에 개행을 넣지 못한다', () => {
+    expect(() => render(lookupGraph({ endpointId: 'ep-1\nexten => s,1,System(x)', waitPromptKey: null })))
+      .toThrow();
+  });
+});
+
+describe('renderArsFlow — CONDITION 의 여러 줄 목적지', () => {
+  it('한 줄로 끝나는 목적지는 그대로 조건에 넣는다', () => {
+    const conf = render(
+      graph(
+        [node('c', 'CONDITION', {
+          conditionType: 'TIME_RANGE', timeStart: '09:00', timeEnd: '18:00', daysOfWeek: ['mon'],
+        }, '업무시간'),
+          node('open', 'QUEUE', { queueName: 'sales' }),
+          node('closed', 'QUEUE', { queueName: 'support' })],
+        [edge('c', 'open', 'TRUE'), edge('c', 'closed', 'FALSE')],
+      ),
+    );
+
+    expect(conf).toContain('GotoIfTime(09:00-18:00,mon,*,*?queue-entry,sales,1)');
+  });
+
+  it('여러 줄로 끝나는 목적지도 온전히 낸다 — 한 줄에 밀어 넣으면 안내가 사라진다', () => {
+    const conf = render(
+      graph(
+        [node('c', 'CONDITION', {
+          conditionType: 'TIME_RANGE', timeStart: '09:00', timeEnd: '18:00', daysOfWeek: ['mon'],
+        }, '업무시간'),
+          node('bye', 'HANGUP', { promptKey: 'vm-goodbye' }),
+          node('q', 'QUEUE', { queueName: 'sales' })],
+        [edge('c', 'bye', 'TRUE'), edge('c', 'q', 'FALSE')],
+      ),
+    );
+
+    // 조건 안에 애플리케이션을 넣지 않는다 — GotoIfTime 의 목적지는 라벨이어야 한다.
+    expect(conf).not.toMatch(/GotoIfTime\([^)]*\?Playback/);
+    expect(conf).toContain('Playback(vm-goodbye)');
+    expect(conf).toContain('Hangup()');
+    expect(conf).toContain('Goto(queue-entry,sales,1)');
+  });
+});

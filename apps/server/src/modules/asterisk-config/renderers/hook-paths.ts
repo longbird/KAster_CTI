@@ -7,3 +7,5 @@
 export const CUSTOM_SOUND_ABSOLUTE_PREFIX = '/var/lib/asterisk/sounds/custom/';
 export const OPT_OUT_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-opt-out-hook.sh`;
 export const SMART_ARS_HOOK_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-smart-ars-hook.sh`;
+/** ARS 플로우의 외부 조회 AGI. `System()` 이 아니라 AGI 인 이유는 값을 되받아야 하기 때문이다. */
+export const ARS_HTTP_LOOKUP_AGI_PATH = `${CUSTOM_SOUND_ABSOLUTE_PREFIX}kaster-ars-http-lookup.agi`;

@@ -37,7 +37,9 @@ const NODE_TYPES = { arsFlowNode: ArsFlowNodeCard };
  */
 function conditionForSource(nodeType: FlowNodeType, existing: FlowEdgeCondition[]): FlowEdgeCondition | null {
   if (nodeType === 'MENU') return 'DIGIT';
-  if (nodeType === 'CONDITION') return existing.includes('TRUE') ? 'FALSE' : 'TRUE';
+  if (nodeType === 'CONDITION' || nodeType === 'HTTP_LOOKUP') {
+    return existing.includes('TRUE') ? 'FALSE' : 'TRUE';
+  }
   if (nodeType === 'COLLECT_DIGITS') {
     if (!existing.includes('DEFAULT')) return 'DEFAULT';
     return existing.includes('TIMEOUT') ? null : 'TIMEOUT';

@@ -224,3 +224,24 @@ describe('parseNodeConfig — 대상 번호 출처', () => {
       .toThrow(/targetSource/);
   });
 });
+
+describe('parseNodeConfig — HTTP_LOOKUP', () => {
+  it('엔드포인트 id 와 대기 안내를 읽는다', () => {
+    expect(parseNodeConfig('HTTP_LOOKUP', { endpointId: 'ep-1', waitPromptKey: 'custom/checking' }))
+      .toEqual({ endpointId: 'ep-1', waitPromptKey: 'custom/checking' });
+  });
+
+  it('대기 안내는 없어도 된다 — 대신 그동안 무음이다', () => {
+    expect(parseNodeConfig('HTTP_LOOKUP', { endpointId: 'ep-1' }))
+      .toEqual({ endpointId: 'ep-1', waitPromptKey: null });
+  });
+
+  it('엔드포인트를 안 고르면 막는다', () => {
+    expect(() => parseNodeConfig('HTTP_LOOKUP', {})).toThrow(/endpointId/);
+  });
+
+  it('주소를 노드에 적을 자리가 없다 — 넣어도 버린다', () => {
+    expect(parseNodeConfig('HTTP_LOOKUP', { endpointId: 'ep-1', url: 'http://evil/' }))
+      .not.toHaveProperty('url');
+  });
+});

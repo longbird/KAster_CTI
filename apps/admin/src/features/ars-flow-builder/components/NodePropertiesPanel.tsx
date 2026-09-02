@@ -11,6 +11,8 @@ import {
 
 interface Props {
   node: FlowNodeRow | null;
+  /** 등록된 외부 조회 엔드포인트. 노드에는 주소를 적을 수 없고 여기서 고르기만 한다. */
+  httpEndpoints: Array<{ value: string; label: string }>;
   isEntry: boolean;
   outgoing: Array<{ edgeId: string; condition: FlowEdgeCondition; digit: string | null; toLabel: string }>;
   onChange: (next: FlowNodeRow) => void;
@@ -38,7 +40,7 @@ const WEEKDAYS = [
  * 최종 판정을 하지 않는다 — 두 곳에서 판정하면 규칙이 갈라진다.
  */
 export function NodePropertiesPanel({
-  node, isEntry, outgoing, onChange, onSetEntry, onDelete, onEdgeDigitChange, onEdgeDelete,
+  node, httpEndpoints, isEntry, outgoing, onChange, onSetEntry, onDelete, onEdgeDigitChange, onEdgeDelete,
 }: Props) {
   const [form] = Form.useForm();
 
@@ -186,6 +188,34 @@ export function NodePropertiesPanel({
             </Form.Item>
             <Form.Item name="maxRetries" label="재시도 횟수" extra="다 쓰면 '시간초과' 연결로 나갑니다.">
               <InputNumber min={0} max={5} style={{ width: '100%' }} />
+            </Form.Item>
+          </>
+        )}
+
+        {node.nodeType === 'HTTP_LOOKUP' && (
+          <>
+            <Form.Item
+              name="endpointId"
+              label="조회할 엔드포인트"
+              extra={
+                httpEndpoints.length
+                  ? '주소·인증·응답 해석 규칙은 PBX 설정 > 외부 조회 에서 관리합니다.'
+                  : '등록된 엔드포인트가 없습니다. PBX 설정 > 외부 조회 에서 먼저 등록하세요.'
+              }
+            >
+              <Select
+                allowClear
+                placeholder="엔드포인트 선택"
+                options={httpEndpoints}
+                notFoundContent="등록된 엔드포인트가 없습니다"
+              />
+            </Form.Item>
+            <Form.Item
+              name="waitPromptKey"
+              label="조회 중 안내"
+              extra="비우면 조회하는 동안 고객은 무음을 듣습니다."
+            >
+              <Input allowClear placeholder="custom/checking" />
             </Form.Item>
           </>
         )}

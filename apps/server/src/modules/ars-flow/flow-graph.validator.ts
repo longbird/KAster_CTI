@@ -1,6 +1,7 @@
 import {
   CollectDigitsConfig,
   FlowEdge,
+  HttpLookupConfig,
   FlowGraph,
   FlowNode,
   HangupConfig,
@@ -12,6 +13,9 @@ import {
 } from './flow-graph.types';
 
 const MAX_DEPTH = 10;
+const MAX_HTTP_LOOKUPS_PER_PATH = 2;
+/** 경로 탐색이 폭발하지 않게 거는 상한. 깊이 10 짜리 그래프에는 충분하다. */
+const PATH_WALK_LIMIT = 20_000;
 
 export interface FlowIssue {
   code: string;
@@ -24,6 +28,8 @@ export interface FlowValidationContext {
   queueNames: string[];
   promptKeys: string[];
   smsTemplateIds: string[];
+  /** 등록된 외부 조회 엔드포인트. 없으면 조회 노드를 쓸 수 없다. */
+  httpEndpoints?: Array<{ endpointId: string; timeoutMs: number }>;
 }
 
 export interface FlowValidationResult {
@@ -56,6 +62,7 @@ export function validateFlowGraph(
   checkDepth(graph, nodesById, errors);
   checkTrappedCycles(graph, nodesById, errors);
   checkCollectedTargets(graph, nodesById, errors);
+  checkHttpLookups(graph, nodesById, context, errors, warnings);
 
   return { errors, warnings };
 }
@@ -159,6 +166,10 @@ function checkTargetsExist(
       }
       case 'COLLECT_DIGITS': {
         pushMissingPrompt(prompts, (node.config as CollectDigitsConfig).promptKey, node.nodeId, errors);
+        break;
+      }
+      case 'HTTP_LOOKUP': {
+        pushMissingPrompt(prompts, (node.config as HttpLookupConfig).waitPromptKey, node.nodeId, errors);
         break;
       }
       case 'SMS': {
@@ -341,6 +352,103 @@ function targetSourceOf(node: FlowNode): string | null {
   if (node.nodeType === 'SMS') return (node.config as SmsConfig).targetSource ?? 'CALLER';
   if (node.nodeType === 'OPT_OUT') return (node.config as OptOutConfig).targetSource ?? 'CALLER';
   return null;
+}
+
+/**
+ * 외부 조회 노드 검사 (설계서 §7 의 10~14).
+ *
+ * **11번이 이 묶음의 핵심이다.** 조회가 실패했을 때 갈 곳이 없으면 통화가 멈춘다.
+ * 미들웨어가 죽어도 전화는 흘러야 한다는 원칙이 이 검사 하나로 강제된다.
+ */
+function checkHttpLookups(
+  graph: FlowGraph,
+  nodesById: Map<string, FlowNode>,
+  context: FlowValidationContext,
+  errors: FlowIssue[],
+  warnings: FlowIssue[],
+): void {
+  const lookups = graph.nodes.filter((node) => node.nodeType === 'HTTP_LOOKUP');
+  if (!lookups.length) return;
+
+  const endpoints = new Map((context.httpEndpoints ?? []).map((item) => [item.endpointId, item]));
+  const outgoing = new Map<string, FlowEdge[]>();
+  for (const node of graph.nodes) outgoing.set(node.nodeId, []);
+  for (const edge of graph.edges) {
+    if (!nodesById.has(edge.fromNodeId) || !nodesById.has(edge.toNodeId)) continue;
+    outgoing.get(edge.fromNodeId)?.push(edge);
+  }
+
+  for (const node of lookups) {
+    const config = node.config as HttpLookupConfig;
+    const endpoint = endpoints.get(config.endpointId);
+
+    if (!endpoint) {
+      errors.push({
+        code: 'HTTP_ENDPOINT_NOT_FOUND',
+        message: `external lookup endpoint does not exist or is inactive: ${config.endpointId}`,
+        nodeId: node.nodeId,
+      });
+    }
+
+    const conditions = new Set((outgoing.get(node.nodeId) ?? []).map((edge) => edge.condition));
+    if (!conditions.has('FALSE')) {
+      errors.push({
+        code: 'HTTP_LOOKUP_WITHOUT_FALLBACK',
+        message: `external lookup has no fallback branch: ${node.label}`,
+        nodeId: node.nodeId,
+      });
+    }
+    if (!conditions.has('TRUE')) {
+      warnings.push({
+        code: 'HTTP_LOOKUP_WITHOUT_MATCH_BRANCH',
+        message: `external lookup does nothing when it matches: ${node.label}`,
+        nodeId: node.nodeId,
+      });
+    }
+
+    // 안내 길이를 알 방법이 없다(프롬프트에 재생 시간이 없다). 대신 안내를 붙인 채
+    // 대기가 3초를 넘으면 합이 상한에 닿을 수 있다고 알린다.
+    if (config.waitPromptKey && endpoint && endpoint.timeoutMs > 3000) {
+      warnings.push({
+        code: 'HTTP_LOOKUP_WAIT_TOO_LONG',
+        message: `wait prompt plus a ${endpoint.timeoutMs}ms lookup can keep the caller waiting too long: ${node.label}`,
+        nodeId: node.nodeId,
+      });
+    }
+  }
+
+  const worst = maxLookupsOnAnyPath(graph, nodesById, outgoing);
+  if (worst > MAX_HTTP_LOOKUPS_PER_PATH) {
+    errors.push({
+      code: 'TOO_MANY_HTTP_LOOKUPS',
+      message: `a single call can hit ${worst} external lookups (max ${MAX_HTTP_LOOKUPS_PER_PATH})`,
+    });
+  }
+}
+
+/** 한 통화가 겪을 수 있는 최대 조회 횟수. 가지가 갈라지면 한 통화는 한쪽만 겪는다. */
+function maxLookupsOnAnyPath(
+  graph: FlowGraph,
+  nodesById: Map<string, FlowNode>,
+  outgoing: Map<string, FlowEdge[]>,
+): number {
+  if (!nodesById.has(graph.entryNodeId)) return 0;
+
+  let steps = 0;
+  const walk = (nodeId: string, onPath: Set<string>): number => {
+    if (onPath.has(nodeId) || (steps += 1) > PATH_WALK_LIMIT) return 0;
+
+    const self = nodesById.get(nodeId)?.nodeType === 'HTTP_LOOKUP' ? 1 : 0;
+    onPath.add(nodeId);
+    let deepest = 0;
+    for (const edge of outgoing.get(nodeId) ?? []) {
+      deepest = Math.max(deepest, walk(edge.toNodeId, onPath));
+    }
+    onPath.delete(nodeId);
+    return self + deepest;
+  };
+
+  return walk(graph.entryNodeId, new Set());
 }
 
 /** 최단 경로 기준 깊이. 순환이 있어도 계산이 끝난다. */

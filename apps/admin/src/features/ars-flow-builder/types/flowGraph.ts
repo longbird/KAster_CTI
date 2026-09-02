@@ -8,6 +8,7 @@ export const FLOW_NODE_TYPES = [
   'CONDITION',
   'HANGUP',
   'COLLECT_DIGITS',
+  'HTTP_LOOKUP',
 ] as const;
 export type FlowNodeType = (typeof FLOW_NODE_TYPES)[number];
 
@@ -68,6 +69,7 @@ export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   CONDITION: '조건 분기',
   HANGUP: '통화 종료',
   COLLECT_DIGITS: '번호 입력받기',
+  HTTP_LOOKUP: '외부 조회',
 };
 
 /** 수신거부·문자를 어느 번호로 보낼지. */

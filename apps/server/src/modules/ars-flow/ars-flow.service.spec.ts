@@ -42,6 +42,7 @@ function buildService(options: {
   queues?: Array<{ queueName: string }>;
   prompts?: Array<{ promptKey: string }>;
   templates?: Array<{ templateId: string }>;
+  httpEndpoints?: Array<{ endpointId: string; timeoutMs: number }>;
   ivrMenu?: Record<string, unknown> | null;
   duplicateFlow?: boolean;
 } = {}) {
@@ -94,6 +95,7 @@ function buildService(options: {
     queues: { findMany: jest.fn().mockResolvedValue(options.queues ?? [{ queueName: 'sales' }]) },
     asteriskPrompt: { findMany: jest.fn().mockResolvedValue(options.prompts ?? [{ promptKey: 'menu' }]) },
     tenantSmsTemplate: { findMany: jest.fn().mockResolvedValue(options.templates ?? [{ templateId: 'tpl-1' }]) },
+    arsHttpEndpoints: { findMany: jest.fn().mockResolvedValue(options.httpEndpoints ?? []) },
     $transaction: jest.fn().mockImplementation(async (fn: any) => fn(prisma)),
   };
 
