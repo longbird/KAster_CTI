@@ -13,37 +13,58 @@ function base(overrides: Record<string, unknown> = {}) {
 }
 
 describe('ARS 플로우 렌더 가드', () => {
-  describe('8. 플로우 컨텍스트 누락', () => {
-    it('플로우가 걸린 DID 가 있는데 컨텍스트가 없으면 막는다', () => {
+  describe('8. 플로우가 걸린 DID 가 플로우로 가지 않음', () => {
+    const flowRoute = (didNumber: string) =>
+      `exten => ${didNumber},1,NoOp(Inbound DID \${EXTEN} -> ARS flow)\n same => n,Goto(ars-flow-main-flow,s,1)\n`;
+
+    /**
+     * 파일럿에서 실제로 겪은 실패다. 그래프가 로드되지 않으면 그 DID 는 조용히 표준 경로로
+     * 떨어지는데, 기대값을 "로드된 그래프" 에서 뽑으면 기대값도 함께 사라져 검사가 무력화된다.
+     * 기대값은 DID 의 flowId 에서 나와야 한다.
+     */
+    it('flowId 가 걸린 DID 가 표준 경로로 렌더되면 막는다', () => {
       const reason = findConfigRenderRegression(base({
-        expectedArsFlowSlugs: ['main-flow'],
+        expectedArsFlowDids: ['07052346389'],
+        renderedExtensionsInbound: 'exten => 07052346389,1,NoOp(Inbound DID)\n same => n,Goto(queue-entry,sales,1)\n',
         renderedExtensionsQueue: '[queue-entry]\n',
       }));
 
-      expect(reason).toMatch(/ARS 플로우/);
-      expect(reason).toContain('main-flow');
+      expect(reason).toContain('07052346389');
+      expect(reason).toMatch(/플로우/);
     });
 
-    it('컨텍스트가 다 있으면 통과한다', () => {
+    it('플로우 경로로 렌더되고 컨텍스트도 있으면 통과한다', () => {
       const reason = findConfigRenderRegression(base({
-        expectedArsFlowSlugs: ['main-flow'],
-        renderedExtensionsQueue: '[queue-entry]\n\n[ars-flow-main-flow]\nexten => s,1,NoOp()\n',
+        expectedArsFlowDids: ['07052346389'],
+        renderedExtensionsInbound: flowRoute('07052346389'),
+        renderedExtensionsQueue: '[ars-flow-main-flow]\nexten => s,1,NoOp()\n',
       }));
 
       expect(reason).toBeNull();
     });
 
-    it('여러 플로우 중 하나만 빠져도 막는다', () => {
+    it('플로우 경로인데 컨텍스트가 없으면 막는다', () => {
       const reason = findConfigRenderRegression(base({
-        expectedArsFlowSlugs: ['main-flow', 'night-flow'],
+        expectedArsFlowDids: ['07052346389'],
+        renderedExtensionsInbound: flowRoute('07052346389'),
+        renderedExtensionsQueue: '[queue-entry]\n',
+      }));
+
+      expect(reason).toContain('ars-flow-main-flow');
+    });
+
+    it('여러 DID 중 하나만 빠져도 막는다', () => {
+      const reason = findConfigRenderRegression(base({
+        expectedArsFlowDids: ['07052346388', '07052346389'],
+        renderedExtensionsInbound: flowRoute('07052346388'),
         renderedExtensionsQueue: '[ars-flow-main-flow]\n',
       }));
 
-      expect(reason).toContain('night-flow');
+      expect(reason).toContain('07052346389');
     });
 
     it('플로우를 쓰지 않는 사이트는 이 검사를 지나간다', () => {
-      expect(findConfigRenderRegression(base({ expectedArsFlowSlugs: [] }))).toBeNull();
+      expect(findConfigRenderRegression(base({ expectedArsFlowDids: [] }))).toBeNull();
       expect(findConfigRenderRegression(base())).toBeNull();
     });
   });

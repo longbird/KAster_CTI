@@ -726,18 +726,18 @@ function buildOptOutGuardedDigitAgiScript(): string {
 }
 
 /**
- * 렌더 가드가 확인할 플로우 컨텍스트 슬러그. 컴파일러와 **같은 규칙**으로 만든다.
- * 어긋나면 가드가 멀쩡한 렌더를 막거나, 반대로 빠진 컨텍스트를 놓친다.
+ * 렌더 가드가 확인할 대상 — `flowId` 가 걸린 DID 번호.
+ *
+ * **`arsFlow`(로드된 그래프)가 아니라 `flowId`(DB 값)를 본다.** 그래프를 못 읽으면
+ * `arsFlow` 는 null 이 되는데, 그걸 기준으로 삼으면 정작 문제가 생긴 상황에서
+ * 기대값이 0개가 되어 검사가 통째로 사라진다.
  */
-function collectArsFlowSlugs(dids: Array<{ enabled?: boolean; arsFlow?: any }>): string[] {
-  const slugs = new Set<string>();
-  for (const did of dids) {
-    if (did.enabled === false || !did.arsFlow?.graph) continue;
-    const graph = did.arsFlow.graph;
-    const slug = toSlug(graph.name) || toSlug(graph.flowId);
-    if (slug) slugs.add(slug);
-  }
-  return [...slugs];
+function collectArsFlowDids(
+  dids: Array<{ enabled?: boolean; did: string; flowId?: string | null }>,
+): string[] {
+  return dids
+    .filter((did) => did.enabled !== false && !!did.flowId)
+    .map((did) => did.did);
 }
 
 @Injectable()
@@ -1057,8 +1057,9 @@ export class AsteriskReloadService implements OnApplicationBootstrap, OnModuleDe
       expectedAgentCount: agents.length,
       renderedPjsip: pjsipContent,
       renderedAgentDialplan: extensionsAgent,
-      // 플로우가 걸린 DID 는 그 컨텍스트로 점프한다. 컨텍스트가 없으면 허공으로 뛴다.
-      expectedArsFlowSlugs: collectArsFlowSlugs(dids),
+      // 기대값은 **DB 의 flowId** 에서 뽑는다. 로드된 그래프에서 뽑으면 그래프를 못 읽었을 때
+      // 기대값도 함께 사라져 검사가 무력화된다 (2026-09-02 파일럿에서 실제로 겪었다).
+      expectedArsFlowDids: collectArsFlowDids(dids),
       renderedExtensionsQueue: extensionsQueue,
       renderedExtensionsInbound: extensionsInbound,
       // 직전에 실제로 쓰인 파일과 비교한다. 최초 적용이면 null 이라 검사를 건너뛴다.

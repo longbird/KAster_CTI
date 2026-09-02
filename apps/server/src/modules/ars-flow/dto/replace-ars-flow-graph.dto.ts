@@ -8,6 +8,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -18,8 +19,9 @@ const MAX_NODES = 200;
 const MAX_EDGES = 400;
 
 export class ArsFlowNodeDto {
-  @IsString()
-  @IsNotEmpty()
+  // DB 컬럼이 UUID 다. 여기서 막지 않으면 Prisma 단계에서 깨지고,
+  // 사용자는 무엇이 잘못됐는지 알 수 없는 뭉개진 메시지만 받는다.
+  @IsUUID()
   nodeId: string;
 
   @IsIn(FLOW_NODE_TYPES as unknown as string[])
@@ -44,16 +46,13 @@ export class ArsFlowNodeDto {
 }
 
 export class ArsFlowEdgeDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   edgeId: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   fromNodeId: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   toNodeId: string;
 
   @IsIn(FLOW_EDGE_CONDITIONS as unknown as string[])
@@ -66,8 +65,7 @@ export class ArsFlowEdgeDto {
 }
 
 export class ReplaceArsFlowGraphDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   entryNodeId: string;
 
   @IsArray()

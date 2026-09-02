@@ -39,8 +39,13 @@ export interface ConfigRenderGuardInput {
   expectedAgentCount: number;
   renderedPjsip: string;
   renderedAgentDialplan: string;
-  /** 플로우가 걸린 DID 들이 가리키는 컨텍스트 슬러그. 비면 이 검사를 건너뛴다. */
-  expectedArsFlowSlugs?: string[];
+  /**
+   * `flowId` 가 걸린 DID 번호. **DB 의 DID 행에서 뽑는다.**
+   *
+   * 로드된 그래프에서 뽑으면 안 된다 — 그래프가 로드되지 않으면 기대값도 함께 사라져
+   * 검사가 통째로 무력화된다 (2026-09-02 파일럿에서 실제로 겪었다).
+   */
+  expectedArsFlowDids?: string[];
   renderedExtensionsQueue?: string;
   renderedExtensionsInbound?: string;
   /** 직전에 실제로 적용된 inbound 내용. 없으면(최초 적용) 축소 검사를 건너뛴다. */
@@ -80,21 +85,45 @@ function findMissingAgentExtensions(input: ConfigRenderGuardInput): string | nul
 }
 
 /**
- * DID 는 플로우 컨텍스트로 Goto 하는데 그 컨텍스트가 렌더되지 않았다면,
- * 그 번호로 걸려온 전화는 존재하지 않는 곳으로 점프한다.
+ * 두 가지를 본다.
+ *
+ * 1. `flowId` 가 걸린 DID 가 실제로 플로우 경로로 렌더됐는가.
+ *    그래프를 못 읽으면 그 DID 는 <b>조용히 표준 경로로 떨어진다</b>. 파일은 멀쩡하고
+ *    전화도 받히지만, 관리자가 만든 시나리오는 사라진 상태다.
+ * 2. 그 플로우 경로가 가리키는 컨텍스트가 실제로 존재하는가.
+ *    없으면 그 번호로 온 전화가 없는 곳으로 점프한다.
  */
 function findMissingArsFlowContexts(input: ConfigRenderGuardInput): string | null {
-  const expected = input.expectedArsFlowSlugs ?? [];
-  if (expected.length === 0) return null;
+  const expectedDids = input.expectedArsFlowDids ?? [];
+  if (expectedDids.length === 0) return null;
 
-  const rendered = input.renderedExtensionsQueue ?? '';
-  const missing = expected.filter((slug) => !rendered.includes(`[ars-flow-${slug}]`));
-  if (missing.length === 0) return null;
+  const inbound = input.renderedExtensionsInbound ?? '';
+  const queue = input.renderedExtensionsQueue ?? '';
 
-  return (
-    `ARS 플로우 컨텍스트가 렌더되지 않았다: ${missing.join(', ')}. `
-    + '설정을 쓰지 않는다 — 그 DID 로 걸려온 전화가 없는 컨텍스트로 점프한다.'
-  );
+  const notRouted = expectedDids.filter((did) => !hasArsFlowRoute(inbound, did));
+  if (notRouted.length > 0) {
+    return (
+      `ARS 플로우가 걸린 DID 가 플로우 경로로 렌더되지 않았다: ${notRouted.join(', ')}. `
+      + '설정을 쓰지 않는다 — 그대로 쓰면 관리자가 만든 시나리오가 조용히 사라진다.'
+    );
+  }
+
+  const missingContexts = [...new Set(
+    [...inbound.matchAll(/Goto\((ars-flow-[a-z0-9-]+),s,1\)/g)].map((match) => match[1]),
+  )].filter((context) => !queue.includes(`[${context}]`));
+
+  if (missingContexts.length > 0) {
+    return (
+      `ARS 플로우 컨텍스트가 렌더되지 않았다: ${missingContexts.join(', ')}. `
+      + '설정을 쓰지 않는다 — 그 DID 로 걸려온 전화가 없는 컨텍스트로 점프한다.'
+    );
+  }
+
+  return null;
+}
+
+function hasArsFlowRoute(inbound: string, didNumber: string): boolean {
+  return inbound.includes(`exten => ${didNumber},1,NoOp(Inbound DID \${EXTEN} -> ARS flow)`);
 }
 
 /**
