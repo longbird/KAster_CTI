@@ -1,65 +1,75 @@
+import type { CSSProperties } from 'react';
 import type { AgentStatusCode, SessionStatus } from '../types/cti';
 
-// 전체 앱에서 재사용하는 상태 메타데이터. 각 상태의 한국어 라벨과 Antd Tag 색,
-// tone (hero 카드 배경 / border 강조용) 을 한 곳에서 관리.
+/**
+ * 상태 색의 단일 출처.
+ *
+ * 예전에는 같은 상태의 색이 네 군데에서 따로 정해졌다 — 여기의 antd 팔레트 이름,
+ * AgentStatusTag 의 인라인 hex, FloatingDialerWindow 의 라이트 전용 Tailwind 클래스,
+ * 그리고 CSS 별칭. 그래서 통화 중이 화면에 따라 초록이기도 파랑이기도 했다.
+ *
+ * 이제 각 상태는 tone 하나만 갖고, tone 은 styles/index.css 의 --tone-* 로 간다.
+ * 그 토큰은 테마마다 값이 있어 라이트/다크가 같이 따라온다.
+ * 색은 심각도만 나르고, 무엇인지는 글자가 나른다.
+ */
+export type StatusTone = 'info' | 'warn' | 'ok' | 'danger' | 'neutral';
 
 export interface StatusMeta {
   label: string;
-  color: string; // Antd Tag color
-  // 화면 강조 톤. hero 카드 border/background 를 바꿀 때 참조.
-  tone: 'info' | 'warn' | 'ok' | 'danger' | 'neutral';
+  tone: StatusTone;
+}
+
+const TONE_VAR: Record<StatusTone, string> = {
+  ok: 'var(--tone-ok)',
+  info: 'var(--tone-info)',
+  warn: 'var(--tone-warn)',
+  danger: 'var(--tone-danger)',
+  neutral: 'var(--tone-neutral)',
+};
+
+export function toneColor(tone: StatusTone): string {
+  return TONE_VAR[tone];
+}
+
+/** 칩·배지용 글자 + 옅은 배경 + 테두리 한 벌. */
+export function toneStyle(tone: StatusTone): CSSProperties {
+  const color = TONE_VAR[tone];
+  return {
+    color,
+    background: `color-mix(in srgb, ${color} 12%, transparent)`,
+    border: `1px solid color-mix(in srgb, ${color} 32%, transparent)`,
+  };
 }
 
 export const SESSION_META: Record<SessionStatus, StatusMeta> = {
-  NEW: { label: '신규', color: 'default', tone: 'neutral' },
-  IVR: { label: 'IVR', color: 'gold', tone: 'warn' },
-  QUEUED: { label: '대기', color: 'orange', tone: 'warn' },
-  RINGING_AGENT: { label: '벨 울림', color: 'cyan', tone: 'info' },
-  TALKING: { label: '통화 중', color: 'blue', tone: 'info' },
-  HOLD: { label: '보류', color: 'purple', tone: 'warn' },
-  TRANSFERRING: { label: '전환 중', color: 'magenta', tone: 'warn' },
-  AFTER_CALL_WORK: { label: '후처리', color: 'green', tone: 'ok' },
-  ENDED: { label: '종료', color: 'default', tone: 'neutral' },
+  NEW: { label: '신규', tone: 'neutral' },
+  IVR: { label: 'IVR', tone: 'warn' },
+  QUEUED: { label: '대기', tone: 'warn' },
+  RINGING_AGENT: { label: '벨 울림', tone: 'warn' },
+  TALKING: { label: '통화 중', tone: 'info' },
+  HOLD: { label: '보류', tone: 'warn' },
+  TRANSFERRING: { label: '전환 중', tone: 'info' },
+  AFTER_CALL_WORK: { label: '후처리', tone: 'neutral' },
+  ENDED: { label: '종료', tone: 'neutral' },
 };
 
 export const AGENT_META: Record<AgentStatusCode, StatusMeta> = {
-  AVAILABLE: { label: '대기', color: 'green', tone: 'ok' },
-  RINGING: { label: '벨 울림', color: 'gold', tone: 'warn' },
-  TALKING: { label: '통화 중', color: 'blue', tone: 'info' },
-  AFTER_CALL_WORK: { label: '후처리', color: 'purple', tone: 'warn' },
-  BREAK: { label: '휴식', color: 'red', tone: 'danger' },
-  MEAL: { label: '식사', color: 'orange', tone: 'warn' },
-  TRAINING: { label: '교육', color: 'cyan', tone: 'info' },
-  MANUAL_PAUSED: { label: '일시정지', color: 'default', tone: 'neutral' },
+  AVAILABLE: { label: '대기', tone: 'ok' },
+  RINGING: { label: '벨 울림', tone: 'warn' },
+  // 통화 중은 대기와 달라야 한다. 예전에는 둘 다 초록이라 배지로 구분할 수 없었다.
+  TALKING: { label: '통화 중', tone: 'info' },
+  AFTER_CALL_WORK: { label: '후처리', tone: 'neutral' },
+  BREAK: { label: '휴식', tone: 'danger' },
+  MEAL: { label: '식사', tone: 'warn' },
+  TRAINING: { label: '교육', tone: 'info' },
+  MANUAL_PAUSED: { label: '일시정지', tone: 'neutral' },
 };
 
-// hero 카드 border / 배경 틴트. Tailwind 클래스 그룹.
-export const TONE_CLASS: Record<StatusMeta['tone'], string> = {
-  info: 'border-blue-200 bg-blue-50/40',
-  warn: 'border-amber-200 bg-amber-50/40',
-  ok: 'border-emerald-200 bg-emerald-50/40',
-  danger: 'border-rose-200 bg-rose-50/40',
-  neutral: 'border-slate-200 bg-white',
-};
+export function sessionLabel(status: string): string {
+  return SESSION_META[status as SessionStatus]?.label ?? status;
+}
 
-// 공통 카드 외곽 클래스. Antd Card 의 기본 테두리/그림자보다 더 현대적.
-export const PANEL_CLASS =
-  'rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.04)]';
-
-export const CALL_STATUS_LABEL: Record<string, string> = {
-  QUEUED: '대기열',
-  RINGING_AGENT: '벨 울림',
-  TALKING: '통화 중',
-  AFTER_CALL_WORK: '후처리',
-  TRANSFERRING: '전환 중',
-  ENDED: '종료',
-};
-
-export const CALL_STATUS_COLOR: Record<string, string> = {
-  QUEUED: 'var(--status-queued)',
-  RINGING_AGENT: 'var(--status-ringing)',
-  TALKING: 'var(--status-talking)',
-  AFTER_CALL_WORK: 'var(--text-secondary)',
-  TRANSFERRING: 'var(--status-ringing)',
-  ENDED: 'var(--status-danger)',
-};
+export function sessionColor(status: string): string {
+  const meta = SESSION_META[status as SessionStatus];
+  return meta ? toneColor(meta.tone) : 'var(--tone-neutral)';
+}

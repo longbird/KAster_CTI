@@ -41,11 +41,11 @@ export function FloatingCallWindow({
       <button
         type="button"
         onClick={onRestore}
-        className="fixed bottom-20 right-4 z-[70] flex items-center gap-3 rounded-full bg-primary px-5 py-3 text-left text-white shadow-2xl shadow-primary/30 transition-all hover:translate-y-[-1px] active:scale-95 md:bottom-6 md:right-6"
+        className="fixed bottom-20 right-4 z-[70] flex items-center gap-3 rounded-full bg-primary px-5 py-3 text-left text-on-primary shadow-2xl shadow-primary/30 transition-all hover:translate-y-[-1px] active:scale-95 md:bottom-6 md:right-6"
       >
         <span className="material-symbols-outlined">call</span>
         <span>
-          <span className="block text-micro font-bold uppercase tracking-widest text-white/70">
+          <span className="block text-micro font-bold uppercase tracking-widest text-on-primary/70">
             현재 통화
           </span>
           <span className="block text-sm font-bold">

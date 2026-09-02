@@ -13,7 +13,7 @@
   --color-on-tertiary-container: 132 240 226;
   --color-secondary-fixed: 217 227 244;
   --color-error: 186 26 26;
-  --color-surface-tint: 19 83 216;
+  --color-surface-tint: 4 120 87;
   --color-inverse-surface: 46 49 50;
   --color-surface-variant: 225 227 228;
   --color-primary-fixed-dim: 181 196 255;
@@ -30,7 +30,10 @@
   --color-background: 248 249 250;
   --color-tertiary: 0 84 76;
   --color-surface-container-lowest: 255 255 255;
-  --color-primary: 0 63 177;
+  /* 별칭(--accent)과 그라디언트가 라이트에서도 에메랄드인데 이 값만 초기
+   * 생성값(파랑)으로 남아, 같은 화면에 파랑과 초록이 같이 떴다.
+   * #047857 — 흰 글자 5.55:1, 표면 위 글자 5.35:1 로 둘 다 AA 를 넘는다. */
+  --color-primary: 4 120 87;
   --color-outline-variant: 195 197 215;
   --color-on-primary-fixed-variant: 0 61 171;
   --color-secondary-fixed-dim: 189 199 216;
@@ -53,6 +56,8 @@
   --color-on-secondary-container: 89 99 114;
   --gradient-primary-from: #047857;
   --gradient-primary-to: #059669;
+  /* 그라디언트 위 글자. 다크는 밝은 에메랄드라 흰 글자가 1.75:1 밖에 안 나온다. */
+  --gradient-primary-fg: #ffffff;
 
   /* 신규 별칭 (라이트 모드) */
   --bg-base:       #ffffff;
@@ -73,8 +78,13 @@
   --status-ringing:#b45309;
   --status-queued: #6b7280;
   --status-danger: #dc2626;
-  --mini-card-from:#e8f5ef;
-  --mini-card-to:  #f0f9f4;
+  /* 상태 톤. statusMeta 의 tone 이 여기로 연결된다.
+   * 라이트 값은 전부 표면 위에서 AA 를 넘는다. */
+  --tone-ok:      #047857;
+  --tone-info:    #2563eb;
+  --tone-warn:    #b45309;
+  --tone-danger:  #ba1a1a;
+  --tone-neutral: #5d6166;
 
   color: rgb(var(--color-on-background));
   background: rgb(var(--color-background));
@@ -147,6 +157,7 @@
 
   --gradient-primary-from: #059669;
   --gradient-primary-to:   #34d399;
+  --gradient-primary-fg:   #010409;
 
   /* 신규 별칭 (신규 컴포넌트 style={} 전용 — hex) */
   --bg-base:       #010409;
@@ -167,8 +178,11 @@
   --status-ringing:#d29922;
   --status-queued: #8b949e;
   --status-danger: #f85149;
-  --mini-card-from:#052e1a;
-  --mini-card-to:  #041a0f;
+  --tone-ok:      #34d399;
+  --tone-info:    #58a6ff;
+  --tone-warn:    #d29922;
+  --tone-danger:  #f85149;
+  --tone-neutral: #8b949e;
 
   color-scheme: dark;
 }
@@ -194,66 +208,16 @@ body {
   box-sizing: border-box;
 }
 
-*,
-*::before,
-*::after {
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease;
+/* 초점 표시 규칙이 하나도 없었다. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--color-primary));
+  outline-offset: 2px;
 }
 
 /* Material Symbols 기본 변형 */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   font-family: 'Material Symbols Outlined';
-}
-
-/* "Glass" 플로팅 패널 — 모달/드롭다운 배경 */
-.glass-panel {
-  background: rgb(var(--color-surface-container-lowest) / 0.72);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-/* 상태 펄스 — AVAILABLE tertiary 색 */
-.pulse-available {
-  box-shadow: 0 0 0 0 rgba(0, 84, 76, 0.4);
-  animation: pulse-green 2s infinite;
-}
-.pulse-busy {
-  box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.4);
-  animation: pulse-red 2s infinite;
-}
-
-@keyframes pulse-green {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(0, 84, 76, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(0, 84, 76, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(0, 84, 76, 0);
-  }
-}
-@keyframes pulse-red {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(186, 26, 26, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(186, 26, 26, 0);
-  }
 }
 
 /* 콜 라이브 중 파형 애니메이션 */
@@ -273,7 +237,7 @@ body {
 /* 프라이머리 그라디언트 — CTA 버튼 기본 */
 .btn-primary-gradient {
   background: linear-gradient(135deg, var(--gradient-primary-from) 0%, var(--gradient-primary-to) 100%);
-  color: #ffffff;
+  color: var(--gradient-primary-fg);
   transition: all 0.2s;
 }
 .btn-primary-gradient:hover {
@@ -294,10 +258,3 @@ body {
   font-family: 'Inter', system-ui, sans-serif !important;
 }
 
-.mini-shell-grid {
-  background-image:
-    linear-gradient(rgb(var(--color-outline-variant) / 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--color-outline-variant) / 0.12) 1px, transparent 1px);
-  background-size: 18px 18px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 90%);
-}

@@ -1,6 +1,7 @@
 import { Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import type { AgentStatusCode } from '../types/cti';
+import { AGENT_META, toneColor, toneStyle } from './statusMeta';
 
 // 상담원이 직접 변경 가능한 상태만 노출. RINGING/TALKING/AFTER_CALL_WORK 는
 // 시스템(AMI 이벤트)이 유도하는 상태라 수동 선택 금지.
@@ -12,29 +13,6 @@ const SELECTABLE_STATUSES: AgentStatusCode[] = [
   'MANUAL_PAUSED',
 ];
 
-const LABEL: Record<AgentStatusCode, string> = {
-  AVAILABLE: '대기',
-  RINGING: '벨 울림',
-  TALKING: '통화 중',
-  AFTER_CALL_WORK: '후처리',
-  BREAK: '휴식',
-  MEAL: '식사',
-  TRAINING: '교육',
-  MANUAL_PAUSED: '일시중지',
-};
-
-// 디자인 시스템의 색 매핑. CSS 변수 기반 inline style.
-const TONE: Record<AgentStatusCode, { dot: string; text: string; bg: string; border: string }> = {
-  AVAILABLE:       { dot: 'var(--status-talking)', text: 'var(--status-talking)', bg: 'var(--accent-dim)', border: 'var(--accent-border)' },
-  TALKING:         { dot: 'var(--status-talking)', text: 'var(--status-talking)', bg: 'rgba(52,211,153,0.20)', border: 'rgba(52,211,153,0.45)' },
-  RINGING:         { dot: 'var(--status-ringing)', text: 'var(--status-ringing)', bg: 'rgba(210,153,34,0.10)', border: 'rgba(210,153,34,0.25)' },
-  AFTER_CALL_WORK: { dot: '#8b949e', text: '#8b949e', bg: 'rgba(139,148,158,0.10)', border: 'rgba(139,148,158,0.20)' },
-  BREAK:           { dot: '#d29922', text: '#d29922', bg: 'rgba(210,153,34,0.08)', border: 'rgba(210,153,34,0.20)' },
-  MEAL:            { dot: '#d29922', text: '#d29922', bg: 'rgba(210,153,34,0.08)', border: 'rgba(210,153,34,0.20)' },
-  TRAINING:        { dot: '#8b949e', text: '#8b949e', bg: 'rgba(139,148,158,0.08)', border: 'rgba(139,148,158,0.18)' },
-  MANUAL_PAUSED:   { dot: '#8b949e', text: '#8b949e', bg: 'rgba(139,148,158,0.08)', border: 'rgba(139,148,158,0.18)' },
-};
-
 const ANIMATED: Set<AgentStatusCode> = new Set(['AVAILABLE', 'TALKING', 'RINGING']);
 
 interface Props {
@@ -44,13 +22,13 @@ interface Props {
 
 export function AgentStatusTag({ status, onChange }: Props) {
   const current: AgentStatusCode = status ?? 'MANUAL_PAUSED';
-  const tone = TONE[current];
-  const label = LABEL[current];
+  const meta = AGENT_META[current];
+  const label = meta.label;
 
   const menu: MenuProps = {
     items: SELECTABLE_STATUSES.map((s) => ({
       key: s,
-      label: LABEL[s],
+      label: AGENT_META[s].label,
       disabled: s === current,
     })),
     onClick: ({ key }) => {
@@ -65,16 +43,12 @@ export function AgentStatusTag({ status, onChange }: Props) {
       className={`flex items-center gap-2 rounded-full px-3 py-1 text-caption font-semibold transition-colors${
         onChange ? ' cursor-pointer hover:scale-105 active:scale-95' : ' cursor-default'
       }`}
-      style={{
-        background: tone.bg,
-        color: tone.text,
-        border: `1px solid ${tone.border}`,
-      }}
+      style={toneStyle(meta.tone)}
     >
       <span
         aria-hidden
         className="inline-block h-1.5 w-1.5 rounded-full"
-        style={{ background: tone.dot, animation: ANIMATED.has(current) ? 'pulse 2s infinite' : undefined }}
+        style={{ background: toneColor(meta.tone), animation: ANIMATED.has(current) ? 'pulse 2s infinite' : undefined }}
       />
       {label}
       {onChange && (

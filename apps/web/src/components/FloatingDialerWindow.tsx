@@ -1,6 +1,6 @@
 import { message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { AGENT_META } from './statusMeta';
+import { AGENT_META, toneStyle } from './statusMeta';
 import type { AgentDirectoryItem, CallCapabilities } from '../types/cti';
 import { formatPhoneNumber } from '../utils/format';
 
@@ -162,7 +162,7 @@ export function FloatingDialerWindow({
                 message.success(`외부 발신을 요청했습니다: ${formatPhoneNumber(phoneNumber.trim())}`);
                 setPhoneNumber('');
               }}
-              className="btn-primary-gradient mt-4 w-full rounded-xl py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary-gradient mt-4 w-full rounded-xl py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
             >
               발신 요청
             </button>
@@ -207,7 +207,7 @@ export function FloatingDialerWindow({
                         내선 {agent.extension} · {agent.role}
                       </p>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-caption font-bold ${statusToneClass(meta.tone)}`}>
+                    <span className="rounded-full px-2.5 py-1 text-caption font-bold" style={toneStyle(meta.tone)}>
                       {meta.label}
                     </span>
                   </div>
@@ -221,17 +221,3 @@ export function FloatingDialerWindow({
   );
 }
 
-function statusToneClass(tone: 'info' | 'warn' | 'ok' | 'danger' | 'neutral') {
-  switch (tone) {
-    case 'ok':
-      return 'bg-emerald-50 text-emerald-700';
-    case 'warn':
-      return 'bg-amber-50 text-amber-700';
-    case 'danger':
-      return 'bg-rose-50 text-rose-700';
-    case 'info':
-      return 'bg-sky-50 text-sky-700';
-    default:
-      return 'bg-slate-100 text-slate-700';
-  }
-}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCtiStore } from '../store/useCtiStore';
-import { CALL_STATUS_LABEL, CALL_STATUS_COLOR } from './statusMeta';
+import { sessionLabel, sessionColor } from './statusMeta';
 import { formatPhoneNumber } from '../utils/format';
 
 type FilterMode = 'all' | 'talking' | 'queued';
@@ -85,8 +85,8 @@ export function CallListPanel() {
       <div className="flex-1 overflow-y-auto px-3 pb-3">
         {filtered.map((call) => {
           const selected = call.callId === selectedCallId;
-          const statusLabel = CALL_STATUS_LABEL[call.sessionStatus] ?? call.sessionStatus;
-          const statusColor = CALL_STATUS_COLOR[call.sessionStatus] ?? 'var(--text-secondary)';
+          const statusLabel = sessionLabel(call.sessionStatus);
+          const statusColor = sessionColor(call.sessionStatus);
           return (
             <button
               key={call.callId}

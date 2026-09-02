@@ -30,7 +30,7 @@ export function DesktopHandoffPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-md shadow-panel">
         <Typography.Title level={4} className="!mb-1">
           KAster CTI 연결 중

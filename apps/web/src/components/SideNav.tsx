@@ -31,8 +31,9 @@ export function SideNav() {
       }}
     >
       <div
-        className="mb-3 flex h-[30px] w-[30px] items-center justify-center rounded-lg text-caption font-extrabold text-white"
+        className="mb-3 flex h-[30px] w-[30px] items-center justify-center rounded-lg text-caption font-extrabold"
         style={{
+          color: 'var(--gradient-primary-fg)',
           background: 'linear-gradient(135deg, var(--accent-strong), var(--accent))',
           boxShadow: '0 0 12px var(--accent-glow)',
         }}

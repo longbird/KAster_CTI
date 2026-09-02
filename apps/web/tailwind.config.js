@@ -78,10 +78,6 @@ export default {
         // 플로팅 요소용 약간 더 진한 버전
         float: '0 24px 48px rgba(25, 28, 29, 0.12)',
       },
-      backgroundImage: {
-        // CTA 그라디언트 — primary → primary-container 135deg
-        'primary-gradient': 'linear-gradient(135deg, #003fb1 0%, #1a56db 100%)',
-      },
     },
   },
   plugins: [],

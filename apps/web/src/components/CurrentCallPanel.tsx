@@ -40,7 +40,8 @@ export function CurrentCallPanel({
       <section
         className="rounded-xl p-5"
         style={{
-          background: 'linear-gradient(135deg, #0d2818, #0a1f14)',
+          background:
+            'linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--bg-surface)), color-mix(in srgb, var(--accent) 6%, var(--bg-surface)))',
           border: '1px solid var(--accent-border)',
           boxShadow: '0 0 24px rgba(52,211,153,0.08)',
         }}
@@ -74,7 +75,8 @@ export function CurrentCallPanel({
     <section
       className="rounded-xl p-5"
       style={{
-        background: 'linear-gradient(135deg, #0d2818, #0a1f14)',
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--bg-surface)), color-mix(in srgb, var(--accent) 6%, var(--bg-surface)))',
         border: '1px solid var(--accent-border)',
         boxShadow: '0 0 24px rgba(52,211,153,0.08)',
       }}
@@ -121,8 +123,8 @@ export function CurrentCallPanel({
           <button
             type="button"
             onClick={() => { void onPickup(); }}
-            className="flex-1 rounded-md py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-75"
-            style={{ background: 'var(--accent-strong)' }}
+            className="flex-1 rounded-md py-2 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
+            style={{ background: 'var(--accent-strong)', color: 'var(--gradient-primary-fg)' }}
           >
             당겨받기
           </button>
