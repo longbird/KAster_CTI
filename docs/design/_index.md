@@ -28,6 +28,7 @@
 | [`2026-08-23-desktop-dark-console-design.md`](2026-08-23-desktop-dark-console-design.md) |
 | [`2026-09-01-ars-flow-builder-design.md`](2026-09-01-ars-flow-builder-design.md) |
 | [`2026-09-01-feature-entitlement-design.md`](2026-09-01-feature-entitlement-design.md) |
+| [`2026-09-02-ars-http-lookup-design.md`](2026-09-02-ars-http-lookup-design.md) |
 | [`admin-agent-gap-audit.md`](admin-agent-gap-audit.md) |
 | [`admin-permissions-policy.md`](admin-permissions-policy.md) |
 | [`agent-desktop-internal-code-signing.md`](agent-desktop-internal-code-signing.md) |
