@@ -77,7 +77,7 @@ function KpiTile({ label, value, suffix, delta, accent, waveform }: TileProps) {
               delta.tone === 'ok'
                 ? 'var(--accent)'
                 : delta.tone === 'warn'
-                ? 'var(--status-danger)'
+                ? 'var(--tone-danger)'
                 : 'var(--text-secondary)',
             fontSize: 11,
             marginTop: 2,

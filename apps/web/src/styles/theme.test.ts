@@ -84,6 +84,38 @@ describe('테마 토큰', () => {
   });
 });
 
+describe('별칭', () => {
+  // 인라인 style 용 별칭이 MD3 토큰과 따로 적혀 있다가 라이트에서만 값이 갈라졌다.
+  // 이제 파생시켜서 갈라질 수 없게 한다.
+  const DERIVED = ['--bg-base', '--bg-surface', '--bg-elevated', '--bg-raised',
+                   '--text-primary', '--text-secondary', '--text-muted',
+                   '--accent', '--accent-dim', '--accent-border', '--accent-glow'];
+
+  it.each(DERIVED)('%s 는 MD3 토큰에서 파생된다', (alias) => {
+    const light = block(":root,\n[data-theme='light']");
+    const dark = block("[data-theme='dark']");
+    for (const [name, body] of [['라이트', light], ['다크', dark]] as const) {
+      const m = body.match(new RegExp(`${alias}:\\s*([^;]+);`));
+      expect(m, `${name}에 ${alias} 가 없다`).toBeTruthy();
+      expect(m![1], `${name} ${alias} 가 값을 직접 쓴다`).toContain('var(--color-');
+    }
+  });
+
+  // MD3 에 대응하는 단계가 없어 값을 직접 두는 둘. 그 외에는 없어야 한다.
+  it('값을 직접 두는 별칭은 둘뿐이다', () => {
+    const literal = [...css.matchAll(/^\s+(--(?:bg|text|accent|border)[\w-]*):\s*([^;]+);/gim)]
+      .filter((m) => !m[2].includes('var(--color-'))
+      .map((m) => m[1].trim());
+    expect([...new Set(literal)].sort()).toEqual(['--accent-strong', '--border-subtle']);
+  });
+
+  // tone 작업으로 쓸모가 없어진 것들.
+  it('예전 --status-* 별칭을 남기지 않는다', () => {
+    expect(css).not.toMatch(/--status-(talking|ringing|queued|danger):/);
+    expect(css).not.toMatch(/--border-dim:/);
+  });
+});
+
 describe('테마를 따라가지 않는 값', () => {
   it('antd 팔레트 이름을 쓰지 않는다', () => {
     const palette = /(['"])(green|blue|red|orange|gold|purple|cyan|magenta|volcano|lime|geekblue)\1/;

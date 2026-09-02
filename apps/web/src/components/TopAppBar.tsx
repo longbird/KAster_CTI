@@ -69,7 +69,7 @@ export function TopAppBar() {
         <button
           onClick={() => { void onLogout(); }}
           className="flex items-center gap-1 rounded-full px-2 py-1 text-caption font-semibold"
-          style={{ color: 'var(--status-danger)' }}
+          style={{ color: 'var(--tone-danger)' }}
           title="로그아웃"
         >
           <LogoutOutlined />

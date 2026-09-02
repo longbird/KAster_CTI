@@ -59,25 +59,25 @@
   /* 그라디언트 위 글자. 다크는 밝은 에메랄드라 흰 글자가 1.75:1 밖에 안 나온다. */
   --gradient-primary-fg: #ffffff;
 
-  /* 신규 별칭 (라이트 모드) */
-  --bg-base:       #ffffff;
-  --bg-surface:    #f8f9fa;
-  --bg-elevated:   #ffffff;
-  --bg-raised:     #eef0f2;
+  /* 인라인 style 에서 쓰는 별칭. 값을 따로 적지 않고 위 MD3 토큰에서 파생시킨다 —
+   * 라이트 별칭만 손으로 적혀 있다가 값이 갈라졌던 것이 이 파일의 원래 문제였다.
+   * (다크 별칭은 처음부터 MD3 값과 같았다.) */
+  --bg-base:       rgb(var(--color-surface-container-lowest));
+  --bg-surface:    rgb(var(--color-surface));
+  --bg-elevated:   rgb(var(--color-surface-container-lowest));
+  --bg-raised:     rgb(var(--color-surface-container));
+  --text-primary:  rgb(var(--color-on-surface));
+  --text-secondary:rgb(var(--color-on-surface-variant));
+  --text-muted:    rgb(var(--color-outline));
+  --accent:        rgb(var(--color-primary));
+  /* accent 보다 한 단계 깊은 채우기색. MD3 라이트에는 primary 보다 어두운 단계가
+   * 없어 이것도 값을 직접 둔다. 흰 글자 7.8:1. */
+  --accent-strong: #065f46;
+  --accent-dim:    rgb(var(--color-primary) / 0.08);
+  --accent-border: rgb(var(--color-primary) / 0.25);
+  --accent-glow:   rgb(var(--color-primary) / 0.20);
+  /* MD3 에는 outline-variant 보다 옅은 단계가 없어 이것만 값을 직접 둔다. */
   --border-subtle: #dde0e6;
-  --border-dim:    #c3c5d7;
-  --text-primary:  #1a1d20;
-  --text-secondary:#5d6166;
-  --text-muted:    #8b949e;
-  --accent:        #059669;
-  --accent-strong: #047857;
-  --accent-dim:    rgba(5,150,105,0.08);
-  --accent-border: rgba(5,150,105,0.25);
-  --accent-glow:   rgba(5,150,105,0.20);
-  --status-talking:#059669;
-  --status-ringing:#b45309;
-  --status-queued: #6b7280;
-  --status-danger: #dc2626;
   /* 상태 톤. statusMeta 의 tone 이 여기로 연결된다.
    * 라이트 값은 전부 표면 위에서 AA 를 넘는다. */
   --tone-ok:      #047857;
@@ -159,25 +159,20 @@
   --gradient-primary-to:   #34d399;
   --gradient-primary-fg:   #010409;
 
-  /* 신규 별칭 (신규 컴포넌트 style={} 전용 — hex) */
-  --bg-base:       #010409;
-  --bg-surface:    #0d1117;
-  --bg-elevated:   #161b22;
-  --bg-raised:     #21262d;
-  --border-subtle: #21262d;
-  --border-dim:    #30363d;
-  --text-primary:  #e6edf3;
-  --text-secondary:#8b949e;
-  --text-muted:    #484f58;
-  --accent:        #34d399;
-  --accent-strong: #059669;
-  --accent-dim:    rgba(52,211,153,0.12);
-  --accent-border: rgba(52,211,153,0.25);
-  --accent-glow:   rgba(52,211,153,0.35);
-  --status-talking:#34d399;
-  --status-ringing:#d29922;
-  --status-queued: #8b949e;
-  --status-danger: #f85149;
+  /* 별칭 — 라이트와 같은 규칙으로 MD3 토큰에서 파생시킨다. */
+  --bg-base:       rgb(var(--color-surface-container-lowest));
+  --bg-surface:    rgb(var(--color-surface));
+  --bg-elevated:   rgb(var(--color-surface-container));
+  --bg-raised:     rgb(var(--color-surface-container-high));
+  --text-primary:  rgb(var(--color-on-surface));
+  --text-secondary:rgb(var(--color-on-surface-variant));
+  --text-muted:    rgb(var(--color-outline));
+  --accent:        rgb(var(--color-primary));
+  --accent-strong: rgb(var(--color-primary-fixed-dim));
+  --accent-dim:    rgb(var(--color-primary) / 0.12);
+  --accent-border: rgb(var(--color-primary) / 0.25);
+  --accent-glow:   rgb(var(--color-primary) / 0.35);
+  --border-subtle: rgb(var(--color-outline-variant));
   --tone-ok:      #34d399;
   --tone-info:    #58a6ff;
   --tone-warn:    #d29922;

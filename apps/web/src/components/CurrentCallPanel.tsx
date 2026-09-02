@@ -153,7 +153,7 @@ export function CurrentCallPanel({
           className="rounded-md px-3 py-2 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
           style={{
             background: 'transparent',
-            color: 'var(--status-danger)',
+            color: 'var(--tone-danger)',
             border: '1px solid rgba(248,81,73,0.3)',
           }}
         >
