@@ -133,8 +133,8 @@ button {
   height: 28px;
   place-items: center;
   border-radius: 4px;
-  background: #4ade80;
-  color: #03120b;
+  background: var(--primary);
+  color: var(--primary-text);
   font-family: Consolas, "Courier New", monospace;
   font-size: 15px;
   font-weight: 900;
@@ -210,8 +210,8 @@ button {
 }
 
 .desktop-login-field input:focus {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.7);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
 .desktop-login-field input:disabled {
@@ -225,8 +225,8 @@ button {
 }
 
 .desktop-login-card .password-input-shell:focus-within {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.7);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
 .desktop-login-card .password-input-shell input {
@@ -260,8 +260,8 @@ button {
   border: 0;
   border-radius: 4px;
   margin-top: 6px;
-  background: #4ade80;
-  color: #03120b;
+  background: var(--primary);
+  color: var(--primary-text);
   font-weight: 800;
 }
 
@@ -275,7 +275,7 @@ button {
   align-items: center;
   justify-content: space-between;
   margin-top: 20px;
-  color: #475569;
+  color: var(--muted);
   font-family: Consolas, "Courier New", monospace;
   font-size: 10px;
   letter-spacing: .1em;
@@ -311,8 +311,8 @@ button {
 .primary-button {
   width: 100%;
   margin-top: 20px;
-  background: linear-gradient(135deg, #86d0a7 0%, #4a9c88 100%);
-  color: #092018;
+  background: var(--primary);
+  color: var(--primary-text);
 }
 
 /* 어두운 유리 배경을 전제로 만든 색이었다. 실제로는 흰 .panel 위에 얹혀

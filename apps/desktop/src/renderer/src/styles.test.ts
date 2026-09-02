@@ -53,3 +53,29 @@ describe('데스크톱 렌더러 색', () => {
     expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--primary\)/);
   });
 });
+
+describe('브랜드 색', () => {
+  // 셸은 --primary(steel blue), 로그인 화면은 에메랄드, 옛 화면은 민트 그라디언트로
+  // 세 벌이 갈려 있었다. --primary 한 벌로 모은다.
+  const OFF_BRAND = ['#4ade80', '#22c55e', '#03120b', '#86d0a7', '#4a9c88', '#092018'];
+
+  it.each(OFF_BRAND)('토큰 밖 브랜드색 %s 을(를) 쓰지 않는다', (hex) => {
+    expect(css).not.toContain(hex);
+  });
+
+  it.each([
+    ['.desktop-brand-box', '브랜드 마크'],
+    ['.desktop-login-submit', '로그인 버튼'],
+    ['.primary-button', '기본 버튼'],
+  ])('%s (%s) 가 --primary 를 채우기로 쓴다', (selector) => {
+    const re = new RegExp(`\\${selector} \\{[^}]*background: var\\(--primary\\);[^}]*color: var\\(--primary-text\\)`);
+    expect(css).toMatch(re);
+  });
+
+  it('로그인 입력 포커스가 셸과 같은 규격이다', () => {
+    const shell = /\.desktop-console input:focus[\s\S]*?box-shadow: 0 0 0 1px var\(--primary\)/;
+    const login = /\.desktop-login-field input:focus\s*\{[^}]*box-shadow: 0 0 0 1px var\(--primary\)/;
+    expect(css).toMatch(shell);
+    expect(css).toMatch(login);
+  });
+});
