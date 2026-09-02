@@ -1,5 +1,5 @@
 import { Tag, Tooltip, Typography } from 'antd';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, MouseEvent } from 'react';
 import type { CallRow } from '../../features/live-calls/CallDetailDrawer';
 import { toKanbanColumn, KANBAN_COLUMNS } from '../lib/callStatusMap';
 import { formatElapsed, secondsSince } from '../hooks/useNow';
@@ -58,13 +58,26 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
     onClick?.(call);
   };
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    onClick?.(call);
+  };
+
+  // 카드는 div 라서 저절로 초점을 받지 못한다. 열 곳이 있을 때만 버튼처럼 만든다 —
+  // onClick 이 없으면 초점만 먹고 아무 일도 안 하는 자리가 되기 때문이다.
+  const interactive: HTMLAttributes<HTMLDivElement> = onClick
+    ? { role: 'button', tabIndex: 0, onClick: handleClick, onKeyDown: handleKeyDown }
+    : {};
+
   const style: CSSProperties = {
     borderLeft: `3px solid ${borderColor}`,
   };
 
   if (variant === 'mini') {
     return (
-      <div className="call-card call-card--mini" style={style} onClick={handleClick}>
+      <div className="call-card call-card--mini" style={style} {...interactive}>
         <div className="call-card__row">
           <Typography.Text strong className="call-card__ani">{formatPhoneNumber(call.ani)}</Typography.Text>
           <Typography.Text className="call-card__elapsed">{formatElapsed(elapsed)}</Typography.Text>
@@ -82,7 +95,7 @@ export function CallCard({ call, now, variant = 'full', onClick }: CallCardProps
   }
 
   return (
-    <div className="call-card call-card--full" style={style} onClick={handleClick}>
+    <div className="call-card call-card--full" style={style} {...interactive}>
       <div className="call-card__row">
         <Tooltip title={`Linked ${call.linkedid}`}>
           <Typography.Text strong className="call-card__ani">{formatPhoneNumber(call.ani)}</Typography.Text>

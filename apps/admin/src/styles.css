@@ -591,6 +591,10 @@ body {
   cursor: pointer;
 }
 .call-card + .call-card { margin-top: 6px; }
+.call-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 .call-card__row {
   min-width: 0;
   display: flex;
