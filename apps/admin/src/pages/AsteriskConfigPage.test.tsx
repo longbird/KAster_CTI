@@ -30,6 +30,7 @@ vi.mock('../store/usePermissionStore', () => ({
       permissionsByMenu: {
         asterisk: { canView: true },
       },
+      featureEntitlements: {},
     }),
 }));
 

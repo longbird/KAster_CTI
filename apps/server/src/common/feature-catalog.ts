@@ -13,6 +13,7 @@ export const FEATURE_KEYS = [
   'call-analysis',
   'ai-insights',
   'ars-flow-builder',
+  'ars-http-lookup',
   'recording-encryption',
   'packet-capture',
 ] as const;
@@ -65,6 +66,17 @@ export const FEATURE_CATALOG: Record<FeatureKey, FeatureDefinition> = {
     description: '다단계 ARS 시나리오를 그래프로 만들고 PBX dialplan 으로 컴파일한다.',
     defaultEnabled: false,
     menuKeys: ['settings/ars-flows'],
+    irreversible: false,
+  },
+  'ars-http-lookup': {
+    key: 'ars-http-lookup',
+    name: 'ARS 외부 조회',
+    description:
+      'ARS 도중 외부 API 를 조회해 결과로 통화를 분기한다. '
+      + 'PBX 망에서 바깥으로 나가는 통신이 열리므로 플로우 빌더와 따로 연다.',
+    defaultEnabled: false,
+    // 화면은 PBX 설정 안에 있어 감출 메뉴가 따로 없다. API 만 잠근다.
+    menuKeys: [],
     irreversible: false,
   },
   'recording-encryption': {

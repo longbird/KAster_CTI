@@ -26,6 +26,7 @@ import { RecordingPipelineModule } from './modules/recording-pipeline/recording-
 import { CallAnalysisModule } from './modules/call-analysis/call-analysis.module';
 import { ConsultCategoriesModule } from './modules/consult-categories/consult-categories.module';
 import { ArsFlowModule } from './modules/ars-flow/ars-flow.module';
+import { ArsHttpLookupModule } from './modules/ars-http-lookup/ars-http-lookup.module';
 import { SmdrModule } from './modules/smdr/smdr.module';
 import { TrendsModule } from './modules/trends/trends.module';
 import { SipSecurityModule } from './modules/sip-security/sip-security.module';
@@ -49,6 +50,7 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
     CallAnalysisModule,
     ConsultCategoriesModule,
     ArsFlowModule,
+    ArsHttpLookupModule,
     SipSecurityModule,
     AmiModule,
     RealtimeModule,

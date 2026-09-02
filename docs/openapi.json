@@ -3764,6 +3764,189 @@
         ]
       }
     },
+    "/api/v1/admin/ars-http-endpoints": {
+      "get": {
+        "operationId": "ArsHttpEndpointsController_list",
+        "summary": "외부 조회 엔드포인트 목록",
+        "description": "자격증명은 담기지 않는다. 등록 여부만 `hasSecret` 으로 알려준다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-http-lookup"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ArsHttpEndpointsController_create",
+        "summary": "외부 조회 엔드포인트 등록",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertArsHttpEndpointDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-http-lookup"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-http-endpoints/{endpointId}": {
+      "get": {
+        "operationId": "ArsHttpEndpointsController_get",
+        "summary": "외부 조회 엔드포인트 조회",
+        "parameters": [
+          {
+            "name": "endpointId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-http-lookup"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "ArsHttpEndpointsController_update",
+        "summary": "외부 조회 엔드포인트 수정",
+        "description": "`authSecret` 을 생략하면 기존 자격증명을 그대로 둔다.",
+        "parameters": [
+          {
+            "name": "endpointId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertArsHttpEndpointDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-http-lookup"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "ArsHttpEndpointsController_remove",
+        "summary": "외부 조회 엔드포인트 삭제",
+        "parameters": [
+          {
+            "name": "endpointId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-http-lookup"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ars-http-endpoints/{endpointId}/test": {
+      "post": {
+        "operationId": "ArsHttpEndpointsController_test",
+        "summary": "외부 조회 테스트 호출",
+        "description": "통화 경로와 같은 서비스를 탄다 — 차단기·타임아웃·값 깎기까지 똑같이 겪는다. 전화를 걸기 전에 진짜 문제를 보려는 것이다.",
+        "parameters": [
+          {
+            "name": "endpointId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestArsHttpEndpointDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ars-http-lookup"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "AuthController_login",
@@ -8033,6 +8216,100 @@
       "ReplaceArsFlowGraphDto": {
         "type": "object",
         "properties": {}
+      },
+      "UpsertArsHttpEndpointDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "관리자에 보이는 이름"
+          },
+          "description": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST"
+            ],
+            "default": "GET"
+          },
+          "url": {
+            "type": "string",
+            "description": "https 필수. 사설 대역일 때만 http 를 받는다."
+          },
+          "requestMapping": {
+            "type": "object",
+            "description": "{ \"파라미터명\": \"CALLER|COLLECTED|ENTRY_DID|LINKEDID|LITERAL:...\" }"
+          },
+          "authType": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "BEARER",
+              "HEADER"
+            ],
+            "default": "NONE"
+          },
+          "authHeaderName": {
+            "type": "string",
+            "description": "authType=HEADER 일 때 쓸 헤더 이름"
+          },
+          "authSecret": {
+            "type": "string",
+            "description": "인증 값(평문). 저장 시 암호화되며 **어떤 응답으로도 다시 나오지 않는다**. 수정에서 생략하면 기존 값을 유지한다."
+          },
+          "resultPath": {
+            "type": "string",
+            "description": "응답에서 값을 꺼낼 점 표기 경로 (예: data.customer.grade)"
+          },
+          "matchMode": {
+            "type": "string",
+            "enum": [
+              "EXISTS",
+              "EQUALS",
+              "IN"
+            ],
+            "default": "EXISTS"
+          },
+          "matchValue": {
+            "type": "string",
+            "description": "EQUALS 는 한 값, IN 은 쉼표로 구분한 목록"
+          },
+          "timeoutMs": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 5000,
+            "default": 2000
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "resultPath"
+        ]
+      },
+      "TestArsHttpEndpointDto": {
+        "type": "object",
+        "properties": {
+          "caller": {
+            "type": "string",
+            "description": "발신번호 자리에 넣어볼 값"
+          },
+          "collected": {
+            "type": "string",
+            "description": "입력받은 번호 자리에 넣어볼 값"
+          },
+          "entryDid": {
+            "type": "string",
+            "description": "대표번호 자리에 넣어볼 값"
+          }
+        }
       },
       "LoginDto": {
         "type": "object",

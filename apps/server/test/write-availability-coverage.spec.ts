@@ -23,6 +23,7 @@ const FULLY_GATED = [
   'call-analysis.controller.ts',
   'consult-categories.controller.ts',
   'ars-flow.controller.ts',
+  'ars-http-endpoints.controller.ts',
   'platform-entitlements.controller.ts',
   'platform-admins.controller.ts',
 ];

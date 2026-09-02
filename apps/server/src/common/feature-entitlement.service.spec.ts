@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { FEATURE_KEYS } from './feature-catalog';
 import { FeatureEntitlementService } from './feature-entitlement.service';
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
@@ -74,7 +75,8 @@ describe('FeatureEntitlementService', () => {
       expect(map['call-analysis']).toBe(true);
       expect(map['packet-capture']).toBe(true);
       expect(map['ai-insights']).toBe(false);
-      expect(Object.keys(map)).toHaveLength(5);
+      // 카탈로그에 기능을 더할 때마다 이 숫자를 고치게 두지 않는다.
+      expect(Object.keys(map)).toHaveLength(FEATURE_KEYS.length);
     });
 
     it('자격 없는 기능 목록을 준다', async () => {

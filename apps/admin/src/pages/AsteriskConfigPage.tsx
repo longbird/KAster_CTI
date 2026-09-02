@@ -1,6 +1,7 @@
 import { Button, Card, Modal, Space, Tabs, Tooltip, Typography, message } from 'antd';
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ArsHttpEndpointsTab } from '../features/ars-http-endpoints/components/ArsHttpEndpointsTab';
 import { AgentSipTab } from '../features/asterisk-config/components/AgentSipTab';
 import { ConfigPreviewDrawer } from '../features/asterisk-config/components/ConfigPreviewDrawer';
 import { applyConfig } from '../features/asterisk-config/api/asteriskConfigApi';
@@ -25,6 +26,8 @@ export function AsteriskConfigPage() {
   const [reviewed, setReviewed] = useState(false);
   const [applying, setApplying] = useState(false);
   const permission = usePermissionStore((s) => s.permissionsByMenu.asterisk);
+  // 외부 통신을 여는 기능이라 플로우 빌더와 자격이 따로다. 자격이 없으면 탭 자체를 만들지 않는다.
+  const httpLookupEnabled = usePermissionStore((s) => s.featureEntitlements['ars-http-lookup'] === true);
   const canView = permission?.canView ?? true;
   const canOperate = permission?.canOperate ?? false;
 
@@ -127,6 +130,9 @@ export function AsteriskConfigPage() {
             { key: 'agents', label: '에이전트 내선', children: <AgentSipTab /> },
             { key: 'speed-dials', label: '단축 발신', children: <SpeedDialsTab /> },
             { key: 'feature-codes', label: '기능코드', children: <FeatureCodesTab /> },
+            ...(httpLookupEnabled
+              ? [{ key: 'http-endpoints', label: '외부 조회', children: <ArsHttpEndpointsTab /> }]
+              : []),
           ]}
         />
       </Card>

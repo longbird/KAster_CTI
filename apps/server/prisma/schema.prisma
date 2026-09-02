@@ -95,6 +95,7 @@ model tenants {
   arsFlows                    arsFlows[]
   arsFlowNodes                arsFlowNodes[]
   arsFlowEdges                arsFlowEdges[]
+  arsHttpEndpoints            arsHttpEndpoints[]
   featureEntitlements         tenantFeatureEntitlements[]
   featureEntitlementAuditLogs tenantFeatureEntitlementAuditLogs[]
 }
@@ -1123,6 +1124,35 @@ model arsFlows {
 
   @@unique([tenantId, name])
   @@index([tenantId, status])
+}
+
+model arsHttpEndpoints {
+  endpointId  String  @id @default(uuid()) @db.Uuid
+  tenantId    String  @db.Uuid
+  name        String  @db.VarChar(128)
+  description String?
+  method      String  @default("GET") @db.VarChar(8)
+  url         String  @db.VarChar(512)
+  /// 무엇을 보낼지. { "파라미터명": "CALLER|COLLECTED|ENTRY_DID|LINKEDID|LITERAL:..." }
+  /// 자유 템플릿을 두지 않는다 — 그 자체가 주입 표면이다.
+  requestMapping Json  @default("{}")
+  authType       String  @default("NONE") @db.VarChar(16)
+  authHeaderName String? @db.VarChar(64)
+  /// AES-256-GCM 암호문. API 로 절대 나가지 않는다 (조회 응답에는 hasSecret 만).
+  authSecretEnc  String?
+  resultPath     String  @db.VarChar(256)
+  matchMode      String  @default("EXISTS") @db.VarChar(16)
+  matchValue     String? @db.VarChar(256)
+  /// 통화가 기다리는 시간이다. 상한은 코드가 5000ms 로 묶는다.
+  timeoutMs      Int     @default(2000)
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant tenants @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
 }
 
 model arsFlowNodes {
