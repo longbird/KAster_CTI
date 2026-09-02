@@ -164,3 +164,76 @@ AI 분석 결과는 통화가 끝나고 수 분 뒤에 도착하는데, 통화 �
 
 4. **인사이트 SQL 의 실 DB 검증.** 특히 `jsonb_array_elements_text` 키워드 집계와
    `LEFT JOIN consultCategories` 의 미분류 행 처리는 실제 데이터로 한 번 확인해야 한다.
+
+---
+
+# 실 프로바이더 어댑터 (2026-09-02, 계획서 1.11-10)
+
+`fake` 만 있던 자리에 실제로 외부를 호출하는 어댑터를 넣었다. `CALL_ANALYSIS_*_PROVIDER` 로 고른다.
+
+| 종류 | 값 | 대상 |
+|---|---|---|
+| STT | `local` | OpenAI 호환 음성인식 사이드카 (faster-whisper-server, speaches, whisper.cpp server) |
+| STT | `openai` | `https://api.openai.com/v1/audio/transcriptions` |
+| LLM | `local` | OpenAI 호환 chat completions (vLLM, Ollama, LM Studio) |
+| LLM | `openai` | `https://api.openai.com/v1/chat/completions` |
+| LLM | `anthropic` | `https://api.anthropic.com/v1/messages` |
+
+## 계획서와 달라진 점
+
+**STT 어댑터를 둘이 아니라 하나로 합쳤다.** 계획서 1.5 는 `local-whisper.provider.ts` 와
+`openai-whisper.provider.ts` 두 파일로 적었지만, 온프레 whisper 서버들이 전부 OpenAI 호환
+`/v1/audio/transcriptions` 를 내므로 와이어 포맷이 같다. 다른 것은 주소·모델명·키뿐이다.
+LLM 쪽 D5 와 같은 이유 — 둘로 나누면 `verbose_json` 파싱을 두 곳에서 고치게 된다.
+
+## 결정
+
+- **주소 표기를 셋 다 받는다.** `http://host:8000` / `.../v1` / `.../v1/chat/completions`.
+  셋 다 흔한 표기라 하나만 받으면 조용히 404 를 맞는다 (`resolveApiUrl`).
+- **타임아웃을 STT/LLM 따로 둔다.** STT 기본 300초, LLM 120초. STT 는 통화 길이만큼 걸리고
+  LLM 은 그렇지 않다. 타임아웃이 없으면 사이드카가 멈출 때 sweep 이 통째로 막힌다.
+- **`response_format` 은 요구할 때만 보낸다.** 이 필드를 모르는 로컬 서버가 400 을 낸다.
+  Anthropic 은 이 필드 자체가 없어서 프롬프트 + `parseAnalysisResponse` 의 코드펜스 제거로 처리한다.
+- **오류 본문은 400자로 잘라 넣는다.** 어느 프로바이더가 무엇을 돌려줬는지는 남기되 로그를 밀지 않는다.
+- **키는 오류 메시지에 절대 넣지 않는다.** 없을 때는 *어떤 env 를 채워야 하는지*만 말한다.
+
+## 실측으로 잡은 것
+
+`fetch` 를 목으로 두는 단위 테스트만으로는 못 잡는 것 두 개를 실 소켓 테스트가 잡았다.
+
+1. **타임아웃이 타임아웃으로 안 보인다.** undici 는 `DOMException`(name=`TimeoutError`)을 던지는데
+   jest 의 realm 에서는 `instanceof Error` 가 **거짓**이라 일반 네트워크 오류로 분류됐다.
+   타입 대신 `name` 을 보고, `cause` 를 4단계까지 따라 내려가도록 고쳤다.
+2. **`Buffer` 를 `Blob` 에 그대로 못 넣는다.** 뷰로 감싸 복사 없이 넘긴다.
+
+## 정확도 실측 도구
+
+`apps/server/scripts/stt-probe.ts` — 녹취 WAV 하나를 DB 없이 운영과 같은 경로
+(채널 분리 → STT → PII 마스킹)로 넣어보고 결과를 찍는다. 모델을 바꿔가며 비교하려고 만들었다.
+
+```bash
+CALL_ANALYSIS_STT_PROVIDER=local \
+CALL_ANALYSIS_STT_ENDPOINT=http://whisper:8000 \
+CALL_ANALYSIS_STT_MODEL=large-v3 \
+npx ts-node scripts/stt-probe.ts /path/to/call.wav
+```
+
+## 검증 결과 (2026-09-02 실행)
+
+| 항목 | 명령 | 결과 |
+|---|---|---|
+| 프로바이더 단위 | `npx jest src/modules/call-analysis/providers` | 50 passed / 6 suites |
+| 실 소켓 왕복 | `npx jest test/call-analysis.providers.integration.spec.ts` | 5 passed |
+| 서버 전체 | `npm test` | **1325 passed / 150 suites, 실패 0** |
+| 서버 린트 | `npm run lint` | 0 error |
+| 서버 빌드 | `npm run build` | exit 0 |
+| 프로브 실행 | 스텁 서버 대상 `stt-probe.ts` | 채널 2개 분리·업로드·파싱·마스킹 확인 |
+
+## 남은 것
+
+**한국어 8kHz 인식률 실측은 아직 못 했다** (계획서 1.12 리스크 1). 막힌 이유는 인프라다.
+
+- 온프레 경로: whisper 사이드카 이미지가 필요한데 개발서버는 Docker Hub 가 막혀 있다.
+- 클라우드 경로: OpenAI 또는 Anthropic API 키가 필요하다.
+
+둘 중 하나가 생기면 `stt-probe.ts` 에 실 녹취를 넣어 바로 비교할 수 있다.

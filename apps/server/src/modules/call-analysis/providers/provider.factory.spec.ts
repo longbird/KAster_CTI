@@ -65,3 +65,97 @@ describe('CallAnalysisProviderFactory', () => {
     expect(() => factoryWith({})).not.toThrow();
   });
 });
+
+describe('CallAnalysisProviderFactory — 실 프로바이더', () => {
+  describe('STT', () => {
+    it('local 은 endpoint 와 model 을 둘 다 요구한다', () => {
+      expect(() => factoryWith({ CALL_ANALYSIS_STT_PROVIDER: 'local' }).stt())
+        .toThrow(/CALL_ANALYSIS_STT_ENDPOINT/);
+      expect(() => factoryWith({
+        CALL_ANALYSIS_STT_PROVIDER: 'local',
+        CALL_ANALYSIS_STT_ENDPOINT: 'http://stt:8000',
+      }).stt()).toThrow(/CALL_ANALYSIS_STT_MODEL/);
+    });
+
+    it('local 은 키 없이도 만들어진다 — 사이드카는 보통 인증이 없다', () => {
+      const provider = factoryWith({
+        CALL_ANALYSIS_STT_PROVIDER: 'local',
+        CALL_ANALYSIS_STT_ENDPOINT: 'http://stt:8000',
+        CALL_ANALYSIS_STT_MODEL: 'large-v3',
+      }).stt();
+
+      expect(provider.name).toBe('local');
+      expect((provider as any).endpoint).toBe('http://stt:8000/v1/audio/transcriptions');
+    });
+
+    it('openai 는 endpoint 기본값을 쓰고 키를 요구한다', () => {
+      expect(() => factoryWith({
+        CALL_ANALYSIS_STT_PROVIDER: 'openai',
+        CALL_ANALYSIS_STT_MODEL: 'whisper-1',
+      }).stt()).toThrow(/CALL_ANALYSIS_STT_API_KEY/);
+
+      const provider = factoryWith({
+        CALL_ANALYSIS_STT_PROVIDER: 'openai',
+        CALL_ANALYSIS_STT_MODEL: 'whisper-1',
+        CALL_ANALYSIS_STT_API_KEY: 'sk-test',
+      }).stt();
+
+      expect(provider.name).toBe('openai');
+      expect((provider as any).endpoint).toBe('https://api.openai.com/v1/audio/transcriptions');
+    });
+  });
+
+  describe('LLM', () => {
+    it('local 은 endpoint 와 model 을 요구하고 키는 선택이다', () => {
+      expect(() => factoryWith({ CALL_ANALYSIS_LLM_PROVIDER: 'local' }).llm())
+        .toThrow(/CALL_ANALYSIS_LLM_ENDPOINT/);
+
+      const provider = factoryWith({
+        CALL_ANALYSIS_LLM_PROVIDER: 'local',
+        CALL_ANALYSIS_LLM_ENDPOINT: 'http://vllm:8000',
+        CALL_ANALYSIS_LLM_MODEL: 'qwen2.5-7b-instruct',
+      }).llm();
+
+      expect(provider.name).toBe('local');
+      expect((provider as any).endpoint).toBe('http://vllm:8000/v1/chat/completions');
+    });
+
+    it('openai 는 기본 주소를 쓴다', () => {
+      const provider = factoryWith({
+        CALL_ANALYSIS_LLM_PROVIDER: 'openai',
+        CALL_ANALYSIS_LLM_MODEL: 'gpt-4o-mini',
+        CALL_ANALYSIS_LLM_API_KEY: 'sk-test',
+      }).llm();
+
+      expect(provider.name).toBe('openai');
+      expect((provider as any).endpoint).toBe('https://api.openai.com/v1/chat/completions');
+    });
+
+    it('anthropic 은 키를 요구하고 기본 주소를 쓴다', () => {
+      expect(() => factoryWith({
+        CALL_ANALYSIS_LLM_PROVIDER: 'anthropic',
+        CALL_ANALYSIS_LLM_MODEL: 'claude-sonnet-5',
+      }).llm()).toThrow(/CALL_ANALYSIS_LLM_API_KEY/);
+
+      const provider = factoryWith({
+        CALL_ANALYSIS_LLM_PROVIDER: 'anthropic',
+        CALL_ANALYSIS_LLM_MODEL: 'claude-sonnet-5',
+        CALL_ANALYSIS_LLM_API_KEY: 'sk-ant-test',
+      }).llm();
+
+      expect(provider.name).toBe('anthropic');
+      expect((provider as any).endpoint).toBe('https://api.anthropic.com/v1/messages');
+    });
+  });
+
+  it('타임아웃은 env 로 조정한다', () => {
+    const provider = factoryWith({
+      CALL_ANALYSIS_STT_PROVIDER: 'local',
+      CALL_ANALYSIS_STT_ENDPOINT: 'http://stt:8000',
+      CALL_ANALYSIS_STT_MODEL: 'large-v3',
+      CALL_ANALYSIS_STT_TIMEOUT_MS: '90000',
+    }).stt();
+
+    expect((provider as any).timeoutMs).toBe(90_000);
+  });
+});

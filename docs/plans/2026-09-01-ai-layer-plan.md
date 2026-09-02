@@ -165,10 +165,10 @@ src/modules/call-analysis/
     stt.provider.ts            (interface + DI 토큰)
     llm.provider.ts            (interface + DI 토큰)
     provider.factory.ts        + .spec.ts              ← env → 구현체 선택
-    stt/local-whisper.provider.ts       (HTTP, faster-whisper 사이드카)
-    stt/openai-whisper.provider.ts
-    llm/openai-compatible.provider.ts   (로컬 vLLM/Ollama + OpenAI 공용)
-    llm/anthropic.provider.ts
+    stt/openai-compatible-stt.provider.ts   ← 로컬 whisper 사이드카 + OpenAI 공용
+    llm/openai-compatible-llm.provider.ts   (로컬 vLLM/Ollama + OpenAI 공용)
+    llm/anthropic-llm.provider.ts
+    http/provider-http.ts               ← 타임아웃·오류 정규화·주소 보정 공용
     fake/fake-stt.provider.ts           ← 테스트·개발용
     fake/fake-llm.provider.ts
   dto/
@@ -176,6 +176,10 @@ src/modules/consult-categories/          ← 상담분류 CRUD (별도 모듈, 2
 ```
 
 파일당 200~400줄을 넘기지 않는다. 프롬프트는 서비스 안에 인라인하지 않고 `prompts/` 로 뺀다.
+
+> STT 어댑터는 계획 당시 `local-whisper` / `openai-whisper` 두 개였으나 **하나로 합쳤다** (2026-09-02).
+> 온프레 whisper 서버들이 전부 OpenAI 호환 `/v1/audio/transcriptions` 를 내므로 와이어 포맷이 같다.
+> D5 와 같은 이유다 — 나누면 `verbose_json` 파싱을 두 곳에서 고치게 된다.
 
 ### 1.6 프로바이더 인터페이스
 
