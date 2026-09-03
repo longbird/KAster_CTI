@@ -1,7 +1,7 @@
 # 설치 시나리오 준비사항 체크리스트
 
-작성일: 2026-08-10  
-대상: KAster_CTI 운영 설치, 사이트별 배포 준비, PBX 연동 준비  
+작성일: 2026-08-10
+대상: KAster_CTI 운영 설치, 사이트별 배포 준비, PBX 연동 준비
 관련 기준:
 
 - `deploy/sites/_template/.env.example`

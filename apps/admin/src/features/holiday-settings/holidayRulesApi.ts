@@ -25,4 +25,3 @@ export async function updateHolidayRule(holidayRuleId: string, payload: Partial<
 export async function deleteHolidayRule(holidayRuleId: string) {
   await apiClient.delete(`/admin/settings/holiday-rules/${holidayRuleId}`);
 }
-

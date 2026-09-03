@@ -51,4 +51,3 @@ export function getHolidayDateLabel(
 
   return row.holidayDate ?? '-';
 }
-

@@ -56,4 +56,3 @@ ORDER BY column_name;
 '@
 $sql | wsl -d KAster-CTI-Ubuntu -- bash -lc "PGPASSWORD=kaster psql -h 127.0.0.1 -U kaster -d kaster_cti"
 ```
-
