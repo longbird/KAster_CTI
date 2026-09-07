@@ -71,6 +71,9 @@ services:
     build:
       context: .
       dockerfile: apps/server/Dockerfile.prod
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     container_name: kaster-server
     restart: unless-stopped
     depends_on:
@@ -108,6 +111,10 @@ services:
       # 값이 필요한 현장은 .env 에 명시한다. `-` 는 미설정일 때만 기본값을 쓴다는 뜻이다.
       ASTERISK_RTP_STUN_ADDRESS: ${ASTERISK_RTP_STUN_ADDRESS-}
       KASTER_INTERNAL_SECRET: ${KASTER_INTERNAL_SECRET:-change_me_internal}
+      # 통화 AI 분석. 개발 서버는 시연용 fake 제공자로 켜 둔다 (2026-09-03). 실제 STT/LLM 은 .env 로 바꾼다.
+      CALL_ANALYSIS_ENABLED: ${CALL_ANALYSIS_ENABLED:-false}
+      CALL_ANALYSIS_STT_PROVIDER: ${CALL_ANALYSIS_STT_PROVIDER:-fake}
+      CALL_ANALYSIS_LLM_PROVIDER: ${CALL_ANALYSIS_LLM_PROVIDER:-fake}
       SEED_DEMO_PASSWORD: Password123!
       AUTO_SEED_DEMO_DATA: "true"
       # CORS: web(5173)/admin(5174) + host 직접 접속 허용
