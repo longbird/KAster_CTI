@@ -6,6 +6,7 @@
 
 | 문서 |
 |---|
+| [`2026-09-07-desktop-modern-design.md`](2026-09-07-desktop-modern-design.md) |
 | [`2026-09-03-design-vs-implementation-gap-analysis.md`](2026-09-03-design-vs-implementation-gap-analysis.md) |
 | [`2026-04-16-asterisk-config-ui-design.md`](2026-04-16-asterisk-config-ui-design.md) |
 | [`2026-04-19-mobile-redesign-phase2.md`](2026-04-19-mobile-redesign-phase2.md) |

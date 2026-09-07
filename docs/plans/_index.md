@@ -6,6 +6,7 @@
 
 | 문서 |
 |---|
+| [`2026-09-07-desktop-modern-design-plan.md`](2026-09-07-desktop-modern-design-plan.md) |
 | [`2026-04-16-admin-stage1.md`](2026-04-16-admin-stage1.md) |
 | [`2026-04-16-admin-stage2-3.md`](2026-04-16-admin-stage2-3.md) |
 | [`2026-04-16-admin-stage2-execution.md`](2026-04-16-admin-stage2-execution.md) |
