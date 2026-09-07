@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\KAster.Desktop.Softphone\KAster.Desktop.Softphone.csproj" />
     <ProjectReference Include="..\KAster.Desktop.Core\KAster.Desktop.Core.csproj" />
+    <Resource Include="Assets\kaster-agent.ico" />
   </ItemGroup>
 
   <PropertyGroup>

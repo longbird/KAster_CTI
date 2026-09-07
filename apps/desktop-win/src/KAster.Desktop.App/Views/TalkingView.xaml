@@ -1,232 +1,234 @@
-<UserControl x:Class="KAster.Desktop.App.Views.TalkingView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{DynamicResource BrushBackground}">
-
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <!-- 남는 세로 공간은 이 한 곳만 흡수한다. 여러 곳이 늘어나면 합계가 창을 넘긴다. -->
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <!--
+<UserControl x:Class="KAster.Desktop.App.Views.TalkingView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:icons="clr-namespace:KAster.Desktop.App.Controls" Background="{DynamicResource BrushBackground}">
+  <Grid Margin="20,16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <!-- 남는 세로 공간은 이 한 곳만 흡수한다. 여러 곳이 늘어나면 합계가 창을 넘긴다. -->
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <!--
             상대. 번호가 제목 자리에 온다 — 고객명은 모르는 경우가 더 많고, 상담원이 통화 중에
             눈으로 읽고 받아 적는 것은 번호다. 이름은 있을 때만 아래에 붙는다.
         -->
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="{Binding CalledLine}"
-                       Style="{StaticResource TextCaption}"
-                       Foreground="{DynamicResource BrushAccent}"
-                       TextTrimming="CharacterEllipsis" />
-
-            <TextBlock Text="{Binding PhoneNumber}" Style="{StaticResource TextTitle}" Margin="0,2,0,0" />
-
-            <TextBlock Text="{Binding CustomerName}"
-                       Margin="0,2,0,0"
-                       TextTrimming="CharacterEllipsis">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
-                        <Setter Property="Visibility" Value="Visible" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding CustomerName}" Value="">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-        </StackPanel>
-
-        <!-- 통화 시간 -->
-        <TextBlock Grid.Row="1"
-                   Text="{Binding CallDurationText}"
-                   Style="{StaticResource TextBody}"
-                   FontSize="{StaticResource FontSizeNumber}"
-                   FontWeight="SemiBold"
-                   Margin="0,12,0,0" />
-
-        <!-- 메모: 고정 줄 수까지만 보인다. 길어져도 창이 스크롤되지 않는다. -->
-        <!-- 키패드를 켜면 메모 자리를 내준다. 행을 늘리면 창이 늘어난다. -->
-        <Border Grid.Row="2" Margin="0,12"
-                Padding="{StaticResource PadPanel}"
-                Background="{DynamicResource BrushSurface}"
-                BorderBrush="{DynamicResource BrushBorder}"
-                BorderThickness="1"
-                CornerRadius="{StaticResource RadiusPanel}">
-            <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Visibility" Value="Visible" />
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Border.Style>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Text="메모" Style="{StaticResource TextCaption}" />
-                <!-- 통화가 끝날 때 저장된다. 바인딩이 없으면 적은 내용이 화면 전환과 함께 사라진다. -->
-                <TextBox Grid.Row="1" Margin="0,6,0,0"
-                         Style="{StaticResource FieldInput}"
-                         Height="Auto"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Disabled"
-                         MaxLines="5"
-                         Text="{Binding MemoText, UpdateSourceTrigger=PropertyChanged}" />
-            </Grid>
-        </Border>
-
-        <!-- 조작 -->
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Button Grid.Column="0" Command="{Binding ToggleMuteCommand}">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
-                        <Setter Property="Content" Value="마이크 끄기" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
-                                <Setter Property="Content" Value="마이크 켜기" />
-                                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
-                                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-
-            <Button Grid.Column="2" Content="끊기"
-                    Style="{StaticResource ButtonDanger}"
-                    Command="{Binding HangupCommand}" />
-        </Grid>
-
-        <!-- 키패드. 메모와 같은 행을 쓴다 — 둘 중 하나만 보인다. -->
-        <Grid Grid.Row="2" Margin="0,12">
-            <Grid.Style>
-                <Style TargetType="Grid">
-                    <Setter Property="Visibility" Value="Collapsed" />
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
-                            <Setter Property="Visibility" Value="Visible" />
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Grid.Style>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <!-- 남는 자리는 키패드가 먹는다. 한 줄짜리 표시가 늘어나면 창이 넘친다. -->
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-
-            <!-- 실제로 나간 자리. ARS 안에서는 무엇이 들어갔는지가 다음 행동을 정한다. -->
-            <TextBlock Grid.Row="0"
-                       Text="{Binding Keypad.EnteredDigits}"
-                       Style="{StaticResource TextBody}"
-                       FontWeight="SemiBold"
-                       Margin="2,0,2,6" />
-
-            <UniformGrid Grid.Row="1" Columns="3" Rows="4">
-
-            <Button Content="1" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="1" />
-            <Button Content="2" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="2" />
-            <Button Content="3" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="3" />
-            <Button Content="4" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="4" />
-            <Button Content="5" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="5" />
-            <Button Content="6" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="6" />
-            <Button Content="7" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="7" />
-            <Button Content="8" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="8" />
-            <Button Content="9" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="9" />
-            <Button Content="*" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="*" />
-            <Button Content="0" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="0" />
-            <Button Content="#" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="#" />
-            </UniformGrid>
-        </Grid>
-
-        <!--
+    <StackPanel Grid.Row="0">
+      <Border HorizontalAlignment="Center" Padding="10,5" CornerRadius="20" Background="{DynamicResource BrushAccentSoft}" Margin="0,0,0,10">
+        <TextBlock Foreground="{DynamicResource BrushSuccess}" FontSize="12" FontWeight="SemiBold">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+              <Setter Property="Text" Value="통화 중" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOnHold}" Value="True">
+                  <Setter Property="Text" Value="보류 중" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding WindowMode}" Value="AfterCall">
+                  <Setter Property="Text" Value="후처리" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding WindowMode}" Value="Transferring">
+                  <Setter Property="Text" Value="통화 전환 중" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
+      </Border>
+      <TextBlock Text="{Binding CalledLine}" HorizontalAlignment="Center" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushAccent}" TextTrimming="CharacterEllipsis" />
+      <TextBlock Text="{Binding PhoneNumber}" Style="{StaticResource TextTitle}" FontSize="28" TextAlignment="Center" Margin="0,6,0,0" />
+      <TextBlock Text="{Binding CustomerName}" HorizontalAlignment="Center" Margin="0,2,0,0" TextTrimming="CharacterEllipsis">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+            <Setter Property="Visibility" Value="Visible" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding CustomerName}" Value="">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+    </StackPanel>
+    <!-- 통화 시간 -->
+    <TextBlock Grid.Row="1" Text="{Binding CallDurationText}" HorizontalAlignment="Center" Foreground="{DynamicResource BrushAccent}" Style="{StaticResource TextBody}" FontSize="{StaticResource FontSizeNumber}" FontWeight="Light" Margin="0,12,0,0" />
+    <!-- 메모: 고정 줄 수까지만 보인다. 길어져도 창이 스크롤되지 않는다. -->
+    <!-- 키패드를 켜면 메모 자리를 내준다. 행을 늘리면 창이 늘어난다. -->
+    <Border Grid.Row="2" Margin="0,12" Padding="{StaticResource PadPanel}" Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusPanel}">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Visibility" Value="Visible" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
+              <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <DockPanel Grid.Row="0">
+          <TextBlock Text="상담 메모" Style="{StaticResource TextCaption}" />
+          <TextBlock Text="통화 종료 시 저장" Style="{StaticResource TextCaption}" FontSize="10" HorizontalAlignment="Right" />
+        </DockPanel>
+        <!-- 통화가 끝날 때 저장된다. 바인딩이 없으면 적은 내용이 화면 전환과 함께 사라진다. -->
+        <TextBox Grid.Row="1" Margin="0,6,0,0" Style="{StaticResource FieldInput}" Height="Auto" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Background="Transparent" BorderThickness="0" Padding="0" AutomationProperties.Name="상담 메모" Text="{Binding MemoText, UpdateSourceTrigger=PropertyChanged}" />
+      </Grid>
+    </Border>
+    <!-- 키패드. 메모와 같은 행을 쓴다 — 둘 중 하나만 보인다. -->
+    <Grid Grid.Row="2" Margin="0,12">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Setter Property="Visibility" Value="Collapsed" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding Keypad.IsKeypadOpen}" Value="True">
+              <Setter Property="Visibility" Value="Visible" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <!-- 남는 자리는 키패드가 먹는다. 한 줄짜리 표시가 늘어나면 창이 넘친다. -->
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+      <!-- 실제로 나간 자리. ARS 안에서는 무엇이 들어갔는지가 다음 행동을 정한다. -->
+      <TextBlock Grid.Row="0" Text="{Binding Keypad.EnteredDigits}" Style="{StaticResource TextBody}" FontWeight="SemiBold" Margin="2,0,2,6" />
+      <UniformGrid Grid.Row="1" Columns="3" Rows="4">
+        <Button Content="1" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="1" />
+        <Button Content="2" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="2" />
+        <Button Content="3" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="3" />
+        <Button Content="4" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="4" />
+        <Button Content="5" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="5" />
+        <Button Content="6" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="6" />
+        <Button Content="7" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="7" />
+        <Button Content="8" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="8" />
+        <Button Content="9" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="9" />
+        <Button Content="*" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="*" />
+        <Button Content="0" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="0" />
+        <Button Content="#" Height="Auto" MinHeight="22" Margin="2" Style="{StaticResource ButtonSecondary}" Command="{Binding Keypad.SendDigitCommand}" CommandParameter="#" />
+      </UniformGrid>
+    </Grid>
+    <!--
             돌려주기 · 보류 · 키패드.
 
             UniformGrid 에 Columns 를 주지 않는 이유는 <b>숨긴 버튼이 자리를 남기지 않게</b> 하기 위해서다 —
             보류 feature code 가 없는 현장에서는 그 버튼이 아예 없고, 남은 둘이 폭을 나눠 가진다.
             행을 늘리지 않으므로 창 높이도 그대로다.
         -->
-        <UniformGrid Grid.Row="4" Rows="1" Margin="0,8,0,0">
-            <Button Content="돌려주기" Margin="2,0"
-                    Style="{StaticResource ButtonSecondary}"
-                    Command="{Binding Transfer.StartTransferCommand}" />
-
-            <!-- 보류 중일 때와 요청만 나간 때를 다른 문구로 적는다. 같은 말이면 안 걸린 보류를 걸렸다고 읽는다. -->
-            <Button Margin="2,0"
-                    Content="{Binding HoldButtonText}"
-                    Command="{Binding ToggleHoldCommand}">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <!-- 이 PBX 가 보류를 받아 줄 때만 버튼을 만든다. 없으면 눌러도 400 이다. -->
-                            <DataTrigger Binding="{Binding CanHold}" Value="True">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding IsOnHold}" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
-                                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-
-            <!--
+    <UniformGrid Grid.Row="3" Rows="1" Margin="0,4,0,0">
+      <Button Height="64" FontSize="11" Padding="2,4" Margin="3,0" Command="{Binding ToggleMuteCommand}">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+            <Setter Property="Content" Value="마이크 끄기" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                <Setter Property="Content" Value="마이크 켜기" />
+                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
+                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+        <Button.ContentTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <icons:AppIcon Kind="Mic" Size="20" Margin="0,0,0,7" />
+              <TextBlock Text="{Binding}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </Button.ContentTemplate>
+      </Button>
+      <Button Height="64" FontSize="11" Padding="2,4" Content="통화 전환" Margin="2,0" Style="{StaticResource ButtonSecondary}" Command="{Binding Transfer.StartTransferCommand}">
+        <Button.ContentTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <icons:AppIcon Kind="Transfer" Size="20" Margin="0,0,0,7" />
+              <TextBlock Text="{Binding}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </Button.ContentTemplate>
+      </Button>
+      <!-- 보류 중일 때와 요청만 나간 때를 다른 문구로 적는다. 같은 말이면 안 걸린 보류를 걸렸다고 읽는다. -->
+      <Button Height="64" FontSize="11" Padding="2,4" Margin="2,0" Content="{Binding HoldButtonText}" Command="{Binding ToggleHoldCommand}">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <!-- 이 PBX 가 보류를 받아 줄 때만 버튼을 만든다. 없으면 눌러도 400 이다. -->
+              <DataTrigger Binding="{Binding CanHold}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+              <DataTrigger Binding="{Binding IsOnHold}" Value="True">
+                <Setter Property="Background" Value="{DynamicResource BrushWarning}" />
+                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+        <Button.ContentTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <icons:AppIcon Kind="Pause" Size="20" Margin="0,0,0,7" />
+              <TextBlock Text="{Binding}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </Button.ContentTemplate>
+      </Button>
+      <!--
                 고객 정보. 스크린팝이 실어 온 것이 있을 때만 버튼을 만든다 — 없는 통화도 있고,
                 그때 빈 창을 여는 버튼을 띄우면 조회가 실패한 줄 알고 기다린다.
                 서브 창은 통화 화면 옆에 서므로 통화 중에 봐도 화면이 가려지지 않는다.
             -->
-            <Button Content="고객 정보" Margin="2,0"
-                    Command="{Binding Customer.OpenCommand}">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Customer.HasCustomerInfo}" Value="True">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-
-            <Button Content="키패드" Margin="2,0"
-                    Command="{Binding Keypad.ToggleKeypadCommand}">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Keypad.ShowsKeypad}" Value="True">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-        </UniformGrid>
-
-        <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0"
-                   Text="{Binding NoticeMessage}"
-                   Foreground="{DynamicResource BrushWarning}"
-                   Style="{StaticResource TextCaption}" />
-    </Grid>
+      <Button Height="64" FontSize="11" Padding="2,4" Content="고객 정보" Margin="2,0" Command="{Binding Customer.OpenCommand}">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Customer.HasCustomerInfo}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+        <Button.ContentTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <icons:AppIcon Kind="Users" Size="20" Margin="0,0,0,7" />
+              <TextBlock Text="{Binding}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </Button.ContentTemplate>
+      </Button>
+      <Button Height="64" FontSize="11" Padding="2,4" Content="키패드" Margin="2,0" Command="{Binding Keypad.ToggleKeypadCommand}">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Keypad.ShowsKeypad}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+        <Button.ContentTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <icons:AppIcon Kind="Keypad" Size="20" Margin="0,0,0,7" />
+              <TextBlock Text="{Binding}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </Button.ContentTemplate>
+      </Button>
+    </UniformGrid>
+    <Button Grid.Row="4" Style="{StaticResource ButtonDanger}" Height="42" Margin="0,12,0,0" Command="{Binding HangupCommand}" AutomationProperties.Name="통화 종료">
+      <StackPanel Orientation="Horizontal">
+        <icons:AppIcon Kind="PhoneOff" Size="18" Margin="0,0,8,0" />
+        <TextBlock Text="통화 종료" VerticalAlignment="Center" />
+      </StackPanel>
+    </Button>
+    <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0" Text="{Binding NoticeMessage}" Foreground="{DynamicResource BrushWarning}" Style="{StaticResource TextCaption}" />
+  </Grid>
 </UserControl>

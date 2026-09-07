@@ -7,8 +7,7 @@ using Drawing = System.Drawing;
 namespace KAster.Desktop.App.Services;
 
 /// <summary>
-/// 트레이 아이콘 그림. 상태마다 색만 다른 원 하나다 — 16px 안에서 알아볼 수 있는 것은 색뿐이고,
-/// 무엇이 문제인지는 툴팁이 말한다.
+/// 공통 헤드셋 앱 아이콘에 테마 상태 배지를 얹는다. 상태 설명은 툴팁이 제공한다.
 ///
 /// 색은 <c>Tokens.xaml</c> 에서 온다. 여기에 색상 리터럴을 적으면 테마를 고쳐도 트레이만 옛 색으로 남는다.
 /// </summary>
@@ -17,6 +16,8 @@ public sealed class TrayIconArt : IDisposable
 {
     /// <summary>토큰을 못 찾았을 때 쓸 색. 아이콘이 아예 안 보이는 것보다 낫다.</summary>
     private static readonly Drawing.Color Fallback = Drawing.Color.Gray;
+    private static readonly System.Resources.ResourceManager Artwork = new(
+        "KAster.Desktop.App.g", typeof(TrayIconArt).Assembly);
 
     private readonly Func<string, Color?> _themeColor;
     /// <summary>상태와 깜빡임 프레임의 짝마다 하나. 매 틱 새로 그리면 GDI 핸들이 계속 늘어난다.</summary>
@@ -58,9 +59,16 @@ public sealed class TrayIconArt : IDisposable
         using var bitmap = new Drawing.Bitmap(32, 32);
         using (var canvas = Drawing.Graphics.FromImage(bitmap))
         using (var brush = new Drawing.SolidBrush(fill))
+        using (var outline = new Drawing.Pen(Drawing.Color.White, 1.5f))
         {
             canvas.SmoothingMode = Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            canvas.FillEllipse(brush, 2, 2, 28, 28);
+            // Read the compiled WPF resource without Application or pack URI initialization.
+            using var stream = Artwork.GetStream("assets/kaster-agent.ico")
+                ?? throw new InvalidOperationException("The packaged application icon is missing.");
+            using var brand = new Drawing.Icon(stream, 32, 32);
+            canvas.DrawIcon(brand, new Drawing.Rectangle(0, 0, 32, 32));
+            canvas.FillEllipse(brush, 21, 21, 10, 10);
+            canvas.DrawEllipse(outline, 21, 21, 10, 10);
         }
 
         // GetHicon 이 준 핸들은 Icon 이 소유하지 않는다. 복제해 두고 원본은 바로 돌려준다 —

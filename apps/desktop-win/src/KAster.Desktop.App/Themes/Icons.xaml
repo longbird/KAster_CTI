@@ -1,0 +1,16 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Geometry x:Key="IconHeadset">M4 13v-2a8 8 0 0 1 16 0v2M4 11H3v7h4v-7H4Zm16 0h1v7h-4v-7h3ZM20 18v1a2 2 0 0 1-2 2h-6</Geometry>
+    <Geometry x:Key="IconPhone">m5 3 4 4-2 3a15 15 0 0 0 7 7l3-2 4 4-2 2C10 22 2 14 3 5Z</Geometry>
+    <Geometry x:Key="IconPhoneOff">M3 15v-4c5-5 13-5 18 0v4l-5-1v-3a13 13 0 0 0-8 0v3Z</Geometry>
+    <Geometry x:Key="IconUsers">M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v2 M12 8 A3 3 0 1 1 6 8 A3 3 0 1 1 12 8</Geometry>
+    <Geometry x:Key="IconQueue">M8 6h13M8 12h10M8 18h7M3 6h.01M3 12h.01M3 18h.01</Geometry>
+    <Geometry x:Key="IconBell">M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3ZM10 21h4</Geometry>
+    <Geometry x:Key="IconHistory">M3 10a9 9 0 1 1 2 8M3 4v6h6M12 7v6l4 2</Geometry>
+    <Geometry x:Key="IconSettingsDetail">M8 4v4M16 10v4M10 16v4</Geometry>
+    <Geometry x:Key="IconSettings">M4 6h16M4 12h16M4 18h16</Geometry>
+    <Geometry x:Key="IconLogout">M9 4H4v16h5M9 12h12m-4-4 4 4-4 4</Geometry>
+    <Geometry x:Key="IconMic">M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M8 22h8 M9 6 A3 3 0 0 1 15 6 V12 A3 3 0 0 1 9 12 Z</Geometry>
+    <Geometry x:Key="IconPause">M8 5v14M16 5v14</Geometry>
+    <Geometry x:Key="IconTransfer">M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4</Geometry>
+    <Geometry x:Key="IconKeypad">M6 5h.01M12 5h.01M18 5h.01M6 12h.01M12 12h.01M18 12h.01M6 19h.01M12 19h.01M18 19h.01</Geometry>
+</ResourceDictionary>

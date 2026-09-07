@@ -16,13 +16,13 @@
     <!-- 주색 -->
 
     <!-- 반경 -->
-    <CornerRadius x:Key="RadiusPanel">8</CornerRadius>
-    <CornerRadius x:Key="RadiusControl">4</CornerRadius>
+    <CornerRadius x:Key="RadiusPanel">16</CornerRadius>
+    <CornerRadius x:Key="RadiusControl">10</CornerRadius>
     <CornerRadius x:Key="RadiusChip">999</CornerRadius>
 
     <!-- 간격 -->
     <Thickness x:Key="PadPanel">16</Thickness>
-    <Thickness x:Key="PadControl">10,8</Thickness>
+    <Thickness x:Key="PadControl">10,6</Thickness>
     <Thickness x:Key="GapStack">0,0,0,12</Thickness>
 
     <!-- 글자 크기 -->
@@ -67,7 +67,30 @@
         <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource PadControl}" />
-        <Setter Property="Height" Value="34" />
+        <Setter Property="Height" Value="38" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Face" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource RadiusControl}">
+                        <!-- TextBox forwards Padding to its content host. Applying it as a
+                             margin as well subtracts the vertical inset twice and clips text. -->
+                        <ScrollViewer x:Name="PART_ContentHost" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource BrushBorderStrong}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource BrushAccent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55" /></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!--
@@ -94,7 +117,28 @@
         <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource PadControl}" />
-        <Setter Property="Height" Value="34" />
+        <Setter Property="Height" Value="38" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="PasswordBox">
+                    <Border x:Name="Face" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource RadiusControl}">
+                        <ScrollViewer x:Name="PART_ContentHost" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource BrushBorderStrong}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource BrushAccent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55" /></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="ButtonPrimary" TargetType="Button">
@@ -103,8 +147,8 @@
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextOnAccent}" />
         <Setter Property="Background" Value="{DynamicResource BrushAccent}" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Height" Value="38" />
+        <Setter Property="BorderThickness" Value="1" /><Setter Property="BorderBrush" Value="Transparent" /><Setter Property="Padding" Value="12,0" />
+        <Setter Property="Height" Value="40" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -113,6 +157,7 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Face"
                             Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
                             CornerRadius="{StaticResource RadiusControl}">
                         <!--
                             버튼이 지정한 정렬을 따른다. 여기서 Center 로 못박아 두면
@@ -120,13 +165,18 @@
                             몰리고, 버튼 쪽에서 무엇을 지정해도 바뀌지 않는다.
                             기본값은 그대로 가운데다 (ButtonPrimary 가 Center 로 둔다).
                         -->
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                          Margin="{TemplateBinding Padding}" RecognizesAccessKey="True" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource BrushAccentStrong}" />
+                            <Setter TargetName="Face" Property="Opacity" Value="0.94" />
                         </Trigger>
+                        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Face" Property="Opacity" Value="0.78" /></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource BrushText}" /></Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Face" Property="Background" Value="{DynamicResource BrushBorder}" />
                             <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
@@ -135,6 +185,7 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource BrushAccentStrong}" /></Trigger></Style.Triggers>
     </Style>
 
     <!--
@@ -181,12 +232,14 @@
     </Style>
 
     <Style x:Key="ButtonDanger" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
-        <Setter Property="Background" Value="{DynamicResource BrushDanger}" />
+        <Setter Property="Background" Value="{DynamicResource BrushDanger}" /><Setter Property="Foreground" Value="{DynamicResource BrushTextOnDanger}" />
+        <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource BrushDangerStrong}" /></Trigger></Style.Triggers>
     </Style>
 
     <Style x:Key="ButtonSecondary" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
         <Setter Property="Background" Value="{DynamicResource BrushSurfaceMuted}" />
         <Setter Property="Foreground" Value="{DynamicResource BrushText}" />
+        <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource BrushSecondaryHover}" /></Trigger></Style.Triggers>
     </Style>
 
     <!--
@@ -194,34 +247,17 @@
         16px 자리에서 뭉갠다. 선으로 그리므로 색은 쓰는 쪽이 정한다.
     -->
     <Geometry x:Key="IconAgents">M2.6,13.4 v-1 a2.6,2.6 0 0 1 2.6,-2.6 h1.6 a2.6,2.6 0 0 1 2.6,2.6 v1 M3.9,5.6 a2.2,2.2 0 1 0 4.4,0 a2.2,2.2 0 1 0 -4.4,0 M13.4,13.4 v-1 a2.6,2.6 0 0 0 -1.9,-2.5</Geometry>
-    <Geometry x:Key="IconQueue">M2.5,4.5 h11 M2.5,8 h7 M2.5,11.5 h9</Geometry>
-    <Geometry x:Key="IconBell">M8,2.6 a3.4,3.4 0 0 0 -3.4,3.4 v2.3 L3.6,9.9 h8.8 L11.4,8.3 V6 A3.4,3.4 0 0 0 8,2.6 Z M6.6,11.9 a1.4,1.4 0 0 0 2.8,0</Geometry>
 
     <!--
         머리말 막대의 아이콘 단추. 16px 그림 하나에 32px 누를 자리를 준다 —
         그림 크기대로 두면 못 누른다.
     -->
-    <Style x:Key="BarIconButton" TargetType="Button">
-        <Setter Property="Width" Value="30" />
-        <Setter Property="Height" Value="30" />
-        <Setter Property="Cursor" Value="Hand" />
+    <Style x:Key="BarIconButton" TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border x:Name="Face"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="{StaticResource RadiusControl}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource BrushSurfaceRaised}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
     </Style>
 
     <!--

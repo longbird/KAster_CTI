@@ -1,5 +1,7 @@
 # 데스크톱 상담원 앱 — 다크 콘솔 디자인
 
+> 2026-09-07 개정: 현재 화면과 아이콘은 [현대화 디자인](2026-09-07-desktop-modern-design.md)으로 대체됐다. 아래 색/트레이 설명은 8월 설계 기록이다. 현재 아이콘 생성기는 `apps/desktop-win/tools/make-app-icon.ps1`이며 화면과 트레이가 동일한 헤드셋 원본을 사용한다.
+
 **작성일**: 2026-08-23
 **대상**: `apps/desktop-win`
 **캔버스**: https://claude.ai/code/artifact/00f6b6d3-872f-4ede-86bd-e1334e2505e9
@@ -38,7 +40,7 @@
 
 ## 앱 아이콘
 
-헤드셋 실루엣, 청록 `#0f766e`. 생성기는 `apps/desktop-win/tools/make-app-icon.py` 이고
+당시 아이콘은 헤드셋 실루엣, 청록 `#0f766e`였다. 당시 Python 생성기는 9월 PowerShell 생성기로 교체됐고
 결과물은 `apps/desktop-win/src/KAster.Desktop.App/Assets/kaster-agent.ico` (256/128/64/48/32/16).
 
 크기마다 그림이 다르다 — 64 아래로는 마이크 붐을 빼고, 작아질수록 헤드밴드를 굵힌다.

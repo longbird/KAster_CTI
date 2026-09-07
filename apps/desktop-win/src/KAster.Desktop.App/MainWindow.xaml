@@ -5,6 +5,8 @@
         Width="440" Height="560"
         MinWidth="420" MinHeight="520"
         WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
         FontFamily="{StaticResource FontUi}"
         Background="{DynamicResource BrushBackground}"
         Foreground="{DynamicResource BrushText}"
