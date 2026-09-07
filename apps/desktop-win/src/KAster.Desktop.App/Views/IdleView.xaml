@@ -1,4 +1,4 @@
-<UserControl x:Class="KAster.Desktop.App.Views.IdleView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:icons="clr-namespace:KAster.Desktop.App.Controls" Background="{DynamicResource BrushBackground}">
+<UserControl x:Class="KAster.Desktop.App.Views.IdleView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:icons="clr-namespace:KAster.Desktop.App.Controls" xmlns:views="clr-namespace:KAster.Desktop.App.Views" Background="{DynamicResource BrushBackground}" Unloaded="OnUnloaded">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -371,12 +371,23 @@
                 </TextBlock.Style>
               </TextBlock>
             </Grid>
-            <Button Grid.Column="1" Margin="8,0,0,0" MinWidth="80" Style="{StaticResource ButtonPrimary}" IsDefault="True" Command="{Binding Dial.DialCommand}">
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+            <Button x:Name="OpenDialPadButton" Margin="6,0,0,0" Width="38" Padding="0" Style="{StaticResource ButtonSecondary}"
+                    ToolTip="발신 키패드" AutomationProperties.Name="발신 키패드" Click="OnOpenDialPad">
+              <icons:AppIcon Kind="Keypad" Size="20" />
+            </Button>
+            <Button Margin="6,0,0,0" MinWidth="72" Padding="10,0" Style="{StaticResource ButtonPrimary}" IsDefault="True" Command="{Binding Dial.DialCommand}" Click="OnCloseDialPad">
               <StackPanel Orientation="Horizontal">
                 <icons:AppIcon Kind="Phone" Size="17" Margin="0,0,7,0" />
                 <TextBlock Text="걸기" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
+            </StackPanel>
+            <Popup x:Name="DialPadPopup" PlacementTarget="{Binding ElementName=DialNumberField}" Placement="Top"
+                   VerticalOffset="-8" StaysOpen="False" AllowsTransparency="True" Opened="OnDialPadOpened" Closed="OnDialPadClosed">
+              <views:DialPadView x:Name="DialPad" Width="264" Target="{Binding ElementName=DialNumberField}"
+                                 CloseRequested="OnCloseDialPad" />
+            </Popup>
           </Grid>
         </StackPanel>
       </Grid>

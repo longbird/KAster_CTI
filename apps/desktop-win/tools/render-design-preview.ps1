@@ -40,6 +40,10 @@ function Render-View($name,$fixture,$width,$height,$file){
  $view.UseLayoutRounding=$true;$view.Width=$width;$view.Height=$height
  $view.Measure([Windows.Size]::new($width,$height));$view.Arrange([Windows.Rect]::new(0,0,$width,$height));$view.UpdateLayout()
  [void]$view.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::Render)
+ if($name -eq 'IdleView'){
+  $pad=$view.FindName('DialPad');$number=$view.FindName('DialNumberField')
+  if(-not [object]::ReferenceEquals($pad.Target,$number)){throw 'Dial pad target binding did not resolve to the number field.'}
+ }
  $bitmap=[Windows.Media.Imaging.RenderTargetBitmap]::new($width,$height,96,96,[Windows.Media.PixelFormats]::Pbgra32)
  $bitmap.Render($view)
  $encoder=[Windows.Media.Imaging.PngBitmapEncoder]::new();$encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bitmap))
@@ -49,6 +53,7 @@ function Render-View($name,$fixture,$width,$height,$file){
 }
 foreach($theme in @('Light','Dark')){
  $app.Resources.MergedDictionaries[0]=[Windows.Application]::LoadComponent([Uri]::new("/KAster.Desktop.App;component/Themes/Palette.$theme.xaml",[UriKind]::Relative))
+ Render-View 'DialPadView' (New-Fixture) 264 298 "dial-pad-$theme"
  foreach($size in @('normal','minimum')){
   $w=if($size -eq 'normal'){424}else{404};$h=if($size -eq 'normal'){521}else{481}
   Render-View 'LoginView' (New-Fixture) $w $h "login-$theme-$size"

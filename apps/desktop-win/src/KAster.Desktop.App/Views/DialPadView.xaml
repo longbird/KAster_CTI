@@ -1,0 +1,38 @@
+<UserControl x:Class="KAster.Desktop.App.Views.DialPadView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ FontFamily="{DynamicResource FontUi}" Foreground="{DynamicResource BrushText}"
+ PreviewKeyDown="OnPreviewKeyDown" PreviewTextInput="OnPreviewTextInput"
+ KeyboardNavigation.TabNavigation="Cycle">
+ <Border Padding="14" Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}"
+         BorderThickness="1" CornerRadius="16">
+  <StackPanel>
+   <DockPanel Margin="2,0,2,10">
+    <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="닫기" Height="28" FontSize="12"
+            Style="{DynamicResource ButtonSecondary}" Click="OnClose" Padding="10,0"
+            AutomationProperties.Name="발신 키패드 닫기"/>
+    <TextBlock Text="전화번호 입력" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+   </DockPanel>
+   <UniformGrid Columns="3" Rows="4">
+    <Button x:Name="Digit1" Content="1" Tag="1" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="1"/>
+    <Button x:Name="Digit2" Content="2" Tag="2" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="2"/>
+    <Button x:Name="Digit3" Content="3" Tag="3" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="3"/>
+    <Button x:Name="Digit4" Content="4" Tag="4" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="4"/>
+    <Button x:Name="Digit5" Content="5" Tag="5" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="5"/>
+    <Button x:Name="Digit6" Content="6" Tag="6" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="6"/>
+    <Button x:Name="Digit7" Content="7" Tag="7" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="7"/>
+    <Button x:Name="Digit8" Content="8" Tag="8" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="8"/>
+    <Button x:Name="Digit9" Content="9" Tag="9" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="9"/>
+    <Button x:Name="DigitStar" Content="*" Tag="*" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="*"/>
+    <Button x:Name="Digit0" Content="0" Tag="0" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="0"/>
+    <Button x:Name="DigitHash" Content="#" Tag="#" Height="42" Margin="2" FontSize="18" Style="{DynamicResource ButtonSecondary}" Click="OnDigit" AutomationProperties.Name="#"/>
+   </UniformGrid>
+   <UniformGrid Columns="2" Margin="0,8,0,0">
+    <Button x:Name="BackspaceButton" Content="한 글자 지우기" Margin="2" Height="32" FontSize="11"
+            Style="{DynamicResource ButtonSecondary}" Click="OnBackspace"/>
+    <Button x:Name="ClearButton" Content="전체 지우기" Margin="2" Height="32" FontSize="11"
+            Style="{DynamicResource ButtonSecondary}" Click="OnClear"/>
+   </UniformGrid>
+  </StackPanel>
+ </Border>
+</UserControl>
