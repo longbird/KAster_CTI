@@ -67,6 +67,7 @@ apps/desktop/         Electron 33 + electron-vite 데스크톱 소프트폰 (sip
 apps/capture-agent/    패킷 캡처 사이드카 (dumpcap. network_mode: host + NET_RAW 를 갖는 유일한 컨테이너)
 infra/asterisk/       PBX PJSIP / Dialplan / Manager 설정 초안
 deploy/sites/         사이트별 운영 배포 템플릿 (_template/ 만 커밋. compose.prod.yml + nginx)
+install/              단일 서버 설치 스크립트 (install.sh 단계별·멱등, site.conf 답안, make-offline-bundle.sh). 검증 조합: Ubuntu 22.04 + apt Asterisk 18.10
 scripts/              배포·검증 스크립트 (deploy-prod.sh, deploy-dev.sh, pbx-smoke-*, pbx-sip-security-prepare.sh)
 tools/                pbx-loadgen (C++/CMake 부하생성기), vite-dev-server-security.mjs (dev 서버 접근 가드)
 docs/                 설계 PDF + design/ operations/ qa/ features/ work-log/ + openapi.json

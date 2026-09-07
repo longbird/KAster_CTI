@@ -28,6 +28,7 @@ docs/                 기획·설계 PDF + ChatGPT 세션 분석 + 보조 설계
   docs/design/        보조 설계 MD (SIP Trunk, Hotlink, Ops 아키텍처)
   docs/chatgpt-archive/ 46 세션 transcript + preview + extractor
   docs/reference/     원본 PDF (합본, 제안서)
+install/              단일 서버 설치 스크립트 (install.sh 단계별·멱등, site.conf 답안, make-offline-bundle.sh)
 scripts/              운영 스크립트 (push_to_github 등)
 docker-compose.yml    Postgres 16 + Redis 7 로컬 인프라
 ```

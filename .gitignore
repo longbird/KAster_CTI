@@ -47,3 +47,9 @@ backups/
 /*-check.png
 scp_test.txt
 tmp_*_backfill.sql
+
+# 사이트 배포 디렉터리는 _template 만 커밋한다 (.env·INSTALL-SUMMARY·백업이 들어 있다)
+deploy/sites/*
+!deploy/sites/_template/
+# 설치 답안 파일 (초기 비밀번호가 들어갈 수 있다)
+install/site.conf

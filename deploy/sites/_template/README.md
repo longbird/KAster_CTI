@@ -7,7 +7,8 @@
 1. `_template`을 사이트 코드로 복제한다.
    예: `deploy/sites/acme-callcenter`
 2. `.env.example`을 `.env`로 복사하고 사이트 값으로 수정한다.
-3. 도메인과 PBX AMI 접속 값을 채운다.
+3. 도메인과 PBX AMI 접속 값, `KASTER_INTERNAL_SECRET`, 첫 테넌트·관리자 부트스트랩 값(`TENANT_BOOTSTRAP_*`)을 채운다.
+   부트스트랩은 테넌트가 0건일 때 한 번만 동작하고, 계정이 생기면 `.env` 에서 비운다.
 4. 운영 서버에서 아래 명령으로 사전 검증과 배포를 수행한다.
 
 ```bash
@@ -18,11 +19,13 @@ docker compose -f compose.prod.yml --env-file .env config
 
 ## 기본 가정
 
-- PBX 서버는 외부 또는 별도 서버에 이미 존재한다.
+- PBX 는 같은 서버(`AMI_HOST=host.docker.internal`, `/etc/asterisk` 등을 같은 경로로 마운트) 또는 별도 서버에 이미 존재한다.
+  별도 서버면 `server` 의 PBX 디렉터리 마운트가 빈 디렉터리를 가리키므로 PBX 설정 반영 기능을 쓰지 않는다.
 - PostgreSQL/Redis는 같은 compose에서 기동한다.
 - TLS는 외부 LB 또는 별도 ingress에서 종료한다.
 - 현재 프론트는 build-time env 방식이라 사이트마다 build 값이 달라진다.
 - 배포 전 `docs/operations/p3-release-preflight-20260506.md`의 중단 조건을 확인한다.
+- 단계별 절차는 `docs/operations/2026-09-03-site-installation-guide-runbook.md`.
 
 ## 디렉터리 구성
 

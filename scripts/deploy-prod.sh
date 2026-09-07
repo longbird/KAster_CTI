@@ -10,6 +10,7 @@ set -euo pipefail
 SITE_DIR=""
 SKIP_BACKUP="false"
 SKIP_HEALTH="false"
+NO_BUILD="false"
 
 usage() {
   cat <<'USAGE'
@@ -21,6 +22,7 @@ Required:
 Options:
   --skip-backup       Skip PostgreSQL backup. Use only for first deploy or rehearsal.
   --skip-health       Skip final HTTP readiness check.
+  --no-build          Do not build images (offline bundle already loaded them).
 USAGE
 }
 
@@ -36,6 +38,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --skip-health)
       SKIP_HEALTH="true"
+      shift
+      ;;
+    --no-build)
+      NO_BUILD="true"
       shift
       ;;
     -h|--help)
@@ -94,7 +100,7 @@ reject_placeholder() {
   local value
   value="$(env_value "$key")"
   case "$value" in
-    change_me|replace_with_*|dev_secret_change_me_in_prod|kaster|kaster_turn_dev_secret)
+    change_me|change_me_*|replace_with_*|dev_secret_change_me_in_prod|kaster|kaster_turn_dev_secret)
       echo "placeholder/default secret remains: $key=$value" >&2
       exit 1
       ;;
@@ -107,13 +113,13 @@ for key in \
   POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD JWT_SECRET \
   AMI_HOST AMI_PORT AMI_USERNAME AMI_SECRET AMI_RECONNECT_MS \
   ASTERISK_NODE_ID ASTERISK_OUTBOUND_CONTEXT ASTERISK_CONF_DIR \
-  REST_CORS_ORIGIN WS_CORS_ORIGIN \
+  REST_CORS_ORIGIN WS_CORS_ORIGIN KASTER_INTERNAL_SECRET \
   VITE_API_BASE_URL VITE_WS_URL VITE_USE_MOCK VITE_ACCESS_TOKEN_KEY
 do
   require_env "$key"
 done
 
-for key in POSTGRES_PASSWORD JWT_SECRET AMI_SECRET; do
+for key in POSTGRES_PASSWORD JWT_SECRET AMI_SECRET KASTER_INTERNAL_SECRET; do
   reject_placeholder "$key"
 done
 
@@ -129,6 +135,13 @@ if [ -f "$MARKER_PATH" ]; then
     echo "PBX config owner marker mismatch: $MARKER_PATH has '$MARKER_VALUE', expected '$SITE_CODE'" >&2
     exit 1
   fi
+fi
+
+# 상담원 설치 파일 공개 다운로드는 profile 로 켠다 (.env AGENT_DOWNLOADS_ENABLED=true).
+EXTRA_SERVICES=()
+if [ "$(env_value AGENT_DOWNLOADS_ENABLED)" = "true" ]; then
+  export COMPOSE_PROFILES=downloads
+  EXTRA_SERVICES+=(agent-downloads)
 fi
 
 compose() {
@@ -156,13 +169,22 @@ else
   echo ">>> backup: skipped by --skip-backup"
 fi
 
-echo ">>> build images"
-compose build server web admin
+# 서버 이미지에 빌드 식별자를 박는다. GET /admin/settings/system/version 이 이 값을 답한다.
+GIT_COMMIT="$(git -C "$(dirname "$0")/.." rev-parse HEAD 2>/dev/null || echo "")"
+BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export GIT_COMMIT BUILD_TIME
+
+if [ "$NO_BUILD" = "true" ]; then
+  echo ">>> build images: skipped by --no-build"
+else
+  echo ">>> build images (commit=${GIT_COMMIT:-unknown})"
+  compose build server web admin
+fi
 
 echo ">>> start services"
 compose up -d postgres redis
 compose up -d server
-compose up -d web admin gateway
+compose up -d web admin gateway "${EXTRA_SERVICES[@]}"
 
 if [ "$SKIP_HEALTH" != "true" ]; then
   HEALTH_URL="http://${API_DOMAIN}/api/v1/health/ready"

@@ -83,6 +83,42 @@ jobs:
       # 타입/번들 오류는 electron-vite build 로 충분히 잡힌다.
       - run: npm run build
 
+  installer:
+    name: installer (ubuntu-22.04)
+    # 검증된 조합(Ubuntu 22.04 + apt Asterisk 18.10)과 같은 러너에서 system·site·asterisk 단계를 실제로 실행한다.
+    # deploy·verify(이미지 빌드·기동)는 시간이 길어 여기서 돌리지 않는다 — 실 서버 리허설 항목.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y shellcheck
+          shellcheck -x -S warning install/install.sh install/lib/*.sh install/make-offline-bundle.sh scripts/deploy-prod.sh
+      - name: 답안 파일
+        run: sed -e 's/^PUBLIC_IP=.*/PUBLIC_IP=203.0.113.10/' -e 's/^TRUNK_SIP_PORT=.*/TRUNK_SIP_PORT=36070/' install/site.conf.example > /tmp/site.conf
+      - name: dry-run (전체 단계)
+        run: bash install/install.sh --config /tmp/site.conf --dry-run
+      - name: system · site · asterisk 단계 실행
+        run: sudo bash install/install.sh --config /tmp/site.conf --only system,site,asterisk
+      - name: 결과 확인
+        run: |
+          set -eux
+          sudo asterisk -rx "manager show settings" | grep -E "Manager \(AMI\):[[:space:]]+Yes"
+          sudo asterisk -rx "manager show user cti_middleware" | grep -q "cti_middleware"
+          test "$(sudo cat /etc/asterisk/.kaster-cti-config-owner)" = acme
+          sudo test -f /etc/asterisk/extensions_transfer.conf
+          sudo grep -q "permit = 172.16.0.0/255.240.0.0" /etc/asterisk/manager.conf
+          ! sudo ss -lun | grep -q ':5060 '
+          sudo test -f /opt/kaster_cti/deploy/sites/acme/.env
+          sudo docker compose -f /opt/kaster_cti/deploy/sites/acme/compose.prod.yml --env-file /opt/kaster_cti/deploy/sites/acme/.env config >/dev/null
+          # manager.conf 의 secret 과 .env 의 AMI_SECRET 이 1:1 인가
+          test "$(sudo sed -n 's/^secret = //p' /etc/asterisk/manager.conf)" = "$(sudo sed -n 's/^AMI_SECRET=//p' /opt/kaster_cti/deploy/sites/acme/.env)"
+      - name: 다시 실행해도 같은 결과 (멱등)
+        run: |
+          before="$(sudo sed -n 's/^AMI_SECRET=//p' /opt/kaster_cti/deploy/sites/acme/.env)"
+          sudo bash install/install.sh --config /tmp/site.conf --only site,asterisk
+          test "$before" = "$(sudo sed -n 's/^AMI_SECRET=//p' /opt/kaster_cti/deploy/sites/acme/.env)"
+
   hygiene:
     name: repo hygiene
     runs-on: ubuntu-latest

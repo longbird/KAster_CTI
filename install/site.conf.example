@@ -1,0 +1,54 @@
+# KAster CTI 설치 답안 파일.
+#
+#   cp install/site.conf.example install/site.conf   # 또는 install/install.sh --wizard 로 만든다
+#   sudo install/install.sh --config install/site.conf
+#
+# 셸 문법(KEY=value)이다. 값에 공백이 있으면 따옴표로 감싼다. 비워 둔 값은 스크립트가 정한다.
+# 비밀(DB·JWT·AMI·훅)은 여기 적지 않는다 — 스크립트가 만들어 사이트 .env 에만 둔다.
+
+# ---- 사이트 식별 ----
+SITE_CODE=acme                       # 영문·숫자·하이픈. 컨테이너·볼륨·PBX 소유 마커 이름
+TENANT_NAME="ACME 콜센터"             # 첫 테넌트(회사) 이름
+
+# ---- 주소 ----
+SITE_DOMAIN=cti.acme.example         # 상담원 웹
+ADMIN_DOMAIN=admin.cti.acme.example  # 관리자 콘솔
+API_DOMAIN=api.cti.acme.example      # API (데스크톱 앱이 접속)
+PUBLIC_SCHEME=http                   # 앞단에서 TLS 를 끝내면 https
+HTTP_PORT=80                         # gateway 가 여는 포트
+PUBLIC_IP=                           # 서버 공인 IP. 비우면 기본 경로 인터페이스 주소를 쓴다 (NAT 뒤면 반드시 적는다)
+
+# ---- 첫 계정 (비밀번호를 비우면 만들어서 INSTALL-SUMMARY.txt 에 적는다) ----
+ADMIN_LOGIN=admin                    # 첫 관리자(role=admin) 로그인 ID
+ADMIN_PASSWORD=
+ADMIN_EXTENSION=2000
+PLATFORM_ADMIN_LOGIN=platform        # 플랫폼 관리자 (/platform/login). 비우면 만들지 않는다
+PLATFORM_ADMIN_PASSWORD=
+
+# ---- PBX ----
+SIP_PORT=48950                       # 상담원 전화기·소프트폰 등록 포트 (UDP)
+TRUNK_SIP_PORT=                      # 통신사 트렁크 포트. 비우면 상담원 포트를 함께 쓴다
+TRUNK_PEER_IP=                       # 통신사 SIP 서버 IP. 있으면 방화벽에 그 IP 만 허용한다
+RTP_PORT_RANGE=10000:20000
+LOCAL_NETS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+SIP_SECURITY_PREPARE=true            # fail2ban + security 로그 (scripts/pbx-sip-security-prepare.sh)
+
+# ---- 타사 CID 프로그램 Call Report 포트 (사내망에서만 허용) ----
+CID_LOGI_TCP_PORT=28002
+CID_ICON_TCP_PORT=28003
+CID_CALLMANOR_TCP_PORT=28004
+
+# ---- 부가 ----
+AGENT_DOWNLOADS=true                 # 상담원 설치 파일 공개 다운로드 (포트 5175, 인증 없음)
+AGENT_DOWNLOADS_PORT=5175
+BACKUP_CRON=true                     # 매일 03:00 pg_dump → deploy/sites/<site>/backups
+FIREWALL=ufw                         # ufw | none
+
+# ---- 저장소 ----
+INSTALL_ROOT=/opt/kaster_cti         # 저장소가 놓일 곳. 이 스크립트를 이미 그 안에서 실행 중이면 그대로 쓴다
+REPO_URL=                            # 비우면 스크립트가 들어 있는 체크아웃을 복사한다. 예: https://github.com/longbird/KAster_CTI.git
+REPO_REF=main
+
+# ---- 안전장치 ----
+# 검증된 조합(Ubuntu 22.04 + apt Asterisk 18.10 + Ubuntu docker.io)이 아니면 멈춘다. true 면 경고만 하고 진행한다.
+ALLOW_UNVERIFIED=false

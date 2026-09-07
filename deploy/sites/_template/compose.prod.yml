@@ -49,6 +49,10 @@ services:
     build:
       context: ../../..
       dockerfile: apps/server/Dockerfile.prod
+      args:
+        # scripts/deploy-prod.sh 가 git rev-parse / date 로 채운다. 직접 build 하면 빈 값.
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: kaster/${SITE_CODE}-server:latest
     container_name: kaster-${SITE_CODE}-server
     restart: unless-stopped
@@ -74,7 +78,45 @@ services:
       ASTERISK_ATXFER_COMPLETE_CODE: ${ASTERISK_ATXFER_COMPLETE_CODE}
       ASTERISK_HOLD_FEATURE_CODE: ${ASTERISK_HOLD_FEATURE_CODE}
       ASTERISK_RESUME_FEATURE_CODE: ${ASTERISK_RESUME_FEATURE_CODE}
+      # ---- PBX 설정 파일 (컨테이너가 호스트 PBX 디렉터리에 직접 쓴다) ----
       ASTERISK_CONF_DIR: ${ASTERISK_CONF_DIR}
+      ASTERISK_SOUNDS_DIR: ${ASTERISK_SOUNDS_DIR:-/var/lib/asterisk/sounds/custom}
+      # 마커(.kaster-cti-config-owner)와 같아야 한다. deploy-prod.sh 는 마커를 SITE_CODE 와 비교한다.
+      ASTERISK_CONF_OWNER_ID: ${ASTERISK_CONF_OWNER_ID:-${SITE_CODE}}
+      ASTERISK_CONF_ALLOW_SHARED_WRITE: ${ASTERISK_CONF_ALLOW_SHARED_WRITE:-false}
+      ASTERISK_EXTERNAL_MEDIA_ADDRESS: ${ASTERISK_EXTERNAL_MEDIA_ADDRESS}
+      ASTERISK_EXTERNAL_SIGNALING_ADDRESS: ${ASTERISK_EXTERNAL_SIGNALING_ADDRESS}
+      ASTERISK_LOCAL_NETS: ${ASTERISK_LOCAL_NETS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      # 기본값을 두지 않는다. 닿지 않는 STUN 이 걸려 있으면 통화마다 수십 초 지연된다 (2026-08-21 실측).
+      ASTERISK_RTP_STUN_ADDRESS: ${ASTERISK_RTP_STUN_ADDRESS-}
+      ASTERISK_TRUNK_SIP_PORT: ${ASTERISK_TRUNK_SIP_PORT-}
+      # ---- 타사 CID 프로그램(로지/아이콘/콜마너) Call Report TCP ----
+      CID_TCP_HOST: 0.0.0.0
+      CID_LOGI_TCP_PORT: ${CID_LOGI_TCP_PORT:-28002}
+      CID_ICON_TCP_PORT: ${CID_ICON_TCP_PORT:-28003}
+      CID_CALLMANOR_TCP_PORT: ${CID_CALLMANOR_TCP_PORT:-28004}
+      # ---- 녹취 ----
+      RECORDING_STORAGE_ROOT: ${RECORDING_STORAGE_ROOT:-/var/spool/asterisk/monitor}
+      RECORDING_ENCRYPTION_ENABLED: ${RECORDING_ENCRYPTION_ENABLED:-false}
+      RECORDING_ENCRYPTION_KEY: ${RECORDING_ENCRYPTION_KEY-}
+      # ---- DB 장애 대응 스풀/LKG (아래 volumes 의 영속 볼륨) ----
+      RESILIENCE_LOCAL_SPOOL_DIR: /var/lib/kaster/spool
+      RESILIENCE_LKG_DIR: /var/lib/kaster/lkg
+      # ---- 첫 계정 부트스트랩 (각 테이블이 0건일 때만 동작. 계정이 생기면 .env 에서 비운다) ----
+      PLATFORM_ADMIN_BOOTSTRAP_LOGIN: ${PLATFORM_ADMIN_BOOTSTRAP_LOGIN-}
+      PLATFORM_ADMIN_BOOTSTRAP_PASSWORD: ${PLATFORM_ADMIN_BOOTSTRAP_PASSWORD-}
+      TENANT_BOOTSTRAP_CODE: ${TENANT_BOOTSTRAP_CODE-}
+      TENANT_BOOTSTRAP_NAME: ${TENANT_BOOTSTRAP_NAME-}
+      TENANT_BOOTSTRAP_ADMIN_LOGIN: ${TENANT_BOOTSTRAP_ADMIN_LOGIN-}
+      TENANT_BOOTSTRAP_ADMIN_PASSWORD: ${TENANT_BOOTSTRAP_ADMIN_PASSWORD-}
+      TENANT_BOOTSTRAP_ADMIN_EXTENSION: ${TENANT_BOOTSTRAP_ADMIN_EXTENSION-}
+      # ---- 데스크톱 소프트폰 등록 정보 ----
+      SOFTPHONE_ENABLED: ${SOFTPHONE_ENABLED:-false}
+      SOFTPHONE_SIP_SERVER: ${SOFTPHONE_SIP_SERVER-}
+      SOFTPHONE_SIP_DOMAIN: ${SOFTPHONE_SIP_DOMAIN-}
+      SOFTPHONE_SIP_TRANSPORT: ${SOFTPHONE_SIP_TRANSPORT:-udp}
+      # 백업 cron 이 성공 시각을 쓰는 파일. 비우면 시스템 모니터링에 "마지막 백업" 이 null 로 보인다.
+      RESILIENCE_BACKUP_STATUS_FILE: ${RESILIENCE_BACKUP_STATUS_FILE-}
       REST_CORS_ORIGIN: ${REST_CORS_ORIGIN}
       WS_CORS_ORIGIN: ${WS_CORS_ORIGIN}
       AUTO_SEED_DEMO_DATA: ${AUTO_SEED_DEMO_DATA:-false}
@@ -86,7 +128,20 @@ services:
       PACKET_CAPTURE_MAX_FILE_MB: ${PACKET_CAPTURE_MAX_FILE_MB:-500}
       PACKET_CAPTURE_RETENTION_DAYS: ${PACKET_CAPTURE_RETENTION_DAYS:-7}
       CAPTURE_AGENT_SOCKET: /var/run/kaster/capture.sock
+    extra_hosts:
+      # AMI_HOST=host.docker.internal 이 같은 서버의 PBX 를 가리키게 한다. PBX 가 다른 서버면 무해하다.
+      - "host.docker.internal:host-gateway"
     volumes:
+      # PBX 설정·멘트·대기음·녹취. 서버가 conf 를 렌더링해 쓰고 AMI 로 reload 한다.
+      # 이 마운트가 없으면 서버는 뜨지만 PBX 설정 반영·멘트 배포·녹취 재생이 조용히 실패한다.
+      - ${ASTERISK_CONF_DIR}:${ASTERISK_CONF_DIR}
+      - ${ASTERISK_SOUNDS_DIR:-/var/lib/asterisk/sounds/custom}:${ASTERISK_SOUNDS_DIR:-/var/lib/asterisk/sounds/custom}
+      - ${ASTERISK_MOH_DIR:-/var/lib/asterisk/moh}:/var/lib/asterisk/moh
+      - ${RECORDING_STORAGE_ROOT:-/var/spool/asterisk/monitor}:${RECORDING_STORAGE_ROOT:-/var/spool/asterisk/monitor}
+      - kaster_spool:/var/lib/kaster/spool
+      - kaster_lkg:/var/lib/kaster/lkg
+      # deploy-prod.sh 와 백업 cron 이 덤프를 놓는 곳. 서버는 backups/status 만 읽는다.
+      - ./backups:/var/lib/kaster/backups:ro
       # 상담원 데스크톱 설치 파일. scripts/publish-desktop-release.sh 가 호스트 쪽에 놓고
       # 서버는 읽기만 한다. 이 마운트가 없으면 릴리스 등록은 성공하는데 상담원이
       # "받기" 를 누르는 순간 404 가 나고, 그 실패는 서버 로그에만 남는다.
@@ -94,6 +149,12 @@ services:
       # capture-agent 와 공유한다. 소켓으로 지시하고, pcap 은 서버가 읽어 해시·암호화한다.
       - kaster_capture_ipc:/var/run/kaster
       - kaster_capture_data:/var/spool/kaster/packet-capture
+    ports:
+      # PBX 훅 스크립트(수신거부·Smart ARS)가 호스트의 127.0.0.1:3000 으로 콜백한다. 외부에는 열지 않는다.
+      - "127.0.0.1:3000:3000"
+      - "${CID_LOGI_TCP_PORT:-28002}:${CID_LOGI_TCP_PORT:-28002}"
+      - "${CID_ICON_TCP_PORT:-28003}:${CID_ICON_TCP_PORT:-28003}"
+      - "${CID_CALLMANOR_TCP_PORT:-28004}:${CID_CALLMANOR_TCP_PORT:-28004}"
 
   capture-agent:
     build:
@@ -115,6 +176,19 @@ services:
     volumes:
       - kaster_capture_ipc:/var/run/kaster
       - kaster_capture_data:/var/spool/kaster/packet-capture
+
+  # 상담원 데스크톱 설치 파일 공개 다운로드 (인증 없음, GET 만, IP 당 동시 3개).
+  # .env 에 AGENT_DOWNLOADS_ENABLED=true 를 두면 deploy-prod.sh 가 profile 을 켠다.
+  agent-downloads:
+    image: nginx:1.27-alpine
+    container_name: kaster-${SITE_CODE}-agent-downloads
+    restart: unless-stopped
+    profiles: ["downloads"]
+    volumes:
+      - ../../agent-downloads/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${AGENT_ARTIFACT_DIR:-./agent-artifacts}:/srv/downloads:ro
+    ports:
+      - "${AGENT_DOWNLOADS_PORT:-5175}:80"
 
   web:
     build:
@@ -147,5 +221,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  kaster_spool:
+  kaster_lkg:
   kaster_capture_ipc:
   kaster_capture_data:
