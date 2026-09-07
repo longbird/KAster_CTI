@@ -10,6 +10,8 @@
 | `production-deployment-standard.md` | 운영 배포 표준 |
 | `deployment-runbook.md` | 공유 개발/검증 서버 배포 절차 |
 | `2026-08-10-installation-scenario-prep-checklist.md` | 신규 사이트 설치 전 준비사항 체크리스트 |
+| `2026-09-03-site-installation-guide-runbook.md` | 현장 설치 단계별 매뉴얼 (서버·PBX·CTI·첫 계정·앱 배포·검증 통화) |
+| `2026-09-03-user-manual-runbook.md` | 실 업무 사용 매뉴얼 (상담원·수퍼바이저·관리자·플랫폼 관리자) |
 | `p3-release-preflight-20260506.md` | 운영 site 입력값과 릴리스 preflight |
 | `p0-readiness-checklist.md` | P0 운영 준비 완료 체크리스트 |
 

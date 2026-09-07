@@ -2,10 +2,11 @@
 
 > 배치 규칙은 루트 [`DOCS_GUIDE.md`](../../DOCS_GUIDE.md), 전체 인덱스는 [`docs/README.md`](../README.md).
 
-생성 기준일: 2026-08-08 · 총 38건
+생성 기준일: 2026-08-08 · 총 42건 (최종 갱신 2026-09-03)
 
 | 문서 |
 |---|
+| [`2026-09-03-design-vs-implementation-gap-analysis.md`](2026-09-03-design-vs-implementation-gap-analysis.md) |
 | [`2026-04-16-asterisk-config-ui-design.md`](2026-04-16-asterisk-config-ui-design.md) |
 | [`2026-04-19-mobile-redesign-phase2.md`](2026-04-19-mobile-redesign-phase2.md) |
 | [`2026-04-19-mobile-sidebar-design.md`](2026-04-19-mobile-sidebar-design.md) |

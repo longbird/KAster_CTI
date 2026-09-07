@@ -9,12 +9,12 @@
 
 | 경로 | 담는 것 | 문서 수 | 세부 목록 |
 |---|---|---:|---|
-| [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 36 | [`design/_index.md`](design/_index.md) |
-| [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 51 | [`plans/_index.md`](plans/_index.md) |
-| [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트 | 15 | [`operations/_index.md`](operations/_index.md) |
-| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 53 | [`qa/_index.md`](qa/_index.md) |
+| [`design/`](design/) | 설계·아키텍처·계약·분석·제안 | 42 | [`design/_index.md`](design/_index.md) |
+| [`plans/`](plans/) | 구현 계획·로드맵·범위·다음 작업 | 59 | [`plans/_index.md`](plans/_index.md) |
+| [`operations/`](operations/) | 운영 절차·배포/마이그레이션 Runbook·릴리스 게이트·매뉴얼 | 18 | [`operations/_index.md`](operations/_index.md) |
+| [`qa/`](qa/) | 검증 결과·smoke report·증적 | 34 (`.md`) | [`qa/_index.md`](qa/_index.md) |
 | [`reviews/`](reviews/) | 외부 문서·설계 검토 의견 | 1 | 아래 참조 |
-| [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 25 | [`work-log/_index.md`](work-log/_index.md) |
+| [`work-log/`](work-log/) | 날짜별·PR별 작업 로그 | 31 | [`work-log/_index.md`](work-log/_index.md) |
 | [`reference/`](reference/) | 원본 PDF·외부 원문 (수정 안 함) | 12 | [`reference/README.md`](reference/README.md) |
 | [`chatgpt-archive/`](chatgpt-archive/) | 대화 원문 아카이브 + 추출 스크립트 | — | — |
 
@@ -34,6 +34,9 @@
 | 현재 진행 계획 | [`plans/project-integrated-plan.md`](plans/project-integrated-plan.md) · [`plans/project-next-tasks.md`](plans/project-next-tasks.md) |
 | 운영 배포 | [`operations/production-deployment-standard.md`](operations/production-deployment-standard.md) · [`operations/deployment-runbook.md`](operations/deployment-runbook.md) |
 | 설치 준비 | [`operations/2026-08-10-installation-scenario-prep-checklist.md`](operations/2026-08-10-installation-scenario-prep-checklist.md) |
+| **현장 설치 (단계별)** | [`operations/2026-09-03-site-installation-guide-runbook.md`](operations/2026-09-03-site-installation-guide-runbook.md) |
+| **사용 매뉴얼 (상담원·수퍼바이저·관리자·플랫폼)** | [`operations/2026-09-03-user-manual-runbook.md`](operations/2026-09-03-user-manual-runbook.md) |
+| 설계 대비 구현 갭 (2026-09-03, PDF 3종·66건·신규 설계 5건) | [`design/2026-09-03-design-vs-implementation-gap-analysis.md`](design/2026-09-03-design-vs-implementation-gap-analysis.md) |
 | DB 마이그레이션 | [`operations/db-migration-runbook.md`](operations/db-migration-runbook.md) |
 | PBX 설정 반영 | [`operations/pbx-config-apply-runbook.md`](operations/pbx-config-apply-runbook.md) |
 | 기획 원본 (PDF) | [`reference/01_project_overview.pdf`](reference/01_project_overview.pdf) · [`02_practical_design.pdf`](reference/02_practical_design.pdf) · [`03_db_api_asterisk_spec.pdf`](reference/03_db_api_asterisk_spec.pdf) |
