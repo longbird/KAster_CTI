@@ -25,7 +25,7 @@
 - 민감값은 `docker-compose.dev.yml`에 직접 넣지 않고, 원격 루트 `.env`에서 주입한다.
 - `server` 컨테이너는 시작 시 아래 순서를 수행한다.
   - `npx prisma migrate deploy`
-  - `AUTO_SEED_DEMO_DATA=true`인 경우 demo seed
+  - `AUTO_SEED_DEMO_DATA=true`인 경우 demo seed (기본값 `false`. 개발 compose 만 명시적으로 `true`)
   - `node dist/src/main.js`
 
 ## 이번 장애의 근본 원인

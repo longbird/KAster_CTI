@@ -35,6 +35,7 @@ import { FeatureEntitlementModule } from './modules/feature-entitlement/feature-
 import { RecoveryModule } from './modules/resilience/recovery.module';
 import { PacketCaptureModule } from './modules/packet-capture/packet-capture.module';
 import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
+import { TenantBootstrapModule } from './modules/tenant-bootstrap/tenant-bootstrap.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
     TrendsModule,
     PacketCaptureModule,
     PlatformAdminModule,
+    TenantBootstrapModule,
     RecoveryModule,
     HealthModule,
   ],
