@@ -94,10 +94,20 @@ ensure_security_logger() {
   fi
 }
 
-install_fail2ban() {
+install_fail2ban() (
   local filter_src="$REPO_DIR/infra/security/pbx-sip-hardening/fail2ban/asterisk-pjsip-scan.conf"
   local jail_src="$REPO_DIR/infra/security/pbx-sip-hardening/fail2ban/kaster-pbx-sip.conf.example"
-  local jail_tmp="/tmp/kaster-pbx-sip.conf"
+  local jail_tmp
+
+  if [[ "$MODE" != "apply" ]]; then
+    run install -m 0644 "$filter_src" /etc/fail2ban/filter.d/asterisk-pjsip-scan.conf
+    echo "[dry-run] render $jail_src with SIP port $SIP_PORT and install /etc/fail2ban/jail.d/kaster-pbx-sip.conf"
+    return
+  fi
+
+  jail_tmp="$(mktemp "${TMPDIR:-/tmp}/kaster-pbx-sip.XXXXXX")"
+  # The subshell keeps this cleanup trap local and runs it on errors too.
+  trap 'rm -f -- "$jail_tmp"' EXIT
 
   sed "s/port = 48950/port = ${SIP_PORT}/; s/port=\"48950\"/port=\"${SIP_PORT}\"/" "$jail_src" > "$jail_tmp"
   run install -m 0644 "$filter_src" /etc/fail2ban/filter.d/asterisk-pjsip-scan.conf
@@ -111,7 +121,7 @@ install_fail2ban() {
       echo "fail2ban is not installed. Install fail2ban before enabling automatic bans." >&2
     fi
   fi
-}
+)
 
 print_nftables_hint() {
   cat <<HINT

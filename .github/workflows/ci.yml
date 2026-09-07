@@ -94,6 +94,8 @@ jobs:
         run: |
           sudo apt-get update -q && sudo apt-get install -y shellcheck
           shellcheck -x -S warning install/install.sh install/lib/*.sh install/make-offline-bundle.sh scripts/deploy-prod.sh
+      - name: SIP security temporary file regression
+        run: bash scripts/test-pbx-sip-security-prepare.sh
       - name: 답안 파일
         run: sed -e 's/^PUBLIC_IP=.*/PUBLIC_IP=203.0.113.10/' -e 's/^TRUNK_SIP_PORT=.*/TRUNK_SIP_PORT=36070/' install/site.conf.example > /tmp/site.conf
       - name: dry-run (전체 단계)
