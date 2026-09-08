@@ -7,6 +7,7 @@
 
 | 문서 | 내용 |
 | --- | --- |
+| [2026-09-08-desktop-update-installer-runbook.md](2026-09-08-desktop-update-installer-runbook.md) | 상담원 1.0.1 설치 파일, 일반/필수 업데이트 정책과 서버 등록 |
 | `production-deployment-standard.md` | 운영 배포 표준 |
 | `deployment-runbook.md` | 공유 개발/검증 서버 배포 절차 |
 | `2026-08-10-installation-scenario-prep-checklist.md` | 신규 사이트 설치 전 준비사항 체크리스트 |

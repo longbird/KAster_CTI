@@ -17,7 +17,7 @@ function New-Fixture{
  [pscustomobject]@{
   LoginId='agent1001';Extension='1001';AgentName='상담원';RememberMe=$true;AutoSignIn=$false;UseSoftphone=$false;ErrorMessage='';IsResuming=$false
   SignInCommand=$command;OpenSettingsCommand=$command;SignOutCommand=$command
-  IsConnected=$true;IsAvailable=$true;ToggleAvailabilityCommand=$command;NoticeMessage=''
+  IsConnected=$true;IsAvailable=$true;ToggleAvailabilityCommand=$command;NoticeMessage='';RequiresUpdate=$false
   WindowMode=[KAster.Desktop.App.Services.WindowMode]::Talking
   CalledLine='고객 상담';PhoneNumber='010-0000-1234';CustomerName='예시 고객';CallDurationText='02:34'
   MemoText=('서비스 이용 방법 문의'+[Environment]::NewLine+'안내 후 문자 발송 요청')
@@ -58,6 +58,8 @@ foreach($theme in @('Light','Dark')){
   $w=if($size -eq 'normal'){424}else{404};$h=if($size -eq 'normal'){521}else{481}
   Render-View 'LoginView' (New-Fixture) $w $h "login-$theme-$size"
   Render-View 'IdleView' (New-Fixture) $w $h "idle-$theme-$size"
+  $f=New-Fixture;$f.RequiresUpdate=$true;$f.Update.HasUpdate=$true;$f.Update.IsRequired=$true
+  Render-View 'IdleView' $f $w $h "required-update-$theme-$size"
   $f=New-Fixture;$f.DeskPhone.IsPhoneRegistered=$false;$f.DeskPhone.ShowsDeskPhoneSetup=$true;$f.DeskPhone.PhoneStatusText='전화기 연결 안 됨'
   Render-View 'IdleView' $f $w $h "setup-$theme-$size"
   $f=New-Fixture;$f.Dial.IsDialing=$true
@@ -70,6 +72,8 @@ foreach($theme in @('Light','Dark')){
   Render-View 'IdleView' $f $w $h "waiting-$theme-$size"
   $tw=if($size -eq 'normal'){444}else{404};$th=if($size -eq 'normal'){581}else{501}
   Render-View 'TalkingView' (New-Fixture) $tw $th "talking-$theme-$size"
+  $f=New-Fixture;$f.RequiresUpdate=$true
+  Render-View 'TalkingView' $f $tw $th "required-talking-$theme-$size"
   $f=New-Fixture;$f.Keypad.IsKeypadOpen=$true;$f.Customer.HasCustomerInfo=$true
   Render-View 'TalkingView' $f $tw $th "keypad-$theme-$size"
   $rh=if($size -eq 'normal'){381}else{341}

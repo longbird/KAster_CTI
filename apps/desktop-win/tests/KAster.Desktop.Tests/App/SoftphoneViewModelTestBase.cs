@@ -123,9 +123,11 @@ public abstract class SoftphoneViewModelTestBase
             new SoftphoneViewModel(
                 store, server, phone, Agent, () => _now, useSoftphone, withSipConfig ? SipConfig : null,
                 announcementReads ?? new MemoryStore<AnnouncementReadState>(new AnnouncementReadState()),
-                callPreferences is null ? null : () => callPreferences),
+                callPreferences is null ? null : () => callPreferences, TestUpdate),
             store, phone, stub);
     }
+
+    protected UpdateViewModel? TestUpdate { get; set; }
 
     protected static ActiveCall Call(SessionStatus status, DateTimeOffset? answeredAt = null) => new()
     {

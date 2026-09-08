@@ -413,6 +413,19 @@
           </StackPanel>
         </Button>
       </UniformGrid>
+      <TextBlock Text="필수 업데이트가 있습니다. 설정에서 설치 파일을 받아 설치해야 새 통화를 시작할 수 있습니다."
+                 TextWrapping="Wrap" Foreground="{DynamicResource BrushDanger}" Margin="0,4,0,4">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding RequiresUpdate}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
       <Grid Height="22">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />

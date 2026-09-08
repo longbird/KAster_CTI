@@ -19,6 +19,7 @@ public sealed class OfferViewModel : ObservableObject
     private readonly Action<Task> _track;
     private readonly Action<string> _note;
     private readonly Func<DateTimeOffset> _now;
+    private readonly Func<bool> _canAccept;
 
     private CallOffer? _offer;
 
@@ -44,7 +45,8 @@ public sealed class OfferViewModel : ObservableObject
         Action<string?> notify,
         Action<Task> track,
         Action<string> note,
-        Func<DateTimeOffset>? now = null)
+        Func<DateTimeOffset>? now = null,
+        Func<bool>? canAccept = null)
     {
         _store = store;
         _server = server;
@@ -52,8 +54,9 @@ public sealed class OfferViewModel : ObservableObject
         _track = track;
         _note = note;
         _now = now ?? (() => DateTimeOffset.UtcNow);
+        _canAccept = canAccept ?? (() => true);
 
-        AcceptOfferCommand = new RelayCommand(() => _track(RespondToOfferAsync(accept: true)), () => HasOffer);
+        AcceptOfferCommand = new RelayCommand(() => _track(RespondToOfferAsync(accept: true)), () => HasOffer && _canAccept());
         RejectOfferCommand = new RelayCommand(() => _track(RespondToOfferAsync(accept: false)), () => HasOffer);
 
         _store.OfferChanged += (_, offer) => OnOfferChanged(offer);
@@ -115,6 +118,11 @@ public sealed class OfferViewModel : ObservableObject
     /// </summary>
     public async Task RespondToOfferAsync(bool accept)
     {
+        if (accept && !_canAccept())
+        {
+            _notify("필수 업데이트를 설치한 뒤 통화를 수락할 수 있습니다.");
+            return;
+        }
         var offer = _offer;
         if (offer is null) return;
 

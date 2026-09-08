@@ -2,6 +2,7 @@ using System.IO;
 using System.Net.Http;
 using KAster.Desktop.Core.Server;
 using KAster.Desktop.Core.Updates;
+using KAster.Desktop.Core.Storage;
 
 namespace KAster.Desktop.App.ViewModels;
 
@@ -10,8 +11,8 @@ namespace KAster.Desktop.App.ViewModels;
 ///
 /// <para>
 /// <b>스스로 설치하지 않는다.</b> 통화 중에 앱이 꺼지면 고객 통화가 그 자리에서 끊긴다.
-/// 강제(<c>mandatory</c>) 릴리스도 마찬가지다 — 강제 표시는 문구를 세게 만들 뿐,
-/// 언제 설치할지는 상담원이 정한다.
+/// 필수 릴리스는 통화 화면이 새 통화를 제한한다. 기존 통화는 마칠 수 있으며,
+/// 설치 파일은 상담원이 직접 실행한다.
 /// </para>
 ///
 /// <para>
@@ -41,6 +42,7 @@ public sealed class UpdateViewModel : ObservableObject
     private readonly Func<bool> _isFree;
     private readonly Action<Task> _track;
     private readonly Action<string> _announce;
+    private readonly ISettingsStore<UpdateAvailability>? _requirementStore;
 
     private UpdateAvailability _found = UpdateAvailability.None;
     private DateTimeOffset? _checkedAt;
@@ -61,7 +63,8 @@ public sealed class UpdateViewModel : ObservableObject
         Func<DateTimeOffset> now,
         Func<bool> isFree,
         Action<Task> track,
-        Action<string> announce)
+        Action<string> announce,
+        ISettingsStore<UpdateAvailability>? requirementStore = null)
     {
         _client = client;
         _currentVersion = currentVersion;
@@ -71,6 +74,13 @@ public sealed class UpdateViewModel : ObservableObject
         _isFree = isFree;
         _track = track;
         _announce = announce;
+        _requirementStore = requirementStore;
+        var saved = requirementStore?.Load();
+        if (saved is { IsRequired: true } && AppVersion.IsNewer(saved.LatestVersion, currentVersion))
+        {
+            _found = saved;
+            _statusText = "필수 업데이트를 설치해야 새 통화를 시작할 수 있습니다.";
+        }
 
         CheckCommand = new RelayCommand(() => _track(CheckAsync()), () => !IsBusy);
         DownloadCommand = new RelayCommand(
@@ -93,7 +103,7 @@ public sealed class UpdateViewModel : ObservableObject
 
     public bool HasUpdate => _found.HasUpdate;
 
-    /// <summary>센터가 강제로 표시했거나 하한보다 낮다. <b>문구만 바뀐다.</b></summary>
+    /// <summary>센터가 필수로 지정했거나 하한보다 낮아 새 통화를 제한한다.</summary>
     public bool IsRequired => _found.IsRequired;
 
     public string LatestVersion => _found.LatestVersion;
@@ -133,6 +143,7 @@ public sealed class UpdateViewModel : ObservableObject
     /// <summary>1초마다 불린다. 주기가 안 됐으면 그대로 돌아간다.</summary>
     public void Tick()
     {
+        DownloadCommand.RaiseCanExecuteChanged();
         if (IsBusy) return;
         if (_checkedAt is { } last && _now() - last < TimeSpan.FromHours(CheckIntervalHours)) return;
 
@@ -261,6 +272,7 @@ public sealed class UpdateViewModel : ObservableObject
         Raise(nameof(LatestVersion));
         Raise(nameof(Notes));
         RaiseCommands();
+        _requirementStore?.Save(found.IsRequired ? found : UpdateAvailability.None);
     }
 
     private UpdateReport Report(string eventType, IReadOnlyDictionary<string, object>? metadata = null) => new()
@@ -279,5 +291,5 @@ public sealed class UpdateViewModel : ObservableObject
     }
 
     private static bool IsExpected(Exception ex)
-        => ex is CtiServerException or HttpRequestException or TaskCanceledException or IOException;
+        => ex is CtiServerException or HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException;
 }

@@ -24,7 +24,8 @@ public class UpdateViewModelTests : IDisposable
         if (Directory.Exists(_folder)) Directory.Delete(_folder, recursive: true);
     }
 
-    private (UpdateViewModel Vm, StubHttpHandler Stub) Build(string currentVersion = "1.3.0")
+    private (UpdateViewModel Vm, StubHttpHandler Stub) Build(string currentVersion = "1.3.0",
+        KAster.Desktop.Core.Storage.ISettingsStore<UpdateAvailability>? cache = null)
     {
         var stub = new StubHttpHandler();
         var client = new UpdateClient(new HttpClient(stub) { BaseAddress = Base }, () => "access", "pc-001");
@@ -38,7 +39,7 @@ public class UpdateViewModelTests : IDisposable
                 () => _now,
                 () => _free,
                 task => _work = task,
-                message => _announced.Add(message)),
+                message => _announced.Add(message), cache),
             stub);
     }
 
@@ -61,6 +62,25 @@ public class UpdateViewModelTests : IDisposable
 
     private static string Sha256Of(string text)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+
+    [Fact]
+    public async Task Requirement_is_saved_and_an_explicit_server_withdrawal_clears_it()
+    {
+        var cache = new KAster.Desktop.Core.Storage.JsonSettingsStore<UpdateAvailability>(
+            Path.Combine(_folder, "required.json"), UpdateAvailability.None);
+        var (vm, stub) = Build(cache: cache);
+        stub.Enqueue(HttpStatusCode.OK, SessionJson)
+            .Enqueue(HttpStatusCode.OK, ManifestJson(mandatory: true))
+            .Enqueue(HttpStatusCode.OK, ReportJson);
+        await vm.CheckAsync();
+        Assert.True(cache.Load().IsRequired);
+        var (restarted, _) = Build(cache: cache);
+        Assert.True(restarted.IsRequired);
+        stub.Enqueue(HttpStatusCode.OK, SessionJson).Enqueue(HttpStatusCode.OK, NoReleaseJson);
+        await vm.CheckAsync();
+        Assert.False(vm.IsRequired);
+        Assert.False(cache.Load().IsRequired);
+    }
 
     /// <summary>본문이 설치 파일인 응답과 봉투인 응답을 요청 경로로 갈라 준다.</summary>
     private static void ServeDownload(StubHttpHandler stub, string sha, string body)
@@ -134,7 +154,7 @@ public class UpdateViewModelTests : IDisposable
     /// 통화 중에 앱이 사라지면 고객 통화가 끊긴다.
     /// </summary>
     [Fact]
-    public async Task A_mandatory_release_is_said_more_firmly_and_nothing_else_changes()
+    public async Task A_mandatory_release_is_announced_without_automatic_download()
     {
         var (vm, stub) = Build();
         stub.Enqueue(HttpStatusCode.OK, SessionJson)

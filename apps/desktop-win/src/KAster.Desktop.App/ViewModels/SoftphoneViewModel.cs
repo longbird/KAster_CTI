@@ -44,6 +44,9 @@ public sealed class SoftphoneViewModel : ObservableObject
     private AgentStatusCode _agentStatus = AgentStatusCode.Available;
     private bool _canHold;
     private bool _isOnHold;
+    private string? _updateProtectedCallId;
+    private DateTimeOffset _nextUpdatePause;
+    private bool _updatePauseBusy;
 
     /// <summary>
     /// 보류 요청의 답을 기다리는 기한. 서버는 feature code 를 DTMF 로 넣을 뿐이라
@@ -93,20 +96,20 @@ public sealed class SoftphoneViewModel : ObservableObject
 
         // 순서가 있다. 돌려주기는 당겨받기가 훑어 온 통화 목록을 받고, 이력의 "다시 걸기" 는
         // 발신 칸에 번호를 넣는다. 받는 쪽이 먼저 서 있어야 한다.
-        Offer = new OfferViewModel(store, server, Notify, Track, Note, now);
+        Offer = new OfferViewModel(store, server, Notify, Track, Note, now, () => !RequiresUpdate);
         Transfer = new TransferViewModel(store, server, agent.Extension, now, Notify, Track, _preferences);
         Keypad = new KeypadViewModel(phone, server, useSoftphone, CurrentCallId, Notify, Track);
-        Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => IsFree, _preferences);
+        Dial = new DialViewModel(store, server, phone, now, Notify, Note, () => CanStartNewCall, _preferences);
         // 같은 통화 목록을 돌려주기와 상담원 목록이 함께 쓴다. 두 번 물어보지 않는다.
         Waiting = new WaitingCallsViewModel(
-            server, now, Notify, Note, Track, () => IsFree, ShareActiveCalls);
+            server, now, Notify, Note, Track, () => CanStartNewCall, ShareActiveCalls);
         History = new HistoryViewModel(
             server, agent.AgentId, now, Notify, Track, number => Dial.DialNumber = number, () => IsFree);
 
         // 읽기 전용 정보 화면들. 창을 만드는 일은 조립 지점이 하고, 여기서는 어느 창인지만 넘긴다.
         // 목록에서 바로 거는 길은 발신 화면을 지나간다 — "우리가 건 전화" 표시의 주인이 거기다.
         Directory = new AgentDirectoryViewModel(
-            server, agent.Extension, now, Notify, Track, () => IsFree, CallExtension);
+            server, agent.Extension, now, Notify, Track, () => CanStartNewCall, CallExtension);
         Queues = new QueueStatusViewModel(server, now, Track);
         Announcements = new AnnouncementsViewModel(server, announcementReads, agent.AgentId, now, Track);
         Customer = new CustomerInfoViewModel(store);
@@ -151,7 +154,7 @@ public sealed class SoftphoneViewModel : ObservableObject
         // 내가 건 전화에 "받기" 는 뜻이 없다. 소프트폰이면 알아서 받고, 실기기면 수화기를 든다.
         AnswerCommand = new RelayCommand(
             () => _ = AnswerAsync(),
-            () => WindowMode == WindowMode.Ringing && !Dial.IsOutboundCall);
+            () => WindowMode == WindowMode.Ringing && !Dial.IsOutboundCall && CanAnswerForUpdate);
 
         // 그 판정의 주인이 발신 쪽이므로, 바뀌면 여기 버튼을 다시 열고 닫아야 한다.
         Dial.OutboundMarkChanged += (_, _) => AnswerCommand.RaiseCanExecuteChanged();
@@ -166,14 +169,36 @@ public sealed class SoftphoneViewModel : ObservableObject
             () => CanHold && WindowMode == WindowMode.Talking && !IsHoldRequestPending);
         ToggleAvailabilityCommand = new RelayCommand(
             () => _ = ChangeStatusAsync(IsAvailable ? AgentStatusCode.Break : AgentStatusCode.Available),
-            () => IsFree);
+            () => IsFree && !RequiresUpdate);
 
         // 통화 중 로그아웃은 막는다. 고객이 끊긴 줄 모른 채 남는다.
         SignOutCommand = new RelayCommand(() => SignOutRequested?.Invoke(this, EventArgs.Empty), () => IsFree);
         OpenSettingsCommand = new RelayCommand(
             () => SettingsRequested?.Invoke(this, EventArgs.Empty),
-            () => IsFree);
+            () => CanManageUpdate);
+
+        if (Update is not null)
+            Update.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName != nameof(UpdateViewModel.IsRequired)) return;
+                if (RequiresUpdate && !_updateWasRequired) _updateProtectedCallId = CurrentCallId();
+                _updateWasRequired = RequiresUpdate;
+                if (!RequiresUpdate) _updateProtectedCallId = null;
+                Raise(nameof(RequiresUpdate));
+                Dial.DialCommand.RaiseCanExecuteChanged();
+                AnswerCommand.RaiseCanExecuteChanged();
+                Offer.AcceptOfferCommand.RaiseCanExecuteChanged();
+                ToggleAvailabilityCommand.RaiseCanExecuteChanged();
+            };
     }
+
+    private bool _updateWasRequired;
+    public bool RequiresUpdate => Update?.IsRequired == true;
+    public bool CanManageUpdate => WindowMode is WindowMode.Idle or WindowMode.AfterCall
+        && !Dial.IsDialing && (WindowMode == WindowMode.AfterCall || !Dial.IsOutboundCall);
+    private bool CanStartNewCall => IsFree && !RequiresUpdate;
+    private bool CanAnswerForUpdate => !RequiresUpdate || Dial.IsOutboundCall
+        || (CurrentCallId() is { } id && id == _updateProtectedCallId);
 
     /// <summary>이 자리의 전화기가 살아 있는가. 실기기면 등록 안내도 여기가 든다.</summary>
     public DeskPhoneViewModel DeskPhone { get; }
@@ -594,6 +619,7 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public async Task AnswerAsync(CancellationToken ct = default)
     {
+        if (!CanAnswerForUpdate) { Notify("필수 업데이트를 설치한 뒤 통화를 시작할 수 있습니다."); return; }
         var callId = CurrentCallId();
         if (callId is null) return;
 
@@ -801,6 +827,11 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     private void RunAutoCallActions()
     {
+        // 통화·발신 요청이 끝난 후 큐에서 빠진다. 실패 시 30초 후 재시도한다.
+        if (RequiresUpdate && WindowMode is WindowMode.Idle or WindowMode.AfterCall
+            && !Dial.IsDialing && !Dial.IsOutboundCall && !_updatePauseBusy
+            && AgentStatus != AgentStatusCode.Break && _now() >= _nextUpdatePause)
+            Track(PauseForUpdateAsync());
         // 트레이로 내려갈 때 통화 중이었으면 끝난 지금 바꾼다.
         if (_awayWhenFree && IsFree)
         {
@@ -838,8 +869,21 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     public async Task ChangeStatusAsync(AgentStatusCode status, string? reasonCode = null, CancellationToken ct = default)
     {
+        if (RequiresUpdate && status == AgentStatusCode.Available)
+        {
+            Notify("필수 업데이트를 설치한 뒤 대기로 복귀할 수 있습니다.");
+            return;
+        }
         var changed = await Send(() => _server.ChangeAgentStatusAsync(_agent.AgentId, status, reasonCode, ct));
         if (changed is not null) AgentStatus = changed.StatusCode;
+    }
+
+    private async Task PauseForUpdateAsync()
+    {
+        _updatePauseBusy = true;
+        _nextUpdatePause = _now().AddSeconds(30);
+        try { await ChangeStatusAsync(AgentStatusCode.Break); }
+        finally { _updatePauseBusy = false; }
     }
 
     private string? CurrentCallId() => _store.Current?.Server?.CallId;

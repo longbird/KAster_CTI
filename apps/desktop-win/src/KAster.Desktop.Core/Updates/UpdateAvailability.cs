@@ -4,9 +4,8 @@ namespace KAster.Desktop.Core.Updates;
 /// 지금 이 PC 가 무엇을 들어야 하는지. <b>순수 함수의 결과다</b> — 화면도 파일도 건드리지 않는다.
 ///
 /// <para>
-/// <b><see cref="IsRequired"/> 는 문구와 되풀이 여부만 바꾼다.</b> 강제 릴리스라고 앱을 끄거나
-/// 설치를 밀어붙이지 않는다 — 통화 중에 앱이 사라지면 고객 통화가 끊긴다. 낡은 클라이언트로
-/// 한 통 더 받는 것보다 끊긴 통화 한 통이 나쁘다. 언제 설치할지는 상담원이 정한다.
+/// <see cref="IsRequired"/> 이면 통화 화면이 새 통화를 제한한다.
+/// 기존 통화를 끊거나 설치 프로그램을 자동 실행하지는 않는다.
 /// </para>
 /// </summary>
 public sealed record UpdateAvailability

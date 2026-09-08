@@ -177,6 +177,7 @@ public sealed class DialViewModel : ObservableObject
     /// </summary>
     public async Task DialAsync(CancellationToken ct = default)
     {
+        if (!_isFree()) return;
         var number = CleanNumber(DialNumber);
         if (number.Length == 0) return;
 

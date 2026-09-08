@@ -308,11 +308,16 @@ public partial class MainWindow : Window
             AppRelease.Channel,
             AppPaths.UpdateDownloads,
             () => DateTimeOffset.UtcNow,
-            () => _softphone?.WindowMode == WindowMode.Idle,
+            () => _softphone?.CanManageUpdate == true,
             // 업데이트 작업은 스스로 실패를 삼키므로 여기서 붙잡을 것이 없다.
             // 예상 못 한 예외는 App 의 UnobservedTaskException 이 파일로 남긴다.
             _ => { },
-            message => _softphone?.ShowNotice(message));
+            message => _softphone?.ShowNotice(message),
+            new JsonSettingsStore<KAster.Desktop.Core.Updates.UpdateAvailability>(
+                System.IO.Path.Combine(AppPaths.Root, "required-update-" +
+                    Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                        System.Text.Encoding.UTF8.GetBytes(_settings.BaseUri.AbsoluteUri + "|" + login.Session.Agent.AgentId))) + ".json"),
+                KAster.Desktop.Core.Updates.UpdateAvailability.None));
 
         update.FolderRequested += (_, path) => OpenFolder(path);
 
@@ -377,6 +382,8 @@ public partial class MainWindow : Window
         _softphone = softphone;
         _update = update;
 
+        // 통화 명령을 열기 전에 필수 릴리스를 확인한다. 일시 실패 시 저장된 제한은 유지한다.
+        await update.CheckAsync();
         ApplyMode(WindowMode.Idle, softphone);
         StartHotkeys(softphone);
         _timer.Start();
