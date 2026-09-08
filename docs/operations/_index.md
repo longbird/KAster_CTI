@@ -7,6 +7,7 @@
 
 | 문서 | 내용 |
 | --- | --- |
+| [2026-09-08-desktop-tray-runbook.md](2026-09-08-desktop-tray-runbook.md) | 상담원 1.0.2 닫기 선택, 트레이 숨김과 수신 알림 복귀 |
 | [2026-09-08-desktop-update-installer-runbook.md](2026-09-08-desktop-update-installer-runbook.md) | 상담원 1.0.1 설치 파일, 일반/필수 업데이트 정책과 서버 등록 |
 | `production-deployment-standard.md` | 운영 배포 표준 |
 | `deployment-runbook.md` | 공유 개발/검증 서버 배포 절차 |

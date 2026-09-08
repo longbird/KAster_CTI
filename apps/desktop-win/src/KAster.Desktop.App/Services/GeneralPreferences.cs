@@ -7,10 +7,7 @@ namespace KAster.Desktop.App.Services;
 /// 조용히 달라지면 안 된다.
 ///
 /// <para>
-/// 닫기 버튼을 트레이 최소화로 바꾸는 항목(<see cref="CloseToTray"/>)은 <b>자리비움과 한 몸</b>이다.
-/// 서버는 앱이 붙어 있는지로 큐 배정을 정하므로, 상태를 안 바꾸면 상담원이 껐다고 생각한
-/// 자리로 전화가 가고 고객은 아무도 없는 자리에서 벨소리만 듣는다. 그래서 트레이로 내려갈 때
-/// 반드시 자리비움으로 바꾸고, 그 사실을 풍선으로 알린다.
+/// 닫기는 매번 종료와 트레이 숨김을 선택한다. 숨김은 상담 상태를 변경하지 않는다.
 /// </para>
 /// </summary>
 public sealed record GeneralPreferences
@@ -28,10 +25,7 @@ public sealed record GeneralPreferences
     public AppTheme Theme { get; init; } = AppTheme.System;
 
     /// <summary>
-    /// 닫기 버튼을 눌러도 끝나지 않고 트레이로 내려간다. <b>내려갈 때 자리비움으로 바뀐다.</b>
-    ///
-    /// 기본값은 꺼짐이다 — 지금까지 X 는 종료였고, 설정을 만들었다고 그 뜻이 조용히
-    /// 달라지면 상담원은 껐다고 생각한 앱이 계속 도는 것을 모른다.
+    /// 이전 버전의 설정 파일 호환용. 현재 닫기 동작은 이 값과 무관하게 선택창을 표시한다.
     /// </summary>
     public bool CloseToTray { get; init; }
 

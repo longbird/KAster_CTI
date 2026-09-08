@@ -13,6 +13,21 @@ namespace KAster.Desktop.Tests.App;
 /// </summary>
 public sealed class SoftphoneAttentionTests : SoftphoneViewModelTestBase
 {
+    [Fact]
+    public void Direct_incoming_call_notifies_once_and_dismisses_when_answered()
+    {
+        var (vm, store, _, _) = Build();
+        var alerts = new List<Alert>();
+        var dismissed = 0;
+        vm.AttentionRequested += (_, alert) => alerts.Add(alert);
+        vm.AttentionDismissed += (_, _) => dismissed++;
+        store.Apply(new CallCreatedEvent(Call(SessionStatus.RingingAgent)));
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.RingingAgent)));
+        Assert.Single(alerts);
+        Assert.Contains("010-1111-2222", alerts[0].Body);
+        store.Apply(new CallUpdatedEvent(Call(SessionStatus.Talking, _now)));
+        Assert.True(dismissed > 0);
+    }
     private static CallOfferedEvent Offered(string caller = "01034623453", int timeoutSeconds = 10)
         => new(new CallOffer
         {

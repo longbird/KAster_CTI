@@ -182,14 +182,19 @@ public partial class MainWindow : Window
         //
         // 트레이는 창 하나에 딸린 것이라 창이 사라질 때만 내린다. 로그아웃은 같은 창에서 이어지므로
         // ShutdownAsync 안에서 내리면 로그인 화면으로 돌아온 뒤 아이콘이 없어진다.
-        // 닫기를 트레이로 내리는 설정이 켜져 있으면 여기서 닫힘을 접는다.
+        // X와 Alt+F4는 종료 또는 숨김을 선택한다. 트레이의 명시적 종료만 바로 진행한다.
         Closing += (_, e) =>
         {
-            if (_quitting || _softphone is null) return;
-            if (!_general.Load().Sane().CloseToTray) return;
-
+            if (_quitting) return;
             e.Cancel = true;
-            HideToTray();
+            var choice = new CloseChoiceWindow { Owner = this };
+            if (choice.ShowDialog() != true) return;
+            if (choice.QuitRequested)
+            {
+                _quitting = true;
+                Dispatcher.BeginInvoke(new Action(Close));
+            }
+            else HideToTray();
         };
 
         Closed += async (_, _) =>
@@ -227,7 +232,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void RaiseAttention(Alert alert)
     {
-        var channels = AlertDelivery.For(IsActive, WindowState == WindowState.Minimized);
+        var channels = AlertDelivery.For(IsVisible && IsActive, WindowState == WindowState.Minimized);
 
         if (channels.HasFlag(AlertChannel.Balloon)) _tray.Balloon(alert);
         if (channels.HasFlag(AlertChannel.Flash)) WindowAttention.Flash(this);
@@ -485,19 +490,15 @@ public partial class MainWindow : Window
             : "없음";
 
     /// <summary>
-    /// 트레이로 내린다. <b>내려간 자리는 비어 있다</b> — 상태를 안 바꾸면 상담원이 껐다고
-    /// 생각한 자리로 전화가 가고, 고객은 아무도 없는 자리에서 벨소리만 듣는다.
-    ///
-    /// 그 사실을 반드시 알린다. 조용히 자리비움으로 바꾸면 상담원은 왜 전화가 안 오는지 모른다.
+    /// 창만 숨긴다. 상담 상태와 연결을 유지하여 수신 알림을 계속 받을 수 있다.
     /// </summary>
     private void HideToTray()
     {
+        _subWindows.CloseAll();
         Hide();
-        _softphone?.GoAway();
-
         _tray.Balloon(new Alert(
-            "자리비움",
-            "트레이로 내려갔습니다. 이 자리로는 전화가 배정되지 않습니다. 트레이 아이콘을 눌러 돌아오세요."));
+            "트레이로 숨겼습니다",
+            "상담 상태는 유지됩니다. 전화 알림을 클릭하거나 트레이 아이콘을 더블클릭하면 화면으로 돌아옵니다."));
     }
 
     /// <summary>
@@ -548,7 +549,6 @@ public partial class MainWindow : Window
         Topmost = preferences.AlwaysOnTop;
 
         // 트레이로 내리는 설정을 끄면서 창이 숨어 있으면 앱을 다시 꺼낼 길이 애매해진다.
-        if (!preferences.CloseToTray && !IsVisible) Show();
 
         return AutoStartRegistration.Apply(
             preferences.AutoStart,

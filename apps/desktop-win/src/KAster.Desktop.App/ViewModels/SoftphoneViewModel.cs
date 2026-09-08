@@ -888,6 +888,8 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     private string? CurrentCallId() => _store.Current?.Server?.CallId;
 
+    private string? _notifiedIncomingCallId;
+
     private void OnCurrentCallChanged(CurrentCall? call)
     {
         var server = call?.Server;
@@ -917,6 +919,20 @@ public sealed class SoftphoneViewModel : ObservableObject
             ? string.Empty
             : PhoneNumberFormat.ForDisplay(Dial.DialedNumber ?? server.Ani);
         PhoneNumber = server is not null && shown.Length == 0 ? "번호 없음" : shown;
+
+        if (WindowMode == WindowMode.Ringing && !Dial.IsOutboundCall && !Offer.HasOffer && server is not null)
+        {
+            if (_notifiedIncomingCallId != server.CallId)
+            {
+                _notifiedIncomingCallId = server.CallId;
+                AttentionRequested?.Invoke(this, OfferAlert.For(PhoneNumber, string.Empty));
+            }
+        }
+        else if (_notifiedIncomingCallId is not null)
+        {
+            _notifiedIncomingCallId = null;
+            AttentionDismissed?.Invoke(this, EventArgs.Empty);
+        }
 
         // 서버가 실제 음소거 상태를 알려주면 그 값을 따른다.
         if (server?.IsMuted is { } muted) IsMuted = muted;
