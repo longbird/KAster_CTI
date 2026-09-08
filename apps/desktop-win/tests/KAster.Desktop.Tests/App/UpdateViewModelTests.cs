@@ -64,6 +64,51 @@ public class UpdateViewModelTests : IDisposable
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
 
     [Fact]
+    public async Task Verified_download_requests_installer_launch()
+    {
+        var (vm, stub) = Build();
+        ServeDownload(stub, Sha256Of("installer"), "installer");
+        string? launched = null;
+        vm.InstallRequested += (_, path) => launched = path;
+        await vm.CheckAsync();
+        await vm.DownloadAsync();
+        Assert.Equal(vm.ReadyFilePath, launched);
+        Assert.NotNull(launched);
+    }
+
+    [Fact]
+    public async Task Installer_start_failure_keeps_verified_file_for_retry()
+    {
+        var (vm, stub) = Build();
+        ServeDownload(stub, Sha256Of("installer"), "installer");
+        vm.InstallRequested += (_, _) => throw new System.ComponentModel.Win32Exception("blocked");
+        await vm.CheckAsync();
+        await vm.DownloadAsync();
+        Assert.True(vm.HasFile);
+        Assert.True(vm.InstallCommand.CanExecute(null));
+        Assert.Contains("실행하지 못했습니다", vm.StatusText);
+    }
+
+    [Fact]
+    public async Task A_call_arriving_during_download_defers_install_and_tampering_prevents_retry()
+    {
+        var (vm, stub) = Build();
+        ServeDownload(stub, Sha256Of("installer"), "installer");
+        var launches = 0;
+        vm.InstallRequested += (_, _) => launches++;
+        vm.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(vm.ReadyFilePath)) _free = false; };
+        await vm.CheckAsync();
+        await vm.DownloadAsync();
+        Assert.Equal(0, launches);
+        Assert.False(vm.InstallCommand.CanExecute(null));
+        _free = true;
+        await File.WriteAllTextAsync(vm.ReadyFilePath!, "modified");
+        await vm.InstallAsync();
+        Assert.Equal(0, launches);
+        Assert.False(vm.HasFile);
+    }
+
+    [Fact]
     public async Task Requirement_is_saved_and_an_explicit_server_withdrawal_clears_it()
     {
         var cache = new KAster.Desktop.Core.Storage.JsonSettingsStore<UpdateAvailability>(

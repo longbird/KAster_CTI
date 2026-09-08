@@ -432,7 +432,7 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <TextBlock Text="{Binding NoticeMessage}" ToolTip="{Binding NoticeMessage}" Foreground="{DynamicResource BrushWarning}" Style="{StaticResource TextCaption}" VerticalAlignment="Center" />
-        <Button Grid.Column="1" Content="업데이트 있음" Padding="8,0" Background="Transparent" BorderThickness="0" Cursor="Hand" FontFamily="{StaticResource FontUi}" FontSize="{StaticResource FontSizeCaption}" FontWeight="SemiBold" Command="{Binding OpenSettingsCommand}">
+        <Button Grid.Column="1" Content="업데이트 있음" Padding="8,0" Background="Transparent" BorderThickness="0" Cursor="Hand" FontFamily="{StaticResource FontUi}" FontSize="{StaticResource FontSizeCaption}" FontWeight="SemiBold" Command="{Binding OpenUpdateCommand}">
           <Button.Style>
             <Style TargetType="Button">
               <Setter Property="Visibility" Value="Collapsed" />

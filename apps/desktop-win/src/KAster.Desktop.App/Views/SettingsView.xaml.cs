@@ -5,4 +5,5 @@ namespace KAster.Desktop.App.Views;
 public partial class SettingsView : UserControl
 {
     public SettingsView() => InitializeComponent();
+    public void ShowUpdates() => UpdateTab.IsSelected = true;
 }

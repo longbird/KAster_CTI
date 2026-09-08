@@ -230,7 +230,7 @@
       </StackPanel>
     </Button>
     <TextBlock Grid.Row="5" Height="20" Margin="0,8,0,0" Text="{Binding NoticeMessage}" Foreground="{DynamicResource BrushWarning}" Style="{StaticResource TextCaption}" />
-    <Button Grid.Row="5" Content="필수 업데이트 · 통화를 마친 뒤 설치하세요" Command="{Binding OpenSettingsCommand}" Margin="0,6,0,0">
+    <Button Grid.Row="5" Content="필수 업데이트 · 통화를 마친 뒤 설치하세요" Command="{Binding OpenUpdateCommand}" Margin="0,6,0,0">
       <Button.Style>
         <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
           <Setter Property="Visibility" Value="Collapsed" />

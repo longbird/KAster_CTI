@@ -37,6 +37,7 @@ public sealed class SubWindowService
     private readonly Func<ThemePalette> _palette;
 
     public int OpenCount => _ledger.Count;
+    public object? ContentOf(string key) => _ledger.TryGet(key, out var window) ? window!.Content : null;
 
     /// <summary>
     /// 이미 열려 있는 창들에 테마를 다시 입힌다. 배경은 리소스를 물고 있어 저절로 따라오지만,

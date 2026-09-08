@@ -381,7 +381,7 @@
                 </Border>
             </TabItem>
 
-            <TabItem Header="앱" Style="{StaticResource TabHeader}">
+            <TabItem x:Name="UpdateTab" Header="업데이트" Style="{StaticResource TabHeader}">
                 <Border Padding="{StaticResource PadPanel}"
                         Background="{DynamicResource BrushSurface}"
                         BorderBrush="{DynamicResource BrushBorder}"
@@ -432,15 +432,15 @@
                                         MinWidth="96"
                                         Style="{StaticResource ButtonSecondary}"
                                         Command="{Binding Update.CheckCommand}" />
-                                <Button Content="설치 파일 받기"
+                                <Button Content="다운로드 및 설치"
                                         Margin="8,0,0,0"
                                         MinWidth="110"
                                         Style="{StaticResource ButtonPrimary}"
                                         Command="{Binding Update.DownloadCommand}" />
                                 <!-- 받아 둔 것이 있을 때만 나타난다. 없는데 열면 빈 폴더가 뜬다. -->
-                                <Button Content="받은 폴더 열기"
+                                <Button Content="설치 실행"
                                         Margin="8,0,0,0"
-                                        Command="{Binding Update.OpenDownloadFolderCommand}">
+                                        Command="{Binding Update.InstallCommand}">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
                                             <Setter Property="Visibility" Value="Collapsed" />
@@ -457,7 +457,7 @@
                             <TextBlock Style="{StaticResource TextCaption}"
                                        TextWrapping="Wrap"
                                        Margin="0,10,0,0"
-                                       Text="설치는 상담원이 정합니다. 받은 파일은 통화가 없을 때 실행하세요." />
+                                       Text="다운로드와 검증이 끝나면 설치 프로그램을 실행하고 앱을 종료합니다. 통화 중이면 통화를 마친 뒤 ‘설치 실행’을 눌러 주세요." />
 
                             <Border Height="1"
                                     Background="{DynamicResource BrushBorder}"

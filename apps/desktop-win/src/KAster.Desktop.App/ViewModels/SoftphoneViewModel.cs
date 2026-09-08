@@ -176,6 +176,8 @@ public sealed class SoftphoneViewModel : ObservableObject
         OpenSettingsCommand = new RelayCommand(
             () => SettingsRequested?.Invoke(this, EventArgs.Empty),
             () => CanManageUpdate);
+        OpenUpdateCommand = new RelayCommand(
+            () => UpdateRequested?.Invoke(this, EventArgs.Empty), () => CanManageUpdate);
 
         if (Update is not null)
             Update.PropertyChanged += (_, args) =>
@@ -194,6 +196,8 @@ public sealed class SoftphoneViewModel : ObservableObject
 
     private bool _updateWasRequired;
     public bool RequiresUpdate => Update?.IsRequired == true;
+    public RelayCommand OpenUpdateCommand { get; }
+    public event EventHandler? UpdateRequested;
     public bool CanManageUpdate => WindowMode is WindowMode.Idle or WindowMode.AfterCall
         && !Dial.IsDialing && (WindowMode == WindowMode.AfterCall || !Dial.IsOutboundCall);
     private bool CanStartNewCall => IsFree && !RequiresUpdate;
@@ -397,6 +401,7 @@ public sealed class SoftphoneViewModel : ObservableObject
             ToggleAvailabilityCommand.RaiseCanExecuteChanged();
             SignOutCommand.RaiseCanExecuteChanged();
             OpenSettingsCommand.RaiseCanExecuteChanged();
+            OpenUpdateCommand.RaiseCanExecuteChanged();
             WindowModeRequested?.Invoke(this, value);
         }
     }

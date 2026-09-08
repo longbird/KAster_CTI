@@ -325,6 +325,16 @@ public partial class MainWindow : Window
                 KAster.Desktop.Core.Updates.UpdateAvailability.None));
 
         update.FolderRequested += (_, path) => OpenFolder(path);
+        update.InstallRequested += (_, path) =>
+        {
+            if (_softphone?.CanManageUpdate != true)
+                throw new InvalidOperationException("통화가 끝난 뒤 설치를 실행해 주세요.");
+            var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            if (process is null) throw new InvalidOperationException("설치 프로그램을 시작하지 못했습니다.");
+            process.Dispose();
+            _quitting = true;
+            Close();
+        };
 
         var softphone = new SoftphoneViewModel(
             runtime.Calls,
@@ -381,6 +391,7 @@ public partial class MainWindow : Window
         softphone.InfoWindowDismissed += (_, which) => _subWindows.Close(SpecOf(which).Key);
         // 메인 창은 그대로 있으므로 설정을 닫아도 되돌릴 화면이 없다.
         softphone.SettingsRequested += (_, _) => ShowSettings(useSoftphone, leave: null);
+        softphone.UpdateRequested += (_, _) => ShowSettings(useSoftphone, leave: null, showUpdates: true);
         runtime.RefreshHandler.SignedOut += (_, _) => Dispatcher.Invoke(SignOut);
 
         _runtime = runtime;
@@ -568,7 +579,7 @@ public partial class MainWindow : Window
     /// 설정을 닫은 뒤 다시 세워야 하는 화면. 로그인 화면은 서버 주소로 AuthClient 를 미리
     /// 만들어 두므로 주소가 바뀌면 다시 만들어야 한다. 이미 로그인한 세션은 이번 연결을 유지한다.
     /// </param>
-    private void ShowSettings(bool useSoftphone, Action? leave)
+    private void ShowSettings(bool useSoftphone, Action? leave, bool showUpdates = false)
     {
         _subWindows.Open(SettingsWindow, () =>
         {
@@ -606,6 +617,7 @@ public partial class MainWindow : Window
 
             return new SettingsView { DataContext = vm };
         });
+        if (showUpdates && _subWindows.ContentOf(SettingsWindow.Key) is SettingsView view) view.ShowUpdates();
     }
 
     /// <summary>

@@ -10,9 +10,8 @@ namespace KAster.Desktop.App.ViewModels;
 /// 새 버전이 있는지 확인하고 <b>상담원에게 알린다</b>.
 ///
 /// <para>
-/// <b>스스로 설치하지 않는다.</b> 통화 중에 앱이 꺼지면 고객 통화가 그 자리에서 끊긴다.
-/// 필수 릴리스는 통화 화면이 새 통화를 제한한다. 기존 통화는 마칠 수 있으며,
-/// 설치 파일은 상담원이 직접 실행한다.
+/// 다운로드는 상담원이 시작한다. 검증 후 통화가 없으면 설치 프로그램을 실행한다.
+/// 통화 도중에는 설치를 보류하고, 통화 종료 후 사용자가 다시 실행한다.
 /// </para>
 ///
 /// <para>
@@ -22,8 +21,7 @@ namespace KAster.Desktop.App.ViewModels;
 /// </para>
 ///
 /// <para>
-/// 받은 파일은 <b>실행하지 않는다</b>. 지문을 맞춘 뒤 폴더를 열어 주는 데까지가 이 화면의 일이다 —
-/// 우리 프로세스가 내려받은 실행 파일을 직접 띄우면 윈도우가 원래 걸어 주는 확인 절차를 건너뛴다.
+/// 실행 직전 지문과 통화 상태를 다시 검사한다. 실제 프로세스 실행은 조립 지점에서 처리한다.
 /// </para>
 /// </summary>
 public sealed class UpdateViewModel : ObservableObject
@@ -88,10 +86,13 @@ public sealed class UpdateViewModel : ObservableObject
             () => HasUpdate && !HasFile && !IsBusy && _isFree());
         OpenDownloadFolderCommand = new RelayCommand(
             () => FolderRequested?.Invoke(this, _downloadFolder));
+        InstallCommand = new RelayCommand(() => _track(InstallAsync()), () => HasFile && !IsBusy && _isFree());
     }
 
     /// <summary>이 폴더를 열어 달라. 탐색기를 띄우는 일은 조립 지점이 한다.</summary>
     public event EventHandler<string>? FolderRequested;
+    public event EventHandler<string>? InstallRequested;
+    public RelayCommand InstallCommand { get; }
 
     public RelayCommand CheckCommand { get; }
 
@@ -144,6 +145,7 @@ public sealed class UpdateViewModel : ObservableObject
     public void Tick()
     {
         DownloadCommand.RaiseCanExecuteChanged();
+        InstallCommand.RaiseCanExecuteChanged();
         if (IsBusy) return;
         if (_checkedAt is { } last && _now() - last < TimeSpan.FromHours(CheckIntervalHours)) return;
 
@@ -209,6 +211,7 @@ public sealed class UpdateViewModel : ObservableObject
         }
 
         var artifact = _found.Artifact;
+        var downloaded = false;
         IsBusy = true;
 
         try
@@ -227,6 +230,7 @@ public sealed class UpdateViewModel : ObservableObject
 
             StatusText = "설치 파일을 받았습니다. 통화가 없을 때 실행하세요.";
             await _client.ReportAsync(Report(UpdateEvents.DownloadVerified), ct);
+            downloaded = true;
         }
         catch (UpdateException ex)
         {
@@ -253,6 +257,34 @@ public sealed class UpdateViewModel : ObservableObject
         {
             IsBusy = false;
         }
+        if (downloaded) await InstallAsync(ct);
+    }
+
+    public async Task InstallAsync(CancellationToken ct = default)
+    {
+        if (IsBusy || !HasFile) return;
+        if (!_isFree()) { StatusText = "통화가 끝난 뒤 ‘설치 실행’을 눌러 주세요."; return; }
+        IsBusy = true;
+        try
+        {
+            // 실행 직전 다시 검증하며 실행 요청까지 읽기 핸들을 유지해 교체를 막는다.
+            using var file = File.OpenRead(ReadyFilePath!);
+            var hash = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(file, ct));
+            if (!string.Equals(hash, _found.Artifact?.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                ReadyFilePath = null;
+                StatusText = "설치 파일이 변경되었습니다. 다시 다운로드해 주세요.";
+                return;
+            }
+            if (!_isFree()) { StatusText = "통화가 끝난 뒤 ‘설치 실행’을 눌러 주세요."; return; }
+            InstallRequested?.Invoke(this, ReadyFilePath!);
+            StatusText = "설치 프로그램을 실행했습니다.";
+        }
+        catch (Exception ex) when (IsExpected(ex) || ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            StatusText = $"설치 프로그램을 실행하지 못했습니다: {ex.Message}";
+        }
+        finally { IsBusy = false; }
     }
 
     private void Apply(UpdateAvailability found)
@@ -288,6 +320,7 @@ public sealed class UpdateViewModel : ObservableObject
     {
         CheckCommand.RaiseCanExecuteChanged();
         DownloadCommand.RaiseCanExecuteChanged();
+        InstallCommand.RaiseCanExecuteChanged();
     }
 
     private static bool IsExpected(Exception ex)
